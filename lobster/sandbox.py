@@ -5,7 +5,11 @@ import sys
 import tarfile
 
 def dontpack(fn):
-    return '/.' in fn or '/CVS/' in fn
+    res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
+    if res:
+        return True
+    print fn
+    return False
 
 def package(indir, outfile):
     try:
@@ -15,7 +19,7 @@ def package(indir, outfile):
         rtname = os.path.split(os.path.normpath(indir))[1]
 
         # package bin, etc
-        subdirs = ['bin', 'lib', 'module', 'python']
+        subdirs = ['.SCRAM', 'bin', 'config', 'lib', 'module', 'python']
 
         for (path, dirs, files) in os.walk(indir):
             if 'data' not in dirs:

@@ -4,31 +4,34 @@ import re
 import sys
 import tarfile
 
-class Test(object):
-    def __init__(self, match):
-        if match.startswith('/') and match.endswith('/'):
-            self._test = re.compile(match[1:-1]).search
-        else:
-            match = '/{0}/'.format(match)
-            self._test = lambda s: match in s
+def dontpack(fn):
+    return '/.' in fn or '/CVS/' in fn
 
-    def __call__(self, fn):
-        return self._test(fn)
-
-def package(indir, outfile, excludes=['.git', 'CVS', '.SCRAM', 'test']):
-    tests = map(Test, excludes)
-
-    tarball = tarfile.open(outfile, 'w:bz2')
+def package(indir, outfile):
     try:
-        def exclusion(fn):
-            for t in tests:
-                if t(fn):
-                    return True
-            print fn
-            # sys.stdout.write("\r\kadding {0}".format(fn))
-            return False
+        tarball = tarfile.open(outfile, 'w:bz2')
+        tarball.dereference = True
 
-        tarname = os.path.split(os.path.normpath(indir))[1]
-        tarball.add(indir, tarname, exclude=exclusion)
-    finally:
+        rtname = os.path.split(os.path.normpath(indir))[1]
+
+        # package bin, etc
+        subdirs = ['bin', 'lib', 'module', 'python']
+
+        for (path, dirs, files) in os.walk(indir):
+            if 'data' not in dirs:
+                continue
+
+            rtpath = os.path.join(os.path.relpath(path, indir), 'data')
+            subdirs.append(rtpath)
+
+        for subdir in subdirs:
+            inname = os.path.join(indir, subdir)
+            if not os.path.isdir(inname):
+                continue
+            outname = os.path.join(rtname, subdir)
+            print "packing", subdir
+            tarball.add(inname, outname, exclude=dontpack)
+
         tarball.close()
+    except:
+        raise

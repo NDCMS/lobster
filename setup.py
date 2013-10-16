@@ -8,5 +8,6 @@ setup(name='Lobster',
         author='Anna Woodard, Matthias Wolf',
         url='https://github.com/matz-e/lobster',
         packages=['lobster'],
+        package_data={'lobster': ['data/job.py']}
         scripts=['lobster.py'],
         )

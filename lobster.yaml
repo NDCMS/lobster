@@ -1,6 +1,7 @@
+workdir: lobster.work
 
-
-- dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-  dataset label: TTJets
-  config: cmssw_config.py
-  parameters: []
+tasks:
+  - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
+    dataset label: TTJets
+    cmssw config: makeBEAN_cfg.py
+    parameters: []

@@ -6,12 +6,12 @@ import subprocess
 import sys
 
 class Shell(object):
-    def __init__(self, log):
+    def __init__(self, log, environ=None):
         outlog = log + '.out'
         errlog = log + '.err'
         self._cmdformat = "%%s 1>> '%s' 2>> '%s'; echo $?\n" % (outlog, errlog)
         self._shell = subprocess.Popen("bash", stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+                stderr=subprocess.PIPE, stdin=subprocess.PIPE, env=environ)
 
     def __lshift__(self, cmd):
         self._shell.stdin.write(self._cmdformat % (cmd,))
@@ -30,10 +30,14 @@ for d in os.listdir('.'):
     if d.startswith('CMSSW'):
         break
 
-sh = Shell('cmssw')
+env = os.environ
+env['X509_USER_PROXY'] = os.path.join(d, 'proxy')
+
+sh = Shell('cmssw', env)
 exit_code = 0
 
 try:
+    sh << 'voms-proxy-info'
     sh << 'cd "%s"' % (d,)
     sh << 'eval $(scramv1 runtime -sh)'
     sh << 'cd -'

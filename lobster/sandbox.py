@@ -20,6 +20,8 @@ def package(indir, outfile):
         # package bin, etc
         subdirs = ['.SCRAM', 'bin', 'config', 'lib', 'module', 'python']
 
+        subdirs.append((os.environ['X509_USER_PROXY'], 'proxy'))
+
         for (path, dirs, files) in os.walk(indir):
             if 'data' not in dirs:
                 continue
@@ -28,10 +30,14 @@ def package(indir, outfile):
             subdirs.append(rtpath)
 
         for subdir in subdirs:
+            if isinstance(subdir, tuple) or isinstance(subdir, list):
+                (subdir, sandboxname) = subdir
+            else:
+                sandboxname = subdir
             inname = os.path.join(indir, subdir)
-            if not os.path.isdir(inname):
+            if not os.path.exists(inname):
                 continue
-            outname = os.path.join(rtname, subdir)
+            outname = os.path.join(rtname, sandboxname)
             print "packing", subdir
             tarball.add(inname, outname, exclude=dontpack)
 

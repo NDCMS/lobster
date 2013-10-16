@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import urllib
-import urllib2
+import urllib, urllib2
 import json
+import time
+import sys
 
 class DASInterface:
     def __init__(self, host='https://cmsweb.cern.ch', path='/das/cache', debug=1):
@@ -9,7 +10,7 @@ class DASInterface:
         self.path = path
         self.debug = debug
 
-    def get_files(self, dataset):
+    def get_files(self, dataset, max_wait_time=120):
         query = 'file dataset = %s' % dataset
         url = self.host + self.path
         headers = {"Accept": "application/json"}
@@ -21,11 +22,24 @@ class DASInterface:
         request  = urllib2.Request(url=url, headers=headers)
 
         director = opener.open(request)
-        json_dict = json.loads(director.read())
+        data = director.read()
         director.close()
 
-        data = json_dict['data']
-        dataset_files = [row['file'][0]['name'] for row in data]
+        start_time = time.time()
+        while len(data) == 32:
+            time.sleep(10)
+
+            director = opener.open(request)
+            data = director.read()
+            director.close()
+
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_wait_time:
+                print 'Problem connecting to DAS server.  Timed out after %s seconds.' % int(elapsed_time)
+                sys.exit(99)
+
+        json_dict = json.loads(data)
+        dataset_files = [row['file'][0]['name'] for row in json_dict['data']]
 
         return dataset_files
 

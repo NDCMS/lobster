@@ -1,0 +1,6 @@
+
+import FWCore.ParameterSet.Config as cms
+
+process.source = cms.Source('PoolSource', fileNames = cms.untracked.vstring('{input_files}')
+
+

@@ -2,7 +2,7 @@
 import os
 import shutil
 import yaml
-from lobster import das_interface, sandbox, makeflow, task, cmssw_config_editor
+from lobster import das_interface, sandbox, task, cmssw_config_editor
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description='A job submission tool for CMS')

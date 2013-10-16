@@ -8,7 +8,6 @@ def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
     if res:
         return True
-    print fn
     return False
 
 def package(indir, outfile):

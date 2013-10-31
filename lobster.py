@@ -2,7 +2,7 @@
 import os
 import shutil
 import yaml
-from lobster import das_interface, sandbox, task, cmssw_config_editor
+from lobster import das_interface, sandbox, task, cmssw_config_editor, splitter
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description='A job submission tool for CMS')
@@ -39,13 +39,13 @@ for config_group in config['tasks']:
     if not os.path.exists(taskdir):
         os.makedirs(taskdir)
 
-    dataset_files = db.get_files(config_group['dataset'])
-    for datafile in dataset_files:
+    dataset_info = db[config_group['dataset']]
+    for id, config_params in splitter.split_by_lumi(config_group, dataset_info):
         outfile = task.insert_id(id, os.path.join(label, "output.tbz2"))
         # infile = task.insert_id(id, os.path.join(label, "output.tbz2"))
         cfgfile = task.insert_id(id, os.path.join(label, cms_config))
 
-        cmssw_config_editor.edit_IO_files(cms_config, os.path.join(workdir, cfgfile), datafile)
+        cmssw_config_editor.edit_IO_files(cms_config, os.path.join(workdir, cfgfile), config_params)
 
         cmd = "python job.py {output} {sandbox} {input}".format(
                 output=os.path.basename(outfile),
@@ -53,7 +53,6 @@ for config_group in config['tasks']:
                 sandbox=sandboxfile)
 
         tasks.append(task.Task(id, cmd, [transform(outfile)], ['job.py', sandboxfile, transform(cfgfile)]))
-        id += 1
 
 with open(os.path.join(workdir, 'Makeflow'), 'w') as f:
     f.write("\n".join(map(task.Task.to_makeflow, tasks)) + "\n")

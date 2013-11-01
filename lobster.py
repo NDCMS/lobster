@@ -39,20 +39,23 @@ for config_group in config['tasks']:
     if not os.path.exists(taskdir):
         os.makedirs(taskdir)
 
+    shutil.copy(cms_config, taskdir)
+
     dataset_info = db[config_group['dataset']]
-    for id, config_params in splitter.split_by_lumi(config_group, dataset_info):
+    num_tasks = splitter.split_by_lumi(config_group, dataset_info, taskdir)
+    for id in range(num_tasks):
         outfile = task.insert_id(id, os.path.join(label, "output.tbz2"))
-        # infile = task.insert_id(id, os.path.join(label, "output.tbz2"))
-        cfgfile = task.insert_id(id, os.path.join(label, cms_config))
+        cfgfile = os.path.join(label, cms_config)
+        task_list = os.path.join(label, 'task_list.json')
 
-        cmssw_config_editor.edit_IO_files(cms_config, os.path.join(workdir, cfgfile), config_params)
-
-        cmd = "python job.py {output} {sandbox} {input}".format(
+        cmd = "python job.py {output} {sandbox} {input} {task_list} {id}".format(
                 output=os.path.basename(outfile),
+                sandbox=sandboxfile,
                 input=os.path.basename(cfgfile),
-                sandbox=sandboxfile)
+                task_list = os.path.basename(task_list),
+                id=id)
 
-        tasks.append(task.Task(id, cmd, [transform(outfile)], ['job.py', sandboxfile, transform(cfgfile)]))
+        tasks.append(task.Task(id, cmd, [transform(outfile)], ['job.py', sandboxfile, transform(cfgfile), transform(task_list)]))
 
 with open(os.path.join(workdir, 'Makeflow'), 'w') as f:
     f.write("\n".join(map(task.Task.to_makeflow, tasks)) + "\n")

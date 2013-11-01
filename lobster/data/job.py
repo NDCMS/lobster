@@ -4,6 +4,17 @@ import os
 import tarfile
 import subprocess
 import sys
+import json
+
+def edit_process_source(cmssw_config_file, config_params):
+    (dataset_files, lumis) = config_params
+    config = open(cmssw_config_file, 'a')
+    with open(cmssw_config_file, 'a') as config:
+        fragment = ('import FWCore.ParameterSet.Config as cms'
+                    '\nprocess.source.fileNames = cms.untracked.vstring({input_files})'
+                    '\nprocess.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))'
+                    '\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})')
+        config.write(fragment.format(input_files=repr([str(f) for f in dataset_files]), lumis=[str(l) for l in lumis]))
 
 class Shell(object):
     def __init__(self, log, environ=None):
@@ -20,8 +31,8 @@ class Shell(object):
         if retval != 0:
             raise SystemError, retval
 
-(outboxfile, sandboxfile, configfile) = sys.argv[1:4]
-args = sys.argv[4:]
+(outboxfile, sandboxfile, configfile, task_file, id) = sys.argv[1:6]
+args = sys.argv[6:]
 
 sandbox = tarfile.open(sandboxfile, 'r:bz2')
 sandbox.extractall()
@@ -35,6 +46,10 @@ env['X509_USER_PROXY'] = os.path.join(d, 'proxy')
 
 sh = Shell('cmssw', env)
 exit_code = 0
+
+with open(task_file, 'r') as f:
+    task_list = json.load(f)
+    edit_process_source(configfile, task_list[int(id)])
 
 try:
     sh << 'voms-proxy-info'

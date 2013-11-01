@@ -29,7 +29,7 @@ def transform(file):
     return "{0}->{1}".format(file, os.path.basename(file))
 
 sandboxfile = 'cmssw.tar.bz2'
-sandbox.package(os.environ['LOCALRT'], os.path.join(workdir, sandboxfile))
+#sandbox.package(os.environ['LOCALRT'], os.path.join(workdir, sandboxfile))
 
 for config_group in config['tasks']:
     label = config_group['dataset label']
@@ -42,11 +42,11 @@ for config_group in config['tasks']:
     shutil.copy(cms_config, taskdir)
 
     dataset_info = db[config_group['dataset']]
-    num_tasks = splitter.split_by_lumi(config_group, dataset_info, taskdir)
+    cfgfile = os.path.join(label, cms_config)
+    task_list = os.path.join(label, 'task_list.json')
+    num_tasks = splitter.split_by_lumi(config_group, dataset_info, os.path.join(workdir, task_list))
     for id in range(num_tasks):
         outfile = task.insert_id(id, os.path.join(label, "output.tbz2"))
-        cfgfile = os.path.join(label, cms_config)
-        task_list = os.path.join(label, 'task_list.json')
 
         cmd = "python job.py {output} {sandbox} {input} {task_list} {id}".format(
                 output=os.path.basename(outfile),

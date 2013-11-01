@@ -2,7 +2,7 @@ import os
 from FWCore.PythonUtilities.LumiList import LumiList
 import json
 
-def split_by_lumi(config, dataset_info, task_directory):
+def split_by_lumi(config, dataset_info, task_list):
     if config.has_key('lumi mask'):
         lumi_mask = LumiList(filename=config['lumi mask'])
         dataset_info.total_lumis = 0
@@ -36,7 +36,7 @@ def split_by_lumi(config, dataset_info, task_directory):
         except:
             lumis_per_task = len(task_lumis_remaining)
 
-    with open(os.path.join(task_directory, 'task_list.json'), 'w') as json_file:
+    with open(task_list, 'w') as json_file:
         json.dump(tasks, json_file)
 
     return len(tasks)

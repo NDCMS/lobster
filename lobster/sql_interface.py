@@ -9,6 +9,9 @@ class SQLInterface:
         self.db = sqlite3.connect(self.db_path) #to do: add handling to check for lost jobs from previous execution, set status to failed
         self.db.execute("create table if not exists jobits(dataset, input_file, run, lumi, status, num_attempts, host, exit_code, run_time, startup_time)")
 
+    def disconnect(self):
+        self.db.close()
+        
     def register_jobits(self, das):
         datasets = [x['dataset'] for x in self.config['tasks']]
         for dataset in datasets:
@@ -37,3 +40,5 @@ class SQLInterface:
         job_parameters = [set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
 
         return job_parameters
+
+

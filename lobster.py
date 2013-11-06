@@ -2,7 +2,7 @@
 import os
 import shutil
 import yaml
-from lobster import das_interface, sandbox, task, cmssw_config_editor, splitter
+from lobster import das_interface, sandbox, task, splitter, sql_interface
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description='A job submission tool for CMS')
@@ -12,7 +12,7 @@ args = parser.parse_args()
 with open(args.config_file_name) as config_file:
     config = yaml.load(config_file)
 
-db = das_interface.DASInterface()
+das = das_interface.DASInterface()
 
 id = 0
 tasks = []
@@ -29,7 +29,10 @@ def transform(file):
     return "{0}->{1}".format(file, os.path.basename(file))
 
 sandboxfile = 'cmssw.tar.bz2'
-#sandbox.package(os.environ['LOCALRT'], os.path.join(workdir, sandboxfile))
+sandbox.package(os.environ['LOCALRT'], os.path.join(workdir, sandboxfile))
+
+db = sql_interface.SQLInterface(config)
+db.register_jobits(das)
 
 for config_group in config['tasks']:
     label = config_group['dataset label']
@@ -41,7 +44,7 @@ for config_group in config['tasks']:
 
     shutil.copy(cms_config, taskdir)
 
-    dataset_info = db[config_group['dataset']]
+    dataset_info = das[config_group['dataset']]
     cfgfile = os.path.join(label, cms_config)
     task_list = os.path.join(label, 'task_list.json')
     num_tasks = splitter.split_by_lumi(config_group, dataset_info, os.path.join(workdir, task_list))

@@ -6,7 +6,7 @@ class SQLInterface:
     def __init__(self, config):
         self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
-        self.db = sqlite3.connect(self.db_path) #to do: add handling to check for lost jobs from previous execution, set status to failed
+        self.db = sqlite3.connect(self.db_path)
         self.db.execute("create table if not exists jobits(job_id, dataset, input_file, run, lumi, status, num_attempts, host, exit_code, run_time, startup_time)")
         self.job_id_counter = 0
         self.db.commit()
@@ -29,19 +29,34 @@ class SQLInterface:
 
         self.db.commit()
 
-    def pop_jobits(self, size, old_status, new_status):
+    def reset_jobits(self):
+        with self.db as db:
+            db.execute("""update jobits set status='failed' where status='in progress'""")
+
+    def pop_jobits(self, size):
         self.job_id_counter += 1
+        id = str(self.job_id_counter)
         input_files = []
         lumis = []
-        for input_file, run, lumi in self.db.execute("select input_file, run, lumi from jobits where status=? limit ?", (old_status, size)):
+        dset = None
+        for dataset, input_file, run, lumi in self.db.execute("""
+                select dataset, input_file, run, lumi
+                from jobits
+                where status='registered' or status='failed'
+                group by dataset, input_file
+                limit ?""", (size,)):
+            if dset == None:
+                dset = dataset
+            elif dset != dataset:
+                break
+
             input_files.append(input_file)
             lumis.append((run, lumi))
-            self.db.execute("update jobits set status=?, job_id=? where run=? and lumi=?", (new_status, self.job_id_counter, run, lumi))
+            self.db.execute("update jobits set status='in progress', job_id=? where run=? and lumi=?",
+                (id, run, lumi))
 
         self.db.commit()
 
-        job_parameters = [set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
+        job_parameters = [id, dset, set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
 
         return job_parameters
-
-

@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import os
 import shutil
+import time
 import yaml
-from lobster import das_interface, sandbox, task, splitter, sql_interface
+from lobster import cmssw
+from lobster import job
 from argparse import ArgumentParser
+
+import work_queue as wq
 
 parser = ArgumentParser(description='A job submission tool for CMS')
 parser.add_argument('config_file_name', nargs='?', default='lobster.yaml', help='Configuration file to process.')
@@ -12,53 +16,49 @@ args = parser.parse_args()
 with open(args.config_file_name) as config_file:
     config = yaml.load(config_file)
 
-das = das_interface.DASInterface()
+# id = 0
+# tasks = []
 
-id = 0
-tasks = []
+# job_src = job.SimpleJobProvider("sleep 10", 25)
+job_src = cmssw.JobProvider(config)
 
-workdir = config['workdir']
+queue = wq.WorkQueue(12345)
 
-if not os.path.exists(workdir):
-    os.makedirs(workdir)
+while not job_src.done():
+    # need to lure workers into connecting to the master
+    stats = queue.stats
+    if stats.total_workers_joined + stats.tasks_waiting == 0:
+        num = 1
+    else:
+        num = stats.workers_ready
+    for i in range(num):
+    # for i in range(queue.stats.capacity - queue.stats.workers_busy):
+        job = job_src.obtain()
 
-shutil.copy(os.path.join(os.path.dirname(task.__file__), 'data', 'job.py'),
-        os.path.join(workdir, 'job.py'))
+        if not job:
+            break
 
-def transform(file):
-    return "{0}->{1}".format(file, os.path.basename(file))
+        (id, cmd, inputs, outputs) = job
 
-sandboxfile = 'cmssw.tar.bz2'
-sandbox.package(os.environ['LOCALRT'], os.path.join(workdir, sandboxfile))
+        task = wq.Task(cmd)
+        task.specify_tag(id)
 
-db = sql_interface.SQLInterface(config)
-db.register_jobits(das)
+        for (local, remote) in inputs:
+            if os.path.isfile(local):
+                task.specify_input_file(local, remote, wq.WORK_QUEUE_CACHE)
+            elif os.path.isdir(local):
+                task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
+                        wq.WORK_QUEUE_CACHE, recursive=True)
+            else:
+                raise NotImplementedError
 
-for config_group in config['tasks']:
-    label = config_group['dataset label']
-    cms_config = config_group['cmssw config']
+        for (local, remote) in outputs:
+            task.specify_output_file(local, remote)
 
-    taskdir = os.path.join(workdir, label)
-    if not os.path.exists(taskdir):
-        os.makedirs(taskdir)
+        queue.submit(task)
 
-    shutil.copy(cms_config, taskdir)
-
-    dataset_info = das[config_group['dataset']]
-    cfgfile = os.path.join(label, cms_config)
-    task_list = os.path.join(label, 'task_list.json')
-    num_tasks = splitter.split_by_lumi(config_group, dataset_info, os.path.join(workdir, task_list))
-    for id in range(num_tasks):
-        outfile = task.insert_id(id, os.path.join(label, "output.tbz2"))
-
-        cmd = "python job.py {output} {sandbox} {input} {task_list} {id}".format(
-                output=os.path.basename(outfile),
-                sandbox=sandboxfile,
-                input=os.path.basename(cfgfile),
-                task_list = os.path.basename(task_list),
-                id=id)
-
-        tasks.append(task.Task(id, cmd, [transform(outfile)], ['job.py', sandboxfile, transform(cfgfile), transform(task_list)]))
-
-with open(os.path.join(workdir, 'Makeflow'), 'w') as f:
-    f.write("\n".join(map(task.Task.to_makeflow, tasks)) + "\n")
+    task = queue.wait(3)
+    if task:
+        job_src.release(task.tag, task.return_status)
+    else:
+        time.sleep(1)

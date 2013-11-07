@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+import base64
+import json
 import os
-import tarfile
+import pickle
 import subprocess
 import sys
-import json
 
 def edit_process_source(cmssw_config_file, config_params):
     (dataset_files, lumis) = config_params
@@ -31,11 +32,7 @@ class Shell(object):
         if retval != 0:
             raise SystemError, retval
 
-(outboxfile, sandboxfile, configfile, task_file, id) = sys.argv[1:6]
-args = sys.argv[6:]
-
-sandbox = tarfile.open(sandboxfile, 'r:bz2')
-sandbox.extractall()
+(outboxfile, configfile, inputs, args) = sys.argv[1:]
 
 for d in os.listdir('.'):
     if d.startswith('CMSSW'):
@@ -49,14 +46,14 @@ exit_code = 0
 
 with open(task_file, 'r') as f:
     task_list = json.load(f)
-    edit_process_source(configfile, task_list[int(id)])
+    edit_process_source(configfile, pickle.loads(base64.b64.decode(inputs)))
 
 try:
     sh << 'voms-proxy-info'
     sh << 'cd "%s"' % (d,)
     sh << 'eval $(scramv1 runtime -sh)'
     sh << 'cd -'
-    sh << 'cmsRun -j report.xml "%s" %s' % (configfile, ' '.join(args))
+    sh << 'cmsRun -j report.xml "{0}" {1}'.format(configfile, ' '.join(base64.b64decode(args)))
 except:
     exit_code = 123
 

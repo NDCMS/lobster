@@ -2,7 +2,7 @@ from itertools import imap
 import os
 import re
 import sys
-import tarfile
+# import tarfile
 
 def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
@@ -12,8 +12,8 @@ def dontpack(fn):
 
 def package(indir, outfile):
     try:
-        tarball = tarfile.open(outfile, 'w:bz2')
-        tarball.dereference = True
+        # tarball = tarfile.open(outfile, 'w:bz2')
+        # tarball.dereference = True
 
         rtname = os.path.split(os.path.normpath(indir))[1]
 
@@ -39,8 +39,8 @@ def package(indir, outfile):
                 continue
             outname = os.path.join(rtname, sandboxname)
             print "packing", subdir
-            tarball.add(inname, outname, exclude=dontpack)
+            # tarball.add(inname, outname, exclude=dontpack)
 
-        tarball.close()
+        # tarball.close()
     except:
         raise

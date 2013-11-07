@@ -44,6 +44,7 @@ class JobProvider(lobster.job.JobProvider):
                 shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
         else:
             self.__store = JobitStore(config)
+            self.__store.reset_jobits()
 
         for cfg in config['tasks']:
             label = cfg['dataset label']
@@ -51,8 +52,6 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__labels[cfg['dataset']] = label
             self.__configs[label] = os.path.basename(cms_config)
-
-        self.__store.reset_jobits()
 
     def obtain(self):
         (id, dataset, files, lumis) = self.__store.pop_jobits(5)

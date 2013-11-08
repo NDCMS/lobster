@@ -1,8 +1,8 @@
 from itertools import imap
 import os
 import re
+import shutil
 import sys
-# import tarfile
 
 def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
@@ -10,11 +10,9 @@ def dontpack(fn):
         return True
     return False
 
-def package(indir, outfile):
+def package(indir, outdir):
     try:
-        # tarball = tarfile.open(outfile, 'w:bz2')
-        # tarball.dereference = True
-
+        print "Creating sandbox in", outdir
         rtname = os.path.split(os.path.normpath(indir))[1]
 
         # package bin, etc
@@ -37,10 +35,15 @@ def package(indir, outfile):
             inname = os.path.join(indir, subdir)
             if not os.path.exists(inname):
                 continue
-            outname = os.path.join(rtname, sandboxname)
-            print "packing", subdir
-            # tarball.add(inname, outname, exclude=dontpack)
-
-        # tarball.close()
+            outname = os.path.join(outdir, rtname, sandboxname)
+            sys.stdout.write("packing {0}\x1b[K\r".format(subdir))
+            sys.stdout.flush()
+            if os.path.isdir(inname):
+                shutil.copytree(inname, outname)
+            else:
+                shutil.copy2(inname, outname)
     except:
         raise
+
+    sys.stdout.write("\r\x1b[K")
+    sys.stdout.flush()

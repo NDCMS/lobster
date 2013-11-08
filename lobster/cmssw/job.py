@@ -18,6 +18,7 @@ class JobProvider(lobster.job.JobProvider):
 
         self.__labels = {}
         self.__configs = {}
+        self.__args = {}
 
         das = DASInterface()
 
@@ -53,6 +54,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__labels[cfg['dataset']] = label
             self.__configs[label] = os.path.basename(cms_config)
+            self.__args[label] = cfg['parameters']
 
     def obtain(self):
         (id, dataset, files, lumis) = self.__store.pop_jobits(5)
@@ -61,7 +63,7 @@ class JobProvider(lobster.job.JobProvider):
 
         label = self.__labels[dataset]
         config = self.__configs[label]
-        args = "" # FIXME
+        args = self.__args[label]
 
         inputs = [(os.path.join(self.__workdir, label, config), config)]
         for entry in os.listdir(self.__sandbox):
@@ -73,10 +75,10 @@ class JobProvider(lobster.job.JobProvider):
             (os.path.join(jdir, 'report.xml'), 'report.xml')
             ]
 
-        cmd = "./wrapper.sh python job.py {0} {1}".format(
+        cmd = './wrapper.sh python job.py {0} {1} {2}'.format(
             config,
             base64.b64encode(pickle.dumps((files, lumis))),
-            base64.b64encode(args))
+            ' '.join(map(repr, args)))
 
         return (id, cmd, inputs, outputs)
 

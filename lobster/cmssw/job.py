@@ -26,8 +26,9 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__store = JobitStore(config)
 
-            shutil.copy(os.path.join(os.path.dirname(__file__), 'data', 'job.py'),
-                    os.path.join(self.__sandbox, 'job.py'))
+            for fn in ['job.py', 'wrapper.sh']:
+                shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
+                        os.path.join(self.__sandbox, fn))
 
             sandbox.package(os.environ['LOCALRT'], self.__sandbox)
 
@@ -73,7 +74,7 @@ class JobProvider(lobster.job.JobProvider):
             (os.path.join(jdir, 'report.xml'), 'report.xml')
             ]
 
-        cmd = "python job.py {0} {1} {2}".format(
+        cmd = "./wrapper.sh python job.py {0} {1}".format(
             config,
             base64.b64encode(pickle.dumps((files, lumis))),
             base64.b64encode(args))
@@ -81,7 +82,8 @@ class JobProvider(lobster.job.JobProvider):
         return (id, cmd, inputs, outputs)
 
     def release(self, id, return_code):
-        pass
+        print "Job", id, "returned with exit code", return_code
+        self.__store.update_jobits(id, return_code == 0)
 
     def done(self):
-        pass
+        return self.__store.unfinished_jobits() == 0

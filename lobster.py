@@ -47,8 +47,14 @@ while not job_src.done():
             if os.path.isfile(local):
                 task.specify_input_file(local, remote, wq.WORK_QUEUE_CACHE)
             elif os.path.isdir(local):
-                task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
-                        wq.WORK_QUEUE_CACHE, recursive=True)
+                for (path, dirs, files) in os.walk(local):
+                    for f in files:
+                        lpath = os.path.join(path, f)
+                        rpath = lpath.replace(local, remote)
+                        task.specify_input_file(lpath, rpath, wq.WORK_QUEUE_CACHE)
+                # TODO ^^ this is a workaround for the bug in vv
+                # task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
+                        # wq.WORK_QUEUE_CACHE, recursive=True)
             else:
                 raise NotImplementedError
 
@@ -59,6 +65,7 @@ while not job_src.done():
 
     task = queue.wait(3)
     if task:
+        print task.output
         job_src.release(task.tag, task.return_status)
     else:
         time.sleep(1)

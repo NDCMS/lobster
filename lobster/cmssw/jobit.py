@@ -29,10 +29,6 @@ class SQLInterface:
 
         self.db.commit()
 
-    def reset_jobits(self):
-        with self.db as db:
-            db.execute("""update jobits set status='failed' where status='in progress'""")
-
     def pop_jobits(self, size):
         self.job_id_counter += 1
         id = str(self.job_id_counter)
@@ -60,3 +56,16 @@ class SQLInterface:
         job_parameters = [id, dset, set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
 
         return job_parameters
+
+    def reset_jobits(self):
+        with self.db as db:
+            db.execute("""update jobits set status='failed' where status='in progress'""")
+
+    def update_jobits(self, id, failed=False):
+        with self.db as db:
+            db.execute("""update jobits set status=? where job_id=?""",
+                    ('failed' if failed else 'successful', id))
+
+    def unfinished_jobits(self):
+        cur = self.db.execute("select count(*) from jobits where status!='successful'")
+        return cur.fetchone()[0]

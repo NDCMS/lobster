@@ -29,6 +29,6 @@ env['X509_USER_PROXY'] = os.path.join(d, 'proxy')
 
 edit_process_source(configfile, pickle.loads(base64.b64decode(inputs)))
 
-exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} 1> cmssw.out 2> cmssw.err'.format(configfile, ' '.join(args)), shell=True, env=env)
+exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(args)), shell=True, env=env)
 
 sys.exit(exit_code)

@@ -69,8 +69,7 @@ class JobProvider(lobster.job.JobProvider):
 
         jdir = os.path.join(self.__workdir, label, 'running', id)
         outputs = [
-            (os.path.join(jdir, 'cmssw.out'), 'cmssw.out'),
-            (os.path.join(jdir, 'cmssw.err'), 'cmssw.err'),
+            (os.path.join(jdir, 'cmssw.log'), 'cmssw.log'),
             (os.path.join(jdir, 'report.xml'), 'report.xml')
             ]
 

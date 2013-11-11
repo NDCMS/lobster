@@ -65,7 +65,6 @@ while not job_src.done():
 
     task = queue.wait(3)
     if task:
-        print task.output
-        job_src.release(task.tag, task.return_status)
+        job_src.release(task.tag, task.return_status, task.output)
     else:
         time.sleep(1)

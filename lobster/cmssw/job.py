@@ -18,6 +18,7 @@ class JobProvider(lobster.job.JobProvider):
         self.__labels = {}
         self.__configs = {}
         self.__args = {}
+        self.__jobdirs = {}
 
         das = DASInterface()
 
@@ -87,9 +88,21 @@ class JobProvider(lobster.job.JobProvider):
 
         return (id, cmd, inputs, outputs)
 
-    def release(self, id, return_code):
+    def release(self, id, return_code, output):
         print "Job", id, "returned with exit code", return_code
-        self.__store.update_jobits(id, return_code == 0)
+
+        failed = (return_code != 0)
+        self.__store.update_jobits(id, failed)
+
+        jdir = self.__jobdirs[id]
+
+        with open(os.path.join(jdir, 'job.log'), 'w') as f:
+            f.write(output)
+
+        if failed:
+            shutil.move(jdir, jdir.replace('running', 'failed'))
+        else:
+            shutil.move(jdir, jdir.replace('running', 'successful'))
 
     def done(self):
         return self.__store.unfinished_jobits() == 0

@@ -27,7 +27,7 @@ class SimpleJobProvider:
             return (str(self.__id), self.__cmd, [], [])
         return None
 
-    def release(self, id, return_code):
+    def release(self, id, return_code, output):
         print "Received", id, return_code, self.__done + 1, '/', self.__max
         self.__running -= 1
         if return_code == 0:

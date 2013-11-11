@@ -15,10 +15,10 @@ def package(indir, outdir):
         print "Creating sandbox in", outdir
         rtname = os.path.split(os.path.normpath(indir))[1]
 
+        shutil.copy2(os.environ['X509_USER_PROXY'], os.path.join(outdir, 'proxy'))
+
         # package bin, etc
         subdirs = ['.SCRAM', 'bin', 'config', 'lib', 'module', 'python']
-
-        subdirs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
         for (path, dirs, files) in os.walk(indir):
             if 'data' not in dirs:

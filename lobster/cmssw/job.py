@@ -1,4 +1,3 @@
-import base64
 import os
 import pickle
 import shutil
@@ -70,15 +69,21 @@ class JobProvider(lobster.job.JobProvider):
             inputs.append((os.path.join(self.__sandbox, entry), entry))
 
         jdir = os.path.join(self.__workdir, label, 'running', id)
+        if not os.path.isdir(jdir):
+            os.makedirs(jdir)
+
+        with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
+            pickle.dump((args, files, lumis), f, pickle.HIGHEST_PROTOCOL)
+        inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+
+        self.__jobdirs[id] = jdir
+
         outputs = [
             (os.path.join(jdir, 'cmssw.log'), 'cmssw.log'),
             (os.path.join(jdir, 'report.xml'), 'report.xml')
             ]
 
-        cmd = './wrapper.sh python job.py {0} {1} {2}'.format(
-            config,
-            base64.b64encode(pickle.dumps((files, lumis))),
-            ' '.join(map(repr, args)))
+        cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
         return (id, cmd, inputs, outputs)
 

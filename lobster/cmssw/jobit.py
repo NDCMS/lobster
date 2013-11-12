@@ -61,10 +61,7 @@ class SQLInterface:
                 (id, run, lumi))
 
         self.db.commit()
-
-        job_parameters = [id, dset, set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
-
-        return job_parameters
+        return [id, dset, set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
 
     def reset_jobits(self):
         with self.db as db:

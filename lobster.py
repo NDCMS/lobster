@@ -69,8 +69,7 @@ while not job_src.done():
 
         queue.submit(task)
 
-    task = queue.wait(3)
-    if task:
+    task = queue.wait(1)
+    while task:
         job_src.release(task.tag, task.return_status, task.output)
-    else:
-        time.sleep(1)
+        task = queue.wait(1)

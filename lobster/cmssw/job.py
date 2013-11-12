@@ -106,3 +106,6 @@ class JobProvider(lobster.job.JobProvider):
 
     def done(self):
         return self.__store.unfinished_jobits() == 0
+
+    def work_left(self):
+        return self.__store.unfinished_jobits()

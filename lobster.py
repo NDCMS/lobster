@@ -31,6 +31,12 @@ while not job_src.done():
         num = 1
     else:
         num = stats.workers_ready
+
+    print "Status: Slaves {0}/{1} - Work {2}".format(
+            stats.workers_busy,
+            stats.workers_busy + stats.workers_ready,
+            job_src.work_left())
+
     for i in range(num):
     # for i in range(queue.stats.capacity - queue.stats.workers_busy):
         job = job_src.obtain()

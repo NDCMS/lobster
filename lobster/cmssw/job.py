@@ -22,31 +22,13 @@ class JobProvider(lobster.job.JobProvider):
 
         das = DASInterface()
 
-        if not os.path.exists(self.__workdir):
+        create = not os.path.exists(self.__workdir)
+        if create:
             os.makedirs(self.__sandbox)
-
-            self.__store = JobitStore(config)
-
             for fn in ['job.py', 'wrapper.sh']:
                 shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
                         os.path.join(self.__sandbox, fn))
-
             sandbox.package(os.environ['LOCALRT'], self.__sandbox)
-
-            self.__store.register_jobits(das)
-
-            for cfg in config['tasks']:
-                label = cfg['dataset label']
-                cms_config = cfg['cmssw config']
-
-                taskdir = os.path.join(self.__workdir, label)
-                if not os.path.exists(taskdir):
-                    os.makedirs(taskdir)
-
-                shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
-        else:
-            self.__store = JobitStore(config)
-            self.__store.reset_jobits()
 
         for cfg in config['tasks']:
             label = cfg['dataset label']
@@ -55,6 +37,22 @@ class JobProvider(lobster.job.JobProvider):
             self.__labels[cfg['dataset']] = label
             self.__configs[label] = os.path.basename(cms_config)
             self.__args[label] = cfg['parameters']
+
+            taskdir = os.path.join(self.__workdir, label)
+            if create:
+                if not os.path.exists(taskdir):
+                    os.makedirs(taskdir)
+
+                shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
+            elif os.path.exists(os.path.join(taskdir, 'running')):
+                for d in os.listdir(os.path.join(taskdir, 'running')):
+                    shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
+
+        self.__store = JobitStore(config)
+        if create:
+            self.__store.register_jobits(das)
+        else:
+            self.__store.reset_jobits()
 
     def obtain(self):
         (id, dataset, files, lumis) = self.__store.pop_jobits(5)

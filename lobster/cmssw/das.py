@@ -1,5 +1,4 @@
 from DBSAPI.dbsApi import DbsApi
-from FWCore.PythonUtilities.LumiList import LumiList
 
 class DASInterface:
     def __init__(self, global_dbs_url='http://cmsdbsprod.cern.ch/cms_dbs_prod_global/servlet/DBSServlet'):

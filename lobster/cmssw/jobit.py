@@ -39,7 +39,7 @@ class SQLInterface:
                 select dataset, input_file, run, lumi
                 from jobits
                 where status='registered' or status='failed'
-                group by dataset, input_file
+                group by dataset, input_file, lumi
                 limit ?""", (size,)):
             if dset == None:
                 dset = dataset

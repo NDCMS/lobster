@@ -30,7 +30,7 @@ while not job_src.done():
     if stats.total_workers_joined + stats.tasks_waiting == 0:
         num = 1
     else:
-        num = stats.workers_ready
+        num = min(stats.workers_ready, 10)
 
     print "Status: Slaves {0}/{1} - Work {2}".format(
             stats.workers_busy,

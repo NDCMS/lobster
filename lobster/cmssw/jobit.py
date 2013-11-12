@@ -7,9 +7,18 @@ class SQLInterface:
         self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
-        self.db.execute("create table if not exists jobits(job_id, dataset, input_file, run, lumi, status, num_attempts, host, exit_code, run_time, startup_time)")
-        self.job_id_counter = 0
+        self.db.execute("create table if not exists jobits(job_id integer, dataset, input_file, run, lumi, status, num_attempts, host, exit_code, run_time, startup_time)")
         self.db.commit()
+        self.job_id_counter = 0
+
+        try:
+            cur = self.db.execute("select max(job_id) from jobits")
+            count = int(cur.fetchone()[0])
+            if count:
+                print "Restarting with job counter", count
+                self.job_id_counter = count
+        except:
+            pass
 
     def disconnect(self):
         self.db.close()

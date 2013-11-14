@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import shutil
-import time
 import yaml
 from lobster import cmssw
 from lobster import job
@@ -22,7 +21,11 @@ with open(args.config_file_name) as config_file:
 # job_src = job.SimpleJobProvider("sleep 10", 25)
 job_src = cmssw.JobProvider(config)
 
-queue = wq.WorkQueue(12345)
+queue = wq.WorkQueue(-1)
+queue.specify_name("lobster_" + config["id"])
+
+print "Starting queue as", queue.name
+print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
 
 while not job_src.done():
     # need to lure workers into connecting to the master
@@ -30,7 +33,7 @@ while not job_src.done():
     if stats.total_workers_joined + stats.tasks_waiting == 0:
         num = 1
     else:
-        num = min(stats.workers_ready, 10)
+        num = min(stats.workers_ready, 100)
 
     print "Status: Slaves {0}/{1} - Work {2}".format(
             stats.workers_busy,

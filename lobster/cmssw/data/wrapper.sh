@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "---<[$(date '+%F %T') wrapper start]>---"
+
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "Opperating with parrot enabled"
 	source $VO_CMS_SW_DIR/cmsset_default.sh
@@ -20,4 +22,6 @@ cd CMSSW_*
 eval $(scramv1 runtime -sh)
 cd -
 
+echo "---<[$(date '+%F %T') wrapper ready]>---"
 $*
+echo "---<[$(date '+%F %T') wrapper done]>---"

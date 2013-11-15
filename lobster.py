@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import shutil
+import time
 import yaml
 from lobster import cmssw
 from lobster import job
@@ -30,19 +31,23 @@ print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
 while not job_src.done():
     # need to lure workers into connecting to the master
     stats = queue.stats
-    if stats.total_workers_joined + stats.tasks_waiting == 0:
-        num = 1
-    else:
-        num = min(stats.workers_ready, 100)
 
-    print "Status: Slaves {0}/{1} - Work {2}".format(
+    print "Status: Slaves {0}/{1} - Jobs {3}/{4}/{5} - Work {2}".format(
             stats.workers_busy,
             stats.workers_busy + stats.workers_ready,
-            job_src.work_left())
+            job_src.work_left(),
+            stats.tasks_waiting,
+            stats.tasks_running,
+            stats.tasks_complete)
 
-    for i in range(num):
+    new_jobs = 0
+    while queue.hungry() and new_jobs < 150:
+        new_jobs += 1
     # for i in range(queue.stats.capacity - queue.stats.workers_busy):
+
+        t = time.time()
         job = job_src.obtain()
+        print "obtain time", time.time() - t
 
         if not job:
             break
@@ -72,7 +77,13 @@ while not job_src.done():
 
         queue.submit(task)
 
-    task = queue.wait(1)
+    print "waiting..."
+    task = queue.wait(3)
     while task:
         job_src.release(task.tag, task.return_status, task.output)
-        task = queue.wait(1)
+        if queue.stats.tasks_complete > 0:
+            print "waiting..."
+            task = queue.wait(3)
+        else:
+            task = None
+    print "godot is here"

@@ -32,13 +32,14 @@ while not job_src.done():
     # need to lure workers into connecting to the master
     stats = queue.stats
 
-    print "Status: Slaves {0}/{1} - Jobs {3}/{4}/{5} - Work {2}".format(
+    print "Status: Slaves {0}/{1} - Jobs {3}/{4}/{5} - Work {2} [{6}]".format(
             stats.workers_busy,
             stats.workers_busy + stats.workers_ready,
             job_src.work_left(),
             stats.tasks_waiting,
             stats.tasks_running,
-            stats.tasks_complete)
+            stats.tasks_complete,
+            time.strftime("%d %b %Y %H:%M:%S", time.localtime()))
 
     new_jobs = 0
     while queue.hungry() and new_jobs < 150:

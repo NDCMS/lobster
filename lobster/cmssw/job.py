@@ -1,6 +1,7 @@
 import os
 import pickle
 import shutil
+import imp
 
 import lobster.job
 import sandbox
@@ -8,17 +9,22 @@ import sandbox
 from das import DASInterface
 from jobit import SQLInterface as JobitStore
 
+from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
+
 class JobProvider(lobster.job.JobProvider):
     def __init__(self, config):
         self.__config = config
 
         self.__workdir = config['workdir']
+        self.__stageout = config['stageout location']
         self.__sandbox = os.path.join(self.__workdir, 'sandbox')
 
         self.__labels = {}
         self.__configs = {}
         self.__args = {}
         self.__jobdirs = {}
+        self.__stageoutdirs = {}
+        self.__outputs = {}
 
         das = DASInterface()
 
@@ -37,11 +43,23 @@ class JobProvider(lobster.job.JobProvider):
             self.__labels[cfg['dataset']] = label
             self.__configs[label] = os.path.basename(cms_config)
             self.__args[label] = cfg['parameters']
+            self.__outputs[label] = []
+
+            if cfg.has_key('outputs'):
+                self.__outputs[label].extend(cfg['outputs'])
+            else:
+                with open(cms_config, 'r') as f:
+                    source = imp.load_source('cms_config_source', cms_config, f)
+                    cfg_interface = CfgInterface(source.process)
+                    for m in cfg_interface.data.outputModules:
+                        self.__outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 
             taskdir = os.path.join(self.__workdir, label)
+            stageoutdir = os.path.join(self.__stageout, taskdir)
             if create:
-                if not os.path.exists(taskdir):
-                    os.makedirs(taskdir)
+                for dir in [taskdir, stageoutdir]:
+                    if not os.path.exists(dir):
+                        os.makedirs(dir)
 
                 shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
             elif os.path.exists(os.path.join(taskdir, 'running')):
@@ -67,6 +85,7 @@ class JobProvider(lobster.job.JobProvider):
         for entry in os.listdir(self.__sandbox):
             inputs.append((os.path.join(self.__sandbox, entry), entry))
 
+        sdir = os.path.join(self.__stageout, self.__workdir, label)
         jdir = os.path.join(self.__workdir, label, 'running', id)
         if not os.path.isdir(jdir):
             os.makedirs(jdir)
@@ -76,11 +95,8 @@ class JobProvider(lobster.job.JobProvider):
         inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
         self.__jobdirs[id] = jdir
-
-        outputs = [
-            (os.path.join(jdir, 'cmssw.log'), 'cmssw.log'),
-            (os.path.join(jdir, 'report.xml'), 'report.xml')
-            ]
+        outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
+        outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml', 'cmssw.log']])
 
         cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 

@@ -1,12 +1,11 @@
-id: BEAN_test
+id: BEAN_v2
 workdir: lobster.work
+stageout location: /hadoop/users/awoodard
 
 tasks:
-  #  - dataset: '/DoubleMu/Run2012A-13Jul2012-v1/AOD'
-    #  dataset label: DoubleMu
   - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
     dataset label: TTJets
     cmssw config: makeBEAN_cfg.py
     lumi mask: mask.json
-    lumis per task: 50
+    outputs: [ttH_pat2bean_53x.root] #if this is not specified, the cmssw config will be loaded to look for output modules (slower)
     parameters: [jobParams=2012_X_MC-sigFullSim_9122]

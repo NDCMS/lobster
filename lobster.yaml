@@ -1,6 +1,11 @@
-id: BEAN_v2
+id: BEAN_v1
 workdir: lobster.work
-stageout location: /hadoop/users/awoodard
+stageout location: lobster.work
+
+# cmd: 'python make_big_file.py'
+# inputs: ['make_big_file.py']
+# outputs: ['output.txt', 'log.txt']
+# max: 5000
 
 tasks:
   - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'

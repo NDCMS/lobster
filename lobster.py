@@ -16,11 +16,10 @@ args = parser.parse_args()
 with open(args.config_file_name) as config_file:
     config = yaml.load(config_file)
 
-# id = 0
-# tasks = []
-
-# job_src = job.SimpleJobProvider("sleep 10", 25)
-job_src = cmssw.JobProvider(config)
+if 'cmssw' in repr(config):
+    job_src = cmssw.JobProvider(config)
+else:
+    job_src = job.SimpleJobProvider(config)
 
 queue = wq.WorkQueue(-1)
 queue.specify_name("lobster_" + config["id"])
@@ -29,7 +28,6 @@ print "Starting queue as", queue.name
 print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
 
 while not job_src.done():
-    # need to lure workers into connecting to the master
     stats = queue.stats
 
     print "Status: Slaves {0}/{1} - Jobs {3}/{4}/{5} - Work {2} [{6}]".format(
@@ -87,4 +85,6 @@ while not job_src.done():
             task = queue.wait(3)
         else:
             task = None
-    print "godot is here"
+
+
+

@@ -33,7 +33,7 @@ class JobProvider(lobster.job.JobProvider):
             os.makedirs(self.__sandbox)
             for fn in ['job.py', 'wrapper.sh']:
                 shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
-                        os.path.join(self.__sandbox, fn))
+                            os.path.join(self.__sandbox, fn))
             sandbox.package(os.environ['LOCALRT'], self.__sandbox)
 
         for cfg in config['tasks']:

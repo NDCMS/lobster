@@ -43,7 +43,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__labels[cfg['dataset']] = label
             self.__configs[label] = os.path.basename(cms_config)
-            self.__args[label] = cfg['parameters']
+            self.__args[label] = cfg.get('parameters', [])
             self.__outputs[label] = []
 
             if cfg.has_key('outputs'):
@@ -80,6 +80,9 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self):
+        #In case all unfinished jobs are running-- is this too slow?
+        if self.__store.running_jobits() == self.__store.unfinished_jobits():
+            return None
         (id, dataset, files, lumis) = self.__store.pop_jobits()
 
         print "Creating job", id

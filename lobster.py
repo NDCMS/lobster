@@ -76,7 +76,7 @@ while not job_src.done():
 
         queue.submit(task)
 
-    print "waiting..."
+    print "Waiting for jobs to return..."
     task = queue.wait(3)
     while task:
         job_src.release(task.tag, task.return_status, task.output)

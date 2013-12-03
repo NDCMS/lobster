@@ -7,6 +7,7 @@ import lobster.job
 import sandbox
 
 from das import DASInterface
+from lobster.jobit import SQLInterface as SimpleJobitStore
 from jobit import SQLInterface as JobitStore
 
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
@@ -66,14 +67,20 @@ class JobProvider(lobster.job.JobProvider):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
 
-        self.__store = JobitStore(config)
+        if 'dataset list' in repr(config):
+            self.__store = SimpleJobitStore(config)
+        else:
+            self.__store = JobitStore(config)
         if create:
-            self.__store.register_jobits(das)
+            if 'dataset list' in repr(config):
+                self.__store.register_jobits()
+            else:
+                self.__store.register_jobits(das)
         else:
             self.__store.reset_jobits()
 
     def obtain(self):
-        (id, dataset, files, lumis) = self.__store.pop_jobits(5)
+        (id, dataset, files, lumis) = self.__store.pop_jobits()
 
         print "Creating job", id
 

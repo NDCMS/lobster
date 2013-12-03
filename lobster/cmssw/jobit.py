@@ -1,8 +1,9 @@
 import os
 import sqlite3
+import lobster.jobit
 from FWCore.PythonUtilities.LumiList import LumiList
 
-class SQLInterface:
+class SQLInterface(lobster.jobit.SQLInterface):
     def __init__(self, config):
         self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
@@ -22,9 +23,6 @@ class SQLInterface:
         except:
             pass
 
-    def disconnect(self):
-        self.db.close()
-
     def register_jobits(self, das):
         datasets = [x['dataset'] for x in self.config['tasks']]
         for dataset in datasets:
@@ -40,7 +38,7 @@ class SQLInterface:
 
         self.db.commit()
 
-    def pop_jobits(self, size):
+    def pop_jobits(self, size=5):
         self.job_id_counter += 1
         id = str(self.job_id_counter)
 
@@ -69,15 +67,3 @@ class SQLInterface:
         self.db.commit()
         return [id, dataset, set(input_files), LumiList(lumis=lumis).getVLuminosityBlockRange()]
 
-    def reset_jobits(self):
-        with self.db as db:
-            db.execute("update jobits set status='f' where status='r'")
-
-    def update_jobits(self, id, failed=False):
-        with self.db as db:
-            db.execute("update jobits set status=? where job_id=?",
-                    ('f' if failed else 's', int(id)))
-
-    def unfinished_jobits(self):
-        cur = self.db.execute("select count(*) from jobits where status!='s'")
-        return cur.fetchone()[0]

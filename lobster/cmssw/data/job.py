@@ -9,12 +9,13 @@ import sys
 
 fragment = """import FWCore.ParameterSet.Config as cms
 process.source.fileNames = cms.untracked.vstring({input_files})
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))
-process.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})"""
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))"""
 
 def edit_process_source(cmssw_config_file, files, lumis):
     with open(cmssw_config_file, 'a') as config:
-        frag = fragment.format(input_files=repr([str(f) for f in files]), lumis=[str(l) for l in lumis])
+        frag = fragment.format(input_files=repr([str(f) for f in files]))
+        if lumis != -1:
+            frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis])
         print "--- config file fragment:"
         print frag
         print "---"

@@ -62,7 +62,8 @@ class SQLInterface:
                 break
 
             input_files.append(input_file)
-            lumis.append((run, lumi))
+            if lumi > 0:
+                lumis.append((run, lumi))
             update.append((int(id), ds_label, run, lumi, input_file))
 
         #input file is needed for dataset lists, when we don't have run/lumi info to differentiate between jobits.  Is this too slow?  Alternatively, we could add a jobit id.

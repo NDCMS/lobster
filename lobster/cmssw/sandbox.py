@@ -10,7 +10,7 @@ def dontpack(fn):
         return True
     return False
 
-def package(indir, outdir):
+def package(indir, outdir, blacklist=[]):
     try:
         print "Creating sandbox in", outdir
         rtname = os.path.split(os.path.normpath(indir))[1]
@@ -22,6 +22,8 @@ def package(indir, outdir):
 
         for (path, dirs, files) in os.walk(indir):
             if 'data' not in dirs:
+                continue
+            if any(d in blacklist for d in dirs):
                 continue
 
             rtpath = os.path.join(os.path.relpath(path, indir), 'data')
@@ -39,7 +41,7 @@ def package(indir, outdir):
             sys.stdout.write("packing {0}\x1b[K\r".format(subdir))
             sys.stdout.flush()
             if os.path.isdir(inname):
-                shutil.copytree(inname, outname)
+                shutil.copytree(inname, outname, ignore=shutil.ignore_patterns(*blacklist))
             else:
                 shutil.copy2(inname, outname)
     except:

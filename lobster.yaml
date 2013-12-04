@@ -1,6 +1,7 @@
 id: BEAN_v2
 workdir: gpetrucc_ttH_gen_2013-05-23_lowmll
 stageout location: /hadoop/users/awoodard
+#sandbox blacklist: ['*DrawPlots*']
 
 # cmd: 'python make_big_file.py'
 # inputs: ['make_big_file.py']

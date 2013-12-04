@@ -58,7 +58,7 @@ while not job_src.done():
 
         for (local, remote) in inputs:
             if os.path.isfile(local):
-                task.specify_input_file(local, remote, wq.WORK_QUEUE_CACHE)
+                task.specify_input_file(str(local), str(remote), wq.WORK_QUEUE_CACHE)
             elif os.path.isdir(local):
                 for (path, dirs, files) in os.walk(local):
                     for f in files:
@@ -72,7 +72,7 @@ while not job_src.done():
                 raise NotImplementedError
 
         for (local, remote) in outputs:
-            task.specify_output_file(local, remote)
+            task.specify_output_file(str(local), str(remote))
 
         queue.submit(task)
 

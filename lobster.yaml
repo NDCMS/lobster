@@ -15,8 +15,7 @@ tasks:
     lumi mask: mask.json
     outputs: [ttH_pat2bean_53x.root] #if this is not specified, the cmssw config will be loaded to look for output modules (slower)
     parameters: [jobParams=2012_X_MC-sigFullSim_9122]
-#   - dataset: gpetrucc_ttH_gen_2013-05-23_zz_lowmll_v2
-#     dataset list: zz_lowmll_v2.list #to run on unpublished data, specify a list (one file per line)
+#   - files: zz_lowmll_v2.list #to run on unpublished data, specify a list (one file per line) or directory
 #     dataset label: zz_lowmll_v2
 #     cmssw config: ttH_fastSim.py
 #     outputs: [fastSim_FASTSIM_HLT_PU.root]

@@ -5,9 +5,7 @@ import imp
 
 import lobster.job
 import sandbox
-
-from das import DASInterface
-from lobster.jobit import SQLInterface as SimpleJobitStore
+from dataset import DASInterface, FileInterface
 from jobit import SQLInterface as JobitStore
 
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
@@ -20,14 +18,17 @@ class JobProvider(lobster.job.JobProvider):
         self.__stageout = config['stageout location']
         self.__sandbox = os.path.join(self.__workdir, 'sandbox')
 
-        self.__labels = {}
+        self.__datasets = {}
         self.__configs = {}
         self.__args = {}
         self.__jobdirs = {}
         self.__stageoutdirs = {}
         self.__outputs = {}
 
-        das = DASInterface()
+        if 'files' in repr(config):
+            ds_interface = FileInterface(config)
+        else:
+            ds_interface = DASInterface(config)
 
         create = not os.path.exists(self.__workdir)
         if create:
@@ -41,7 +42,7 @@ class JobProvider(lobster.job.JobProvider):
             label = cfg['dataset label']
             cms_config = cfg['cmssw config']
 
-            self.__labels[cfg['dataset']] = label
+            self.__datasets[label] = cfg['dataset']
             self.__configs[label] = os.path.basename(cms_config)
             self.__args[label] = cfg.get('parameters', [])
             self.__outputs[label] = []
@@ -67,15 +68,9 @@ class JobProvider(lobster.job.JobProvider):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
 
-        if 'dataset list' in repr(config):
-            self.__store = SimpleJobitStore(config)
-        else:
-            self.__store = JobitStore(config)
+        self.__store = JobitStore(config)
         if create:
-            if 'dataset list' in repr(config):
-                self.__store.register_jobits()
-            else:
-                self.__store.register_jobits(das)
+            self.__store.register_jobits(ds_interface)
         else:
             self.__store.reset_jobits()
 
@@ -83,11 +78,10 @@ class JobProvider(lobster.job.JobProvider):
         #In case all unfinished jobs are running-- is this too slow?
         if self.__store.running_jobits() == self.__store.unfinished_jobits():
             return None
-        (id, dataset, files, lumis) = self.__store.pop_jobits()
+        (id, label, files, lumis) = self.__store.pop_jobits()
 
         print "Creating job", id
 
-        label = self.__labels[dataset]
         config = self.__configs[label]
         args = self.__args[label]
 

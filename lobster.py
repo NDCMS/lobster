@@ -22,6 +22,7 @@ else:
     job_src = job.SimpleJobProvider(config)
 
 queue = wq.WorkQueue(-1)
+queue.specify_log("wq.log")
 queue.specify_name("lobster_" + config["id"])
 
 print "Starting queue as", queue.name

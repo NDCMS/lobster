@@ -35,7 +35,7 @@ class SQLInterface:
                     dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
 
             for file in dataset_info.files:
-                columns = [(dataset_info.ds_label, file, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
+                columns = [(dataset_info.label, file, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
                 self.db.executemany("insert into jobits(ds_label, input_file, run, lumi, status, num_attempts) values (?, ?, ?, ?, 'i', 0)", columns)
 
         self.db.commit()

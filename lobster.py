@@ -42,40 +42,39 @@ while not job_src.done():
 
     new_jobs = 0
     while queue.hungry() and new_jobs < 150:
-        new_jobs += 1
+        new_jobs += 50
     # for i in range(queue.stats.capacity - queue.stats.workers_busy):
 
         t = time.time()
-        job = job_src.obtain()
+        jobs = job_src.obtain(50)
         print "obtain time", time.time() - t
 
-        if not job:
+        if len(jobs) == 0:
             break
 
-        (id, cmd, inputs, outputs) = job
+        for id, cmd, inputs, outputs in jobs:
+            task = wq.Task(cmd)
+            task.specify_tag(id)
 
-        task = wq.Task(cmd)
-        task.specify_tag(id)
+            for (local, remote) in inputs:
+                if os.path.isfile(local):
+                    task.specify_input_file(str(local), str(remote), wq.WORK_QUEUE_CACHE)
+                elif os.path.isdir(local):
+                    for (path, dirs, files) in os.walk(local):
+                        for f in files:
+                            lpath = os.path.join(path, f)
+                            rpath = lpath.replace(local, remote)
+                            task.specify_input_file(lpath, rpath, wq.WORK_QUEUE_CACHE)
+                    # TODO ^^ this is a workaround for the bug in vv
+                    # task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
+                            # wq.WORK_QUEUE_CACHE, recursive=True)
+                else:
+                    raise NotImplementedError
 
-        for (local, remote) in inputs:
-            if os.path.isfile(local):
-                task.specify_input_file(str(local), str(remote), wq.WORK_QUEUE_CACHE)
-            elif os.path.isdir(local):
-                for (path, dirs, files) in os.walk(local):
-                    for f in files:
-                        lpath = os.path.join(path, f)
-                        rpath = lpath.replace(local, remote)
-                        task.specify_input_file(lpath, rpath, wq.WORK_QUEUE_CACHE)
-                # TODO ^^ this is a workaround for the bug in vv
-                # task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
-                        # wq.WORK_QUEUE_CACHE, recursive=True)
-            else:
-                raise NotImplementedError
+            for (local, remote) in outputs:
+                task.specify_output_file(str(local), str(remote))
 
-        for (local, remote) in outputs:
-            task.specify_output_file(str(local), str(remote))
-
-        queue.submit(task)
+            queue.submit(task)
 
     print "Waiting for jobs to return..."
     task = queue.wait(3)

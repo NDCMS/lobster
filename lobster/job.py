@@ -35,18 +35,23 @@ class SimpleJobProvider(JobProvider):
     def done(self):
         return self.__done == self.__max
 
-    def obtain(self):
-        #if self.__done + self.__running < self.__max:
-        if self.__id < self.__max:
-            self.__running += 1
-            self.__id += 1
+    def obtain(self, num=1):
+        tasks = []
 
-            inputs = [(x, x) for x in self.__inputs]
-            outputs = [(os.path.join(self.__stageoutdir, x.replace(x, '%s_%s' % (self.__id, x))), x) for x in self.__outputs]
+        for i in range(num):
+            if self.__id < self.__max:
+                self.__running += 1
+                self.__id += 1
 
-            print "Creating ", self.__id
-            return (str(self.__id), self.__cmd, inputs, outputs)
-        return None
+                inputs = [(x, x) for x in self.__inputs]
+                outputs = [(os.path.join(self.__stageoutdir, x.replace(x, '%s_%s' % (self.__id, x))), x) for x in self.__outputs]
+
+                print "Creating ", self.__id
+                tasks.append((str(self.__id), self.__cmd, inputs, outputs))
+            else:
+                break
+
+        return tasks
 
     def release(self, id, return_code, output):
         self.__running -= 1

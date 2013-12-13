@@ -75,37 +75,41 @@ class JobProvider(lobster.job.JobProvider):
         else:
             self.__store.reset_jobits()
 
-    def obtain(self):
-        #In case all unfinished jobs are running-- is this too slow?
-        if self.__store.running_jobits() == self.__store.unfinished_jobits():
+    def obtain(self, num=1):
+        res = self.__store.pop_jobits([10] * num)
+        if not res:
             return None
-        (id, label, files, lumis) = self.__store.pop_jobits()
 
-        print "Creating job", id
+        tasks = []
 
-        config = self.__configs[label]
-        args = self.__args[label]
+        for (id, label, files, lumis) in res:
+            print "Creating job", id
 
-        inputs = [(os.path.join(self.__workdir, label, config), config),
-                (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
+            config = self.__configs[label]
+            args = self.__args[label]
 
-        sdir = os.path.join(self.__stageout, self.__workdir, label)
-        jdir = os.path.join(self.__workdir, label, 'running', id)
-        if not os.path.isdir(jdir):
-            os.makedirs(jdir)
+            inputs = [(os.path.join(self.__workdir, label, config), config),
+                    (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
+                    (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
 
-        with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-            pickle.dump((args, files, lumis), f, pickle.HIGHEST_PROTOCOL)
-        inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+            sdir = os.path.join(self.__stageout, self.__workdir, label)
+            jdir = os.path.join(self.__workdir, label, 'running', id)
+            if not os.path.isdir(jdir):
+                os.makedirs(jdir)
 
-        self.__jobdirs[id] = jdir
-        outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
-        outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml', 'cmssw.log.gz']])
+            with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
+                pickle.dump((args, files, lumis), f, pickle.HIGHEST_PROTOCOL)
+            inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
-        cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
+            self.__jobdirs[id] = jdir
+            outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml', 'cmssw.log.gz']])
 
-        return (id, cmd, inputs, outputs)
+            cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
+
+            tasks.append((id, cmd, inputs, outputs))
+
+        return tasks
 
     def release(self, id, return_code, output):
         print "Job", id, "returned with exit code", return_code

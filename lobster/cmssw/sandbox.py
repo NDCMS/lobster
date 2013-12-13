@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import sys
+import tarfile
 
 def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
@@ -20,14 +21,14 @@ def package(indir, outdir, blacklist=[]):
         # package bin, etc
         subdirs = ['.SCRAM', 'bin', 'config', 'lib', 'module', 'python']
 
-        for (path, dirs, files) in os.walk(indir):
-            if 'data' not in dirs:
-                continue
+        for (path, dirs, files) in os.walk(os.path.join(indir, 'src')):
             if any(d in blacklist for d in dirs):
                 continue
 
-            rtpath = os.path.join(os.path.relpath(path, indir), 'data')
-            subdirs.append(rtpath)
+            for subdir in ['data', 'python']:
+                if subdir in dirs:
+                    rtpath = os.path.join(os.path.relpath(path, indir), subdir)
+                    subdirs.append(rtpath)
 
         for subdir in subdirs:
             if isinstance(subdir, tuple) or isinstance(subdir, list):
@@ -41,9 +42,16 @@ def package(indir, outdir, blacklist=[]):
             sys.stdout.write("packing {0}\x1b[K\r".format(subdir))
             sys.stdout.flush()
             if os.path.isdir(inname):
-                shutil.copytree(inname, outname, ignore=shutil.ignore_patterns(*blacklist))
+                shutil.copytree(inname, outname, symlinks=True, ignore=shutil.ignore_patterns(*blacklist))
             else:
                 shutil.copy2(inname, outname)
+
+        outfile = (outdir if not outdir.endswith("/") else outdir[:-1]) + ".tar.bz2"
+        print "Packing sandbox into", outfile
+        tarball = tarfile.open(outfile, "w|bz2")
+        for entry in os.listdir(outdir):
+            tarball.add(os.path.join(outdir, entry), entry)
+        tarball.close()
     except:
         raise
 

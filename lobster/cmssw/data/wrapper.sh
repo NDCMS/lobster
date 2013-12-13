@@ -18,6 +18,8 @@ else
 	fi
 fi
 
+tar xjf sandbox.tar.bz2 || exit 123
+
 cd CMSSW_*
 eval $(scramv1 runtime -sh)
 cd -

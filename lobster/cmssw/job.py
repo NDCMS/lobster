@@ -33,7 +33,7 @@ class JobProvider(lobster.job.JobProvider):
         create = not os.path.exists(self.__workdir)
         if create:
             os.makedirs(self.__sandbox)
-            for fn in ['job.py', 'wrapper.sh']:
+            for fn in ['job.py']:
                 shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
                             os.path.join(self.__sandbox, fn))
             blacklist = config.get('sandbox blacklist', [])
@@ -86,9 +86,9 @@ class JobProvider(lobster.job.JobProvider):
         config = self.__configs[label]
         args = self.__args[label]
 
-        inputs = [(os.path.join(self.__workdir, label, config), config)]
-        for entry in os.listdir(self.__sandbox):
-            inputs.append((os.path.join(self.__sandbox, entry), entry))
+        inputs = [(os.path.join(self.__workdir, label, config), config),
+                (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
+                (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
 
         sdir = os.path.join(self.__stageout, self.__workdir, label)
         jdir = os.path.join(self.__workdir, label, 'running', id)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import gzip
 import json
 import os
 import pickle
@@ -33,7 +34,13 @@ env['X509_USER_PROXY'] = 'proxy'
 
 edit_process_source(configfile, files, lumis)
 
-# exit_code = subprocess.call('python "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
+# exit_code = subprocess.call('python "{0}" {1}'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
+
+if os.path.isfile("cmssw.log"):
+    with open("cmssw.log") as f:
+        zipf = gzip.open("cmssw.log.gz", "wb")
+        zipf.writelines(f)
+        zipf.close()
 
 sys.exit(exit_code)

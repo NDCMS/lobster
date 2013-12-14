@@ -1,7 +1,9 @@
+import imp
 import os
 import pickle
 import shutil
-import imp
+import sqlite3
+import time
 
 import lobster.job
 import sandbox
@@ -76,7 +78,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
-        res = self.__store.pop_jobits([10] * num)
+        res = self.retry(5, self.__store.pop_jobits, ([10] * num,), {})
         if not res:
             return None
 
@@ -118,7 +120,7 @@ class JobProvider(lobster.job.JobProvider):
         print "Job", id, "returned with exit code", return_code
 
         failed = (return_code != 0)
-        self.__store.update_jobits(id, failed)
+        self.retry(5, self.__store.update_jobits, (id, failed), {})
 
         jdir = self.__jobdirs[id]
 
@@ -135,3 +137,14 @@ class JobProvider(lobster.job.JobProvider):
 
     def work_left(self):
         return self.__store.unfinished_jobits()
+
+    def retry(self, attempts, fct, args, kwargs):
+        while attempts > 0:
+            attempts -= 1
+
+            try:
+                return fct(*args, **kwargs)
+            except sqlite3.OperationalError:
+                if attempts == 0:
+                    raise
+                time.sleep(0.1)

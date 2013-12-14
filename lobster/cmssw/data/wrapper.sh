@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh --noprofile
 
 echo "[$(date '+%F %T')] wrapper start"
 echo "=hostname= "$(hostname)
@@ -17,8 +17,14 @@ else
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_helper.so
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
+		echo ">>> fixing JobConfig..."
+		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
+		sname=site-local-config.xml
+		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "$TMPDIR/ex_parrot" /bin/cp $sconf$sname $sname
+		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
+		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "$TMPDIR/ex_parrot" $0 "$*"
+		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -m mtab -t "$TMPDIR/ex_parrot" $0 "$*"
 	fi
 fi
 

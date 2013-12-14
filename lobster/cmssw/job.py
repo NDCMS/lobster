@@ -81,9 +81,10 @@ class JobProvider(lobster.job.JobProvider):
             return None
 
         tasks = []
+        ids = []
 
         for (id, label, files, lumis) in res:
-            print "Creating job", id
+            ids.append(id)
 
             config = self.__configs[label]
             args = self.__args[label]
@@ -108,6 +109,8 @@ class JobProvider(lobster.job.JobProvider):
             cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
             tasks.append((id, cmd, inputs, outputs))
+
+        print "Creating job(s) {0}".format(", ".join(ids))
 
         return tasks
 

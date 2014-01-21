@@ -1,4 +1,5 @@
 import os
+import random
 import sqlite3
 from FWCore.PythonUtilities.LumiList import LumiList
 
@@ -92,8 +93,8 @@ class SQLInterface:
         jobs = []
         update = []
 
-        rows = self.db.execute("select label, id from datasets")
-        dataset, dataset_id = rows.fetchone()
+        rows = [xs for xs in self.db.execute("select label, id from datasets")]
+        dataset, dataset_id = random.choice(rows)
 
         for id, input_file, run, lumi in self.db.execute("""
                 select id, input_file, run, lumi

@@ -78,7 +78,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
-        res = self.retry(5, self.__store.pop_jobits, ([10] * num,), {})
+        res = self.retry(self.__store.pop_jobits, ([10] * num,), {})
         if not res:
             return None
 
@@ -120,7 +120,7 @@ class JobProvider(lobster.job.JobProvider):
         print "Job", id, "returned with exit code", return_code
 
         failed = (return_code != 0)
-        self.retry(5, self.__store.update_jobits, (id, failed), {})
+        self.retry(self.__store.update_jobits, (id, failed), {})
 
         jdir = self.__jobdirs[id]
 
@@ -138,13 +138,14 @@ class JobProvider(lobster.job.JobProvider):
     def work_left(self):
         return self.__store.unfinished_jobits()
 
-    def retry(self, attempts, fct, args, kwargs):
+    def retry(self, fct, args, kwargs, attempts=10):
         while attempts > 0:
             attempts -= 1
 
             try:
                 return fct(*args, **kwargs)
             except sqlite3.OperationalError:
-                if attempts == 0:
+                print "Failed to perform SQL operation.  {0} attempts remaining.".format(attempts)
+                if attempts <= 0:
                     raise
-                time.sleep(0.1)
+                time.sleep(1)

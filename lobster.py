@@ -22,11 +22,13 @@ else:
     job_src = job.SimpleJobProvider(config)
 
 queue = wq.WorkQueue(-1)
-queue.specify_log("wq.log")
+queue.specify_log("work_queue_" + config["id"] + ".log")
 queue.specify_name("lobster_" + config["id"])
 
 print "Starting queue as", queue.name
 print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
+
+payload = 4000
 
 while not job_src.done():
     stats = queue.stats
@@ -40,17 +42,17 @@ while not job_src.done():
             stats.tasks_complete,
             time.strftime("%d %b %Y %H:%M:%S", time.localtime()))
 
-    new_jobs = 0
-    while queue.hungry() and new_jobs < 150:
-        new_jobs += 50
-    # for i in range(queue.stats.capacity - queue.stats.workers_busy):
+    hunger = max(payload - stats.tasks_waiting, 0)
 
+    while hunger > 0:
         t = time.time()
         jobs = job_src.obtain(50)
         print "obtain time", time.time() - t
 
-        if len(jobs) == 0:
+        if jobs == None or len(jobs) == 0:
             break
+
+        hunger -= len(jobs)
 
         for id, cmd, inputs, outputs in jobs:
             task = wq.Task(cmd)

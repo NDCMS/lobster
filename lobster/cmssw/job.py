@@ -95,7 +95,7 @@ class JobProvider(lobster.job.JobProvider):
                     (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
                     (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
 
-            sdir = os.path.join(self.__stageout, self.__workdir, label)
+            sdir = os.path.join(self.__stageout, label)
             jdir = os.path.join(self.__workdir, label, 'running', id)
             if not os.path.isdir(jdir):
                 os.makedirs(jdir)

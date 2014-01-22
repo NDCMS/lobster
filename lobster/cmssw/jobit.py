@@ -122,6 +122,7 @@ class SQLInterface:
 
                 size.pop(0)
                 input_files = []
+                lumis = []
                 current_size = 0
 
         import time

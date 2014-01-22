@@ -78,7 +78,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
-        res = self.retry(self.__store.pop_jobits, ([10] * num,), {})
+        res = self.retry(self.__store.pop_jobits, ([30] * num,), {})
         if not res:
             return None
 

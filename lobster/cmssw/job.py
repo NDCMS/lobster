@@ -10,6 +10,7 @@ import sandbox
 from dataset import DASInterface, FileInterface
 from jobit import SQLInterface as JobitStore
 
+from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
 
 class JobProvider(lobster.job.JobProvider):
@@ -78,7 +79,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
-        res = self.retry(self.__store.pop_jobits, ([30] * num,), {})
+        res = self.retry(self.__store.pop_jobits, ([20] * num,), {})
         if not res:
             return None
 
@@ -106,7 +107,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__jobdirs[id] = jdir
             outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz']])
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'processed.pkl']])
 
             cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
@@ -117,12 +118,24 @@ class JobProvider(lobster.job.JobProvider):
         return tasks
 
     def release(self, id, return_code, output):
-        print "Job", id, "returned with exit code", return_code
-
         failed = (return_code != 0)
-        self.retry(self.__store.update_jobits, (id, failed), {})
-
         jdir = self.__jobdirs[id]
+
+        try:
+            with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
+                in_lumis = pickle.load(f)[2]
+            with open(os.path.join(jdir, 'processed.pkl'), 'rb') as f:
+                out_lumis = pickle.load(f)
+            not_processed = (out_lumis - in_lumis).getLumis()
+        except Exception as e:
+            # FIXME treat this properly
+            print "Job", id, "had a problem:", e
+            failed = True
+            not_processed = in_lumis.getLumis()
+
+        print "Job", id, "returned with exit code", return_code, "missing", len(not_processed), "lumis"
+
+        self.retry(self.__store.update_jobits, (id, failed, not_processed), {})
 
         with open(os.path.join(jdir, 'job.log'), 'w') as f:
             f.write(output)

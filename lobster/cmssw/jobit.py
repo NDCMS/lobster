@@ -8,6 +8,7 @@ ASSIGNED = 1
 SUCCESSFUL = 2
 FAILED = 3
 ABORTED = 4
+INCOMPLETE = 5
 
 class SQLInterface:
     def __init__(self, config):
@@ -28,7 +29,7 @@ class SQLInterface:
             dataset integer,
             status int default 0,
             exit_code integer,
-            attempts int default 0,
+            missed_lumis int default 0,
             startup_time real,
             processing_time real,
             run_time real,
@@ -118,7 +119,7 @@ class SQLInterface:
                     str(job_id),
                     dataset,
                     set(input_files),
-                    LumiList(lumis=lumis).getVLuminosityBlockRange()))
+                    LumiList(lumis=lumis)))
 
                 size.pop(0)
                 input_files = []
@@ -139,15 +140,31 @@ class SQLInterface:
 
     def reset_jobits(self):
         with self.db as db:
-            db.execute("update jobits set status=? where status=?", (ABORTED, ASSIGNED))
-            db.execute("update jobs set status=? where status=?", (ABORTED, ASSIGNED))
+            db.execute("update jobits set status=4 where status=1")
+            db.execute("update jobs set status=4 where status=1")
 
-    def update_jobits(self, id, failed=False):
+    def update_jobits(self, id, failed=False, missed_lumis=None):
+        # Don't use [] as a default argument;  it will get set by the first
+        # call
+        if not missed_lumis:
+            missed_lumis = []
+
+        missed = len(missed_lumis)
+
+        if failed:
+            status = FAILED
+        elif missed > 0:
+            status = INCOMPLETE
+        else:
+            status = SUCCESSFUL
+
         with self.db as db:
-            db.execute("update jobits set status=? where job=?",
-                       (FAILED if failed else SUCCESSFUL, int(id)))
-            db.execute("update jobs set status=? where id=?",
-                       (FAILED if failed else SUCCESSFUL, int(id)))
+            db.execute("update jobits set status=? where job=?", (status, int(id)))
+            db.execute("update jobs set status=?, missed_lumis=? where id=?", (status, missed, int(id)))
+            if status != SUCCESSFUL:
+                for run, lumi in missed_lumis:
+                    db.execute("update jobits set status=? where job=? and run=? and lumi=?",
+                            (FAILED, int(id), run, lumi))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select count(*) from jobits where status!=?", (SUCCESSFUL,))

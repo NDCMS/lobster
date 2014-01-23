@@ -3,6 +3,8 @@ import random
 import sqlite3
 from FWCore.PythonUtilities.LumiList import LumiList
 
+# FIXME these are hardcoded in some SQL statements below.  SQLite does not
+# seem to have the concept of variables...
 INITIALIZED = 0
 ASSIGNED = 1
 SUCCESSFUL = 2
@@ -42,6 +44,7 @@ class SQLInterface:
             run integer,
             lumi integer,
             status integer default 0,
+            attempts int default 0,
             foreign key(job) references jobs(id),
             foreign key(dataset) references datasets(id))""")
         self.db.execute("create index if not exists file_index on jobits(dataset, input_file asc)")
@@ -100,11 +103,11 @@ class SQLInterface:
         for id, input_file, run, lumi in self.db.execute("""
                 select id, input_file, run, lumi
                 from jobits
-                where (status=0 or status=2 or status=3) and dataset=?
+                where (status<>1 and status<>2) and dataset=?
                 limit ?""", (dataset_id, total_size,)):
             if current_size == 0:
                 cur = self.db.cursor()
-                cur.execute("insert into jobs(dataset) values (?)", (dataset,))
+                cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset,))
                 job_id = cur.lastrowid
 
             input_files.append(input_file)
@@ -129,7 +132,7 @@ class SQLInterface:
         import time
         t = time.time()
         if len(update) > 0:
-            self.db.executemany("update jobits set status=1, job=? where id=?", update)
+            self.db.executemany("update jobits set status=1, job=?, attempts=(attempts + 1) where id=?", update)
             self.db.commit()
         else:
             self.db.commit()

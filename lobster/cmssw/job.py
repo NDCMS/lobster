@@ -25,7 +25,6 @@ class JobProvider(lobster.job.JobProvider):
         self.__configs = {}
         self.__args = {}
         self.__jobdirs = {}
-        self.__stageoutdirs = {}
         self.__outputs = {}
 
         if 'files' in repr(config):
@@ -61,7 +60,7 @@ class JobProvider(lobster.job.JobProvider):
                         self.__outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 
             taskdir = os.path.join(self.__workdir, label)
-            stageoutdir = os.path.join(self.__stageout, taskdir)
+            stageoutdir = os.path.join(self.__stageout, label)
             if create:
                 for dir in [taskdir, stageoutdir]:
                     if not os.path.exists(dir):

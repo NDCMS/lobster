@@ -20,11 +20,11 @@ else
 		echo ">>> fixing JobConfig..."
 		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
 		sname=site-local-config.xml
-		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "/tmp/ex_parrot" /bin/cp $sconf$sname $sname
+		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "/tmp/ex_parrot_$USER" /bin/cp $sconf$sname $sname
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -m mtab -t "/tmp/ex_parrot" $0 "$*"
+		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -m mtab -t "/tmp/ex_parrot_$USER" $0 "$*"
 	fi
 fi
 

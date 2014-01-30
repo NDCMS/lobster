@@ -1,63 +1,13 @@
 #!/usr/bin/env python
-from datetime import datetime
-import os
-import glob
-import matplotlib.pyplot as plt
+
 from argparse import ArgumentParser
-from lobster.utils import parse, web
-import ttHMultileptonAnalysis.DrawPlots.utilities.plot_helper as plot_helper
 from collections import defaultdict
+import glob
+import os
 
-parser = ArgumentParser(description='make histos')
-parser.add_argument('directory')
-parser.add_argument('wq_logfile')
-args = parser.parse_args()
+import matplotlib.pyplot as plt
 
-def main():
-    stats = {}
-    top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', '29-01-2014')
-        #    top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', datetime.today().strftime('%d-%m-%Y'))
-
-    for label, num_bins in [('TTJets', 15), ('ttW', 7)]:
-        stats[label] = get_stats(args.directory, label)
-        save_dir = os.path.join(top_dir, label)
-        if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
-
-        make_histo([(diff_times(stats[label]['ready'], stats[label]['start']), '')], num_bins,
-                   'time from wrapper start to ready (%s)' % label,
-                   'time (m)', 'jobits', 'start_to_ready', save_dir)
-        make_histo([(diff_times(stats[label]['done'], stats[label]['first']), '')], num_bins,
-                   'time from first event processed to finished (%s)' % label,
-                   'time (m)', 'jobits', 'first_to_done', save_dir)
-        make_histo([(diff_times(stats[label]['fopen'], stats[label]['start']), '')], num_bins,
-                   'time from wrapper start to file open (%s)' % label,
-                   'time (m)', 'jobits', 'start_to_fopen', save_dir)
-        make_histo([(diff_times(stats[label]['first'], stats[label]['start']), '')], num_bins,
-                   'time from wrapper start to first event processed (%s)' % label,
-                   'time (m)', 'jobits', 'start_to_first', save_dir)
-        make_histo([(diff_times(stats[label]['done'], stats[label]['start']), '')], num_bins,
-                   'time from wrapper start to processing finished (%s)' % label,
-                   'time (m)', 'jobits', 'start_to_done', save_dir)
-        make_histo([(stats[label]['changed servers'], '')], num_bins,
-                   'number of XrootD server changes (%s)' % label,
-                   'changed_servers', 'jobits', 'server_changes', save_dir)
-        make_scatter(diff_times(stats[label]['done'], stats[label]['start']), 'time to finish processing',
-                     stats[label]['changed servers'], 'number of XrootD server changes', label, 'changed_servers_vs_time', save_dir)
-
-    make_histo([(diff_times(stats['TTJets']['done'], stats['TTJets']['first']), 'TTJets'),
-                (diff_times(stats['ttW']['done'], stats['ttW']['first']), 'ttW')], 10,
-                 'time from first event processed to finished', 'time (m)', 'jobits', 'first_to_done_overlay', top_dir)
-
-    wq_stats = parse.get_wq_stats(args.wq_logfile)
-    run_times = [(int(x)-int(y))/(60) for x, y in zip(wq_stats['time'], wq_stats['start time'])]
-    make_plot([(run_times, wq_stats['workers active'], 'workers active'),
-               (run_times, wq_stats['workers ready'], 'workers ready'),
-               (run_times, wq_stats['tasks running'], 'tasks running'),
-               (run_times, wq_stats['total workers connected'], 'total workers connected'),
-               (run_times, wq_stats['total workers connected'], 'total tasks complete')], 'time', 'workers active', '', 'workers_active', top_dir)
-
-    web.update_indexes('.')
+from lobster.utils import parse, web
 
 def diff_times(start_times, end_times):
     time_diff = lambda (a, b): (a - b).seconds / 60
@@ -124,4 +74,54 @@ def save_and_close(dir, name):
     plt.close()
 
 if __name__ == '__main__':
-    main()
+    parser = ArgumentParser(description='make histos')
+    parser.add_argument('directory')
+    parser.add_argument('wq_logfile')
+    parser.add_argument('outdir')
+    args = parser.parse_args()
+
+    stats = {}
+    top_dir = args.outdir
+    # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', '29-01-2014')
+    # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', datetime.today().strftime('%d-%m-%Y'))
+
+    for label, num_bins in [('TTJets', 15), ('ttW', 7)]:
+        stats[label] = get_stats(args.directory, label)
+        save_dir = os.path.join(top_dir, label)
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+
+        make_histo([(diff_times(stats[label]['ready'], stats[label]['start']), '')], num_bins,
+                   'time from wrapper start to ready (%s)' % label,
+                   'time (m)', 'jobits', 'start_to_ready', save_dir)
+        make_histo([(diff_times(stats[label]['done'], stats[label]['first']), '')], num_bins,
+                   'time from first event processed to finished (%s)' % label,
+                   'time (m)', 'jobits', 'first_to_done', save_dir)
+        make_histo([(diff_times(stats[label]['fopen'], stats[label]['start']), '')], num_bins,
+                   'time from wrapper start to file open (%s)' % label,
+                   'time (m)', 'jobits', 'start_to_fopen', save_dir)
+        make_histo([(diff_times(stats[label]['first'], stats[label]['start']), '')], num_bins,
+                   'time from wrapper start to first event processed (%s)' % label,
+                   'time (m)', 'jobits', 'start_to_first', save_dir)
+        make_histo([(diff_times(stats[label]['done'], stats[label]['start']), '')], num_bins,
+                   'time from wrapper start to processing finished (%s)' % label,
+                   'time (m)', 'jobits', 'start_to_done', save_dir)
+        make_histo([(stats[label]['changed servers'], '')], num_bins,
+                   'number of XrootD server changes (%s)' % label,
+                   'changed_servers', 'jobits', 'server_changes', save_dir)
+        make_scatter(diff_times(stats[label]['done'], stats[label]['start']), 'time to finish processing',
+                     stats[label]['changed servers'], 'number of XrootD server changes', label, 'changed_servers_vs_time', save_dir)
+
+    make_histo([(diff_times(stats['TTJets']['done'], stats['TTJets']['first']), 'TTJets'),
+                (diff_times(stats['ttW']['done'], stats['ttW']['first']), 'ttW')], 10,
+                 'time from first event processed to finished', 'time (m)', 'jobits', 'first_to_done_overlay', top_dir)
+
+    wq_stats = parse.get_wq_stats(args.wq_logfile)
+    run_times = [(int(x) - int(y)) / (60 * 1e6) for x, y in zip(wq_stats['time'], wq_stats['start time'])]
+    make_plot([(run_times, wq_stats['workers active'], 'workers active'),
+               (run_times, wq_stats['workers ready'], 'workers ready'),
+               (run_times, wq_stats['tasks running'], 'tasks running'),
+               (run_times, wq_stats['total workers connected'], 'total workers connected'),
+               (run_times, wq_stats['total workers connected'], 'total tasks complete')], 'time', 'workers active', '', 'workers_active', top_dir)
+
+    web.update_indexes('.')

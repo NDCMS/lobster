@@ -10,7 +10,7 @@ class JobProvider:
     def obtain(self):
         raise NotImplementedError
 
-    def release(self, id, return_code):
+    def release(self, id, return_code, output, task):
         raise NotImplementedError
 
     def work_left(self):
@@ -53,7 +53,7 @@ class SimpleJobProvider(JobProvider):
 
         return tasks
 
-    def release(self, id, return_code, output):
+    def release(self, id, return_code, output, task):
         self.__running -= 1
         if return_code == 0:
             self.__done += 1

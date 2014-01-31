@@ -78,7 +78,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
-        res = self.retry(self.__store.pop_jobits, ([20] * num,), {})
+        res = self.retry(self.__store.pop_jobits, ([25] * num,), {})
         if not res:
             return None
 
@@ -106,7 +106,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__jobdirs[id] = jdir
             outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'processed.pkl']])
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'processed.pkl', 'times.pkl']])
 
             cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
@@ -116,9 +116,12 @@ class JobProvider(lobster.job.JobProvider):
 
         return tasks
 
-    def release(self, id, return_code, output):
+    def release(self, id, return_code, output, task):
         failed = (return_code != 0)
         jdir = self.__jobdirs[id]
+
+        with open(os.path.join(jdir, 'job.log'), 'w') as f:
+            f.write(output)
 
         try:
             with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
@@ -132,12 +135,25 @@ class JobProvider(lobster.job.JobProvider):
             failed = True
             not_processed = in_lumis.getLumis()
 
+        task_times = [None] * 6
+        try:
+            with open(os.path.join(jdir, 'times.pkl'), 'rb') as f:
+                task_times = pickle.load(f)
+        except Exception as e:
+            print "Job", id, "had a problem:", e
+
         print "Job", id, "returned with exit code", return_code, "missing", len(not_processed), "lumis"
 
-        self.retry(self.__store.update_jobits, (id, failed, not_processed), {})
-
-        with open(os.path.join(jdir, 'job.log'), 'w') as f:
-            f.write(output)
+        times = [
+                task.submit_time / 1000000,
+                task.send_input_start / 1000000,
+                task.send_input_finish / 1000000
+                ] + task_times + [
+                task.receive_output_start / 1000000,
+                task.receive_output_finish / 1000000,
+                task.finish_time / 1000000
+                ]
+        self.retry(self.__store.update_jobits, (id, task.hostname, failed, return_code, not_processed, times), {})
 
         if failed:
             shutil.move(jdir, jdir.replace('running', 'failed'))

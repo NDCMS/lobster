@@ -32,9 +32,18 @@ class SQLInterface:
             status int default 0,
             exit_code integer,
             missed_lumis int default 0,
-            startup_time real,
-            processing_time real,
-            run_time real,
+            time_submit int,
+            time_transfer_in_start int,
+            time_transfer_in_end int,
+            time_wrapper_start int,
+            time_wrapper_ready int,
+            time_file_requested int,
+            time_file_opened int,
+            time_file_processing int,
+            time_wrapper_end int,
+            time_transfer_out_start int,
+            time_transfer_out_end int,
+            time_retrieved int,
             foreign key(dataset) references datasets(id))""")
         self.db.execute("""create table if not exists jobits(
             id integer primary key autoincrement,
@@ -129,6 +138,13 @@ class SQLInterface:
                 lumis = []
                 current_size = 0
 
+        if len(lumis) > 0:
+            jobs.append((
+                str(job_id),
+                dataset,
+                set(input_files),
+                LumiList(lumis=lumis)))
+
         import time
         t = time.time()
         if len(update) > 0:
@@ -146,11 +162,13 @@ class SQLInterface:
             db.execute("update jobits set status=4 where status=1")
             db.execute("update jobs set status=4 where status=1")
 
-    def update_jobits(self, id, failed=False, missed_lumis=None):
+    def update_jobits(self, id, host=None, failed=False, return_code=0, missed_lumis=None, times=None):
         # Don't use [] as a default argument;  it will get set by the first
         # call
         if not missed_lumis:
             missed_lumis = []
+        if not times:
+            times = [None] * 12
 
         missed = len(missed_lumis)
 
@@ -162,8 +180,29 @@ class SQLInterface:
             status = SUCCESSFUL
 
         with self.db as db:
-            db.execute("update jobits set status=? where job=?", (status, int(id)))
-            db.execute("update jobs set status=?, missed_lumis=? where id=?", (status, missed, int(id)))
+            db.execute("""update jobits set
+                status=?
+                where job=?""",
+                (status, int(id)))
+            db.execute("""update jobs set
+                status=?,
+                host=?,
+                exit_code=?,
+                time_submit=?,
+                time_transfer_in_start=?,
+                time_transfer_in_end=?,
+                time_wrapper_start=?,
+                time_wrapper_ready=?,
+                time_file_requested=?,
+                time_file_opened=?,
+                time_file_processing=?,
+                time_wrapper_end=?,
+                time_transfer_out_start=?,
+                time_transfer_out_end=?,
+                time_retrieved=?,
+                missed_lumis=?
+                where id=?""",
+                [status, host, return_code] + times + [missed, int(id)])
             if status != SUCCESSFUL:
                 for run, lumi in missed_lumis:
                     db.execute("update jobits set status=? where job=? and run=? and lumi=?",

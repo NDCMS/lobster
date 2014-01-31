@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import gzip
 import json
 import os
@@ -37,6 +38,30 @@ def extract_processed_lumis(report_filename):
             lumis.append((run_number, int(lumi.getAttribute("ID"))))
     return LumiList(lumis=lumis)
 
+def extract_time(filename):
+    try:
+        with open(filename) as f:
+            return int(f.readline())
+    except Exception as e:
+        print e
+        return None
+
+def extract_cmssw_times(log_filename):
+    finit = None
+    fopen = None
+    first = None
+
+    with open(log_filename) as f:
+        for line in f.readlines():
+            if not finit and line[26:36] == "Initiating":
+                finit = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
+            elif not fopen and line[26:38] == "Successfully":
+                fopen = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
+            elif not first and line[21:24] == "1st":
+                first = int(datetime.strptime(line[-29:-9], "%d-%b-%Y %X").strftime('%s'))
+
+    return (finit, fopen, first)
+
 (config, data) = sys.argv[1:]
 with open(data, 'rb') as f:
     (args, files, lumis) = pickle.load(f)
@@ -59,6 +84,19 @@ try:
 except Exception as e:
     print e
     pass
+
+times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
+
+try:
+    times += extract_cmssw_times('cmssw.log')
+except Exception as e:
+    print e
+    pass
+
+times.append(int(datetime.now().strftime('%s')))
+
+with open('times.pkl', 'wb') as f:
+    pickle.dump(times, f, pickle.HIGHEST_PROTOCOL)
 
 for filename in 'cmssw.log report.xml'.split():
     if os.path.isfile(filename):

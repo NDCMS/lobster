@@ -1,6 +1,7 @@
 #!/bin/sh --noprofile
 
 echo "[$(date '+%F %T')] wrapper start"
+date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
 
 if [ "x$PARROT_ENABLED" != "x" ]; then
@@ -68,6 +69,7 @@ echo
 
 echo
 echo "[$(date '+%F %T')] wrapper ready"
+date +%s > t_wrapper_ready
 echo
 echo ">>> working directory before execution"
 echo "---8<---"

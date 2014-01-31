@@ -117,11 +117,12 @@ if __name__ == '__main__':
                  'time from first event processed to finished', 'time (m)', 'jobits', 'first_to_done_overlay', top_dir)
 
     wq_stats = parse.get_wq_stats(args.wq_logfile)
-    run_times = [(int(x) - int(y)) / (60 * 1e6) for x, y in zip(wq_stats['time'], wq_stats['start time'])]
-    make_plot([(run_times, wq_stats['workers active'], 'workers active'),
-               (run_times, wq_stats['workers ready'], 'workers ready'),
-               (run_times, wq_stats['tasks running'], 'tasks running'),
-               (run_times, wq_stats['total workers connected'], 'total workers connected'),
-               (run_times, wq_stats['total workers connected'], 'total tasks complete')], 'time', 'workers active', '', 'workers_active', top_dir)
+    run_times = [(int(x) - int(y)) / (60 * 1e6) for x, y in zip(wq_stats['timestamp'], wq_stats['start_time'])]
+    make_plot([(run_times, wq_stats['workers_active'], 'workers active'),
+               (run_times, wq_stats['workers_ready'], 'workers ready'),
+               (run_times, wq_stats['tasks_running'], 'tasks running'),
+               (run_times, wq_stats['total_workers_connected'], 'total workers connected'),
+               # (run_times, wq_stats['total_workers_removed'], 'workers removed'),
+               (run_times, wq_stats['total_tasks_complete'], 'total tasks complete')], 'time', 'workers active', '', 'workers_active', top_dir)
 
     web.update_indexes(args.outdir)

@@ -6,13 +6,17 @@ from collections import defaultdict
 
 def get_wq_stats(file):
     stats = defaultdict(list)
-    headers = ['time', 'start time', 'workers init', 'workers ready', 'workers active', 'workers full', 'tasks waiting', 'tasks running',
-               'tasks complete', 'total tasks dispatched', 'total workers joined', 'total workers connected', 'total workers removed',
-               'total bytes sent', 'total bytes received', 'efficiency', 'idle percentage', 'capacity', 'average capacity', 'port', 'priority', 'total worker slots']
+    headers = None
 
     with open(file) as wq_log:
         for line in wq_log.readlines():
+            if line.startswith('#'):
+                if headers:
+                    continue
+
+                headers = line[1:].split()
             cols = line.split()
+
             try:
                 int(cols[0])
             except:

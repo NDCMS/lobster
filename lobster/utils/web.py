@@ -3,8 +3,6 @@ import os
 import time
 
 def update_indexes(directory):
-    www_base_directory = get_www_base_directory()
-    directory = os.path.join(www_base_directory, directory)
     for root, dirs, files in os.walk(directory):
         current_dirs = dirs + ['..']
         current_dirs.sort()
@@ -30,11 +28,3 @@ def update_indexes(directory):
             modified_segment = segment.format(files=files_snippet, images=image_snippet)
             index = index.replace(segment, modified_segment)
             f.write(index)
-
-def get_www_base_directory():
-    try:
-        www_base_directory = os.environ['HOME']+'/www'
-        return www_base_directory
-    except:
-        print 'Problem accessing your CRC www directory.  Try emailing crcsupport@nd.edu and asking them to create one for you.'
-        sys.exit()

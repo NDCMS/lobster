@@ -124,4 +124,4 @@ if __name__ == '__main__':
                (run_times, wq_stats['total workers connected'], 'total workers connected'),
                (run_times, wq_stats['total workers connected'], 'total tasks complete')], 'time', 'workers active', '', 'workers_active', top_dir)
 
-    web.update_indexes('.')
+    web.update_indexes(args.outdir)

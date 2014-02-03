@@ -13,6 +13,7 @@ else
 	which scramv1 > /dev/null 2>&1
 
 	if [ $? != 0 ]; then
+		export MYCACHE=$PWD
 		export CMS_LOCAL_SITE=T3_US_NotreDame
 		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
@@ -21,11 +22,11 @@ else
 		echo ">>> fixing JobConfig..."
 		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
 		sname=site-local-config.xml
-		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "/tmp/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
+		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -m mtab -t "/tmp/ex_parrot_$(whoami)" $0 "$*"
+		exec /afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" $0 "$*"
 	fi
 fi
 

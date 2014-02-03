@@ -57,6 +57,7 @@ while not job_src.done():
         for id, cmd, inputs, outputs in jobs:
             task = wq.Task(cmd)
             task.specify_tag(id)
+            task.specify_cores(1)
 
             for (local, remote) in inputs:
                 if os.path.isfile(local):

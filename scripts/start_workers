@@ -1,5 +1,7 @@
 #!/bin/sh
 
+cores=8
+
 SUBMIT_COMMON=`which wq_submit_workers.common`
 if [ -z "$SUBMIT_COMMON" ];
 then
@@ -51,7 +53,7 @@ submit_workers_command()
 	condor_submit << EOF
 universe = vanilla
 executable = work_queue_worker
-arguments = $arguments $host $port
+arguments = --cores $cores $arguments $host $port
 transfer_input_files = ${transfer_input_files}
 should_transfer_files = yes
 when_to_transfer_output = on_exit
@@ -59,6 +61,7 @@ output = worker.\$(PROCESS).output
 error = worker.\$(PROCESS).error
 log = workers.log
 requirements = $requirements
+RequestCpus = $cores
 queue $count
 EOF
 }

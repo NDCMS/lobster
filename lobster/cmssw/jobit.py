@@ -116,7 +116,7 @@ class SQLInterface:
                 limit ?""", (dataset_id, total_size,)):
             if current_size == 0:
                 cur = self.db.cursor()
-                cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset,))
+                cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))
                 job_id = cur.lastrowid
 
             input_files.append(input_file)

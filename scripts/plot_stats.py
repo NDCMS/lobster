@@ -39,12 +39,18 @@ def make_histo(ranges, num_bins, t, xlabel, ylabel, filename, dir):
         histtype = 'step'
         linewidth = 2
 
-    for r, l in ranges:
-        plt.hist(r, bins=num_bins, label=l, histtype=histtype)
+    fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
+    ax1.set_yscale('log')
 
-    plt.title(t)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    for r, l in ranges:
+        ax0.hist(r, bins=num_bins, label=l, histtype=histtype)
+        ax1.hist(r, bins=num_bins, label=l, histtype=histtype)
+
+    ax0.set_title(t)
+
+    ax0.set_ylabel(ylabel)
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(ylabel)
 
     if len(ranges) > 1:
         plt.legend()

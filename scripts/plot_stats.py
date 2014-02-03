@@ -57,9 +57,9 @@ def make_histo(ranges, num_bins, t, xlabel, ylabel, filename, dir):
 
     save_and_close(dir, filename)
 
-def make_plot(tuples, x_label, y_label, t, name, dir):
+def make_plot(tuples, x_label, y_label, t, name, dir, fun=plt.plot):
     for x, y, l in tuples:
-        plt.plot(x, y, label=l)
+        fun(x, y, label=l)
     plt.title(t)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -74,6 +74,19 @@ def make_scatter(x, x_label, y, y_label, t, name, dir):
     plt.ylabel(y_label)
 
     save_and_close(dir, name)
+
+def reduce(a, idx, interval):
+    quant = a[:,idx]
+    last = quant[0]
+    select = np.ones((len(quant),), dtype=np.bool)
+    for i in range(1, len(quant) - 1):
+        if quant[i] - last > interval or quant[i + 1] - last > interval:
+            select[i] = True
+            last = quant[i]
+        else:
+            select[i] = False
+
+    return a[select]
 
 def save_and_close(dir, name):
     print "Saving", name
@@ -175,18 +188,36 @@ if __name__ == '__main__':
     print "Reading WQ log"
     with open(args.wq_logfile) as f:
         headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-    wq_stats = np.loadtxt(args.wq_logfile)
+    wq_stats_raw = np.loadtxt(args.wq_logfile)
     # subtract start time, convert to minutes
-    wq_stats[:,0] = (wq_stats[:,0] - wq_stats[0,1]) / 60e6
-    # wq_stats = parse.get_wq_stats(args.wq_logfile)
-    print "Done reading WQ log"
-    run_times = map(int, wq_stats[:,0])
-    make_plot([(run_times, wq_stats[:,headers['workers_active']], 'workers active'),
-               (run_times, wq_stats[:,headers['workers_ready']], 'workers ready'),
-               (run_times, wq_stats[:,headers['tasks_running']], 'tasks running'),
-               (run_times, wq_stats[:,headers['total_workers_connected']], 'total workers connected'),
-               # (run_times, wq_stats['total_workers_removed'], 'workers removed'),
-               # (run_times, wq_stats['total_tasks_complete'], 'total tasks complete')
+    wq_stats_raw[:,0] = (wq_stats_raw[:,0] - wq_stats_raw[0,1]) / 60e6
+    runtimes = wq_stats_raw[:,0]
+
+    bins = xrange(0, runtimes[-1] + 5, 5)
+    make_histo([(runtimes, '')], bins,
+            'Activity in 5 min time slices',
+            'time(m)', 'activity', 'activity', top_dir)
+
+    print "Reducing WQ log"
+    wq_stats = reduce(wq_stats_raw, 0, 5.)
+    runtimes = wq_stats[:,0]
+
+    make_plot([(runtimes, wq_stats[:,headers['workers_active']], 'workers active'),
+               (runtimes, wq_stats[:,headers['workers_ready']], 'workers ready'),
+               (runtimes, wq_stats[:,headers['tasks_running']], 'tasks running'),
+               (runtimes, wq_stats[:,headers['total_workers_connected']], 'total workers connected'),
+               # (runtimes, wq_stats['total_workers_removed'], 'workers removed'),
+               # (runtimes, wq_stats['total_tasks_complete'], 'total tasks complete')
                ], 'time', 'workers active', '', 'workers_active', top_dir)
+
+    print "Reducing WQ log again"
+    wq_stats = reduce(wq_stats_raw, 0, 60.)
+    runtimes = wq_stats[:,0]
+
+    diff = wq_stats - np.roll(wq_stats, -1, axis=0)
+    rate = np.roll(diff[:,headers['total_bytes_received']] / diff[:,0] * 60. / 1024**3, -1)
+    select = rate >= 0
+    make_plot([(runtimes[select], rate[select], 'rate')],
+            'time', 'GB/h', '', 'rate', top_dir, fun=plt.step)
 
     web.update_indexes(args.outdir)

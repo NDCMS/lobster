@@ -120,8 +120,12 @@ class JobProvider(lobster.job.JobProvider):
         failed = (return_code != 0)
         jdir = self.__jobdirs[id]
 
-        with open(os.path.join(jdir, 'job.log'), 'w') as f:
-            f.write(output)
+        if output:
+            with open(os.path.join(jdir, 'job.log'), 'w') as f:
+                f.write(output)
+        else:
+            # FIXME treat this properly
+            print "Job", id, "had no output"
 
         try:
             with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:

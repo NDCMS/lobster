@@ -83,26 +83,45 @@ try:
         pickle.dump(run_info, f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
-    pass
+    if exit_code == 0:
+        exit_code = 190
 
-times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
+try:
+    times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
+except Exception as e:
+    print e
+    if exit_code == 0:
+        exit_code = 191
 
 try:
     times += extract_cmssw_times('cmssw.log')
 except Exception as e:
     print e
-    pass
+    if exit_code == 0:
+        exit_code = 192
 
 times.append(int(datetime.now().strftime('%s')))
 
-with open('times.pkl', 'wb') as f:
+try:
+    f = open('times.pkl', 'wb')
     pickle.dump(times, f, pickle.HIGHEST_PROTOCOL)
+except Exception as e:
+    print e
+    if exit_code == 0:
+        exit_code = 193
+finally:
+    f.close()
 
 for filename in 'cmssw.log report.xml'.split():
     if os.path.isfile(filename):
-        with open(filename) as f:
-            zipf = gzip.open(filename + ".gz", "wb")
-            zipf.writelines(f)
-            zipf.close()
+        try:
+            with open(filename) as f:
+                zipf = gzip.open(filename + ".gz", "wb")
+                zipf.writelines(f)
+                zipf.close()
+        except Exception as e:
+            print e
+            if exit_code == 0:
+                exit_code = 194
 
 sys.exit(exit_code)

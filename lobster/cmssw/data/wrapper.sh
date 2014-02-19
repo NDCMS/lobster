@@ -1,5 +1,16 @@
 #!/bin/sh --noprofile
 
+exit_on_error() {
+	result=$1
+	code=$2
+	message=$3
+
+	if [ $1 != 0 ]; then
+		echo $3
+		exit $2
+	fi
+}
+
 echo "[$(date '+%F %T')] wrapper start"
 date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
@@ -22,7 +33,8 @@ else
 		echo ">>> fixing JobConfig..."
 		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
 		sname=site-local-config.xml
-		/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
+		/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
+		exit_on_error $? 200 "Failed to fix site configuration!"
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
@@ -30,19 +42,19 @@ else
 	fi
 fi
 
-tar xjf sandbox.tar.bz2 || exit 123
+tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
 basedir=$PWD
 
 rel=$(echo CMSSW_*)
-arch=$(ls $rel/.SCRAM/|grep slc)
-old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
+arch=$(ls $rel/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
+old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment) || exit_on_error $? 172 "Failed to determine old releasetop!"
 
 export SCRAM_ARCH=$arch
 
 echo ">>> creating new release $rel"
-mkdir tmp && cd tmp
-scramv1 project CMSSW $rel
+(mkdir tmp && cd tmp) || exit_on_error $? 173 "Failed to create temporary directory"
+scramv1 project CMSSW $rel || exit_on_error $? 173 "Failed to create new release"
 new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
 cd $rel
 echo ">>> preparing sandbox release $rel"
@@ -58,7 +70,7 @@ for f in $(find -iname __init__.py); do
 	sed -i -e "s@$old_release_top@$new_release_top@" "$f"
 done
 
-eval $(scramv1 runtime -sh)
+eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 echo $?
 cd "$basedir"
 

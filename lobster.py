@@ -21,14 +21,20 @@ if 'cmssw' in repr(config):
 else:
     job_src = job.SimpleJobProvider(config)
 
+wq.cctools_debug_flags_set("all")
+wq.cctools_debug_config_file(os.path.join(config["workdir"], "debug.log"))
+wq.cctools_debug_config_file_size(1 << 28)
+
 queue = wq.WorkQueue(-1)
 queue.specify_log(os.path.join(config["workdir"], "work_queue.log"))
 queue.specify_name("lobster_" + config["id"])
+queue.specify_keepalive_timeout(300)
+queue.tune("short-timeout", 600)
 
 print "Starting queue as", queue.name
 print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
 
-payload = 4000
+payload = 400
 
 while not job_src.done():
     stats = queue.stats

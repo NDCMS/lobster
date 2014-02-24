@@ -56,6 +56,8 @@ class JobProvider(lobster.job.JobProvider):
                 with open(cms_config, 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
                     cfg_interface = CfgInterface(source.process)
+                    if hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'): #Possibility: make this mandatory?
+                        cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
                     for m in cfg_interface.data.outputModules:
                         self.__outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 

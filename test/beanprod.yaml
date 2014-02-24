@@ -1,7 +1,8 @@
-id: BEAN_v2
-workdir: gpetrucc_ttH_gen_2013-05-23_lowmll
-stageout location: /hadoop/users/awoodard
-#sandbox blacklist: ['*DrawPlots*']
+id: BEAN_v9
+workdir: /tmp/awoodard.lobster.v9
+stageout location: /store/user/awoodard/lobster.v9
+sandbox blacklist: ['*DrawPlots*']
+dbs url: 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/'
 
 # cmd: 'python make_big_file.py'
 # inputs: ['make_big_file.py']
@@ -13,9 +14,34 @@ tasks:
   - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
     dataset label: TTJets
     cmssw config: makeBEAN_cfg.py
+    publish name: 'awoodard-lobster-test-v1'
     lumi mask: mask.json
     outputs: [ttH_pat2bean_53x.root] #if this is not specified, the cmssw config will be loaded to look for output modules (slower)
-    parameters: [jobParams=2012_X_MC-sigFullSim_9122]
+    parameters: [jobParams=2012_X_MC-bg_2500]
+  - dataset: '/TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
+    dataset label: TTH_125
+    cmssw config: makeBEAN_cfg.py
+    publish name: 'awoodard-lobster-test-v1'
+    outputs: [ttH_pat2bean_53x.root]
+    parameters: [jobParams=2012_X_MC-sigFullSim_9125]
+  - dataset: '/WJetsToLNu_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM'
+    dataset label: WJets
+    cmssw config: makeBEAN_cfg.py
+    publish name: 'awoodard-lobster-test-v1'
+    outputs: [ttH_pat2bean_53x.root]
+    parameters: [jobParams=2012_X_MC-bg_2400]
+  - dataset: '/DYJetsToLL_M-50_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
+    dataset label: ZJets
+    cmssw config: makeBEAN_cfg.py
+    publish name: 'awoodard-lobster-test-v1'
+    outputs: [ttH_pat2bean_53x.root]
+    parameters: [jobParams=2012_X_MC-bg_2850]
+  - dataset: '/TTWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
+    dataset label: ttW
+    cmssw config: makeBEAN_cfg.py
+    publish name: 'awoodard-lobster-test-v1'
+    outputs: [ttH_pat2bean_53x.root]
+    parameters: [jobParams=2012_X_MC-bg_2524]
 #   - files: zz_lowmll_v2.list #to run on unpublished data, specify a list (one file per line) or directory
 #     dataset label: zz_lowmll_v2
 #     cmssw config: ttH_fastSim.py

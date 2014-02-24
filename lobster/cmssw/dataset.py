@@ -2,7 +2,7 @@ import os
 import glob
 import sys
 from collections import defaultdict
-sys.path.append('/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client/dbs/apis')
+sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
 class DatasetInfo():
@@ -15,6 +15,7 @@ class DatasetInfo():
         self.files = []
 
 class DASInterface:
+#    def __init__(self, config, global_dbs_url='https://cmsweb-testbed.cern.ch/dbs/int/global/DBSReader'):
     def __init__(self, config, global_dbs_url='https://cmsweb.cern.ch/dbs/prod/global/DBSReader'):
         self.ds_info = {}
         self.api_reader = DbsApi(global_dbs_url)

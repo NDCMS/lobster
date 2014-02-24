@@ -21,8 +21,15 @@ class SQLInterface:
         # Use four databases: one for jobits, jobs, hosts, datasets each
         self.db.execute("""create table if not exists datasets(
             id integer primary key autoincrement,
+            dataset text,
             label text,
             path text,
+            release text,
+            global_tag text,
+            dbs_url text,
+            publish_name text,
+            pset_hash text default null,
+            cfg text,
             jobits integer,
             jobits_done int default 0)""")
         self.db.execute("""create table if not exists jobs(
@@ -74,17 +81,36 @@ class SQLInterface:
         self.db.close()
 
     def register_jobits(self, dataset_interface):
-        labels = [x['dataset label'] for x in self.config['tasks']]
-        for label in labels:
+
+        dbs_url = self.config.get('dbs url')
+        for cfg in self.config['tasks']:
+            label = cfg['dataset label']
             dataset_info = dataset_interface[label]
 
-            if self.config.has_key('lumi mask'):
+            if cfg.has_key('lumi mask'):
                 lumi_mask = LumiList(filename=config['lumi mask'])
                 for file in dataset_info.files:
                     dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
 
             cur = self.db.cursor()
-            cur.execute("insert into datasets(label) values (?)", (label,))
+            cur.execute("""insert into datasets
+                           (dataset,
+                           label,
+                           path,
+                           release,
+                           global_tag,
+                           dbs_url,
+                           publish_name,
+                           cfg)
+                           values (?, ?, ?, ?, ?, ?, ?, ?)""", (
+                               cfg['dataset'],
+                               label,
+                               os.path.join(self.config['stageout location'], label),
+                               os.path.basename(os.environ['LOCALRT']),
+                               cfg.get('global tag'),
+                               dbs_url,
+                               cfg.get('publish name'),
+                               cfg['cmssw config']))
             id = cur.lastrowid
 
             for file in dataset_info.files:

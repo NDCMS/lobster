@@ -1,8 +1,8 @@
 #!/bin/sh
 
-cores=8
-let mem=2000*$cores
-let disk=5500000*$cores
+cores=4
+let mem=1500*$cores
+let disk=5000000*$cores
 
 SUBMIT_COMMON=`which wq_submit_workers.common`
 if [ -z "$SUBMIT_COMMON" ];
@@ -63,9 +63,9 @@ output = worker.\$(PROCESS).output
 error = worker.\$(PROCESS).error
 log = workers.log
 requirements = $requirements
-RequestCpus = $cores
-RequestDisk = $disk
-RequestMemory = $mem
+request_cpus = $cores
+request_disk = $disk
+request_memory = $mem
 queue $count
 EOF
 }

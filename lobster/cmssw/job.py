@@ -69,6 +69,7 @@ class JobProvider(lobster.job.JobProvider):
                         os.makedirs(dir)
 
                 shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
+                shutil.copy(config['filepath'], os.path.join(self.__workdir, 'lobster_config.yaml'))
             elif os.path.exists(os.path.join(taskdir, 'running')):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))

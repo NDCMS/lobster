@@ -10,12 +10,13 @@ from argparse import ArgumentParser
 import work_queue as wq
 
 parser = ArgumentParser(description='A job submission tool for CMS')
-parser.add_argument('config_file_name', nargs='?', default='lobster.yaml', help='Configuration file to process.')
+parser.add_argument('config_file_name', nargs='?', default='test/lobster.yaml', help='Configuration file to process.')
 args = parser.parse_args()
 
 with open(args.config_file_name) as config_file:
     config = yaml.load(config_file)
 
+config['filepath'] = args.config_file_name
 if 'cmssw' in repr(config):
     job_src = cmssw.JobProvider(config)
 else:

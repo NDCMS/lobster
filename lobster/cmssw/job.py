@@ -4,6 +4,7 @@ import pickle
 import shutil
 import sqlite3
 import time
+import sys
 
 import lobster.job
 import sandbox
@@ -53,6 +54,7 @@ class JobProvider(lobster.job.JobProvider):
             if cfg.has_key('outputs'):
                 self.__outputs[label].extend(cfg['outputs'])
             else:
+                sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
                 with open(cms_config, 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
                     cfg_interface = CfgInterface(source.process)

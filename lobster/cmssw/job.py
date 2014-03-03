@@ -26,6 +26,7 @@ class JobProvider(lobster.job.JobProvider):
         self.__configs = {}
         self.__args = {}
         self.__jobdirs = {}
+        self.__jobdatasets = {}
         self.__outputs = {}
 
         if 'files' in repr(config):
@@ -83,6 +84,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__store.reset_jobits()
 
     def obtain(self, num=1):
+        # FIXME allow for adjusting the number of LS per job
         res = self.retry(self.__store.pop_jobits, ([25] * num,), {})
         if not res:
             return None
@@ -110,6 +112,7 @@ class JobProvider(lobster.job.JobProvider):
             inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
             self.__jobdirs[id] = jdir
+            self.__jobdatasets[id] = label
             outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'processed.pkl', 'times.pkl']])
 
@@ -121,53 +124,62 @@ class JobProvider(lobster.job.JobProvider):
 
         return tasks
 
-    def release(self, id, return_code, output, task):
-        failed = (return_code != 0)
-        jdir = self.__jobdirs[id]
+    def release(self, tasks):
+        jobs = []
+        for task in tasks:
+            failed = (task.return_status != 0)
+            jdir = self.__jobdirs[task.tag]
+            dset = self.__jobdatasets[task.tag]
 
-        if output:
-            with open(os.path.join(jdir, 'job.log'), 'w') as f:
-                f.write(output)
-        else:
-            # FIXME treat this properly
-            print "Job", id, "had no output"
+            if task.output:
+                with open(os.path.join(jdir, 'job.log'), 'w') as f:
+                    f.write(task.output)
 
-        try:
-            with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
-                in_lumis = pickle.load(f)[2]
-            with open(os.path.join(jdir, 'processed.pkl'), 'rb') as f:
-                out_lumis = pickle.load(f)
-            not_processed = (out_lumis - in_lumis).getLumis()
-        except Exception as e:
-            # FIXME treat this properly
-            print "Job", id, "had a problem:", e
-            failed = True
-            not_processed = in_lumis.getLumis()
+            try:
+                with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
+                    in_lumis = pickle.load(f)[2]
+                with open(os.path.join(jdir, 'processed.pkl'), 'rb') as f:
+                    out_lumis = pickle.load(f)
+                not_processed = (in_lumis - out_lumis).getLumis()
+                processed = out_lumis.getLumis()
+            except Exception as e:
+                # FIXME treat this properly
+                failed = True
+                not_processed = in_lumis.getLumis()
+                processed = []
 
-        task_times = [None] * 6
-        try:
-            with open(os.path.join(jdir, 'times.pkl'), 'rb') as f:
-                task_times = pickle.load(f)
-        except Exception as e:
-            print "Job", id, "had a problem:", e
+            task_times = [None] * 6
+            try:
+                with open(os.path.join(jdir, 'times.pkl'), 'rb') as f:
+                    task_times = pickle.load(f)
+            except:
+                pass
 
-        print "Job", id, "returned with exit code", return_code, "missing", len(not_processed), "lumis"
+            print "Job", task.tag, "returned with exit code", task.return_status
 
-        times = [
-                task.submit_time / 1000000,
-                task.send_input_start / 1000000,
-                task.send_input_finish / 1000000
-                ] + task_times + [
-                task.receive_output_start / 1000000,
-                task.receive_output_finish / 1000000,
-                task.finish_time / 1000000
-                ]
-        self.retry(self.__store.update_jobits, (id, task.hostname, failed, return_code, not_processed, times), {})
+            times = [
+                    task.submit_time / 1000000,
+                    task.send_input_start / 1000000,
+                    task.send_input_finish / 1000000
+                    ] + task_times + [
+                    task.receive_output_start / 1000000,
+                    task.receive_output_finish / 1000000,
+                    task.finish_time / 1000000
+                    ]
 
-        if failed:
-            shutil.move(jdir, jdir.replace('running', 'failed'))
-        else:
-            shutil.move(jdir, jdir.replace('running', 'successful'))
+            try:
+                retries = task.retries
+            except:
+                retries = -1
+
+            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times])
+
+            if failed:
+                shutil.move(jdir, jdir.replace('running', 'failed'))
+            else:
+                shutil.move(jdir, jdir.replace('running', 'successful'))
+        if len(jobs) > 0:
+            self.retry(self.__store.update_jobits, (jobs,), {})
 
     def done(self):
         return self.__store.unfinished_jobits() == 0

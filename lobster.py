@@ -82,13 +82,15 @@ while not job_src.done():
 
     print "Waiting for jobs to return..."
     task = queue.wait(3)
-    while task:
-        job_src.release(task.tag, task.return_status, task.output, task)
+    tasks = []
+    while taskreceived:
+        tasks.append(task)
         if queue.stats.tasks_complete > 0:
-            print "waiting..."
-            task = queue.wait(3)
+            task = queue.wait(1)
         else:
             task = None
-
-
-
+    print "Done waiting..."
+    if len(tasks) > 0:
+        t = time.time()
+        job_src.release(tasks)
+        print "release time", time.time() - t

@@ -53,11 +53,12 @@ class SimpleJobProvider(JobProvider):
 
         return tasks
 
-    def release(self, id, return_code, output, task):
-        self.__running -= 1
-        if return_code == 0:
-            self.__done += 1
-        print "Job %s returned with return code %s [%s jobs finished / %s total ]" % (id, return_code, self.__done, self.__max)
+    def release(self, tasks):
+        for task in tasks:
+            self.__running -= 1
+            if task.return_status == 0:
+                self.__done += 1
+            print "Job %s returned with return code %s [%s jobs finished / %s total ]" % (id, task.return_status, self.__done, self.__max)
 
     def work_left(self):
         return self.__max - self.__done

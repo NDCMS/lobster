@@ -24,13 +24,13 @@ else:
 
 wq.cctools_debug_flags_set("all")
 wq.cctools_debug_config_file(os.path.join(config["workdir"], "debug.log"))
-wq.cctools_debug_config_file_size(1 << 28)
+wq.cctools_debug_config_file_size(1 << 29)
 
 queue = wq.WorkQueue(-1)
 queue.specify_log(os.path.join(config["workdir"], "work_queue.log"))
 queue.specify_name("lobster_" + config["id"])
 queue.specify_keepalive_timeout(300)
-queue.tune("short-timeout", 600)
+# queue.tune("short-timeout", 600)
 
 print "Starting queue as", queue.name
 print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
@@ -65,6 +65,9 @@ while not job_src.done():
             task = wq.Task(cmd)
             task.specify_tag(id)
             task.specify_cores(1)
+            # temporary work-around?
+            task.specify_memory(1100)
+            task.specify_disk(4000)
 
             for (local, remote) in inputs:
                 if os.path.isfile(local):
@@ -83,7 +86,7 @@ while not job_src.done():
     print "Waiting for jobs to return..."
     task = queue.wait(3)
     tasks = []
-    while taskreceived:
+    while task:
         tasks.append(task)
         if queue.stats.tasks_complete > 0:
             task = queue.wait(1)

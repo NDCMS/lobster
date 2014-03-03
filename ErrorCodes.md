@@ -13,3 +13,5 @@ Lobster uses the following error codes:
 194 Failed to compress output files
 
 200 Parrot failure
+
+500 Publish failure

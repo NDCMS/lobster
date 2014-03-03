@@ -2,6 +2,7 @@ import os
 import random
 import sqlite3
 from FWCore.PythonUtilities.LumiList import LumiList
+import uuid
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
@@ -11,9 +12,11 @@ SUCCESSFUL = 2
 FAILED = 3
 ABORTED = 4
 INCOMPLETE = 5
+PUBLISHED = 6
 
 class SQLInterface:
     def __init__(self, config):
+        self.uuid = str(uuid.uuid4()).replace('-', '')
         self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
@@ -27,9 +30,10 @@ class SQLInterface:
             release text,
             global_tag text,
             dbs_url text,
-            publish_name text,
+            publish_label text,
             pset_hash text default null,
             cfg text,
+            uuid text,
             jobits integer,
             jobits_done int default 0)""")
         self.db.execute("""create table if not exists jobs(
@@ -38,6 +42,7 @@ class SQLInterface:
             dataset integer,
             status int default 0,
             exit_code integer,
+            published_file_block text,
             missed_lumis int default 0,
             time_submit int,
             time_transfer_in_start int,
@@ -100,17 +105,19 @@ class SQLInterface:
                            release,
                            global_tag,
                            dbs_url,
-                           publish_name,
-                           cfg)
-                           values (?, ?, ?, ?, ?, ?, ?, ?)""", (
+                           publish_label,
+                           cfg,
+                           uuid)
+                           values (?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                                cfg['dataset'],
                                label,
                                os.path.join(self.config['stageout location'], label),
                                os.path.basename(os.environ['LOCALRT']),
                                cfg.get('global tag'),
                                dbs_url,
-                               cfg.get('publish name'),
-                               cfg['cmssw config']))
+                               cfg['publish label'].replace('-', '_'), #TO DO: more lexical checks
+                               cfg['cmssw config'],
+                               self.uuid))
             id = cur.lastrowid
 
             for file in dataset_info.files:
@@ -234,6 +241,8 @@ class SQLInterface:
                     db.execute("update jobits set status=? where job=? and run=? and lumi=?",
                             (FAILED, int(id), run, lumi))
 
+            db.commit()
+
     def unfinished_jobits(self):
         cur = self.db.execute("select count(*) from jobits where status!=?", (SUCCESSFUL,))
         return cur.fetchone()[0]
@@ -241,3 +250,48 @@ class SQLInterface:
     def running_jobits(self):
         cur = self.db.execute("select count(*) from jobits where status==?", (ASSIGNED,))
         return cur.fetchone()[0]
+
+    def dataset_info(self, label):
+        cur = self.db.execute("""select dataset,
+            path,
+            release,
+            global_tag,
+            dbs_url,
+            publish_label,
+            cfg,
+            pset_hash,
+            id,
+            uuid
+            from datasets
+            where label==?""", (label,))
+
+        return cur.fetchone()
+
+    def finished_jobs(self, dataset):
+        cur = self.db.execute("""select id
+            from jobs
+            where status=?
+            and dataset=?""", (SUCCESSFUL, dataset,))
+
+        return cur.fetchall()
+
+    def update_published(self, blocks):
+        columns = [(PUBLISHED, block, id) for block, id in blocks]
+
+        self.db.executemany("""update jobs
+            set status=?,
+            published_file_block=?
+            where id=?""", columns)
+
+        self.db.executemany("""update jobits
+            set status=?
+            where id=?""", [(x, z) for x, y, z in columns])
+
+        self.db.commit()
+
+    def update_datasets(self, column, value, label):
+        self.db.execute("""update datasets
+            set %s=?
+            where label=?""" % column, (value, label,))
+
+        self.db.commit()

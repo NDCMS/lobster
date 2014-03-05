@@ -61,6 +61,8 @@ class SQLInterface:
             time_retrieved int,
             time_on_worker int,
             time_total_on_worker int,
+            bytes_received int,
+            bytes_sent int,
             foreign key(dataset) references datasets(id))""")
         self.db.execute("""create table if not exists jobits(
             id integer primary key autoincrement,
@@ -220,7 +222,7 @@ class SQLInterface:
         dsets = {}
         for job in jobs:
             t = time.time()
-            (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times) = job
+            (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times, data) = job
 
             id = int(id)
 
@@ -241,7 +243,7 @@ class SQLInterface:
                 status = SUCCESSFUL
 
             up_jobits.append((status, id))
-            up_jobs.append([status, host, return_code, retries] + times + [missed, id])
+            up_jobs.append([status, host, return_code, retries] + times + data + [missed, id])
             if status == INCOMPLETE:
                 for run, lumi in missed_lumis:
                     up_missed.append((FAILED, id, run, lumi))
@@ -271,6 +273,8 @@ class SQLInterface:
                 time_retrieved=?,
                 time_on_worker=?,
                 time_total_on_worker=?,
+                bytes_received=?,
+                bytes_sent=?,
                 missed_lumis=?
                 where id=?""",
                 up_jobs)

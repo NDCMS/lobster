@@ -176,7 +176,9 @@ class JobProvider(lobster.job.JobProvider):
 
             times += [task.cmd_execution_time, total_time]
 
-            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times])
+            data = [task.total_bytes_received, task.total_bytes_sent]
+
+            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data])
 
             if failed:
                 shutil.move(jdir, jdir.replace('running', 'failed'))

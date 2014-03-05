@@ -59,7 +59,8 @@ old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment
 export SCRAM_ARCH=$arch
 
 echo ">>> creating new release $rel"
-(mkdir tmp && cd tmp) || exit_on_error $? 173 "Failed to create temporary directory"
+mkdir tmp || exit_on_error $? 173 "Failed to create temporary directory"
+cd tmp
 scramv1 project CMSSW $rel || exit_on_error $? 173 "Failed to create new release"
 new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
 cd $rel

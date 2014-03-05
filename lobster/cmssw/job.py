@@ -169,8 +169,12 @@ class JobProvider(lobster.job.JobProvider):
 
             try:
                 retries = task.retries
+                total_time = task.total_cmd_execution_time
             except:
                 retries = -1
+                total_time = task.cmd_execution_time
+
+            times += [task.cmd_execution_time, total_time]
 
             jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times])
 

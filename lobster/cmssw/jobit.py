@@ -59,6 +59,8 @@ class SQLInterface:
             time_transfer_out_start int,
             time_transfer_out_end int,
             time_retrieved int,
+            time_on_worker int,
+            time_total_on_worker int,
             foreign key(dataset) references datasets(id))""")
         self.db.execute("""create table if not exists jobits(
             id integer primary key autoincrement,
@@ -267,6 +269,8 @@ class SQLInterface:
                 time_transfer_out_start=?,
                 time_transfer_out_end=?,
                 time_retrieved=?,
+                time_on_worker=?,
+                time_total_on_worker=?,
                 missed_lumis=?
                 where id=?""",
                 up_jobs)

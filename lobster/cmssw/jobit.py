@@ -141,6 +141,8 @@ class SQLInterface:
         if not size:
             size = [5]
 
+        t = time.time()
+
         current_size = 0
         total_size = sum(size)
 
@@ -201,12 +203,16 @@ class SQLInterface:
 
         if len(update) > 0:
             self.db.executemany("update jobits set status=1, job=?, attempts=(attempts + 1) where id=?", update)
-            self.db.commit()
-        else:
-            self.db.commit()
-            return None
 
-        return jobs
+        self.db.commit()
+
+        with open('debug_sql_times', 'a') as f:
+            delta = time.time() - t
+            size = len(jobs)
+            ratio = delta / float(size) if size != 0 else 0
+            f.write("CREA {0} {1} {2}\n".format(size, delta, ratio))
+
+        return jobs if len(update) > 0 else None
 
     def reset_jobits(self):
         with self.db as db:
@@ -221,7 +227,6 @@ class SQLInterface:
 
         dsets = {}
         for job in jobs:
-            t = time.time()
             (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times, data) = job
 
             id = int(id)
@@ -286,8 +291,12 @@ class SQLInterface:
                     jobits_done=(jobits_done + ?)
                     where label=?""",
                     (dset, num, complete))
-        print "updated things in", time.time() - t
         db.commit()
+        with open('debug_sql_times', 'a') as f:
+            delta = time.time() - t
+            size = len(jobs)
+            ratio = delta / float(size) if size != 0 else 0
+            f.write("RECV {0} {1} {2}\n".format(size, delta, ratio))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select count(*) from jobits where status!=?", (SUCCESSFUL,))

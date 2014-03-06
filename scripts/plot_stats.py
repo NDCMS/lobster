@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser
+from os.path import expanduser
 from collections import defaultdict
 import glob
 import math
-import os
+import os, sys
 import sqlite3
 
 import matplotlib
@@ -78,13 +79,16 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
 
     return save_and_close(dir, filename)
 
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None):
+def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, xmin=0, xmax=None):
     fig, ax1 = plt.subplots()
 
     plots1 = tuples[0] if y_label2 else tuples
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
     ax1.set_xlabel(x_label)
+    ax1.set_xlim(left=xmin)
+    if xmax is not None:
+        ax1.set_xlim(right=int(xmax))
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')
 
@@ -93,6 +97,9 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
         for x, y, l in tuples[1]:
             fun(ax2, x, y, ':', label=l)
         ax2.set_ylabel(y_label2)
+        ax2.set_xlim(left=xmin)
+        if xmax is not None:
+            ax2.set_xlim(right=int(xmax))
         ax2.legend(loc='upper right')
 
     # plt.legend()
@@ -146,16 +153,32 @@ def save_and_close(dir, name):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='make histos')
-    parser.add_argument('directory')
-    parser.add_argument('outdir')
+    parser.add_argument('directory', help="Specify input directory")
+    parser.add_argument('outdir', nargs='*', help="Specify output directory")
+    parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0)
+    parser.add_argument("--xmax", help="Specify custom x-axis maximum")
     args = parser.parse_args()
 
     db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
-
     stats = {}
-    top_dir = args.outdir
+
+    if len(args.outdir) is not 0:
+        top_dir = args.outdir[0]
+    else:
+        top_dir = args.directory
+        if len(top_dir.split("/")[-1]) > 0:
+           top_dir = top_dir.split("/")[-1]
+        else:
+           top_dir = top_dir.split("/")[-2]
+
+        www_dir = expanduser("~") + '/www/'
+        if not os.path.isdir(www_dir):
+            raise IOError("Web output directory '" + www_dir + "' does not exist or is not accessible.")
+        top_dir = www_dir + top_dir
+
     # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', '29-01-2014')
     # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', datetime.today().strftime('%d-%m-%Y'))
+    print 'Saving plots to: ' + top_dir
 
     failed_jobs = np.array(db.execute("""select
         id,
@@ -237,12 +260,19 @@ if __name__ == '__main__':
     runtimes = wq_stats_raw[:,0]
     print "First iteration..."
 
-    bins = xrange(0, runtimes[-1] + 5, 5)
+    if args.xmax is not None:
+        bins = xrange(args.xmin, int(args.xmax) + 5, 5)
+    else:
+        bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
+
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
     transferred[0] = 0
-    bins = xrange(0, runtimes[-1] + 60, 60)
+    if args.xmax is not None:
+        bins = xrange(args.xmin, int(args.xmax) + 60, 60)
+    else:
+        bins = xrange(args.xmin, int(runtimes[-1]) + 60, 60)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred])
 
     # gap_indices = np.logical_or((np.roll(runtimes, -1) - runtimes) > 5, (runtimes - np.roll(runtimes, 1)) > 5)
@@ -259,9 +289,13 @@ if __name__ == '__main__':
                (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
                (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks')
+               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', xmin=args.xmin, xmax=args.xmax)
 
-    bins = xrange(0, runtimes[-1] + 5, 5)
+
+    if args.xmax is not None:
+        bins = xrange(args.xmin, int(args.xmax) + 5, 5)
+    else:
+        bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
     wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])

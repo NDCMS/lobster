@@ -78,7 +78,6 @@ for f in $(find -iname __init__.py); do
 done
 
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
-echo $?
 cd "$basedir"
 
 echo

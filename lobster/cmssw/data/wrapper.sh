@@ -15,15 +15,14 @@ echo "[$(date '+%F %T')] wrapper start"
 date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
 
+export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
+
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"
-	export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 	source $VO_CMS_SW_DIR/cmsset_default.sh
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 else
-	which scramv1 > /dev/null 2>&1
-
-	if [ $? != 0 ]; then
+	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
 		export MYCACHE=$TMPDIR
 		# export MYCACHE=$PWD
 		export CMS_LOCAL_SITE=T3_US_NotreDame
@@ -46,6 +45,9 @@ else
 		echo ">>> starting parrot to access CMSSW..."
 		exec /afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" $0 "$*"
 	fi
+
+	source $VO_CMS_SW_DIR/cmsset_default.sh
+	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 fi
 
 tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"

@@ -7,6 +7,7 @@ from zlib import adler32
 import gzip
 import sqlite3
 import yaml
+import glob
 
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
@@ -74,7 +75,7 @@ class Publisher():
         cfg,
         self.pset_hash,
         self.ds_id,
-        publish_hash) = [str(x) for x in self.db.dataset_info(label) if x]
+        publish_hash) = [str(x) for x in self.db.dataset_info(label)]
 
        self.dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
        self.dbs_global = DbsApi(url=self.dbs_url_global)
@@ -87,8 +88,18 @@ class Publisher():
            self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
            self.db.update_datasets('pset_hash', self.pset_hash, label)
 
-       dset = dset.strip('/').split('/')[0]
-       self.path = required_path(self.path, os.environ['USER'], dset, publish_label, publish_hash, 1)
+       self.dset = dset.strip('/').split('/')[0]
+
+   def clean(self):
+       successful_jobs = [x[0] for x in self.db.finished_jobs(self.ds_id)]
+       files = glob.glob(os.path.join(self.path, '*.root'))
+       for file in files:
+           id = file[file.rfind('_')+1:file.rfind('.root')]
+           if not any([str(job)==id for job in successful_jobs]):
+               os.remove(file)
+
+   def publish(self, max_jobs):
+       self.required_path = required_path(self.path, os.environ['USER'], self.dset, publish_label, publish_hash, 1)
 
        self.block_dump = BlockDump(os.environ['USER'])
        self.block_dump.set_primary_dataset(dset, self.dbs_global)
@@ -100,7 +111,6 @@ class Publisher():
            print ex
            raise
 
-   def publish(self, max_jobs):
        jobs = [x[0] for x in self.db.finished_jobs(self.ds_id)]
 
        first_job = 0

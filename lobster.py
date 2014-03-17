@@ -11,6 +11,7 @@ import work_queue as wq
 
 parser = ArgumentParser(description='A job submission tool for CMS')
 parser.add_argument('config_file_name', nargs='?', default='test/lobster.yaml', help='Configuration file to process.')
+parser.add_argument('--bijective', '-i', action='store_true', default=False, help='Use a 1-1 mapping for input and output files (process one input file per output file).')
 args = parser.parse_args()
 
 with open(args.config_file_name) as config_file:
@@ -53,7 +54,7 @@ while not job_src.done():
 
     while hunger > 0:
         t = time.time()
-        jobs = job_src.obtain(50)
+        jobs = job_src.obtain(50, bijective=args.bijective)
         with open('debug_lobster_times', 'a') as f:
             delta = time.time() - t
             if jobs == None:

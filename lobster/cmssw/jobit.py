@@ -137,7 +137,7 @@ class SQLInterface:
             self.db.execute("update datasets set jobits=? where id=?", (lumis, id))
         self.db.commit()
 
-    def pop_jobits(self, size=None):
+    def pop_jobits(self, size=None, bijective=False):
         if not size:
             size = [5]
 
@@ -156,11 +156,30 @@ class SQLInterface:
         rows = [xs for xs in self.db.execute("select label, id from datasets where jobits_done + jobits_running < jobits")]
         dataset, dataset_id = random.choice(rows)
 
-        for id, input_file, run, lumi in self.db.execute("""
+        if not bijective:
+            rows = self.db.execute("""
                 select id, input_file, run, lumi
                 from jobits
                 where (status<>1 and status<>2) and dataset=?
-                limit ?""", (dataset_id, total_size,)):
+                limit ?""", (dataset_id, total_size,))
+        else:
+            size = []
+            rows = []
+            for file in self.db.execute("""
+                    select distinct input_file
+                    from jobits
+                    where (status<>1 and status<>2) and dataset=?
+                    limit ?""", (dataset_id, total_size,)):
+                rows.extend(self.db.execute("""
+                    select id, input_file, run, lumi
+                    from jobits
+                    where (status<>1 and status<>2) and input_file=?""", file))
+                if len(size) > 0:
+                    size.append(len(rows)-size[-1])
+                else:
+                    size.append(len(rows))
+
+        for id, input_file, run, lumi in rows:
             if current_size == 0:
                 cur = self.db.cursor()
                 cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))

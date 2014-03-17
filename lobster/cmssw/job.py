@@ -176,7 +176,10 @@ class JobProvider(lobster.job.JobProvider):
 
             times += [task.cmd_execution_time, total_time]
 
-            data = [task.total_bytes_received, task.total_bytes_sent]
+            try:
+                data = [task.total_bytes_received, task.total_bytes_sent]
+            except:
+                data = [0, 0]
 
             jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data])
 

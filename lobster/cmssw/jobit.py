@@ -124,7 +124,7 @@ class SQLInterface:
                                os.path.basename(os.environ['LOCALRT']),
                                cfg.get('global tag'),
                                dbs_url,
-                               cfg['publish label'].replace('-', '_'), #TO DO: more lexical checks
+                               cfg.get('publish label', cfg['dataset label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
                                cfg['cmssw config'],
                                self.uuid))
             id = cur.lastrowid

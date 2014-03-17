@@ -43,7 +43,7 @@ def check_migration(status):
     return successful
 
 def required_path(path, username, primary_ds, publish_label, publish_hash, version):
-    #TO DO: handle storage mapping in a general way
+    #TODO: handle storage mapping in a general way
     #see https://twiki.cern.ch/twiki/bin/viewauth/CMS/DMWMPG_Namespace#store_user_and_store_temp_user
     #required_path = os.path.join('/store', 'user', username, primary_ds, publish_label+'_'+publish_hash, 'v%d' % version)
     required_path = os.path.join('/store', 'user', username, primary_ds, publish_label+'_'+publish_hash)
@@ -114,8 +114,8 @@ class Publisher():
            for job in jobs[first_job:first_job+max_jobs]:
                f = gzip.open(os.path.join(self.dir, self.label, 'successful', str(job), 'report.xml.gz'), 'r')
                for report in readJobReport(f)[0].files:
-                   filename = report['PFN'].replace('.root', '_%s.root' % job) #TO DO: handle this properly
-                   LFN = os.path.join(self.path, filename)
+                   filename = report['PFN'].replace('.root', '_%s.root' % job) #TODO: handle this properly
+                   LFN = os.path.join(self.required_path, filename)
                    try:
                        self.block_dump.add_file_parent(LFN, report)
                        self.block_dump.add_file_config(LFN, self.release, self.pset_hash, self.gtag)
@@ -217,7 +217,7 @@ class BlockDump:
         self.data['processing_era']['description'] = 'lobster'
 
     def set_dataset(self, publish_label, primary_ds_name, version, publish_hash):
-        processed_ds_name = '%s-%s-v%d' % (self.username, publish_label+'_'+publish_hash, version) #TO DO: VERSION INCREMENTING
+        processed_ds_name = '%s-%s-v%d' % (self.username, publish_label+'_'+publish_hash, version) #TODO: VERSION INCREMENTING
 
         self.data['dataset']['primary_ds_name'] = primary_ds_name
         self.data['dataset']['create_by'] = self.username
@@ -260,8 +260,8 @@ class BlockDump:
 
        dataset_config = {'release_version': release,
                          'pset_hash': pset_hash,
-                         'app_name': app_name, #TO DO PROPERLY
-                         'output_module_label': output_label, #TO DO PROPERLY
+                         'app_name': app_name, #TODO PROPERLY
+                         'output_module_label': output_label, #TODO PROPERLY
                          'global_tag': gtag}
 
        self.data['dataset_conf_list'].append(dataset_config)
@@ -281,8 +281,8 @@ class BlockDump:
        conf_dict = {'release_version': release,
                     'pset_hash': pset_hash,
                     'lfn': LFN,
-                    'app_name': app_name, #TO DO PROPERLY
-                    'output_module_label': output_label, #TO DO PROPERLY
+                    'app_name': app_name, #TODO PROPERLY
+                    'output_module_label': output_label, #TODO PROPERLY
                     'global_tag': gtag}
 
        self.data['file_conf_list'].append(conf_dict)
@@ -306,8 +306,8 @@ class BlockDump:
                      'logical_file_name': LFN,
                      'file_size': int(size),
                      'last_modification_date': int(os.path.getmtime(LFN))}
-#                     'md5': 'NOTSET', #TO DO EVENTUALLY
-#                     'auto_cross_section':  0.0 #TO DO EVENTUALLY
+#                     'md5': 'NOTSET', #TODO EVENTUALLY
+#                     'auto_cross_section':  0.0 #TODO EVENTUALLY
 
         self.data['files'].append(file_dict)
 

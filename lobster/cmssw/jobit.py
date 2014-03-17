@@ -75,7 +75,9 @@ class SQLInterface:
             attempts int default 0,
             foreign key(job) references jobs(id),
             foreign key(dataset) references datasets(id))""")
-        self.db.execute("create index if not exists file_index on jobits(dataset, input_file asc)")
+        self.db.execute("create index if not exists dfile_index on jobits(dataset, input_file asc)")
+        self.db.execute("create index if not exists dataset_index on jobits(dataset)")
+        self.db.execute("create index if not exists file_index on jobits(input_file)")
         self.db.execute("create index if not exists event_index on jobits(dataset, run, lumi)")
         self.db.execute("create index if not exists job_index on jobits(job, run, lumi)")
         self.db.commit()
@@ -156,13 +158,7 @@ class SQLInterface:
         rows = [xs for xs in self.db.execute("select label, id from datasets where jobits_done + jobits_running < jobits")]
         dataset, dataset_id = random.choice(rows)
 
-        if not bijective:
-            rows = self.db.execute("""
-                select id, input_file, run, lumi
-                from jobits
-                where (status<>1 and status<>2) and dataset=?
-                limit ?""", (dataset_id, total_size,))
-        else:
+        if bijective:
             size = []
             rows = []
             for file in self.db.execute("""
@@ -178,6 +174,12 @@ class SQLInterface:
                     size.append(len(rows)-size[-1])
                 else:
                     size.append(len(rows))
+        else:
+            rows = self.db.execute("""
+                select id, input_file, run, lumi
+                from jobits
+                where (status<>1 and status<>2) and dataset=?
+                limit ?""", (dataset_id, total_size,))
 
         for id, input_file, run, lumi in rows:
             if current_size == 0:

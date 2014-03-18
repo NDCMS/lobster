@@ -28,9 +28,11 @@ class JobProvider(lobster.job.JobProvider):
         self.__jobdirs = {}
         self.__jobdatasets = {}
         self.__outputs = {}
+        self.__jobits_per_job = 25
 
         if 'files' in repr(config):
             ds_interface = FileInterface(config)
+            self.__jobits_per_job = 1
         else:
             ds_interface = DASInterface(config)
 
@@ -85,7 +87,7 @@ class JobProvider(lobster.job.JobProvider):
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
-        res = self.retry(self.__store.pop_jobits, ([25] * num, bijective), {})
+        res = self.retry(self.__store.pop_jobits, ([self.__jobits_per_job] * num, bijective), {})
         if not res:
             return None
 

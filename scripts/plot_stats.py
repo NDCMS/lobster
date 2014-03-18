@@ -202,8 +202,10 @@ if __name__ == '__main__':
                 ('id', 'i4'),
                 ('host', 'a50'),
                 ('dataset', 'i4'),
+                ('file_block', 'a100'),
                 ('status', 'i4'),
                 ('exit_code', 'i4'),
+                ('retries', 'i4'),
                 ('missed_lumis', 'i4'),
                 ('t_submit', 'i4'),
                 ('t_send_start', 'i4'),
@@ -216,7 +218,11 @@ if __name__ == '__main__':
                 ('t_wrapper_end', 'i4'),
                 ('t_recv_start', 'i4'),
                 ('t_recv_end', 'i4'),
-                ('t_retrieved', 'i4')
+                ('t_retrieved', 'i4'),
+                ('t_goodput', 'i4'),
+                ('t_allput', 'i4'),
+                ('b_recv', 'i4'),
+                ('b_sent', 'i4')
                 ])
 
     label2id = {}

@@ -24,11 +24,14 @@ if [ "x$PARROT_ENABLED" != "x" ]; then
 else
 	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
 		export MYCACHE=$TMPDIR
+		export PARROT_DEBUG_FLAGS="-d cvmfs"
 		# export MYCACHE=$PWD
 		export CMS_LOCAL_SITE=T3_US_NotreDame
 		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_helper.so
+		#export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run
+		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run # Ben's fixes from 13/Mar/2014
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 		echo ">>> parrot helper: $PARROT_HELPER"
@@ -38,12 +41,12 @@ else
 		echo ">>> fixing JobConfig..."
 		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
 		sname=site-local-config.xml
-		/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
+		$PARROT_EXEC -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
 		exit_on_error $? 200 "Failed to fix site configuration!"
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec /afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" $0 "$*"
+		exec $PARROT_EXEC $PARROT_DEBUG_FLAGS -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" $0 "$*"
 	fi
 
 	source $VO_CMS_SW_DIR/cmsset_default.sh

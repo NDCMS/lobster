@@ -204,6 +204,7 @@ if __name__ == '__main__':
                 ('dataset', 'i4'),
                 ('status', 'i4'),
                 ('exit_code', 'i4'),
+                ('published_file_block', 'a50'),
                 ('missed_lumis', 'i4'),
                 ('t_submit', 'i4'),
                 ('t_send_start', 'i4'),
@@ -259,6 +260,7 @@ if __name__ == '__main__':
     wq_stats_raw[:,0] = (wq_stats_raw[:,0] - start_time) / 60e6
     runtimes = wq_stats_raw[:,0]
     print "First iteration..."
+    print "start_time = ",int(start_time)
 
     if args.xmax is not None:
         bins = xrange(args.xmin, int(args.xmax) + 5, 5)
@@ -298,6 +300,7 @@ if __name__ == '__main__':
         bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
+    #print failed_times
     wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])
 
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:

@@ -15,7 +15,7 @@ import numpy as np
 
 matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))
-matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.22)
+matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
 matplotlib.rc('font', **{'sans-serif' : 'DejaVu LGC Sans', 'family' : 'sans-serif'})
 
@@ -51,8 +51,10 @@ def get_stats(dir, label):
 def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     # fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
     if 'log' in kwargs:
-        if kwargs['log']:
+        if kwargs['log'] == True or kwargs['log'] == 'y':
             plt.yscale('log')
+        elif kwargs['log'] == 'x':
+            plt.xscale('log')
         del kwargs['log']
 
     if 'stats' in kwargs:
@@ -67,7 +69,7 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
         all = np.concatenate(a)
         avg = np.average(all)
         var = np.var(all)
-        plt.figtext(0.5, 0.75, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
+        plt.figtext(0.75, 0.775, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
 
     # ax0.set_title(t)
 
@@ -84,7 +86,7 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     plt.ylabel(ylabel)
 
     if 'label' in kwargs:
-        plt.legend()
+        plt.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
 
     return save_and_close(dir, filename)
 

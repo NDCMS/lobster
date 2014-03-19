@@ -135,17 +135,19 @@ def read_debug():
     if os.path.exists('debug_lobster_times'):
         with open('debug_lobster_times') as f:
             for l in f:
+                items = l.split()
                 if l.startswith("CREA"):
-                    lobster_create.append(float(l.split()[-1]))
+                    lobster_create += [float(items[-1])] * int(items[1])
                 else:
-                    lobster_return.append(float(l.split()[-1]))
+                    lobster_return += [float(items[-1])] * int(items[1])
     if os.path.exists('debug_sql_times'):
         with open('debug_sql_times') as f:
             for l in f:
+                items = l.split()
                 if l.startswith("CREA"):
-                    sqlite_create.append(float(l.split()[-1]))
+                    sqlite_create += [float(items[-1])] * int(items[1])
                 else:
-                    sqlite_return.append(float(l.split()[-1]))
+                    sqlite_return += [float(items[-1])] * int(items[1])
     return (
             np.asarray(lobster_create),
             np.asarray(lobster_return),

@@ -194,7 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('directory', help="Specify input directory")
     parser.add_argument('outdir', nargs='*', help="Specify output directory")
     parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0)
-    parser.add_argument("--xmax", help="Specify custom x-axis maximum")
+    parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None)
     args = parser.parse_args()
 
     db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
@@ -315,29 +315,34 @@ if __name__ == '__main__':
     print "Reading WQ log"
     with open(os.path.join(args.directory, 'work_queue.log')) as f:
         headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-    wq_stats_raw = np.loadtxt(os.path.join(args.directory, 'work_queue.log'))
+    wq_stats_raw_all = np.loadtxt(os.path.join(args.directory, 'work_queue.log'))
+    start_time = wq_stats_raw_all[0,0]
+    end_time = wq_stats_raw_all[-1,0]
+
+    if not args.xmax:
+        xmax = end_time
+    else:
+        xmax = args.xmax * 60e6 + start_time
+
+    xmin = args.xmin * 60e6 + start_time
+
+    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
+    print wq_stats_raw
+
     orig_times = wq_stats_raw[:,0].copy()
     # subtract start time, convert to minutes
-    start_time = wq_stats_raw[0,0]
-    end_time = wq_stats_raw[-1,0]
     wq_stats_raw[:,0] = (wq_stats_raw[:,0] - start_time) / 60e6
     runtimes = wq_stats_raw[:,0]
     print "First iteration..."
     print "start_time = ",int(start_time)
 
-    if args.xmax is not None:
-        bins = xrange(args.xmin, int(args.xmax) + 5, 5)
-    else:
-        bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
-
+    bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
     transferred[transferred < 0] = 0
-    if args.xmax is not None:
-        bins = xrange(args.xmin, int(args.xmax) + 60, 60)
-    else:
-        bins = xrange(args.xmin, int(runtimes[-1]) + 60, 60)
+
+    bins = xrange(args.xmin, int(runtimes[-1]) + 60, 60)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred])
 
     # gap_indices = np.logical_or((np.roll(runtimes, -1) - runtimes) > 5, (runtimes - np.roll(runtimes, 1)) > 5)
@@ -356,11 +361,7 @@ if __name__ == '__main__':
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
                'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', xmin=args.xmin, xmax=args.xmax)
 
-
-    if args.xmax is not None:
-        bins = xrange(args.xmin, int(args.xmax) + 5, 5)
-    else:
-        bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
+    bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
     #print failed_times

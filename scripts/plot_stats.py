@@ -90,6 +90,15 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
 
     return save_and_close(dir, filename)
 
+def make_frequency_pie(a, name, dir):
+    vals = np.unique(a)
+    counts = [len(a[a == v]) for v in vals]
+    plt.pie(counts, labels=vals)
+    fig = plt.gcf()
+    fig.set_size_inches(6, 6)
+    fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
+    return save_and_close(dir, name)
+
 def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None):
     fig, ax1 = plt.subplots()
 
@@ -353,6 +362,8 @@ if __name__ == '__main__':
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+
+    jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
     dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)

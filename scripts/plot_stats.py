@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# vim: fileencoding=utf-8
 
 from argparse import ArgumentParser
 from os.path import expanduser
@@ -16,6 +17,7 @@ matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.22)
 matplotlib.rc('font', size=7)
+matplotlib.rc('font', **{'sans-serif' : 'DejaVu LGC Sans', 'family' : 'sans-serif'})
 
 class SmartList(list):
     """Stupid extended list."""
@@ -53,7 +55,19 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
             plt.yscale('log')
         del kwargs['log']
 
+    if 'stats' in kwargs:
+        stats = kwargs['stats']
+        del kwargs['stats']
+    else:
+        stats = False
+
     plt.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
+
+    if stats:
+        all = np.concatenate(a)
+        avg = np.average(all)
+        var = np.var(all)
+        plt.figtext(0.5, 0.75, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
 
     # ax0.set_title(t)
 
@@ -245,7 +259,7 @@ if __name__ == '__main__':
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')

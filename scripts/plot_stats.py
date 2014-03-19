@@ -126,6 +126,33 @@ def make_scatter(x, x_label, y, y_label, t, name, dir):
 
     return save_and_close(dir, name)
 
+def read_debug():
+    lobster_create = []
+    lobster_return = []
+    sqlite_create = []
+    sqlite_return = []
+
+    if os.path.exists('debug_lobster_times'):
+        with open('debug_lobster_times') as f:
+            for l in f:
+                if l.startswith("CREA"):
+                    lobster_create.append(float(l.split()[-1]))
+                else:
+                    lobster_return.append(float(l.split()[-1]))
+    if os.path.exists('debug_sql_times'):
+        with open('debug_sql_times') as f:
+            for l in f:
+                if l.startswith("CREA"):
+                    sqlite_create.append(float(l.split()[-1]))
+                else:
+                    sqlite_return.append(float(l.split()[-1]))
+    return (
+            np.asarray(lobster_create),
+            np.asarray(lobster_return),
+            np.asarray(sqlite_create),
+            np.asarray(sqlite_return)
+            )
+
 def reduce(a, idx, interval):
     quant = a[:,idx]
     last = quant[0]
@@ -230,8 +257,8 @@ if __name__ == '__main__':
                 ('t_recv_start', 'i4'),
                 ('t_recv_end', 'i4'),
                 ('t_retrieved', 'i4'),
-                ('t_goodput', 'i4'),
-                ('t_allput', 'i4'),
+                ('t_goodput', 'i8'),
+                ('t_allput', 'i8'),
                 ('b_recv', 'i4'),
                 ('b_sent', 'i4')
                 ])
@@ -253,7 +280,13 @@ if __name__ == '__main__':
     wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
     transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
 
+    send_times = [(vs[1]['t_send_end'] - vs[1]['t_send_start']) / 60. for vs in dset_values]
+    put_ratio = [np.divide(vs[1]['t_goodput'] * 1.0, vs[1]['t_allput']) for vs in dset_values]
+
+    (l_cre, l_ret, s_cre, s_ret) = read_debug()
+
     jtags = SmartList()
+    dtags = SmartList()
     wtags = SmartList()
 
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=[vs[0] for vs in dset_values])
@@ -262,6 +295,16 @@ if __name__ == '__main__':
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+
+    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+
+    log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
+    dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
+    dtags += make_histo([(l_cre - s_cre)[s_cre > 0]], log_bins, 'Job creation lobster overhead time (s)', 'Jobs', 'create_lobster_time', top_dir, stats=True, log='x')
+    dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
+    dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
@@ -327,6 +370,8 @@ if __name__ == '__main__':
         body = html_tag("div",
                 *([html_tag("h2", "Job Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
+                    [html_tag("h2", "Debug Job Statistics")] +
+                    map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +
                     [html_tag("h2", "Lobster Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
                 style="margin: 1em auto; display: block; width: auto; text-align: center;")

@@ -267,7 +267,8 @@ if __name__ == '__main__':
         dataset,
         exit_code,
         time_submit,
-        time_retrieved
+        time_retrieved,
+        time_total_on_worker
         from jobs
         where status=3 and time_retrieved>=? and time_retrieved<=?""",
         (xmin / 1e6, xmax / 1e6)).fetchall(),
@@ -277,11 +278,12 @@ if __name__ == '__main__':
                 ('dataset', 'i4'),
                 ('exit_code', 'i4'),
                 ('t_submit', 'i4'),
-                ('t_retrieved', 'i4')
+                ('t_retrieved', 'i4'),
+                ('t_allput', 'i8')
                 ])
 
     success_jobs = np.array(db.execute("""select * from jobs
-        where status=2 and time_retrieved>=? and time_retrieved<=?""",
+        where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
         (xmin / 1e6, xmax / 1e6)).fetchall(),
             dtype=[
                 ('id', 'i4'),
@@ -309,6 +311,10 @@ if __name__ == '__main__':
                 ('b_recv', 'i4'),
                 ('b_sent', 'i4')
                 ])
+
+    total_time_failed = np.sum(failed_jobs['t_allput'])
+    total_time_success = np.sum(success_jobs['t_allput'])
+    total_time_good = np.sum(success_jobs['t_goodput'])
 
     bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     scale = int(max(len(bins) / 100.0, 1.0))
@@ -371,7 +377,11 @@ if __name__ == '__main__':
                     map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
                     [html_tag("h2", "Debug Job Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +
-                    [html_tag("h2", "Lobster Statistics")] +
+                    [
+                        html_tag("h2", "Lobster Statistics"),
+                        html_tag("p", "Successful jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success))),
+                        html_tag("p", "All jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success + total_time_failed)))
+                    ] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
                 style="margin: 1em auto; display: block; width: auto; text-align: center;")
         f.write(body)

@@ -32,22 +32,6 @@ def html_tag(tag, *args, **kwargs):
     attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
     return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
 
-def get_stats(dir, label):
-    s = defaultdict(list)
-    for subdir in glob.glob(os.path.join(dir, label, 'successful', '*')):
-        (start, ready, done) = parse.get_wrapper_times(subdir)
-        (finit, fopen, first, cs) = parse.get_cmssw_times(subdir)
-
-        s['start'].append(start)
-        s['ready'].append(ready)
-        s['done'].append(done)
-        s['finit'].append(finit)
-        s['fopen'].append(fopen)
-        s['first'].append(first)
-        s['changed servers'].append(cs)
-
-    return s
-
 def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     # fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
     if 'log' in kwargs:

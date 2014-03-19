@@ -30,11 +30,6 @@ def html_tag(tag, *args, **kwargs):
     attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
     return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
 
-def diff_times(start_times, end_times):
-    time_diff = lambda (a, b): (a - b).seconds / 60
-
-    return map(lambda pair: time_diff(pair), zip(start_times, end_times))
-
 def get_stats(dir, label):
     s = defaultdict(list)
     for subdir in glob.glob(os.path.join(dir, label, 'successful', '*')):

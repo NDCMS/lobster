@@ -239,6 +239,8 @@ if __name__ == '__main__':
     processing_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_first_ev']) / 60. for vs in dset_values]
     overhead_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
     stageout_times = [(vs[1]['t_retrieved'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
+    wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
+    transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
 
     jtags = SmartList()
     wtags = SmartList()
@@ -247,6 +249,8 @@ if __name__ == '__main__':
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values])
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values])
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')

@@ -205,7 +205,6 @@ if __name__ == '__main__':
                 ('file_block', 'a100'),
                 ('status', 'i4'),
                 ('exit_code', 'i4'),
-                ('published_file_block', 'a50'),
                 ('retries', 'i4'),
                 ('missed_lumis', 'i4'),
                 ('t_submit', 'i4'),

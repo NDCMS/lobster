@@ -90,16 +90,13 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
 
     return save_and_close(dir, filename)
 
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, xmin=0, xmax=None):
+def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None):
     fig, ax1 = plt.subplots()
 
     plots1 = tuples[0] if y_label2 else tuples
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
     ax1.set_xlabel(x_label)
-    ax1.set_xlim(left=xmin)
-    if xmax is not None:
-        ax1.set_xlim(right=int(xmax))
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')
 
@@ -108,9 +105,6 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
         for x, y, l in tuples[1]:
             fun(ax2, x, y, ':', label=l)
         ax2.set_ylabel(y_label2)
-        ax2.set_xlim(left=xmin)
-        if xmax is not None:
-            ax2.set_xlim(right=int(xmax))
         ax2.legend(loc='upper right')
 
     # plt.legend()
@@ -220,99 +214,9 @@ if __name__ == '__main__':
     # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', datetime.today().strftime('%d-%m-%Y'))
     print 'Saving plots to: ' + top_dir
 
-    failed_jobs = np.array(db.execute("""select
-        id,
-        host,
-        dataset,
-        exit_code,
-        time_submit,
-        time_retrieved
-        from jobs where status=3""").fetchall(),
-            dtype=[
-                ('id', 'i4'),
-                ('host', 'a50'),
-                ('dataset', 'i4'),
-                ('exit_code', 'i4'),
-                ('t_submit', 'i4'),
-                ('t_retrieved', 'i4')
-                ])
-
-    success_jobs = np.array(db.execute('select * from jobs where status=2').fetchall(),
-            dtype=[
-                ('id', 'i4'),
-                ('host', 'a50'),
-                ('dataset', 'i4'),
-                ('file_block', 'a100'),
-                ('status', 'i4'),
-                ('exit_code', 'i4'),
-                ('retries', 'i4'),
-                ('missed_lumis', 'i4'),
-                ('t_submit', 'i4'),
-                ('t_send_start', 'i4'),
-                ('t_send_end', 'i4'),
-                ('t_wrapper_start', 'i4'),
-                ('t_wrapper_ready', 'i4'),
-                ('t_file_req', 'i4'),
-                ('t_file_open', 'i4'),
-                ('t_first_ev', 'i4'),
-                ('t_wrapper_end', 'i4'),
-                ('t_recv_start', 'i4'),
-                ('t_recv_end', 'i4'),
-                ('t_retrieved', 'i4'),
-                ('t_goodput', 'i8'),
-                ('t_allput', 'i8'),
-                ('b_recv', 'i4'),
-                ('b_sent', 'i4')
-                ])
-
-    label2id = {}
-    id2label = {}
-
-    for dset_label, dset_id in db.execute('select label, id from datasets'):
-        label2id[dset_label] = dset_id
-        id2label[dset_id] = dset_label
-
-    dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
-
-    num_bins = 30
-    total_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
-    processing_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_first_ev']) / 60. for vs in dset_values]
-    overhead_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
-    stageout_times = [(vs[1]['t_retrieved'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
-    wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
-    transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
-
-    send_times = [(vs[1]['t_send_end'] - vs[1]['t_send_start']) / 60. for vs in dset_values]
-    put_ratio = [np.divide(vs[1]['t_goodput'] * 1.0, vs[1]['t_allput']) for vs in dset_values]
-
-    (l_cre, l_ret, s_cre, s_ret) = read_debug()
-
     jtags = SmartList()
     dtags = SmartList()
     wtags = SmartList()
-
-    jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
-    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-
-    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-
-    log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
-    dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
-    dtags += make_histo([(l_cre - s_cre)[s_cre > 0]], log_bins, 'Job creation lobster overhead time (s)', 'Jobs', 'create_lobster_time', top_dir, stats=True, log='x')
-    dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
-    dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
-
-    # hosts = vals['host']
-    # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
-
-    # web.update_indexes(args.outdir)
-    # raise
 
     print "Reading WQ log"
     with open(os.path.join(args.directory, 'work_queue.log')) as f:
@@ -360,13 +264,107 @@ if __name__ == '__main__':
                (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
                (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', xmin=args.xmin, xmax=args.xmax)
+               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks')
+
+    failed_jobs = np.array(db.execute("""select
+        id,
+        host,
+        dataset,
+        exit_code,
+        time_submit,
+        time_retrieved
+        from jobs
+        where status=3 and time_retrieved>=? and time_retrieved<=?""",
+        (xmin / 1e6, xmax / 1e6)).fetchall(),
+            dtype=[
+                ('id', 'i4'),
+                ('host', 'a50'),
+                ('dataset', 'i4'),
+                ('exit_code', 'i4'),
+                ('t_submit', 'i4'),
+                ('t_retrieved', 'i4')
+                ])
+
+    success_jobs = np.array(db.execute("""select * from jobs
+        where status=2 and time_retrieved>=? and time_retrieved<=?""",
+        (xmin / 1e6, xmax / 1e6)).fetchall(),
+            dtype=[
+                ('id', 'i4'),
+                ('host', 'a50'),
+                ('dataset', 'i4'),
+                ('file_block', 'a100'),
+                ('status', 'i4'),
+                ('exit_code', 'i4'),
+                ('retries', 'i4'),
+                ('missed_lumis', 'i4'),
+                ('t_submit', 'i4'),
+                ('t_send_start', 'i4'),
+                ('t_send_end', 'i4'),
+                ('t_wrapper_start', 'i4'),
+                ('t_wrapper_ready', 'i4'),
+                ('t_file_req', 'i4'),
+                ('t_file_open', 'i4'),
+                ('t_first_ev', 'i4'),
+                ('t_wrapper_end', 'i4'),
+                ('t_recv_start', 'i4'),
+                ('t_recv_end', 'i4'),
+                ('t_retrieved', 'i4'),
+                ('t_goodput', 'i8'),
+                ('t_allput', 'i8'),
+                ('b_recv', 'i4'),
+                ('b_sent', 'i4')
+                ])
 
     bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
     #print failed_times
     wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])
+
+    label2id = {}
+    id2label = {}
+
+    for dset_label, dset_id in db.execute('select label, id from datasets'):
+        label2id[dset_label] = dset_id
+        id2label[dset_id] = dset_label
+
+    dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
+
+    num_bins = 30
+    total_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
+    processing_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_first_ev']) / 60. for vs in dset_values]
+    overhead_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
+    stageout_times = [(vs[1]['t_retrieved'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
+    wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
+    transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
+
+    send_times = [(vs[1]['t_send_end'] - vs[1]['t_send_start']) / 60. for vs in dset_values]
+    put_ratio = [np.divide(vs[1]['t_goodput'] * 1.0, vs[1]['t_allput']) for vs in dset_values]
+
+    (l_cre, l_ret, s_cre, s_ret) = read_debug()
+
+    jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values])
+    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+
+    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+
+    log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
+    dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
+    dtags += make_histo([(l_cre - s_cre)[s_cre > 0]], log_bins, 'Job creation lobster overhead time (s)', 'Jobs', 'create_lobster_time', top_dir, stats=True, log='x')
+    dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
+    dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
+
+    # hosts = vals['host']
+    # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
+
+    # web.update_indexes(args.outdir)
+    # raise
 
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:
         body = html_tag("div",

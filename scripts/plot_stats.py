@@ -68,7 +68,7 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     if stats:
         all = np.concatenate(a)
         avg = np.average(all)
-        var = np.var(all)
+        var = np.std(all)
         plt.figtext(0.75, 0.775, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
 
     # ax0.set_title(t)

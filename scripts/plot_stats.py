@@ -329,7 +329,6 @@ if __name__ == '__main__':
     xmin = args.xmin * 60e6 + start_time
 
     wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
-    print wq_stats_raw
 
     orig_times = wq_stats_raw[:,0].copy()
     # subtract start time, convert to minutes

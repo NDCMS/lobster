@@ -242,6 +242,8 @@ if __name__ == '__main__':
     print "start_time = ",int(start_time)
 
     bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
+    scale = int(max(len(bins) / 100.0, 1.0))
+    bins = xrange(args.xmin, int(runtimes[-1]) + scale * 5, scale * 5)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
@@ -316,6 +318,8 @@ if __name__ == '__main__':
                 ])
 
     bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
+    scale = int(max(len(bins) / 100.0, 1.0))
+    bins = xrange(args.xmin, int(runtimes[-1]) + scale * 5, scale * 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
     #print failed_times

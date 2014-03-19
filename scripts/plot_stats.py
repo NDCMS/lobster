@@ -290,7 +290,7 @@ if __name__ == '__main__':
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
-    transferred[0] = 0
+    transferred[transferred < 0] = 0
     if args.xmax is not None:
         bins = xrange(args.xmin, int(args.xmax) + 60, 60)
     else:

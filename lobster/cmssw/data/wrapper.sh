@@ -31,7 +31,7 @@ else
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_helper.so
 		#export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run
-		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools/bin/parrot_run # Ben's fixes from 13/Mar/2014
+		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_run # Ben's fixes (parrot + wq) from 20-03-2014
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 		echo ">>> parrot helper: $PARROT_HELPER"

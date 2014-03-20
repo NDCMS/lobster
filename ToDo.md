@@ -6,3 +6,4 @@
 | Matthias            | More plotting magic
 | Unassigned          | Save map of jobits to job ids
 | Anna                | Option to recycle sandbox
+| Anna                | Check user certificate validity at startup

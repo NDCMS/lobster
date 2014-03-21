@@ -28,6 +28,11 @@ class SmartList(list):
     def __iadd__(self, other):
         return super(SmartList, self).__iadd__([other])
 
+def cumulative_sum(list, total=0):
+    for item in list:
+        total += item
+        yield total
+
 def html_tag(tag, *args, **kwargs):
     attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
     return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
@@ -47,7 +52,10 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     else:
         stats = False
 
-    plt.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
+    if 'histtype' in kwargs:
+        plt.hist(a, bins=num_bins, **kwargs)
+    else:
+        plt.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
 
     if stats:
         all = np.concatenate(a)
@@ -83,10 +91,11 @@ def make_frequency_pie(a, name, dir):
     fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
     return save_and_close(dir, name)
 
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None):
+def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, **kwargs):
     fig, ax1 = plt.subplots()
 
     plots1 = tuples[0] if y_label2 else tuples
+
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
     ax1.set_xlabel(x_label)
@@ -100,6 +109,12 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
         ax2.set_ylabel(y_label2)
         ax2.legend(loc='upper right')
 
+    if 'log' in kwargs:
+        if kwargs['log'] == True or kwargs['log'] == 'y':
+            plt.yscale('log')
+        elif kwargs['log'] == 'x':
+            plt.xscale('log')
+        del kwargs['log']
     # plt.legend()
     num = len(tuples[0]) + len(tuples[1]) if y_label2 else len(tuples)
 
@@ -321,8 +336,26 @@ if __name__ == '__main__':
     bins = xrange(args.xmin, int(runtimes[-1]) + scale * 5, scale * 5)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
-    #print failed_times
+
     wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])
+
+    #for cases where jobits per job changes during run, get per-jobit info
+    success_jobits = np.array(db.execute("""select jobits.id, jobs.time_retrieved
+        from jobits, jobs where jobits.job==jobs.id and
+        (jobits.status=2 or jobits.status=5 or jobits.status=6) and
+        jobs.time_retrieved>=? and jobs.time_retrieved<=?
+        group by jobs.time_retrieved""",
+        (xmin / 1e6, xmax / 1e6)).fetchall(),
+            dtype=[('id', 'i4'), ('t_retrieved', 'i4')])
+    total_jobits = db.execute('select count(*) from jobits').fetchone()[0]
+
+    finished_jobit_times = (success_jobits['t_retrieved'] - start_time / 1e6) / 60
+    finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times)
+    bin_centers = [(x+y)/2 for x, y in zip(jobit_bins[:-1], jobit_bins[1:])]
+
+    wtags += make_plot([(bin_centers, list(cumulative_sum(finished_jobit_hist, 0)), 'total finished'),
+                        (bin_centers, list(cumulative_sum([-x for x in finished_jobit_hist], total_jobits)), 'total unfinished')],
+                       'Time (m)', 'Jobits' , 'finished_jobits', top_dir, log=True)
 
     label2id = {}
     id2label = {}

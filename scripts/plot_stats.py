@@ -359,6 +359,10 @@ if __name__ == '__main__':
     total_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
     processing_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_first_ev']) / 60. for vs in dset_values]
     overhead_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
+    idle_times = [(vs[1]['t_wrapper_start'] - vs[1]['t_send_end']) / 60. for vs in dset_values]
+    init_times = [(vs[1]['t_wrapper_ready'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
+    cmsrun_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_ready']) / 60. for vs in dset_values]
+
     stageout_times = [(vs[1]['t_retrieved'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
     wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
     transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
@@ -371,6 +375,9 @@ if __name__ == '__main__':
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)

@@ -63,17 +63,6 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
         var = np.std(all)
         plt.figtext(0.75, 0.775, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
 
-    # ax0.set_title(t)
-
-    # ax0.set_ylabel(ylabel)
-    # ax1.set_xlabel(xlabel)
-    # ax1.set_ylabel(ylabel)
-
-    # plt.set_title(t)
-    # plt.set_xlabel(xlabel)
-    # plt.set_ylabel(ylabel)
-
-    # plt.title(t)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
 
@@ -400,9 +389,6 @@ if __name__ == '__main__':
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
-
-    # web.update_indexes(args.outdir)
-    # raise
 
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:
         body = html_tag("div",

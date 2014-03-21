@@ -66,6 +66,11 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
 
+    try:
+        plt.axis(xmax=num_bins[-1])
+    except:
+        pass
+
     if 'label' in kwargs:
         plt.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
 
@@ -87,6 +92,7 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
+        ax1.axis(xmax=x[-1])
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')
@@ -95,6 +101,7 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
         ax2 = ax1.twinx()
         for x, y, l in tuples[1]:
             fun(ax2, x, y, ':', label=l)
+            ax2.axis(xmax=x[-1])
         ax2.set_ylabel(y_label2)
         ax2.legend(loc='upper right')
 

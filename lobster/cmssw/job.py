@@ -44,7 +44,7 @@ class JobProvider(lobster.job.JobProvider):
                 shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
                             os.path.join(self.__sandbox, fn))
             blacklist = config.get('sandbox blacklist', [])
-            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist)
+            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
 
         for cfg in config['tasks']:
             label = cfg['dataset label']

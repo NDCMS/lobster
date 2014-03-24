@@ -1,10 +1,12 @@
 id: BEAN_t05
 workdir: /tmp/nvallsve.lobster.t05
 stageout location: /store/user/nvallsve/lobster.t05
-sandbox blacklist: ['*DrawPlots*']
 dbs url: 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/' #For testing
 #dbs url: 'https://cmsweb.cern.ch/dbs/prod/phys03/' #For production
 migrate parents: True
+sandbox blacklist: ['*DrawPlots*']
+#recycle sandbox: /tmpscratch/users/awoodard/sandbox.tar.bz2 #Option to specify sandbox instead of creating one at startup
+
 
 # cmd: 'python make_big_file.py'
 # inputs: ['make_big_file.py']

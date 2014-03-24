@@ -37,6 +37,15 @@ def html_tag(tag, *args, **kwargs):
     attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
     return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
 
+def html_table(headers, rows, **kwargs):
+    import itertools
+    row_classes = itertools.cycle(["tr class=alt", "tr"])
+
+    top = [html_tag('tr', *(html_tag('th', h) for h in headers))]
+    body = [html_tag(rc, *(html_tag('td', x) for x in row)) for rc, row in itertools.izip(row_classes, rows)]
+
+    return html_tag('table', *(top+body), **kwargs)
+
 def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     # fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
     if 'log' in kwargs:
@@ -214,8 +223,6 @@ if __name__ == '__main__':
             raise IOError("Web output directory '" + www_dir + "' does not exist or is not accessible.")
         top_dir = www_dir + top_dir
 
-    # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', '29-01-2014')
-    # top_dir = os.path.join('/afs/crc.nd.edu/user/a/awoodard/www/lobster/', datetime.today().strftime('%d-%m-%Y'))
     print 'Saving plots to: ' + top_dir
 
     jtags = SmartList()

@@ -1,3 +1,4 @@
+import gzip
 import imp
 import os
 import pickle
@@ -134,7 +135,7 @@ class JobProvider(lobster.job.JobProvider):
             dset = self.__jobdatasets[task.tag]
 
             if task.output:
-                with open(os.path.join(jdir, 'job.log'), 'w') as f:
+                with gzip.open(os.path.join(jdir, 'job.log.gz'), 'wb') as f:
                     f.write(task.output)
 
             try:

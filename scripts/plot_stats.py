@@ -92,6 +92,7 @@ def make_frequency_pie(a, name, dir):
     fig = plt.gcf()
     fig.set_size_inches(6, 6)
     fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
+
     return save_and_close(dir, name)
 
 def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, **kwargs):
@@ -191,6 +192,7 @@ def save_and_close(dir, name):
         os.makedirs(dir)
     print "Saving", name
     # plt.gcf().set_size_inches(6, 1.5)
+
     plt.savefig(os.path.join(dir, '%s.png' % name))
     plt.savefig(os.path.join(dir, '%s.pdf' % name))
 
@@ -204,6 +206,7 @@ if __name__ == '__main__':
     parser.add_argument('outdir', nargs='*', help="Specify output directory")
     parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0)
     parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None)
+    parser.add_argument('--samplelogs', action='store_true', help='Make a table with links to sample error logs', default=False)
     args = parser.parse_args()
 
     db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
@@ -400,7 +403,10 @@ if __name__ == '__main__':
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
 
-    jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
+    if args.samplelogs:
+        jtags += html_tag('a', make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir), href='errors.html')
+    else:
+        jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
     dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
@@ -429,3 +435,62 @@ if __name__ == '__main__':
                     map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
                 style="margin: 1em auto; display: block; width: auto; text-align: center;")
         f.write(body)
+
+    if args.samplelogs:
+        with open(os.path.join(top_dir, 'errors.html'), 'w') as f:
+            f.write("""
+            <style>
+            #errors
+            {font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+            width:100%;
+            border-collapse:collapse;}
+
+            #errors td, #errors th
+            {font-size:1em;
+            border:1px solid #98bf21;
+            padding:3px 7px 2px 7px;}
+
+            #errors th
+            {font-size:1.1em;
+            text-align:left;
+            padding-top:5px;
+            padding-bottom:4px;
+            background-color:#A7C942;
+            color:#ffffff;}
+
+            #errors tr.alt td
+            {color:#000000;
+            background-color:#EAF2D3;}
+            </style>""")
+
+            if not os.path.exists(os.path.join(top_dir, 'errors')):
+                os.makedirs(os.path.join(top_dir, 'errors'))
+
+            import shutil
+            headers = []
+            rows = [[], [], [], [], []]
+            num_samples = 5
+            for exit_code, jobs in split_by_column(failed_jobs[['id', 'dataset', 'exit_code']], 'exit_code'):
+                headers.append('Exit %i <br>(%i failed jobs)' % (exit_code, len(jobs)))
+                print 'Copying sample logs for exit code ', exit_code
+                for row, j in enumerate(list(jobs[:num_samples])+[()]*(num_samples-len(jobs))):
+                    if len(j) == 0:
+                        rows[row].append('')
+                    else:
+                        id, ds, e = j
+                        from_path = os.path.join(args.directory, id2label[ds], 'failed', str(id))
+                        to_path = os.path.join(os.path.join(top_dir, 'errors'), str(id))
+                        if os.path.exists(to_path):
+                            shutil.rmtree(to_path)
+                        os.makedirs(to_path)
+                        cell = []
+                        for l in ['cmssw.log.gz', 'job.log']:
+                            if os.path.exists(os.path.join(from_path, l)):
+                                shutil.copy(os.path.join(from_path, l), os.path.join(to_path, l))
+                                if l == 'cmssw.log.gz': #I don't know how to make our server serve these correctly
+                                    os.popen('gunzip %s' % os.path.join(to_path, l))
+                                cell.append(html_tag('a', l.replace('.gz', ''), href=os.path.join('errors', str(id), l.replace('.gz', ''))))
+                        rows[row].append(', '.join(cell))
+
+            f.write(html_table(headers, rows, id='errors'))
+

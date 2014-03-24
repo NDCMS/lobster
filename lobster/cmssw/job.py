@@ -135,8 +135,9 @@ class JobProvider(lobster.job.JobProvider):
             dset = self.__jobdatasets[task.tag]
 
             if task.output:
-                with gzip.open(os.path.join(jdir, 'job.log.gz'), 'wb') as f:
-                    f.write(task.output)
+                f = gzip.open(os.path.join(jdir, 'job.log.gz'), 'wb')
+                f.write(task.output)
+                f.close()
 
             try:
                 with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:

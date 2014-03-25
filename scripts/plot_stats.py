@@ -258,12 +258,6 @@ if __name__ == '__main__':
     bins = xrange(args.xmin, int(runtimes[-1]) + 60, 60)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred])
 
-    # gap_indices = np.logical_or((np.roll(runtimes, -1) - runtimes) > 5, (runtimes - np.roll(runtimes, 1)) > 5)
-    # gap_indices = np.logical_or(gap_indices, np.logical_or(np.roll(gap_indices, -1), np.roll(gap_indices, 1)))
-    # print len(wq_stats_raw[gap_indices])
-    # np.savetxt('gaps.txt', orig_times[gap_indices], '%30.1f')
-    # sys.exit()
-
     print "Reducing WQ log"
     wq_stats = reduce(wq_stats_raw, 0, 5.)
     runtimes = wq_stats[:,0]

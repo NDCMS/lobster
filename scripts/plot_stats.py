@@ -187,12 +187,9 @@ def split_by_column(a, col, key=lambda x: x):
     """Split an array into multiple ones, based on unique values in the named
     column `col`.
     """
-    vals = np.unique(a[col])
-    ret = []
-    for v in vals:
-        sel = a[col] == v
-        ret.append((key(v), a[sel]))
-    return ret
+    keys = np.unique(a[col])
+    vals = [a[a[col] == v] for v in keys]
+    return map(key, keys), vals
 
 def save_and_close(dir, name):
     if not os.path.exists(dir):
@@ -343,10 +340,10 @@ if __name__ == '__main__':
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)
 
-    fail_values = split_by_column(failed_jobs, 'exit_code')
-    fail_times = [(vs[1]['t_retrieved'] - start_time / 1e6) / 60 for vs in fail_values]
+    fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code')
+    fail_times = [(vs['t_retrieved'] - start_time / 1e6) / 60 for vs in fail_values]
     wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
-            'fail_times', top_dir, label=[str(vs[0]) for vs in fail_values])
+            'fail_times', top_dir, label=map(str, fail_labels))
 
     wtags += make_scatter(
             (failed_jobs['t_retrieved'] - start_time / 1e6) / 60,
@@ -379,43 +376,43 @@ if __name__ == '__main__':
         label2id[dset_label] = dset_id
         id2label[dset_id] = dset_label
 
-    dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
+    dset_labels, dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
 
     num_bins = 30
-    total_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
-    processing_times = [(vs[1]['t_wrapper_end'] - vs[1]['t_first_ev']) / 60. for vs in dset_values]
-    overhead_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
-    idle_times = [(vs[1]['t_wrapper_start'] - vs[1]['t_send_end']) / 60. for vs in dset_values]
-    init_times = [(vs[1]['t_wrapper_ready'] - vs[1]['t_wrapper_start']) / 60. for vs in dset_values]
-    cmsrun_times = [(vs[1]['t_first_ev'] - vs[1]['t_wrapper_ready']) / 60. for vs in dset_values]
+    total_times = [(vs['t_wrapper_end'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
+    processing_times = [(vs['t_wrapper_end'] - vs['t_first_ev']) / 60. for vs in dset_values]
+    overhead_times = [(vs['t_first_ev'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
+    idle_times = [(vs['t_wrapper_start'] - vs['t_send_end']) / 60. for vs in dset_values]
+    init_times = [(vs['t_wrapper_ready'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
+    cmsrun_times = [(vs['t_first_ev'] - vs['t_wrapper_ready']) / 60. for vs in dset_values]
 
-    stageout_times = [(vs[1]['t_retrieved'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
-    wait_times = [(vs[1]['t_recv_start'] - vs[1]['t_wrapper_end']) / 60. for vs in dset_values]
-    transfer_times = [(vs[1]['t_recv_end'] - vs[1]['t_recv_start']) / 60. for vs in dset_values]
+    stageout_times = [(vs['t_retrieved'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
+    wait_times = [(vs['t_recv_start'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
+    transfer_times = [(vs['t_recv_end'] - vs['t_recv_start']) / 60. for vs in dset_values]
 
-    send_times = [(vs[1]['t_send_end'] - vs[1]['t_send_start']) / 60. for vs in dset_values]
-    put_ratio = [np.divide(vs[1]['t_goodput'] * 1.0, vs[1]['t_allput']) for vs in dset_values]
+    send_times = [(vs['t_send_end'] - vs['t_send_start']) / 60. for vs in dset_values]
+    put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
 
     (l_cre, l_ret, s_cre, s_ret) = read_debug()
 
-    jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=dset_labels, stats=True)
 
     if args.samplelogs:
         jtags += html_tag('a', make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir), href='errors.html')
     else:
         jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
-    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
+    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
 
     log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
     dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
@@ -475,7 +472,7 @@ if __name__ == '__main__':
             headers = []
             rows = [[], [], [], [], []]
             num_samples = 5
-            for exit_code, jobs in split_by_column(failed_jobs[['id', 'dataset', 'exit_code']], 'exit_code'):
+            for exit_code, jobs in zip(split_by_column(failed_jobs[['id', 'dataset', 'exit_code']], 'exit_code')):
                 headers.append('Exit %i <br>(%i failed jobs)' % (exit_code, len(jobs)))
                 print 'Copying sample logs for exit code ', exit_code
                 for row, j in enumerate(list(jobs[:num_samples])+[()]*(num_samples-len(jobs))):

@@ -70,7 +70,9 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
         all = np.concatenate(a)
         avg = np.average(all)
         var = np.std(all)
+        med = np.median(all)
         plt.figtext(0.75, 0.775, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
+        plt.figtext(0.75, 0.7, u"median = {0:.3g}".format(med), ha="center")
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

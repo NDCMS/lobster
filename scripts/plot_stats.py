@@ -85,12 +85,17 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
 
     return save_and_close(dir, filename)
 
-def make_frequency_pie(a, name, dir):
+def make_frequency_pie(a, name, dir, threshold=0.05):
     vals = np.unique(a)
     counts = [len(a[a == v]) for v in vals]
-    plt.pie(counts, labels=vals)
+    total = sum(counts)
+
+    counts, vals = zip(*filter(lambda (c, l): c / float(total) >= threshold, zip(counts, vals)))
+    rest = total - sum(counts)
+
+    plt.pie(counts + (rest, ), labels=vals + ('Other', ))
     fig = plt.gcf()
-    fig.set_size_inches(6, 6)
+    fig.set_size_inches(3, 3)
     fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
 
     return save_and_close(dir, name)

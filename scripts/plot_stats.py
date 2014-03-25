@@ -133,6 +133,22 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     return save_and_close(dir, name)
 
+def make_profile(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
+    sums, edges = np.histogram(x, bins=bins, weights=y)
+    squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
+    counts, edges = np.histogram(x, bins=bins)
+    avg = np.divide(sums, counts)
+    avg_sq = np.divide(squares, counts)
+    err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    centers = [(x + y) / 2.0 for x, y in zip(edges[:-1], edges[1:])]
+    plt.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
+    plt.axis(xmax=bins[-1], ymin=0)
+
+    return save_and_close(dir, name)
+
 def make_scatter(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
     plt.hexbin(x, y, cmap=plt.cm.Purples, gridsize=(len(bins) - 1, 10))
     plt.xlabel(xlabel)
@@ -347,7 +363,7 @@ if __name__ == '__main__':
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
 
     wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])
-    wtags += make_scatter(
+    wtags += make_profile(
             (success_jobs['t_wrapper_start'] - start_time / 1e6) / 60,
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)

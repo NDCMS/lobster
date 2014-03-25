@@ -343,6 +343,11 @@ if __name__ == '__main__':
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)
 
+    fail_values = split_by_column(failed_jobs, 'exit_code')
+    fail_times = [(vs[1]['t_retrieved'] - start_time / 1e6) / 60 for vs in fail_values]
+    wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
+            'fail_times', top_dir, label=[str(vs[0]) for vs in fail_values])
+
     wtags += make_scatter(
             (failed_jobs['t_retrieved'] - start_time / 1e6) / 60,
             failed_jobs['exit_code'],

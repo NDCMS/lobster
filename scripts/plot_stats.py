@@ -341,7 +341,7 @@ if __name__ == '__main__':
     wtags += make_scatter(
             (failed_jobs['t_retrieved'] - start_time / 1e6) / 60,
             failed_jobs['exit_code'],
-            bins, 'Wrapper start time (m)', 'Exit Code', 'exitCode_vs_time', top_dir,
+            bins, 'Time (m)', 'Exit Code', 'exit_code_vs_time', top_dir,
             [min(failed_jobs['exit_code']) - 5, max(failed_jobs['exit_code']) + 5])
 
     #for cases where jobits per job changes during run, get per-jobit info

@@ -6,7 +6,7 @@ from os.path import expanduser
 from collections import defaultdict
 import glob
 import math
-import os, sys
+import os
 import sqlite3
 
 import matplotlib
@@ -205,30 +205,20 @@ def save_and_close(dir, name):
 if __name__ == '__main__':
     parser = ArgumentParser(description='make histos')
     parser.add_argument('directory', help="Specify input directory")
-    parser.add_argument('outdir', nargs='*', help="Specify output directory")
+    parser.add_argument('outdir', nargs='?', help="Specify output directory")
     parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0, metavar="MIN")
     parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None, metavar="MAX")
     parser.add_argument('--samplelogs', action='store_true', help='Make a table with links to sample error logs', default=False)
     args = parser.parse_args()
 
-    db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
-    stats = {}
-
-    if len(args.outdir) is not 0:
-        top_dir = args.outdir[0]
+    if args.outdir:
+        top_dir = args.outdir
     else:
-        top_dir = args.directory
-        if len(top_dir.split("/")[-1]) > 0:
-           top_dir = top_dir.split("/")[-1]
-        else:
-           top_dir = top_dir.split("/")[-2]
-
-        www_dir = expanduser("~") + '/www/'
-        if not os.path.isdir(www_dir):
-            raise IOError("Web output directory '" + www_dir + "' does not exist or is not accessible.")
-        top_dir = www_dir + top_dir
+        top_dir = os.path.join(os.environ['HOME'], 'www',  os.path.basename(os.path.normpath(args.directory)))
 
     print 'Saving plots to: ' + top_dir
+    if not os.path.isdir(top_dir):
+        os.makedirs(top_dir)
 
     jtags = SmartList()
     dtags = SmartList()
@@ -283,6 +273,9 @@ if __name__ == '__main__':
                (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
                'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks')
+
+    db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
+    stats = {}
 
     failed_jobs = np.array(db.execute("""select
         id,

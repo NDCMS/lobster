@@ -126,10 +126,12 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     return save_and_close(dir, name)
 
-def make_scatter(x, y, bins, xlabel, ylabel, name, dir):
+def make_scatter(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
     plt.hexbin(x, y, cmap=plt.cm.Purples, gridsize=(len(bins) - 1, 10))
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    if yrange is not None:
+        plt.ylim(yrange)
     plt.axis(xmax=bins[-1])
 
     return save_and_close(dir, name)
@@ -348,6 +350,11 @@ if __name__ == '__main__':
             (success_jobs['t_wrapper_start'] - start_time / 1e6) / 60,
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)
+
+    wtags += make_scatter(
+            (failed_jobs['t_wrapper_start'] - start_time / 1e6) / 60,
+            failed_jobs['exit_code'],
+            bins, 'Wrapper start time (m)', 'Exit Code', 'exitCode_vs_time', top_dir)
 
     #for cases where jobits per job changes during run, get per-jobit info
     success_jobits = np.array(db.execute("""select jobits.id, jobs.time_retrieved

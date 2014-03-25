@@ -206,8 +206,8 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='make histos')
     parser.add_argument('directory', help="Specify input directory")
     parser.add_argument('outdir', nargs='*', help="Specify output directory")
-    parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0)
-    parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None)
+    parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0, metavar="MIN")
+    parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None, metavar="MAX")
     parser.add_argument('--samplelogs', action='store_true', help='Make a table with links to sample error logs', default=False)
     args = parser.parse_args()
 

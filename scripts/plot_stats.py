@@ -183,13 +183,23 @@ def reduce(a, idx, interval):
 
     return a[select]
 
-def split_by_column(a, col, key=lambda x: x):
+def split_by_column(a, col, key=lambda x: x, threshold=None):
     """Split an array into multiple ones, based on unique values in the named
     column `col`.
     """
     keys = np.unique(a[col])
     vals = [a[a[col] == v] for v in keys]
-    return map(key, keys), vals
+    keys = map(key, keys)
+
+    if threshold:
+        total = float(len(a))
+        others = filter(lambda v: len(v) / total < threshold, vals)
+        keys, vals = zip(*filter(lambda (k, v): len(v) / total >= threshold, zip(keys, vals)))
+        if len(others) > 0:
+            keys += ("Other", )
+            vals += (np.concatenate(others), )
+
+    return keys, vals
 
 def save_and_close(dir, name):
     if not os.path.exists(dir):
@@ -340,7 +350,7 @@ if __name__ == '__main__':
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)
 
-    fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code')
+    fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
     fail_times = [(vs['t_retrieved'] - start_time / 1e6) / 60 for vs in fail_values]
     wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
             'fail_times', top_dir, label=map(str, fail_labels))

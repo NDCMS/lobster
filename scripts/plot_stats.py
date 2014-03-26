@@ -417,8 +417,16 @@ if __name__ == '__main__':
     stageout_times = [(vs['t_retrieved'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
     wait_times = [(vs['t_recv_start'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
     transfer_times = [(vs['t_recv_end'] - vs['t_recv_start']) / 60. for vs in dset_values]
+    transfer_bytes = [vs['b_recv'] / 1024.0**2 for vs in dset_values]
+    transfer_rates = []
+    for (bytes, times) in zip(transfer_bytes, transfer_times):
+        transfer_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
 
     send_times = [(vs['t_send_end'] - vs['t_send_start']) / 60. for vs in dset_values]
+    send_bytes = [vs['b_sent'] / 1024.0**2 for vs in dset_values]
+    send_rates = []
+    for (bytes, times) in zip(send_bytes, send_times):
+        send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
 
     (l_cre, l_ret, s_cre, s_ret) = read_debug()
@@ -432,6 +440,12 @@ if __name__ == '__main__':
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=dset_labels, stats=True)
+    jtags += make_histo(transfer_bytes,
+            num_bins, 'Data received (MiB)', 'Jobs', 'recv_data', top_dir,
+            label=dset_labels, stats=True)
+    jtags += make_histo(transfer_rates,
+            num_bins, 'Data received rate (MiB/s)', 'Jobs', 'recv_rate', top_dir,
+            label=dset_labels, stats=True)
 
     if args.samplelogs:
         jtags += html_tag('a', make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir), href='errors.html')
@@ -439,6 +453,12 @@ if __name__ == '__main__':
         jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
     dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
+    dtags += make_histo(send_bytes,
+            num_bins, 'Data sent (MiB)', 'Jobs', 'send_data', top_dir,
+            label=dset_labels, stats=True)
+    dtags += make_histo(send_rates,
+            num_bins, 'Data sent rate (MiB/s)', 'Jobs', 'send_rate', top_dir,
+            label=dset_labels, stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
 

@@ -37,7 +37,9 @@ class SQLInterface:
             uuid text,
             jobits integer,
             jobits_running int default 0,
-            jobits_done int default 0)""")
+            jobits_done int default 0,
+            total_events int default 0,
+            processed_events int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             host text,
@@ -82,8 +84,6 @@ class SQLInterface:
         self.db.execute("create index if not exists job_index on jobits(job, run, lumi)")
         self.db.commit()
 
-        # self.db.execute("create table if not exists jobits(job_id integer, ds_label, input_file, run, lumi, status, num_attempts, host, exit_code, run_time, startup_time)")
-
         try:
             cur = self.db.execute("select max(id) from jobs")
             count = int(cur.fetchone()[0])
@@ -96,7 +96,6 @@ class SQLInterface:
         self.db.close()
 
     def register_jobits(self, dataset_interface):
-
         dbs_url = self.config.get('dbs url')
         for cfg in self.config['tasks']:
             label = cfg['dataset label']
@@ -118,8 +117,9 @@ class SQLInterface:
                            dbs_url,
                            publish_label,
                            cfg,
-                           uuid)
-                           values (?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                           uuid,
+                           total_events)
+                           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                                cfg['dataset'],
                                label,
                                os.path.join(self.config['stageout location'], label),
@@ -128,7 +128,8 @@ class SQLInterface:
                                dbs_url,
                                cfg.get('publish label', cfg['dataset label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
                                cfg['cmssw config'],
-                               self.uuid))
+                               self.uuid,
+                               dataset_info.events))
             id = cur.lastrowid
 
             lumis = 0
@@ -248,7 +249,7 @@ class SQLInterface:
 
         dsets = {}
         for job in jobs:
-            (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times, data) = job
+            (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times, data, processed_events) = job
 
             id = int(id)
 
@@ -258,8 +259,9 @@ class SQLInterface:
             try:
                 dsets[dset][0] += missed + processed
                 dsets[dset][1] += processed
+                dsets[dset][2] += processed_events
             except KeyError:
-                dsets[dset] = [missed + processed, processed]
+                dsets[dset] = [missed + processed, processed, processed_events]
 
             if failed:
                 status = FAILED
@@ -306,12 +308,13 @@ class SQLInterface:
                 up_jobs)
             db.executemany("update jobits set status=? where job=? and run=? and lumi=?",
                 up_missed)
-            for (dset, (num, complete)) in dsets.items():
+            for (dset, (num, complete, events)) in dsets.items():
                 db.execute("""update datasets set
                     jobits_running=(jobits_running - ?),
-                    jobits_done=(jobits_done + ?)
+                    jobits_done=(jobits_done + ?),
+                    processed_events=(processed_events + ?)
                     where label=?""",
-                    (dset, num, complete))
+                    (dset, num, events, complete))
         db.commit()
         with open('debug_sql_times', 'a') as f:
             delta = time.time() - t

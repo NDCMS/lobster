@@ -14,6 +14,7 @@ from jobit import SQLInterface as JobitStore
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
+from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 class JobProvider(lobster.job.JobProvider):
     def __init__(self, config):
@@ -185,12 +186,18 @@ class JobProvider(lobster.job.JobProvider):
             except:
                 data = [0, 0]
 
-            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data])
-
+            processed_events = 0
             if failed:
                 shutil.move(jdir, jdir.replace('running', 'failed'))
             else:
+                f = gzip.open(os.path.join(jdir, 'report.xml.gz'), 'r')
+                for report in readJobReport(f)[0].files:
+                    processed_events += int(report['TotalEvents'])
+                f.close()
                 shutil.move(jdir, jdir.replace('running', 'successful'))
+
+            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data, processed_events])
+
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 

@@ -226,7 +226,7 @@ def save_and_close(dir, name):
     # plt.gcf().set_size_inches(6, 1.5)
 
     plt.savefig(os.path.join(dir, '%s.png' % name))
-    plt.savefig(os.path.join(dir, '%s.pdf' % name))
+    # plt.savefig(os.path.join(dir, '%s.pdf' % name))
 
     plt.close()
 

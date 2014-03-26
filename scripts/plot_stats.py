@@ -534,11 +534,10 @@ if __name__ == '__main__':
                             shutil.rmtree(to_path)
                         os.makedirs(to_path)
                         cell = []
-                        for l in ['cmssw.log.gz', 'job.log']:
+                        for l in ['cmssw.log.gz', 'job.log.gz']:
                             if os.path.exists(os.path.join(from_path, l)):
                                 shutil.copy(os.path.join(from_path, l), os.path.join(to_path, l))
-                                if l == 'cmssw.log.gz': #I don't know how to make our server serve these correctly
-                                    os.popen('gunzip %s' % os.path.join(to_path, l))
+                                os.popen('gunzip %s' % os.path.join(to_path, l)) #I don't know how to make our server serve these correctly
                                 cell.append(html_tag('a', l.replace('.gz', ''), href=os.path.join('errors', str(id), l.replace('.gz', ''))))
                         rows[row].append(', '.join(cell))
 

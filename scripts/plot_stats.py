@@ -109,7 +109,7 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
-        ax1.axis(xmax=x[-1])
+        ax1.axis(xmax=x[-1], ymax=y[-1])
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')

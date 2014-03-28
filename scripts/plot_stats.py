@@ -159,22 +159,24 @@ def make_scatter(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
 
     return save_and_close(dir, name)
 
-def read_debug():
+def read_debug(workdir):
     lobster_create = []
     lobster_return = []
     sqlite_create = []
     sqlite_return = []
 
-    if os.path.exists('debug_lobster_times'):
-        with open('debug_lobster_times') as f:
+    lob_file = os.path.join(workdir, 'debug_lobster_times')
+    sql_file = os.path.join(workdir, 'debug_sql_times')
+    if os.path.exists(lob_file):
+        with open(lob_file) as f:
             for l in f:
                 items = l.split()
                 if l.startswith("CREA"):
                     lobster_create += [float(items[-1])] * int(items[1])
                 else:
                     lobster_return += [float(items[-1])] * int(items[1])
-    if os.path.exists('debug_sql_times'):
-        with open('debug_sql_times') as f:
+    if os.path.exists(sql_file):
+        with open(sql_file) as f:
             for l in f:
                 items = l.split()
                 if l.startswith("CREA"):
@@ -429,7 +431,7 @@ if __name__ == '__main__':
         send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
 
-    (l_cre, l_ret, s_cre, s_ret) = read_debug()
+    (l_cre, l_ret, s_cre, s_ret) = read_debug(args.directory)
 
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)

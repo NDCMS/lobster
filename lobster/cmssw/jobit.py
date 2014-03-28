@@ -228,7 +228,7 @@ class SQLInterface:
 
         self.db.commit()
 
-        with open('debug_sql_times', 'a') as f:
+        with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:
             delta = time.time() - t
             size = len(jobs)
             ratio = delta / float(size) if size != 0 else 0
@@ -316,7 +316,7 @@ class SQLInterface:
                     where label=?""",
                     (dset, num, events, complete))
         db.commit()
-        with open('debug_sql_times', 'a') as f:
+        with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:
             delta = time.time() - t
             size = len(jobs)
             ratio = delta / float(size) if size != 0 else 0

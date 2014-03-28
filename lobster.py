@@ -55,7 +55,7 @@ while not job_src.done():
     while hunger > 0:
         t = time.time()
         jobs = job_src.obtain(50, bijective=args.bijective)
-        with open('debug_lobster_times', 'a') as f:
+        with open(os.path.join(config["workdir"], 'debug_lobster_times'), 'a') as f:
             delta = time.time() - t
             if jobs == None:
                 size = 0
@@ -104,7 +104,7 @@ while not job_src.done():
     if len(tasks) > 0:
         t = time.time()
         job_src.release(tasks)
-        with open('debug_lobster_times', 'a') as f:
+        with open(os.path.join(config["workdir"], 'debug_lobster_times'), 'a') as f:
             delta = time.time() - t
             size = len(tasks)
             ratio = delta / float(size) if size != 0 else 0

@@ -185,7 +185,8 @@ class SQLInterface:
             rows = self.db.execute("""
                 select id, input_file, run, lumi
                 from jobits
-                where (status<>1 and status<>2) and dataset=?
+                where dataset=? and (status<>1 and status<>2)
+                order by attempts, input_file
                 limit ?""", (dataset_id, total_size,))
 
         for id, input_file, run, lumi in rows:

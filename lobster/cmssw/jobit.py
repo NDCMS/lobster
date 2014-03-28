@@ -77,10 +77,11 @@ class SQLInterface:
             attempts int default 0,
             foreign key(job) references jobs(id),
             foreign key(dataset) references datasets(id))""")
-        self.db.execute("create index if not exists dfile_index on jobits(dataset, input_file asc)")
         self.db.execute("create index if not exists dataset_index on jobits(dataset)")
-        self.db.execute("create index if not exists file_index on jobits(input_file)")
         self.db.execute("create index if not exists event_index on jobits(dataset, run, lumi)")
+        self.db.execute("create index if not exists file_index on jobits(input_file)")
+        self.db.execute("create index if not exists dfile_index on jobits(dataset, input_file asc)")
+        self.db.execute("create index if not exists nfile_index on jobits(attempts, input_file)")
         self.db.execute("create index if not exists job_index on jobits(job, run, lumi)")
         self.db.commit()
 
@@ -157,13 +158,12 @@ class SQLInterface:
         update = []
 
         rows = [xs for xs in self.db.execute("""
-            select label, id
+            select label, id, jobits - jobits_done - jobits_running, jobits
             from datasets
-            where jobits_done + jobits_running < jobits
-        rows = [xs for xs in self.db.execute("select label, id from datasets where jobits_done + jobits_running < jobits")]
+            where jobits_done + jobits_running < jobits""")]
         if len(rows) == 0:
             return None
-        dataset, dataset_id = random.choice(rows)
+        dataset, dataset_id, remaining, total = random.choice(rows)
 
         if bijective:
             size = []
@@ -171,12 +171,12 @@ class SQLInterface:
             for file in self.db.execute("""
                     select distinct input_file
                     from jobits
-                    where (status<>1 and status<>2) and dataset=?
+                    where dataset=? and (status<>1 and status<>2)
                     limit ?""", (dataset_id, total_size,)):
                 rows.extend(self.db.execute("""
                     select id, input_file, run, lumi
                     from jobits
-                    where (status<>1 and status<>2) and input_file=?""", file))
+                    where input_file=? and (status<>1 and status<>2)""", file))
                 if len(size) > 0:
                     size.append(len(rows)-size[-1])
                 else:

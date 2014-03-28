@@ -156,7 +156,13 @@ class SQLInterface:
         jobs = []
         update = []
 
+        rows = [xs for xs in self.db.execute("""
+            select label, id
+            from datasets
+            where jobits_done + jobits_running < jobits
         rows = [xs for xs in self.db.execute("select label, id from datasets where jobits_done + jobits_running < jobits")]
+        if len(rows) == 0:
+            return None
         dataset, dataset_id = random.choice(rows)
 
         if bijective:

@@ -129,7 +129,7 @@ class SQLInterface:
                                cfg.get('publish label', cfg['dataset label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
                                cfg['cmssw config'],
                                self.uuid,
-                               dataset_info.events))
+                               dataset_info.total_events))
             id = cur.lastrowid
 
             lumis = 0

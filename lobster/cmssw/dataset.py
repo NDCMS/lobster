@@ -34,7 +34,7 @@ class DASInterface:
         #TO DO: switch to applying json mask here
         dbs_output = self.api_reader.listFiles(dataset=self.datasets[label], detail=True)
         self.ds_info[label].files = [entry['logical_file_name'] for entry in dbs_output]
-        self.ds_info[label].events = sum([entry['event_count'] for entry in dbs_output])
+        self.ds_info[label].total_events = sum([entry['event_count'] for entry in dbs_output])
         for file in self.ds_info[label].files:
             for run in self.api_reader.listFileLumis(logical_file_name=file):
                 self.ds_info[label].lumis[file] += [(run['run_num'], l) for l in run['lumi_section_num']]

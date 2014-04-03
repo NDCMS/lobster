@@ -97,6 +97,7 @@ try:
     times += extract_cmssw_times('cmssw.log')
 except Exception as e:
     print e
+    times += [None * 3]
     if exit_code == 0:
         exit_code = 192
 

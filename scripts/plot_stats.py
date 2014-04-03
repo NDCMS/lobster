@@ -66,6 +66,8 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
     else:
         plt.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
 
+    plt.grid(True)
+
     if stats:
         all = np.concatenate(a)
         avg = np.average(all)
@@ -113,6 +115,7 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')
+    ax1.grid(True)
 
     if y_label2:
         ax2 = ax1.twinx()
@@ -146,6 +149,7 @@ def make_profile(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
     centers = [(x + y) / 2.0 for x, y in zip(edges[:-1], edges[1:])]
     plt.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
     plt.axis(xmax=bins[-1], ymin=0)
+    plt.grid(True)
 
     return save_and_close(dir, name)
 

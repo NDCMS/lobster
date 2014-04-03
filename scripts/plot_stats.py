@@ -357,6 +357,8 @@ if __name__ == '__main__':
     total_time_failed = np.sum(failed_jobs['t_allput'])
     total_time_success = np.sum(success_jobs['t_allput'])
     total_time_good = np.sum(success_jobs['t_goodput'])
+    total_time_pure = np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']) * 1e6
+
 
     bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
     scale = int(max(len(bins) / 100.0, 1.0))
@@ -430,6 +432,8 @@ if __name__ == '__main__':
     for (bytes, times) in zip(send_bytes, send_times):
         send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
+    pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1e6, vs['t_allput']) for vs in dset_values]
+
 
     (l_cre, l_ret, s_cre, s_ret) = read_debug(args.directory)
 
@@ -463,6 +467,7 @@ if __name__ == '__main__':
             label=dset_labels, stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
+    dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)
 
     log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
     dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
@@ -482,7 +487,9 @@ if __name__ == '__main__':
                     [
                         html_tag("h2", "Lobster Statistics"),
                         html_tag("p", "Successful jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success))),
-                        html_tag("p", "All jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success + total_time_failed)))
+                        html_tag("p", "Successful jobs: Pureput / Allput = {0:.3f}".format(total_time_pure / float(total_time_success))),
+                        html_tag("p", "All jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success + total_time_failed))),
+                        html_tag("p", "All jobs: Pureput / Allput = {0:.3f}".format(total_time_pure / float(total_time_success + total_time_failed)))
                     ] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
                 style="margin: 1em auto; display: block; width: auto; text-align: center;")

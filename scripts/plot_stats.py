@@ -85,9 +85,9 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, vs_time=False, **kwar
         avg = np.average(all)
         var = np.std(all)
         med = np.median(all)
-        ax.text(0.75, 0.8,
+        ax.text(0.75, 0.7,
                 u"μ = {0:.3g}, σ = {1:.3g}\nmedian = {2:.3g}".format(avg, var, med),
-                ha="center", transform=ax.transAxes)
+                ha="center", transform=ax.transAxes, backgroundcolor='white')
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

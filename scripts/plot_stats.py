@@ -99,14 +99,22 @@ def make_frequency_pie(a, name, dir, threshold=0.05):
 
     return save_and_close(dir, name)
 
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, **kwargs):
+def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, log=False, **kwargs):
     fig, ax1 = plt.subplots()
+
+    if log == True or log == 'y':
+        ax1.set_yscale('log')
+    elif log == 'x':
+        ax1.set_xscale('log')
 
     plots1 = tuples[0] if y_label2 else tuples
 
     for x, y, l in plots1:
         fun(ax1, x, y, label=l)
-        ax1.axis(xmax=x[-1], ymax=y[-1])
+
+    ax1.axis(xmax=max([xs[-1] for xs, ys, l in plots1]))
+            # ymax=max([ys[-1] for xs, ys, l in plots1]) * 1.1)
+
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
     ax1.legend(loc='upper left')
@@ -119,15 +127,6 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
             ax2.axis(xmax=x[-1])
         ax2.set_ylabel(y_label2)
         ax2.legend(loc='upper right')
-
-    if 'log' in kwargs:
-        if kwargs['log'] == True or kwargs['log'] == 'y':
-            plt.yscale('log')
-        elif kwargs['log'] == 'x':
-            plt.xscale('log')
-        del kwargs['log']
-    # plt.legend()
-    num = len(tuples[0]) + len(tuples[1]) if y_label2 else len(tuples)
 
     return save_and_close(dir, name)
 

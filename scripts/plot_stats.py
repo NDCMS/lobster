@@ -382,12 +382,6 @@ if __name__ == '__main__':
     wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
             'fail_times', top_dir, label=map(str, fail_labels))
 
-    wtags += make_scatter(
-            (failed_jobs['t_retrieved'] - start_time / 1e6) / 60,
-            failed_jobs['exit_code'],
-            bins, 'Time (m)', 'Exit Code', 'exit_code_vs_time', top_dir,
-            [min(failed_jobs['exit_code']) - 5, max(failed_jobs['exit_code']) + 5])
-
     #for cases where jobits per job changes during run, get per-jobit info
     success_jobits = np.array(db.execute("""select jobits.id, jobs.time_retrieved
         from jobits, jobs where jobits.job==jobs.id and

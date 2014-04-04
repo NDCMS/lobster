@@ -117,7 +117,6 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
-    ax1.legend(loc='upper left')
     ax1.grid(True)
 
     if y_label2:
@@ -126,7 +125,15 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
             fun(ax2, x, y, ':', label=l)
             ax2.axis(xmax=x[-1])
         ax2.set_ylabel(y_label2)
-        ax2.legend(loc='upper right')
+        ax2.legend(bbox_to_anchor=(0.975, 0.9),
+                loc='lower right',
+                ncol=len(tuples[1]),
+                prop={'size': 7})
+
+    ax1.legend(bbox_to_anchor=(0.025 if y_label2 else 0.5, 0.9),
+            loc='lower left',
+            ncol=len(plots1),
+            prop={'size': 7})
 
     return save_and_close(dir, name)
 

@@ -159,7 +159,7 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
                 prop={'size': 7})
 
     ax1.legend(bbox_to_anchor=(0.025 if y_label2 else 0.5, 0.9),
-            loc='lower left',
+            loc='lower left' if y_label2 else 'lower center',
             ncol=len(plots1),
             prop={'size': 7})
 

@@ -28,11 +28,6 @@ class SmartList(list):
     def __iadd__(self, other):
         return super(SmartList, self).__iadd__([other])
 
-def cumulative_sum(list, total=0):
-    for item in list:
-        total += item
-        yield total
-
 def html_tag(tag, *args, **kwargs):
     attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
     return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
@@ -398,11 +393,12 @@ if __name__ == '__main__':
     total_jobits = db.execute('select count(*) from jobits').fetchone()[0]
 
     finished_jobit_times = (success_jobits['t_retrieved'] - start_time / 1e6) / 60
-    finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times)
+    finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times, bins)
     bin_centers = [(x+y)/2 for x, y in zip(jobit_bins[:-1], jobit_bins[1:])]
+    finished_jobit_cum = np.cumsum(finished_jobit_hist)
 
-    wtags += make_plot([(bin_centers, list(cumulative_sum(finished_jobit_hist, 0)), 'total finished'),
-                        (bin_centers, list(cumulative_sum([-x for x in finished_jobit_hist], total_jobits)), 'total unfinished')],
+    wtags += make_plot([(bin_centers, finished_jobit_cum, 'total finished'),
+                        (bin_centers, finished_jobit_cum * (-1) + total_jobits, 'total unfinished')],
                        'Time (m)', 'Jobits' , 'finished_jobits', top_dir, log=True)
 
     label2id = {}

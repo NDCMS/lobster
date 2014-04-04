@@ -4,13 +4,16 @@
 from argparse import ArgumentParser
 from os.path import expanduser
 from collections import defaultdict
+from datetime import datetime
 import glob
 import math
 import os
+import pytz
 import sqlite3
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.dates as dates
 import numpy as np
 
 matplotlib.rc('axes', labelsize='large')
@@ -41,13 +44,27 @@ def html_table(headers, rows, **kwargs):
 
     return html_tag('table', *(top+body), **kwargs)
 
-def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
+def unix2matplotlib(time):
+    return dates.date2num(datetime.fromtimestamp(time, pytz.utc))
+
+def make_histo(a, num_bins, xlabel, ylabel, filename, dir, vs_time=False, **kwargs):
     # fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
+
+    fig, ax = plt.subplots()
+
+    if vs_time:
+        f = np.vectorize(unix2matplotlib)
+        a = map(lambda xs: f(xs), a)
+        interval = 2**math.floor(math.log((num_bins[-1] - num_bins[0]) / 9000.0) / math.log(2))
+        num_bins = map(unix2matplotlib, num_bins)
+        ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
+        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
+
     if 'log' in kwargs:
         if kwargs['log'] == True or kwargs['log'] == 'y':
-            plt.yscale('log')
+            ax.set_yscale('log')
         elif kwargs['log'] == 'x':
-            plt.xscale('log')
+            ax.set_xscale('log')
         del kwargs['log']
 
     if 'stats' in kwargs:
@@ -57,30 +74,31 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, **kwargs):
         stats = False
 
     if 'histtype' in kwargs:
-        plt.hist(a, bins=num_bins, **kwargs)
+        ax.hist(a, bins=num_bins, **kwargs)
     else:
-        plt.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
+        ax.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
 
-    plt.grid(True)
+    ax.grid(True)
 
     if stats:
         all = np.concatenate(a)
         avg = np.average(all)
         var = np.std(all)
         med = np.median(all)
-        plt.figtext(0.75, 0.775, u"μ = {0:.3g}, σ = {1:.3g}".format(avg, var), ha="center")
-        plt.figtext(0.75, 0.7, u"median = {0:.3g}".format(med), ha="center")
+        ax.text(0.75, 0.8,
+                u"μ = {0:.3g}, σ = {1:.3g}\nmedian = {2:.3g}".format(avg, var, med),
+                ha="center", transform=ax.transAxes)
 
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     try:
-        plt.axis(xmax=num_bins[-1])
+        ax.axis(xmin=num_bins[0], xmax=num_bins[-1])
     except:
         pass
 
     if 'label' in kwargs:
-        plt.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
+        ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
 
     return save_and_close(dir, filename)
 
@@ -99,7 +117,7 @@ def make_frequency_pie(a, name, dir, threshold=0.05):
 
     return save_and_close(dir, name)
 
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, log=False, **kwargs):
+def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, log=False, vs_time=False, **kwargs):
     fig, ax1 = plt.subplots()
 
     if log == True or log == 'y':
@@ -109,11 +127,16 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     plots1 = tuples[0] if y_label2 else tuples
 
-    for x, y, l in plots1:
-        fun(ax1, x, y, label=l)
+    if vs_time:
+        f = np.vectorize(unix2matplotlib)
+        interval = 2**math.floor(math.log((plots1[0][0][-1] - plots1[0][0][0]) / 9000.0) / math.log(2))
+        ax1.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
+        ax1.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
 
-    ax1.axis(xmax=max([xs[-1] for xs, ys, l in plots1]))
-            # ymax=max([ys[-1] for xs, ys, l in plots1]) * 1.1)
+    for x, y, l in plots1:
+        if vs_time:
+            x = f(x)
+        fun(ax1, x, y, label=l)
 
     ax1.set_xlabel(x_label)
     ax1.set_ylabel(y_label)
@@ -121,9 +144,14 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     if y_label2:
         ax2 = ax1.twinx()
+        if vs_time:
+            ax2.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
+            ax2.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
+
         for x, y, l in tuples[1]:
+            if vs_time:
+                x = f(x)
             fun(ax2, x, y, ':', label=l)
-            ax2.axis(xmax=x[-1])
         ax2.set_ylabel(y_label2)
         ax2.legend(bbox_to_anchor=(0.975, 0.9),
                 loc='lower right',
@@ -137,7 +165,17 @@ def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot
 
     return save_and_close(dir, name)
 
-def make_profile(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
+def make_profile(x, y, bins, xlabel, ylabel, name, dir, vs_time=False):
+    fig, ax = plt.subplots()
+
+    if vs_time:
+        f = np.vectorize(unix2matplotlib)
+        x = map(lambda xs: f(xs), x)
+        interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
+        bins = map(unix2matplotlib, bins)
+        ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
+        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
+
     sums, edges = np.histogram(x, bins=bins, weights=y)
     squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
     counts, edges = np.histogram(x, bins=bins)
@@ -145,12 +183,12 @@ def make_profile(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
     avg_sq = np.divide(squares, counts)
     err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
 
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     centers = [(x + y) / 2.0 for x, y in zip(edges[:-1], edges[1:])]
-    plt.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
-    plt.axis(xmax=bins[-1], ymin=0)
-    plt.grid(True)
+    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
+    ax.axis(xmin=bins[0], xmax=bins[-1], ymin=0)
+    ax.grid(True)
 
     return save_and_close(dir, name)
 
@@ -265,45 +303,45 @@ if __name__ == '__main__':
     with open(os.path.join(args.directory, 'work_queue.log')) as f:
         headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
     wq_stats_raw_all = np.loadtxt(os.path.join(args.directory, 'work_queue.log'))
-    start_time = wq_stats_raw_all[0,0]
+    start_time = wq_stats_raw_all[0,0] / 1e6
     end_time = wq_stats_raw_all[-1,0]
 
     if not args.xmax:
         xmax = end_time
     else:
-        xmax = args.xmax * 60e6 + start_time
+        xmax = args.xmax * 60 + start_time
 
-    xmin = args.xmin * 60e6 + start_time
+    xmin = args.xmin * 60 + start_time
 
     wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
 
     orig_times = wq_stats_raw[:,0].copy()
-    # subtract start time, convert to minutes
-    wq_stats_raw[:,0] = (wq_stats_raw[:,0] - start_time) / 60e6
-    runtimes = wq_stats_raw[:,0]
+    # Convert to seconds since UNIX epoch
+    runtimes = wq_stats_raw[:,0] / 1e6
     print "First iteration..."
-    print "start_time = ",int(start_time)
 
-    bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
-    scale = int(max(len(bins) / 100.0, 1.0))
-    bins = xrange(args.xmin, int(runtimes[-1]) + scale * 5, scale * 5)
-    wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True)
+    # Five minute bins (or more, if # of bins exceeds 100)
+    bins = range(xmin, int(runtimes[-1]) + 300, 300)
+    scale = max(len(bins) / 100.0, 1.0)
+    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
+    wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True, vs_time=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
     transferred[transferred < 0] = 0
 
-    bins = xrange(args.xmin, int(runtimes[-1]) + 60, 60)
-    wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred])
+    # One hour bins
+    bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
+    wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
 
     print "Reducing WQ log"
-    wq_stats = reduce(wq_stats_raw, 0, 5.)
-    runtimes = wq_stats[:,0]
+    wq_stats = reduce(wq_stats_raw, 0, 300.)
+    runtimes = wq_stats[:,0] / 1e6
 
     wtags += make_plot(([(runtimes, wq_stats[:,headers['workers_busy']], 'busy'),
                (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
                (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks')
+               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
 
     db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
     stats = {}
@@ -364,42 +402,45 @@ if __name__ == '__main__':
     total_time_good = np.sum(success_jobs['t_goodput'])
     total_time_pure = np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']) * 1e6
 
+    # Five minute bins, or larger, to keep the number of bins around 100
+    # max.
+    bins = xrange(xmin, int(runtimes[-1]) + 300, 300)
+    scale = max(len(bins) / 100.0, 1.0)
+    bins = xrange(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
+    success_times = (success_jobs['t_retrieved'] - start_time / 1e6)
+    failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6)
 
-    bins = xrange(args.xmin, int(runtimes[-1]) + 5, 5)
-    scale = int(max(len(bins) / 100.0, 1.0))
-    bins = xrange(args.xmin, int(runtimes[-1]) + scale * 5, scale * 5)
-    success_times = (success_jobs['t_retrieved'] - start_time / 1e6) / 60
-    failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6) / 60
-
-    wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'])
+    wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'], vs_time=True)
     wtags += make_profile(
-            (success_jobs['t_wrapper_start'] - start_time / 1e6) / 60,
+            success_jobs['t_wrapper_start'],
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
-            bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir)
+            bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir, vs_time=True)
 
     fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
-    fail_times = [(vs['t_retrieved'] - start_time / 1e6) / 60 for vs in fail_values]
+    fail_times = [vs['t_retrieved'] / 1e6 for vs in fail_values]
     wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
-            'fail_times', top_dir, label=map(str, fail_labels))
+            'fail_times', top_dir, label=map(str, fail_labels), vs_time=True)
 
     #for cases where jobits per job changes during run, get per-jobit info
-    success_jobits = np.array(db.execute("""select jobits.id, jobs.time_retrieved
-        from jobits, jobs where jobits.job==jobs.id and
-        (jobits.status=2 or jobits.status=5 or jobits.status=6) and
-        jobs.time_retrieved>=? and jobs.time_retrieved<=?
+    success_jobits = np.array(db.execute("""
+        select jobits.id, jobs.time_retrieved
+        from jobits, jobs
+        where jobits.job==jobs.id
+        and (jobits.status=2 or jobits.status=5 or jobits.status=6)
+        and jobs.time_retrieved>=? and jobs.time_retrieved<=?
         group by jobs.time_retrieved""",
-        (xmin / 1e6, xmax / 1e6)).fetchall(),
+        (xmin, xmax)).fetchall(),
             dtype=[('id', 'i4'), ('t_retrieved', 'i4')])
     total_jobits = db.execute('select count(*) from jobits').fetchone()[0]
 
-    finished_jobit_times = (success_jobits['t_retrieved'] - start_time / 1e6) / 60
+    finished_jobit_times = success_jobits['t_retrieved']
     finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times, bins)
     bin_centers = [(x+y)/2 for x, y in zip(jobit_bins[:-1], jobit_bins[1:])]
     finished_jobit_cum = np.cumsum(finished_jobit_hist)
 
     wtags += make_plot([(bin_centers, finished_jobit_cum, 'total finished'),
                         (bin_centers, finished_jobit_cum * (-1) + total_jobits, 'total unfinished')],
-                       'Time (m)', 'Jobits' , 'finished_jobits', top_dir, log=True)
+                       'Time (m)', 'Jobits' , 'finished_jobits', top_dir, log=True, vs_time=True)
 
     label2id = {}
     id2label = {}

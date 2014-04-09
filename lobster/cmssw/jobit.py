@@ -245,9 +245,11 @@ class SQLInterface:
 
     def reset_jobits(self):
         with self.db as db:
+            ids = [id for (id,) in db.execute("select id from jobs where status=1")]
             db.execute("update datasets set jobits_running=0")
             db.execute("update jobits set status=4 where status=1")
             db.execute("update jobs set status=4 where status=1")
+        return ids
 
     def update_jobits(self, jobs):
         up_jobits = []

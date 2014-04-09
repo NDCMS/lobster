@@ -1,3 +1,4 @@
+import datetime
 import gzip
 import imp
 import os
@@ -7,7 +8,10 @@ import sqlite3
 import time
 import sys
 
+from hashlib import sha1
+
 import lobster.job
+import dash
 import sandbox
 from dataset import DASInterface, FileInterface
 from jobit import SQLInterface as JobitStore
@@ -47,6 +51,24 @@ class JobProvider(lobster.job.JobProvider):
             blacklist = config.get('sandbox blacklist', [])
             sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
 
+
+        statusfile = os.path.join(self.__workdir, 'status.pkl')
+        if not os.path.exists(statusfile):
+            self.__taskid = 'lobster_{0}_{1}'.format(
+                    self.__config['id'],
+                    sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
+            with open(statusfile, 'wb') as f:
+                pickle.dump(self.__taskid, f, pickle.HIGHEST_PROTOCOL)
+        else:
+            with open(statusfile, 'rb') as f:
+                self.__taskid = pickle.load(f)
+
+        if config.get('use dashboard', False):
+            print "Using Dashboard with task", self.__taskid
+            self.__dash = dash.Monitor(self.__taskid)
+        else:
+            self.__dash = dash.DummyMonitor(self.__taskid)
+
         for cfg in config['tasks']:
             label = cfg['dataset label']
             cms_config = cfg['cmssw config']
@@ -84,8 +106,10 @@ class JobProvider(lobster.job.JobProvider):
         self.__store = JobitStore(config)
         if create:
             self.__store.register_jobits(ds_interface)
+            self.__dash.register_run()
         else:
-            self.__store.reset_jobits()
+            for id in self.__store.reset_jobits():
+                self.__dash.update_job(id, dash.ABORTED)
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
@@ -111,8 +135,10 @@ class JobProvider(lobster.job.JobProvider):
             if not os.path.isdir(jdir):
                 os.makedirs(jdir)
 
+            monitorid, syncid = self.__dash.register_job(id)
+
             with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                pickle.dump((args, files, lumis), f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump((args, files, lumis, self.__taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
             inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
             self.__jobdirs[id] = jdir
@@ -125,6 +151,8 @@ class JobProvider(lobster.job.JobProvider):
             tasks.append((id, cmd, inputs, outputs))
 
         print "Creating job(s) {0}".format(", ".join(ids))
+
+        self.__dash.free()
 
         return tasks
 
@@ -196,7 +224,11 @@ class JobProvider(lobster.job.JobProvider):
                 f.close()
                 shutil.move(jdir, jdir.replace('running', 'successful'))
 
+            self.__dash.update_job(task.tag, dash.DONE)
+
             jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data, processed_events])
+
+        self.__dash.free()
 
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})

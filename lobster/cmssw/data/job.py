@@ -10,6 +10,7 @@ import subprocess
 import sys
 import xml.dom.minidom
 
+from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
 
 fragment = """import FWCore.ParameterSet.Config as cms
@@ -64,7 +65,15 @@ def extract_cmssw_times(log_filename):
 
 (config, data) = sys.argv[1:]
 with open(data, 'rb') as f:
-    (args, files, lumis) = pickle.load(f)
+    (args, files, lumis, taskid, monitorid, syncid) = pickle.load(f)
+
+apmonSend(taskid, monitorid, {
+            'ExeStart': 'cmsRun',
+            'SyncCE': 'ndcms.crc.nd.edu',
+            'SyncGridJobId': syncid,
+            'WNHostName': os.environ.get('HOSTNAME', '')
+            })
+apmonFree()
 
 configfile = config.replace(".py", "_mod.py")
 shutil.copy2(config, configfile)
@@ -124,5 +133,23 @@ for filename in 'cmssw.log report.xml'.split():
             print e
             if exit_code == 0:
                 exit_code = 194
+
+print "Execution time", str(times[-1] - times[0])
+print "Exiting with code", str(exit_code)
+
+apmonSend(taskid, monitorid, {
+            'ExeEnd': 'cmsRun',
+            'ExeTime': str(times[-1] - times[0]),
+            'ExeExitCode': str(exit_code),
+            'StageOutSE': ' ndcms.crc.nd.edu',
+            'StageOutExitStatus': '0',
+            'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
+            # 'CrabUserCpuTime': '178.08',
+            # 'CrabSysCpuTime': '5.91',
+            # 'CrabCpuPercentage': '18%',
+            # 'CrabWrapperTime': '1074',
+            # 'CrabStageoutTime': '50',
+            })
+apmonFree()
 
 sys.exit(exit_code)

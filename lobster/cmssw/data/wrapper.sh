@@ -23,15 +23,15 @@ if [ "x$PARROT_ENABLED" != "x" ]; then
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 else
 	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
-		export MYCACHE=$TMPDIR
-		export PARROT_DEBUG_FLAGS="-d cvmfs"
 		# export MYCACHE=$PWD
+		export MYCACHE=$TMPDIR
+		# export PARROT_DEBUG_FLAGS="-d cvmfs"
+		export PARROT_DEBUG_FLAGS=
 		export CMS_LOCAL_SITE=T3_US_NotreDame
 		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
-		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_helper.so
-		#export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/parrot_run
-		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_run # Ben's fixes (parrot + wq) from 20-03-2014
+		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_helper.so
+		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_run
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 		echo ">>> parrot helper: $PARROT_HELPER"

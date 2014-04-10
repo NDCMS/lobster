@@ -18,10 +18,14 @@ with open(args.config_file_name) as config_file:
     config = yaml.load(config_file)
 
 config['filepath'] = args.config_file_name
-if 'cmssw' in repr(config):
-    job_src = cmssw.JobProvider(config)
-else:
+if not 'cmssw' in repr(config):
     job_src = job.SimpleJobProvider(config)
+else:
+    job_src = cmssw.JobProvider(config)
+    from ProdCommon.Credential.CredentialAPI import CredentialAPI
+    cred = CredentialAPI({'credential': 'Proxy'})
+    if not cred.checkCredential(Time=60):
+        cred.ManualRenewCredential()
 
 wq.cctools_debug_flags_set("all")
 wq.cctools_debug_config_file(os.path.join(config["workdir"], "debug.log"))

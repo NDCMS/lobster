@@ -47,7 +47,7 @@ class SQLInterface:
             published_file_block text,
             status int default 0,
             exit_code int,
-            retries int default 0,
+            submissions int default 0,
             missed_lumis int default 0,
             time_submit int,
             time_transfer_in_start int,
@@ -258,7 +258,7 @@ class SQLInterface:
 
         dsets = {}
         for job in jobs:
-            (id, dset, host, failed, return_code, retries, processed_lumis, missed_lumis, times, data, processed_events) = job
+            (id, dset, host, failed, return_code, submissions, processed_lumis, missed_lumis, times, data, processed_events) = job
 
             id = int(id)
 
@@ -280,7 +280,7 @@ class SQLInterface:
                 status = SUCCESSFUL
 
             up_jobits.append((status, id))
-            up_jobs.append([status, host, return_code, retries] + times + data + [missed, id])
+            up_jobs.append([status, host, return_code, submissions] + times + data + [missed, id])
             if status == INCOMPLETE:
                 for run, lumi in missed_lumis:
                     up_missed.append((FAILED, id, run, lumi))
@@ -295,7 +295,7 @@ class SQLInterface:
                 status=?,
                 host=?,
                 exit_code=?,
-                retries=?,
+                submissions=?,
                 time_submit=?,
                 time_transfer_in_start=?,
                 time_transfer_in_end=?,

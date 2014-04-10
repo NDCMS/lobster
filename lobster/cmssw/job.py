@@ -190,6 +190,7 @@ class JobProvider(lobster.job.JobProvider):
 
             print "Job", task.tag, "returned with exit code", task.return_status
 
+            submissions = task.total_submissions
             times = [
                     task.submit_time / 1000000,
                     task.send_input_start / 1000000,
@@ -197,22 +198,11 @@ class JobProvider(lobster.job.JobProvider):
                     ] + task_times + [
                     task.receive_output_start / 1000000,
                     task.receive_output_finish / 1000000,
-                    task.finish_time / 1000000
+                    task.finish_time / 1000000,
+                    task.cmd_execution_time / 1000000,
+                    task.total_cmd_execution_time / 1000000,
                     ]
-
-            try:
-                retries = task.retries
-                total_time = task.total_cmd_execution_time
-            except:
-                retries = -1
-                total_time = task.cmd_execution_time
-
-            times += [task.cmd_execution_time, total_time]
-
-            try:
-                data = [task.total_bytes_received, task.total_bytes_sent]
-            except:
-                data = [0, 0]
+            data = [task.total_bytes_received, task.total_bytes_sent]
 
             processed_events = 0
             if failed:
@@ -226,7 +216,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__dash.update_job(task.tag, dash.DONE)
 
-            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, retries, processed, not_processed, times, data, processed_events])
+            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, submissions, processed, not_processed, times, data, processed_events])
 
         self.__dash.free()
 

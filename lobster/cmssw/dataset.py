@@ -45,12 +45,16 @@ class FileInterface:
         self.ds_info = {}
         for task in config['tasks']:
             label = task['dataset label']
-            files = task['files']
+            files = task.get('files')
             ds_info =  DatasetInfo(label)
-            if os.path.isdir(files):
+            if not files:
+                ds_info.files = [None for x in range(task.get('num jobs', 1))]
+            elif os.path.isdir(files):
                 ds_info.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
             elif os.path.isfile(files):
                 ds_info.files = ['file:'+f.strip() for f in open(files).readlines()]
+            elif isinstance(files, str):
+                ds_info.files = ['file:'+f for f in glob.glob(os.path.join(files))]
             for file in ds_info.files:
                 ds_info.lumis[file] = [(-1, -1)] # hack because it will be slow to open all the input files to read the run/lumi info
 

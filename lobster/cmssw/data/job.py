@@ -13,13 +13,13 @@ import xml.dom.minidom
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
 
-fragment = """import FWCore.ParameterSet.Config as cms
-process.source.fileNames = cms.untracked.vstring({input_files})
+frag = """import FWCore.ParameterSet.Config as cms
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))"""
 
 def edit_process_source(cmssw_config_file, files, lumis):
     with open(cmssw_config_file, 'a') as config:
-        frag = fragment.format(input_files=repr([str(f) for f in files]))
+        if files:
+            frag += "\nprocess.source.fileNames = cms.untracked.vstring({input_files})".format(input_files=repr([str(f) for f in files]))
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis.getVLuminosityBlockRange()])
         print "--- config file fragment:"

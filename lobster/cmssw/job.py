@@ -37,7 +37,7 @@ class JobProvider(lobster.job.JobProvider):
         self.__outputs = {}
         self.__jobits_per_job = 25
 
-        if 'files' in repr(config):
+        if 'files' in repr(config) or 'num jobs' in repr(config):
             ds_interface = FileInterface(config)
             self.__jobits_per_job = 1
         else:

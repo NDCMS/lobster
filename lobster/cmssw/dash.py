@@ -33,7 +33,7 @@ class DummyMonitor(object):
         """Returns Dashboard MonitorJobID and SyncGridJobId."""
         return None, None
 
-    def update_job(self):
+    def update_job(self, id, status):
         pass
 
     def free(self):

@@ -53,6 +53,13 @@ else
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 fi
 
+echo
+echo ">>> proxy information"
+echo "---8<---"
+voms-proxy-info
+echo "--->8---"
+echo
+
 tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
 basedir=$PWD

@@ -13,8 +13,8 @@ with lobster:
 
 # Setting up your environment
 
-    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools-autobuild/lib/python2.7/site-packages/
-    export PATH=/afs/nd.edu/user37/ccl/software/cctools-autobuild/bin:$PATH
+    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools-lobster/lib/python2.7/site-packages/
+    export PATH=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin:$PATH
 
 # Running lobster
 
@@ -25,15 +25,15 @@ CMS):
 
 2. Obtaining a valid proxy
 
-    voms-proxy-init -voms cms -valid 192:00
+        voms-proxy-init -voms cms -valid 192:00
 
 3. Adjusting the configuration file, e.g.:
 
-    vi test/beanprod.yaml
+        vi test/beanprod.yaml
 
 4. Running lobster
 
-    ./lobster.py test/beanprod.yaml
+        ./lobster.py test/beanprod.yaml
 
 5. Starting workers --- see below.
 
@@ -52,7 +52,8 @@ memory, 4 Gb for disk).
 
 # Monitoring at ND
 
-* [External bandwidth](http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0)
+* [CMS dasboard](http://dashb-cms-job.cern.ch/dashboard/templates/web-job2/)
 * [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)
 * [Condor usage](http://condor.cse.nd.edu/condor_matrix.cgi)
+* [External bandwidth](http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0)
 * `work_queue_status` on the command line

@@ -30,6 +30,7 @@ class JobProvider(lobster.job.JobProvider):
 
         self.__datasets = {}
         self.__configs = {}
+        self.__extra_inputs = {}
         self.__args = {}
         self.__jobdirs = {}
         self.__jobdatasets = {}
@@ -80,6 +81,7 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__datasets[label] = cfg['dataset']
             self.__configs[label] = os.path.basename(cms_config)
+            self.__extra_inputs[label] = cfg.get('extra inputs', [])
             self.__args[label] = cfg.get('parameters', [])
             self.__outputs[label] = []
 
@@ -132,8 +134,9 @@ class JobProvider(lobster.job.JobProvider):
             args = self.__args[label]
 
             inputs = [(os.path.join(self.__workdir, label, config), config),
-                    (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                    (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
+                      (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
+            inputs += [(i, os.path.basename(i)) for i in self.__extra_inputs[label]]
 
             sdir = os.path.join(self.__stageout, label)
             jdir = os.path.join(self.__workdir, label, 'running', id)

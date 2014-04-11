@@ -70,6 +70,11 @@ class JobProvider(lobster.job.JobProvider):
             self.__dash = dash.DummyMonitor(self.__taskid)
 
         for cfg in config['tasks']:
+            defaults = config.get('task defaults', {})
+            for k, v in defaults.items():
+                if k not in cfg:
+                    cfg[k] = v
+
             label = cfg['dataset label']
             cms_config = cfg['cmssw config']
 

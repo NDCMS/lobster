@@ -16,6 +16,7 @@ date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
 
 export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
+export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
 
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"

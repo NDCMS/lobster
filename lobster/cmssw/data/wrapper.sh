@@ -57,7 +57,7 @@ fi
 echo
 echo ">>> proxy information"
 echo "---8<---"
-voms-proxy-info
+env X509_USER_PROXY=proxy voms-proxy-info
 echo "--->8---"
 echo
 

@@ -30,23 +30,24 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
 
 def extract_processed_lumis(report_filename):
     dom = xml.dom.minidom.parse(report_filename)
-    runs = dom.getElementsByTagName("File")[0].getElementsByTagName("Run")
+    files = dom.getElementsByTagName("File")
 
+    if len(files) == 0:
+        return LumiList
+
+    runs = files[0].getElementsByTagName("Run")
     lumis = []
     for run in runs:
         run_number = int(run.getAttribute("ID"))
         lumi_sections = []
         for lumi in run.getElementsByTagName("LumiSection"):
             lumis.append((run_number, int(lumi.getAttribute("ID"))))
+
     return LumiList(lumis=lumis)
 
 def extract_time(filename):
-    try:
-        with open(filename) as f:
-            return int(f.readline())
-    except Exception as e:
-        print e
-        return None
+    with open(filename) as f:
+        return int(f.readline())
 
 def extract_cmssw_times(log_filename):
     finit = None
@@ -89,8 +90,6 @@ exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.fo
 
 try:
     run_info = extract_processed_lumis('report.xml')
-    with open('processed.pkl', 'wb') as f:
-        pickle.dump(run_info, f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:
@@ -100,6 +99,7 @@ try:
     times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
 except Exception as e:
     print e
+    times = [None, None]
     if exit_code == 0:
         exit_code = 191
 
@@ -114,8 +114,8 @@ except Exception as e:
 times.append(int(datetime.now().strftime('%s')))
 
 try:
-    f = open('times.pkl', 'wb')
-    pickle.dump(times, f, pickle.HIGHEST_PROTOCOL)
+    f = open('report.pkl', 'wb')
+    pickle.dump((run_info, times), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:

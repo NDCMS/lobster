@@ -152,7 +152,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__jobdirs[id] = jdir
             self.__jobdatasets[id] = label
             outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'processed.pkl', 'times.pkl']])
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
             cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
@@ -177,10 +177,16 @@ class JobProvider(lobster.job.JobProvider):
                 f.close()
 
             try:
+                with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
+                    out_lumis, task_times = pickle.load(f)
+            except:
+                failed = True
+                out_lumis = LumiList()
+                task_times = [None] * 6
+
+            try:
                 with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
                     in_lumis = pickle.load(f)[2]
-                with open(os.path.join(jdir, 'processed.pkl'), 'rb') as f:
-                    out_lumis = pickle.load(f)
                 not_processed = (in_lumis - out_lumis).getLumis()
                 processed = out_lumis.getLumis()
             except Exception as e:
@@ -188,13 +194,6 @@ class JobProvider(lobster.job.JobProvider):
                 failed = True
                 not_processed = in_lumis.getLumis()
                 processed = []
-
-            task_times = [None] * 6
-            try:
-                with open(os.path.join(jdir, 'times.pkl'), 'rb') as f:
-                    task_times = pickle.load(f)
-            except:
-                pass
 
             print "Job", task.tag, "returned with exit code", task.return_status
 

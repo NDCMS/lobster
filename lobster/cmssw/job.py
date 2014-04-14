@@ -45,13 +45,8 @@ class JobProvider(lobster.job.JobProvider):
 
         create = not os.path.exists(self.__workdir)
         if create:
-            os.makedirs(self.__sandbox)
-            for fn in ['job.py']:
-                shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
-                            os.path.join(self.__sandbox, fn))
             blacklist = config.get('sandbox blacklist', [])
             sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
-
 
         statusfile = os.path.join(self.__workdir, 'status.pkl')
         if not os.path.exists(statusfile):
@@ -135,7 +130,13 @@ class JobProvider(lobster.job.JobProvider):
 
             inputs = [(os.path.join(self.__workdir, label, config), config),
                       (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh')]
+                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py')
+                      ]
+
+            if 'X509_USER_PROXY' in os.environ:
+                inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
+
             inputs += [(i, os.path.basename(i)) for i in self.__extra_inputs[label]]
 
             sdir = os.path.join(self.__stageout, label)

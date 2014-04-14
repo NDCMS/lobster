@@ -11,6 +11,11 @@ with lobster:
     cd ..
     rm -rf PyYAML-3.10/
 
+Install the `argparse` module, if not available for your python (normally
+2.7 and up):
+
+    easy_install argparse
+
 # Setting up your environment
 
     export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools-lobster/lib/python2.7/site-packages/

@@ -14,7 +14,12 @@ with lobster:
 Install the `argparse` module, if not available for your python (normally
 2.7 and up):
 
-    easy_install argparse
+    cd /tmp
+    wget -O - http://argparse.googlecode.com/files/argparse-1.2.1.tar.gz|tar xzf -
+    cd argparse-1.2.1/
+    python setup.py install --user
+    cd ..
+    rm -rf argparse-1.2.1/
 
 # Setting up your environment
 

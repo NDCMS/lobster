@@ -33,7 +33,7 @@ def extract_processed_lumis(report_filename):
     files = dom.getElementsByTagName("File")
 
     if len(files) == 0:
-        return LumiList
+        return LumiList()
 
     runs = files[0].getElementsByTagName("Run")
     lumis = []
@@ -49,10 +49,10 @@ def extract_time(filename):
     with open(filename) as f:
         return int(f.readline())
 
-def extract_cmssw_times(log_filename):
-    finit = None
-    fopen = None
-    first = None
+def extract_cmssw_times(log_filename, default=None):
+    finit = now
+    fopen = now
+    first = now
 
     with open(log_filename) as f:
         for line in f.readlines():
@@ -103,15 +103,17 @@ except Exception as e:
     if exit_code == 0:
         exit_code = 191
 
+now = int(datetime.now().strftime('%s'))
+
 try:
-    times += extract_cmssw_times('cmssw.log')
+    times += extract_cmssw_times('cmssw.log', now)
 except Exception as e:
     print e
     times += [None * 3]
     if exit_code == 0:
         exit_code = 192
 
-times.append(int(datetime.now().strftime('%s')))
+times.append(now)
 
 try:
     f = open('report.pkl', 'wb')

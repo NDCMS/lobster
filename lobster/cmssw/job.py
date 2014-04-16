@@ -180,7 +180,7 @@ class JobProvider(lobster.job.JobProvider):
             try:
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
                     out_lumis, task_times = pickle.load(f)
-            except:
+            except IOError:
                 failed = True
                 out_lumis = LumiList()
                 task_times = [None] * 6
@@ -190,7 +190,7 @@ class JobProvider(lobster.job.JobProvider):
                     in_lumis = pickle.load(f)[2]
                 not_processed = (in_lumis - out_lumis).getLumis()
                 processed = out_lumis.getLumis()
-            except Exception as e:
+            except IOError:
                 # FIXME treat this properly
                 failed = True
                 not_processed = in_lumis.getLumis()

@@ -323,7 +323,7 @@ class SQLInterface:
                     jobits_done=(jobits_done + ?),
                     processed_events=(processed_events + ?)
                     where label=?""",
-                    (dset, num, events, complete))
+                    (num, complete, events, dset))
         db.commit()
         with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:
             delta = time.time() - t

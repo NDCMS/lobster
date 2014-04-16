@@ -274,17 +274,19 @@ class SQLInterface:
                 dsets[dset] = [missed + processed, processed, processed_events]
 
             if failed:
-                status = FAILED
+                job_status = FAILED
+                jobit_status = FAILED
             elif missed > 0:
-                status = INCOMPLETE
-            else:
-                status = SUCCESSFUL
-
-            up_jobits.append((status, id))
-            up_jobs.append([status, host, return_code, submissions] + times + data + [missed, id])
-            if status == INCOMPLETE:
+                job_status = INCOMPLETE
+                jobit_status = SUCCESSFUL
                 for run, lumi in missed_lumis:
                     up_missed.append((FAILED, id, run, lumi))
+            else:
+                job_status = SUCCESSFUL
+                jobit_status = SUCCESSFUL
+
+            up_jobs.append([job_status, host, return_code, submissions] + times + data + [missed, id])
+            up_jobits.append((jobit_status, id))
 
         t = time.time()
         with self.db as db:

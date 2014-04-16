@@ -172,12 +172,12 @@ class SQLInterface:
             for file in self.db.execute("""
                     select distinct input_file
                     from jobits
-                    where dataset=? and (status<>1 and status<>2)
+                    where dataset=? and (status<>1 and status<>2 and status<>6)
                     limit ?""", (dataset_id, total_size,)):
                 rows.extend(self.db.execute("""
                     select id, input_file, run, lumi
                     from jobits
-                    where input_file=? and (status<>1 and status<>2)""", file))
+                    where input_file=? and (status<>1 and status<>2 and status<>6)""", file))
                 if len(size) > 0:
                     size.append(len(rows)-size[-1])
                 else:
@@ -186,7 +186,7 @@ class SQLInterface:
             rows = self.db.execute("""
                 select id, input_file, run, lumi
                 from jobits
-                where dataset=? and (status<>1 and status<>2)
+                where dataset=? and (status<>1 and status<>2 and status<>6)
                 order by attempts, input_file
                 limit ?""", (dataset_id, total_size,))
 

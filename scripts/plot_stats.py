@@ -10,6 +10,7 @@ import math
 import os
 import pytz
 import sqlite3
+import gzip
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -445,10 +446,19 @@ if __name__ == '__main__':
 
     label2id = {}
     id2label = {}
+    total_events = {}
+    processed_events = {}
 
-    for dset_label, dset_id in db.execute('select label, id from datasets'):
+    for dset_label, dset_id, t_events, p_events in db.execute("""select
+            label,
+            id,
+            total_events,
+            processed_events
+            from datasets"""):
         label2id[dset_label] = dset_id
         id2label[dset_id] = dset_label
+        total_events[dset_label] = t_events
+        processed_events[dset_label] = p_events
 
     dset_labels, dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
 
@@ -517,12 +527,42 @@ if __name__ == '__main__':
     dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
     dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
 
+    event_stats = [[dl, total_events[dl], processed_events[dl], total_events[dl]-processed_events[dl]] for dl in dset_labels]
+
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
+
+    header = """
+             <style>
+             body {font-family:"Trebuchet MS";}
+
+             table
+             {width:auto;
+             margin-left:auto;
+             margin-right:auto;
+             margin-bottom:50px;
+             border-collapse:collapse;}
+
+             td, th
+             {border:1px solid #333437;
+             padding:3px 7px 2px 7px;}
+
+             th
+             {text-align:left;
+             padding-top:5px;
+             padding-bottom:4px;
+             background-color:#454648;
+             color:#ffffff;}
+
+             tr.alt td
+             {color:#000000;
+             background-color:#B4B8C1;}
+             </style>"""
 
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:
         body = html_tag("div",
                 *([html_tag("h2", "Job Statistics")] +
+                  [html_table(['dataset', 'total events', 'processed events', 'remaining events'], [[str(x) for x in ds] for ds in event_stats])] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
                     [html_tag("h2", "Debug Job Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +
@@ -535,34 +575,11 @@ if __name__ == '__main__':
                     ] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
                 style="margin: 1em auto; display: block; width: auto; text-align: center;")
-        f.write(body)
+        f.write(header+body)
 
     if args.samplelogs:
         with open(os.path.join(top_dir, 'errors.html'), 'w') as f:
-            f.write("""
-            <style>
-            #errors
-            {font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
-            width:100%;
-            border-collapse:collapse;}
-
-            #errors td, #errors th
-            {font-size:1em;
-            border:1px solid #98bf21;
-            padding:3px 7px 2px 7px;}
-
-            #errors th
-            {font-size:1.1em;
-            text-align:left;
-            padding-top:5px;
-            padding-bottom:4px;
-            background-color:#A7C942;
-            color:#ffffff;}
-
-            #errors tr.alt td
-            {color:#000000;
-            background-color:#EAF2D3;}
-            </style>""")
+            f.write(header)
 
             if not os.path.exists(os.path.join(top_dir, 'errors')):
                 os.makedirs(os.path.join(top_dir, 'errors'))
@@ -592,5 +609,5 @@ if __name__ == '__main__':
                                 cell.append(html_tag('a', l.replace('.gz', ''), href=os.path.join('errors', str(id), l.replace('.gz', ''))))
                         rows[row].append(', '.join(cell))
 
-            f.write(html_table(headers, rows, id='errors'))
+            f.write(html_table(headers, rows))
 

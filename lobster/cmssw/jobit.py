@@ -75,6 +75,7 @@ class SQLInterface:
             lumi integer,
             status integer default 0,
             attempts int default 0,
+            skipped int default 0,
             foreign key(job) references jobs(id),
             foreign key(dataset) references datasets(id))""")
         self.db.execute("create index if not exists dataset_index on jobits(dataset)")
@@ -291,6 +292,8 @@ class SQLInterface:
                 status=?
                 where job=?""",
                 up_jobits)
+            db.executemany("update jobits set skipped=(skipped + 1), status=? where job=? and run=? and lumi=?",
+                up_missed)
             db.executemany("""update jobs set
                 status=?,
                 host=?,
@@ -315,8 +318,6 @@ class SQLInterface:
                 missed_lumis=?
                 where id=?""",
                 up_jobs)
-            db.executemany("update jobits set status=? where job=? and run=? and lumi=?",
-                up_missed)
             for (dset, (num, complete, events)) in dsets.items():
                 db.execute("""update datasets set
                     jobits_running=(jobits_running - ?),

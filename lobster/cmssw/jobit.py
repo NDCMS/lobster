@@ -287,8 +287,6 @@ class SQLInterface:
 
         t = time.time()
         with self.db as db:
-            db.executemany("update jobits set status=? where job=? and run=? and lumi=?",
-                up_missed)
             db.executemany("""update jobits set
                 status=?
                 where job=?""",
@@ -317,6 +315,8 @@ class SQLInterface:
                 missed_lumis=?
                 where id=?""",
                 up_jobs)
+            db.executemany("update jobits set status=? where job=? and run=? and lumi=?",
+                up_missed)
             for (dset, (num, complete, events)) in dsets.items():
                 db.execute("""update datasets set
                     jobits_running=(jobits_running - ?),

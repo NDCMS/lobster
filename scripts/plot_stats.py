@@ -527,7 +527,8 @@ if __name__ == '__main__':
     dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
     dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
 
-    event_stats = [[dl, total_events[dl], processed_events[dl], total_events[dl]-processed_events[dl]] for dl in dset_labels]
+    events_remaining = dict((dl, total_events[dl]-processed_events[dl]) for dl in dset_labels)
+    event_stats = [[dl, total_events[dl], events_remaining[dl], processed_events[dl], '%.0f%%' % (processed_events[dl] / float(total_events[dl]) * 100)] for dl in dset_labels]
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
@@ -562,7 +563,7 @@ if __name__ == '__main__':
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:
         body = html_tag("div",
                 *([html_tag("h2", "Job Statistics")] +
-                  [html_table(['dataset', 'total events', 'processed events', 'remaining events'], [[str(x) for x in ds] for ds in event_stats])] +
+                  [html_table(['dataset', 'total events', 'remaining events', 'processed events', 'percent processed'], [[str(x) for x in ds] for ds in event_stats])] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
                     [html_tag("h2", "Debug Job Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +

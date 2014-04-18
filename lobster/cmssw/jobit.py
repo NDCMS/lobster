@@ -71,23 +71,29 @@ class SQLInterface:
             bytes_received int,
             bytes_sent int,
             foreign key(dataset) references datasets(id))""")
+        self.db.execute("""create table if not exists files(
+            id integer primary key autoincrement,
+            dataset integer,
+            filename text,
+            foreign key(dataset) references datasets(id))""")
         self.db.execute("""create table if not exists jobits(
             id integer primary key autoincrement,
             job integer,
             dataset integer,
-            input_file text,
+            file integer,
             run integer,
             lumi integer,
             status integer default 0,
             attempts int default 0,
             skipped int default 0,
             foreign key(job) references jobs(id),
-            foreign key(dataset) references datasets(id))""")
+            foreign key(dataset) references datasets(id),
+            foreign key(file) references files(id))""")
         self.db.execute("create index if not exists dataset_index on jobits(dataset)")
         self.db.execute("create index if not exists event_index on jobits(dataset, run, lumi)")
-        self.db.execute("create index if not exists file_index on jobits(input_file)")
-        self.db.execute("create index if not exists dfile_index on jobits(dataset, input_file asc)")
-        self.db.execute("create index if not exists nfile_index on jobits(attempts, input_file)")
+        self.db.execute("create index if not exists file_index on jobits(file)")
+        self.db.execute("create index if not exists dfile_index on jobits(dataset, file asc)")
+        self.db.execute("create index if not exists nfile_index on jobits(attempts, file)")
         self.db.execute("create index if not exists job_index on jobits(job, run, lumi)")
         self.db.commit()
 
@@ -139,14 +145,19 @@ class SQLInterface:
                            self.uuid,
                            dataset_info.jobsize,
                            dataset_info.total_events))
-        id = cur.lastrowid
+        dset_id = cur.lastrowid
 
         lumis = 0
         for file in dataset_info.files:
-            columns = [(id, file, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
+            cur.execute("""insert into files (dataset, filename) values (?, ?)""",
+                    (dset_id, file))
+            file_id = cur.lastrowid
+
+            columns = [(dset_id, file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
             lumis += len(columns)
-            self.db.executemany("insert into jobits(dataset, input_file, run, lumi) values (?, ?, ?, ?)", columns)
-        self.db.execute("update datasets set jobits=? where id=?", (lumis, id))
+            self.db.executemany("insert into jobits(dataset, file, run, lumi) values (?, ?, ?, ?)", columns)
+
+        self.db.execute("update datasets set jobits=? where id=?", (lumis, dset_id))
 
         self.db.commit()
 
@@ -154,7 +165,7 @@ class SQLInterface:
         t = time.time()
 
         current_size = 0
-        input_files = []
+        files = []
         lumis = []
         total_lumis = 0
 
@@ -176,33 +187,34 @@ class SQLInterface:
             size = []
             rows = []
             for file in self.db.execute("""
-                    select distinct input_file
+                    select distinct file
                     from jobits
                     where dataset=? and (status<>1 and status<>2 and status<>6)
                     limit ?""", (dataset_id, total_size,)):
                 rows.extend(self.db.execute("""
-                    select id, input_file, run, lumi
+                    select id, file, run, lumi
                     from jobits
-                    where input_file=? and (status<>1 and status<>2 and status<>6)""", file))
+                    where file=? and (status<>1 and status<>2 and status<>6)""", file))
                 if len(size) > 0:
                     size.append(len(rows)-size[-1])
                 else:
                     size.append(len(rows))
         else:
             rows = self.db.execute("""
-                select id, input_file, run, lumi
+                select id, file, run, lumi
                 from jobits
                 where dataset=? and (status<>1 and status<>2 and status<>6)
-                order by attempts, input_file
+                order by attempts, file
                 limit ?""", (dataset_id, total_size,))
 
-        for id, input_file, run, lumi in rows:
+        for id, file, run, lumi in rows:
             if current_size == 0:
                 cur = self.db.cursor()
                 cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))
                 job_id = cur.lastrowid
 
-            input_files.append(input_file)
+            filename = self.db.execute("select filename from files where id=?", (file,)).fetchone()[0]
+            files.append(filename)
             if lumi > 0:
                 lumis.append((run, lumi))
             update.append((job_id, id))
@@ -213,13 +225,13 @@ class SQLInterface:
                 jobs.append((
                     str(job_id),
                     dataset,
-                    set(input_files),
+                    set(files),
                     LumiList(lumis=lumis)))
 
                 total_lumis += len(lumis)
 
                 size.pop(0)
-                input_files = []
+                files = []
                 lumis = []
                 current_size = 0
 
@@ -227,7 +239,7 @@ class SQLInterface:
             jobs.append((
                 str(job_id),
                 dataset,
-                set(input_files),
+                set(files),
                 LumiList(lumis=lumis)))
 
             total_lumis += len(lumis)

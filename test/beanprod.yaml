@@ -19,57 +19,62 @@ use dashboard: true
 
 task defaults:
     cmssw config: test/makeBEAN_cfg.py
-    outputs: [ttH_pat2bean_53x.root] #if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
+    # if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
+    outputs: [ttH_pat2bean_53x.root]
     publish label: 'test'
+    matching:
+      - label: '^WJets.*' # match all labels starting with "WJets"
+        events per job: 5000
 
 tasks:
   - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    dataset label: TTJets
+    label: TTJets
     parameters: [jobParams=2012_X_MC-bg_2500]
   - dataset: '/TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    dataset label: TTH_125
+    label: TTH_125
+    lumis per job: 2
     parameters: [jobParams=2012_X_MC-sigFullSim_9125]
   - dataset: '/WJetsToLNu_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM'
-    dataset label: WJets
+    label: WJets
     parameters: [jobParams=2012_X_MC-bg_2400]
   - dataset: '/DYJetsToLL_M-50_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    dataset label: ZJets
+    label: ZJets
     parameters: [jobParams=2012_X_MC-bg_2850]
   - dataset: '/TTWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    dataset label: ttW
+    label: ttW
     parameters: [jobParams=2012_X_MC-bg_2524]
   - dataset: '/MET/Run2012A-13Jul2012-v1/AOD'
-    dataset label: MET_Run2012A-13Jul2012-v1_lv5
+    label: MET_Run2012A-13Jul2012-v1_lv5
     lumi mask: test/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
     parameters: [jobParams=2012_A_data-PR_-5]
   - dataset: '/MET/Run2012A-recover-06Aug2012-v1/AOD'
-    dataset label: MET_Run2012A-recover-06Aug2012-v1_lv5
+    label: MET_Run2012A-recover-06Aug2012-v1_lv5
     lumi mask: test/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
     parameters: [jobParams=2012_A_data-PR_-55]
   - dataset: '/MET/Run2012B-13Jul2012-v1/AOD'
-    dataset label: MET_Run2012B-13Jul2012-v1_lv5
+    label: MET_Run2012B-13Jul2012-v1_lv5
     lumi mask: test/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
     parameters: [jobParams=2012_A_data-PR_-555]
   - dataset: '/MET/Run2012C-PromptReco-v2/AOD'
-    dataset label: MET_Run2012C-PromptReco-v2_lv5
+    label: MET_Run2012C-PromptReco-v2_lv5
     lumi mask: test/json/Cert_190456-206098_8TeV_PromptReco_Collisions12_JSON.txt
     parameters: [jobParams=2012_A_data-PR_-5555]
   - dataset: '/MET/Run2012C-24Aug2012-v1/AOD'
-    dataset label: MET_Run2012C-24Aug2012-v1_lv5
+    label: MET_Run2012C-24Aug2012-v1_lv5
     lumi mask: test/json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
     parameters: [jobParams=2012_A_data-PR_-55555]
   - dataset: '/MET/Run2012D-PromptReco-v1/AOD'
-    dataset label: MET_Run2012D-PromptReco-v1_lv5
+    label: MET_Run2012D-PromptReco-v1_lv5
     lumi mask: test/json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
     outputs: [pat_to_bean.root]
     parameters: [jobParams=2012_A_data-PR_-555555]
   - files: zz_lowmll_v2.list #to run on unpublished data, specify a list (one file per line) or a directory
-    dataset label: zz_lowmll_v2
+    label: zz_lowmll_v2
     cmssw config: ttH_fastSim.py
     outputs: [fastSim_FASTSIM_HLT_PU.root]
   - num jobs: 1000  #To use an empty source (no input files), specify the number of times you want the job repeated
     extra inputs: ['/afs/crc.nd.edu/user/a/awoodard/MG5_aMC_v2_1_0/mgPostProcv2.py']
-    dataset label: zz_lowmll_v2
+    label: zz_lowmll_v2
     cmssw config: ttH_fastSim.py
     outputs: [fastSim_FASTSIM_HLT_PU.root]
 

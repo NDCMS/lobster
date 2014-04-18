@@ -70,13 +70,13 @@ class Publisher():
         self.path,
         self.release,
         self.gtag,
-        self.dbs_url,
         publish_label,
         cfg,
         self.pset_hash,
         self.ds_id,
         publish_hash) = [str(x) for x in self.db.dataset_info(label)]
 
+       self.dbs_url = config.get('dbs url', 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/')
        self.dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
        self.dbs_global = DbsApi(url=self.dbs_url_global)
        self.dbs_local = DbsApi(os.path.join(self.dbs_url, 'DBSWriter'))

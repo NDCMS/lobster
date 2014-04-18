@@ -2,8 +2,11 @@ import os
 import random
 import sqlite3
 import time
-from FWCore.PythonUtilities.LumiList import LumiList
 import uuid
+
+from FWCore.PythonUtilities.LumiList import LumiList
+
+from dataset import MetaInterface
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
@@ -22,6 +25,8 @@ class SQLInterface:
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
 
+        self.__interface = MetaInterface()
+
         # Use four databases: one for jobits, jobs, hosts, datasets each
         self.db.execute("""create table if not exists datasets(
             id integer primary key autoincrement,
@@ -30,11 +35,11 @@ class SQLInterface:
             path text,
             release text,
             global_tag text,
-            dbs_url text,
             publish_label text,
             pset_hash text default null,
             cfg text,
             uuid text,
+            jobsize text,
             jobits integer,
             jobits_running int default 0,
             jobits_done int default 0,
@@ -97,60 +102,58 @@ class SQLInterface:
     def disconnect(self):
         self.db.close()
 
-    def register_jobits(self, dataset_interface):
-        dbs_url = self.config.get('dbs url')
-        for cfg in self.config['tasks']:
-            label = cfg['dataset label']
-            print "Registering {0}...".format(label)
-            dataset_info = dataset_interface[label]
+    def register_jobits(self, cfg):
+        label = cfg['label']
 
-            if cfg.has_key('lumi mask'):
-                lumi_mask = LumiList(filename=cfg['lumi mask'])
-                for file in dataset_info.files:
-                    dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
+        print "Querying {0}...".format(label)
 
-            cur = self.db.cursor()
-            cur.execute("""insert into datasets
-                           (dataset,
-                           label,
-                           path,
-                           release,
-                           global_tag,
-                           dbs_url,
-                           publish_label,
-                           cfg,
-                           uuid,
-                           total_events)
-                           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-                               cfg['dataset'],
-                               label,
-                               os.path.join(self.config['stageout location'], label),
-                               os.path.basename(os.environ['LOCALRT']),
-                               cfg.get('global tag'),
-                               dbs_url,
-                               cfg.get('publish label', cfg['dataset label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
-                               cfg['cmssw config'],
-                               self.uuid,
-                               dataset_info.total_events))
-            id = cur.lastrowid
+        dataset_info = self.__interface.get_info(cfg)
 
-            lumis = 0
+        print "Registering {0}...".format(label)
+
+        if cfg.has_key('lumi mask'):
+            lumi_mask = LumiList(filename=cfg['lumi mask'])
             for file in dataset_info.files:
-                columns = [(id, file, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
-                lumis += len(columns)
-                self.db.executemany("insert into jobits(dataset, input_file, run, lumi) values (?, ?, ?, ?)", columns)
-            self.db.execute("update datasets set jobits=? where id=?", (lumis, id))
+                dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
+
+        cur = self.db.cursor()
+        cur.execute("""insert into datasets
+                       (dataset,
+                       label,
+                       path,
+                       release,
+                       global_tag,
+                       publish_label,
+                       cfg,
+                       uuid,
+                       jobsize,
+                       total_events)
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                           cfg['dataset'],
+                           label,
+                           os.path.join(self.config['stageout location'], label),
+                           os.path.basename(os.environ['LOCALRT']),
+                           cfg.get('global tag'),
+                           cfg.get('publish label', cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
+                           cfg['cmssw config'],
+                           self.uuid,
+                           dataset_info.jobsize,
+                           dataset_info.total_events))
+        id = cur.lastrowid
+
+        lumis = 0
+        for file in dataset_info.files:
+            columns = [(id, file, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
+            lumis += len(columns)
+            self.db.executemany("insert into jobits(dataset, input_file, run, lumi) values (?, ?, ?, ?)", columns)
+        self.db.execute("update datasets set jobits=? where id=?", (lumis, id))
+
         self.db.commit()
 
-    def pop_jobits(self, size=None, bijective=False):
-        if not size:
-            size = [5]
-
+    def pop_jobits(self, num=1, bijective=False):
         t = time.time()
 
         current_size = 0
-        total_size = sum(size)
-
         input_files = []
         lumis = []
         total_lumis = 0
@@ -159,12 +162,15 @@ class SQLInterface:
         update = []
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, jobits - jobits_done - jobits_running, jobits
+            select label, id, jobits - jobits_done - jobits_running, jobsize
             from datasets
             where jobits_done + jobits_running < jobits""")]
         if len(rows) == 0:
             return None
-        dataset, dataset_id, remaining, total = random.choice(rows)
+
+        dataset, dataset_id, remaining, jobsize = random.choice(rows)
+        size = [int(jobsize)] * num
+        total_size = sum(size)
 
         if bijective:
             size = []
@@ -347,7 +353,6 @@ class SQLInterface:
             path,
             release,
             global_tag,
-            dbs_url,
             publish_label,
             cfg,
             pset_hash,

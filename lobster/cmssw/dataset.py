@@ -1,64 +1,100 @@
-import os
-import glob
-import sys
 from collections import defaultdict
+import glob
+import math
+import os
+import sys
+
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
 class DatasetInfo():
-    def __init__(self, label):
-        self.label = label
-        self.total_events = 0
+    def __init__(self):
         self.events = {}
-        self.total_lumis = 0
-        self.lumis = defaultdict(list)
         self.files = []
+        self.jobsize = 1
+        self.lumis = defaultdict(list)
+        self.total_events = 0
+        self.total_lumis = 0
+
+class MetaInterface:
+    def __init__(self):
+        self.__file_interface = FileInterface()
+        self.__das_interface = DASInterface()
+
+    def get_info(self, cfg):
+        if 'dataset' in cfg:
+            return self.__das_interface.get_info(cfg)
+        else:
+            return self.__file_interface.get_info(cfg)
 
 class DASInterface:
-#    def __init__(self, config, global_dbs_url='https://cmsweb-testbed.cern.ch/dbs/int/global/DBSReader'):
-    def __init__(self, config, global_dbs_url='https://cmsweb.cern.ch/dbs/prod/global/DBSReader'):
-        self.ds_info = {}
-        self.api_reader = DbsApi(global_dbs_url)
-        self.datasets = {}
-        for task in config['tasks']:
-            self.datasets[task['dataset label']] = task['dataset']
+    def __init__(self):
+        self.__apis = {}
+        self.__dsets = {}
 
-    def __getitem__(self, label):
-        if label not in self.ds_info.keys():
-            self.ds_info[label] = DatasetInfo(label)
-            self.query_database(label)
+    def get_info(self, cfg):
+        dataset = cfg['dataset']
+        if dataset not in self.__dsets:
+            instance = cfg.get('dbs instance', 'global')
+            res = self.query_database(dataset, instance)
 
-        return self.ds_info[label]
+            num = cfg.get('events per job')
+            if num:
+                res.jobsize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
+            else:
+                res.jobsize = cfg.get('lumis per job', 25)
 
-    def query_database(self, label):
-        #TO DO: switch to applying json mask here
-        dbs_output = self.api_reader.listFiles(dataset=self.datasets[label], detail=True)
-        self.ds_info[label].files = [entry['logical_file_name'] for entry in dbs_output]
-        self.ds_info[label].total_events = sum([entry['event_count'] for entry in dbs_output])
-        for file in self.ds_info[label].files:
-            for run in self.api_reader.listFileLumis(logical_file_name=file):
-                self.ds_info[label].lumis[file] += [(run['run_num'], l) for l in run['lumi_section_num']]
-            self.ds_info[label].total_lumis += len(self.ds_info[label].lumis[file])
+            self.__dsets[dataset] = res
+
+        return self.__dsets[dataset]
+
+    def query_database(self, dataset, instance):
+        # TODO switch to applying json mask here
+        if instance not in self.__apis:
+            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
+            self.__apis[instance] = DbsApi(dbs_url)
+
+        result = DatasetInfo()
+
+        dbs_output = self.__apis[instance].listFiles(dataset=dataset, detail=True)
+        result.files = [entry['logical_file_name'] for entry in dbs_output]
+        result.total_events = sum([entry['event_count'] for entry in dbs_output])
+        for file in result.files:
+            print "Getting info for {0}...".format(file)
+            for run in self.__apis[instance].listFileLumis(logical_file_name=file):
+                result.lumis[file] += [(run['run_num'], l) for l in run['lumi_section_num']]
+            result.total_lumis += len(result.lumis[file])
+
+        return result
 
 class FileInterface:
-    def __init__(self, config):
-        self.ds_info = {}
-        for task in config['tasks']:
-            label = task['dataset label']
-            files = task.get('files')
-            ds_info =  DatasetInfo(label)
+    def __init__(self):
+        self.__dsets = {}
+
+    def get_info(self, cfg):
+        files = cfg.get('files', None)
+
+        if files not in self.__dsets:
+            label = cfg['label']
+            dset =  DatasetInfo()
+
             if not files:
-                ds_info.files = [None for x in range(task.get('num jobs', 1))]
+                dset.files = [None for x in range(cfg.get('num jobs', 1))]
+                dset.lumis[None] = [(-1, -1)]
+
+                # we don't cache gen-jobs (avoid overwriting num jobs
+                # etc...)
+                return dset
             elif os.path.isdir(files):
-                ds_info.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
+                dset.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
             elif os.path.isfile(files):
-                ds_info.files = ['file:'+f.strip() for f in open(files).readlines()]
+                dset.files = ['file:'+f.strip() for f in open(files).readlines()]
             elif isinstance(files, str):
-                ds_info.files = ['file:'+f for f in glob.glob(os.path.join(files))]
-            for file in ds_info.files:
-                ds_info.lumis[file] = [(-1, -1)] # hack because it will be slow to open all the input files to read the run/lumi info
+                dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
+            for file in dset.files:
+                # hack because it will be slow to open all the input files to read the run/lumi info
+                dset.lumis[file] = [(-1, -1)]
 
-            self.ds_info[label] = ds_info
+            self.__dsets[files] = dset
 
-    def __getitem__(self, label):
-        return self.ds_info[label]
+        return self.__dsets[files]

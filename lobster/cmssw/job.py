@@ -3,6 +3,7 @@ import gzip
 import imp
 import os
 import pickle
+import re
 import shutil
 import sqlite3
 import time
@@ -13,7 +14,6 @@ from hashlib import sha1
 import lobster.job
 import dash
 import sandbox
-from dataset import DASInterface, FileInterface
 from jobit import SQLInterface as JobitStore
 
 from FWCore.PythonUtilities.LumiList import LumiList
@@ -35,13 +35,6 @@ class JobProvider(lobster.job.JobProvider):
         self.__jobdirs = {}
         self.__jobdatasets = {}
         self.__outputs = {}
-        self.__jobits_per_job = 25
-
-        if 'files' in repr(config) or 'num jobs' in repr(config):
-            ds_interface = FileInterface(config)
-            self.__jobits_per_job = 1
-        else:
-            ds_interface = DASInterface(config)
 
         create = not os.path.exists(self.__workdir)
         if create:
@@ -65,13 +58,26 @@ class JobProvider(lobster.job.JobProvider):
         else:
             self.__dash = dash.DummyMonitor(self.__taskid)
 
+        defaults = config.get('task defaults', {})
+        matching = defaults.get('matching', [])
+
+        self.__store = JobitStore(config)
         for cfg in config['tasks']:
-            defaults = config.get('task defaults', {})
+            label = cfg['label']
+
+            for match in matching:
+                if re.search(match['label'], label):
+                    for k, v in match.items():
+                        if k == 'label':
+                            continue
+                        if k not in cfg:
+                            cfg[k] = v
             for k, v in defaults.items():
+                if k == 'matching':
+                    continue
                 if k not in cfg:
                     cfg[k] = v
 
-            label = cfg['dataset label']
             cms_config = cfg['cmssw config']
 
             self.__datasets[label] = cfg['dataset']
@@ -98,16 +104,19 @@ class JobProvider(lobster.job.JobProvider):
                 for dir in [taskdir, stageoutdir]:
                     if not os.path.exists(dir):
                         os.makedirs(dir)
+                    else:
+                        # TODO warn about non-empty stageout directories
+                        pass
 
                 shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
                 shutil.copy(config['filepath'], os.path.join(self.__workdir, 'lobster_config.yaml'))
+
+                self.__store.register_jobits(cfg)
             elif os.path.exists(os.path.join(taskdir, 'running')):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
 
-        self.__store = JobitStore(config)
         if create:
-            self.__store.register_jobits(ds_interface)
             self.__dash.register_run()
         else:
             for id in self.__store.reset_jobits():
@@ -115,7 +124,7 @@ class JobProvider(lobster.job.JobProvider):
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
-        res = self.retry(self.__store.pop_jobits, ([self.__jobits_per_job] * num, bijective), {})
+        res = self.retry(self.__store.pop_jobits, (num, bijective), {})
         if not res:
             return None
 

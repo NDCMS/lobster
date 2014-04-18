@@ -56,14 +56,19 @@ class DASInterface:
 
         result = DatasetInfo()
 
-        dbs_output = self.__apis[instance].listFiles(dataset=dataset, detail=True)
-        result.files = [entry['logical_file_name'] for entry in dbs_output]
-        result.total_events = sum([entry['event_count'] for entry in dbs_output])
-        for file in result.files:
-            print "Getting info for {0}...".format(file)
-            for run in self.__apis[instance].listFileLumis(logical_file_name=file):
-                result.lumis[file] += [(run['run_num'], l) for l in run['lumi_section_num']]
-            result.total_lumis += len(result.lumis[file])
+        infos = self.__apis[instance].listFileSummaries(dataset=dataset)
+        result.total_events = sum([info['num_event'] for info in infos])
+
+        files = set()
+        blocks = self.__apis[instance].listBlocks(dataset=dataset)
+        for block in blocks:
+            runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
+            for run in runs:
+                file = run['logical_file_name']
+                files.add(file)
+                result.lumis[file] += [(run['run_num'], ls) for ls in run['lumi_section_num']]
+                result.total_lumis += len(result.lumis[file])
+        result.files = list(files)
 
         return result
 

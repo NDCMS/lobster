@@ -50,17 +50,17 @@ def extract_time(filename):
         return int(f.readline())
 
 def extract_cmssw_times(log_filename, default=None):
-    finit = now
-    fopen = now
-    first = now
+    finit = default
+    fopen = default
+    first = default
 
     with open(log_filename) as f:
         for line in f.readlines():
-            if not finit and line[26:36] == "Initiating":
+            if finit == default and line[26:36] == "Initiating":
                 finit = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
-            elif not fopen and line[26:38] == "Successfully":
+            elif fopen == default and line[26:38] == "Successfully":
                 fopen = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
-            elif not first and line[21:24] == "1st":
+            elif first == default and line[21:24] == "1st":
                 first = int(datetime.strptime(line[-29:-9], "%d-%b-%Y %X").strftime('%s'))
 
     return (finit, fopen, first)

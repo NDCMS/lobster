@@ -203,37 +203,6 @@ def make_scatter(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
 
     return save_and_close(dir, name)
 
-def read_debug(workdir):
-    lobster_create = []
-    lobster_return = []
-    sqlite_create = []
-    sqlite_return = []
-
-    lob_file = os.path.join(workdir, 'debug_lobster_times')
-    sql_file = os.path.join(workdir, 'debug_sql_times')
-    if os.path.exists(lob_file):
-        with open(lob_file) as f:
-            for l in f:
-                items = l.split()
-                if l.startswith("CREA"):
-                    lobster_create += [float(items[-1])] * int(items[1])
-                else:
-                    lobster_return += [float(items[-1])] * int(items[1])
-    if os.path.exists(sql_file):
-        with open(sql_file) as f:
-            for l in f:
-                items = l.split()
-                if l.startswith("CREA"):
-                    sqlite_create += [float(items[-1])] * int(items[1])
-                else:
-                    sqlite_return += [float(items[-1])] * int(items[1])
-    return (
-            np.asarray(lobster_create),
-            np.asarray(lobster_return),
-            np.asarray(sqlite_create),
-            np.asarray(sqlite_return)
-            )
-
 def reduce(a, idx, interval):
     quant = a[:,idx]
     last = quant[0]
@@ -487,8 +456,6 @@ if __name__ == '__main__':
     pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1e6, vs['t_allput']) for vs in dset_values]
 
 
-    (l_cre, l_ret, s_cre, s_ret) = read_debug(args.directory)
-
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=dset_labels, stats=True)
@@ -520,12 +487,6 @@ if __name__ == '__main__':
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
     dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)
-
-    log_bins = [10**(-4 + 0.25 * n) for n in range(21)]
-    dtags += make_histo([s_cre[s_cre > 0]], log_bins, 'Job creation SQL query time (s)', 'Jobs', 'create_sqlite_time', top_dir, stats=True, log='x')
-    dtags += make_histo([(l_cre - s_cre)[s_cre > 0]], log_bins, 'Job creation lobster overhead time (s)', 'Jobs', 'create_lobster_time', top_dir, stats=True, log='x')
-    dtags += make_histo([s_ret], log_bins, 'Job return SQL query time (s)', 'Jobs', 'return_sqlite_time', top_dir, stats=True, log='x')
-    dtags += make_histo([l_ret - s_ret], log_bins, 'Job return lobster overhead time (s)', 'Jobs', 'return_lobster_time', top_dir, stats=True, log='x')
 
     events_remaining = dict((dl, total_events[dl]-processed_events[dl]) for dl in dset_labels)
     event_stats = [[dl, total_events[dl], events_remaining[dl], processed_events[dl], '%.0f%%' % (processed_events[dl] / float(total_events[dl]) * 100)] for dl in dset_labels]

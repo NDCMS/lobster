@@ -291,16 +291,16 @@ if __name__ == '__main__':
     print "First iteration..."
 
     # Five minute bins (or more, if # of bins exceeds 100)
-    bins = range(int(xmin), int(runtimes[-1]) + 300, 300)
+    bins = range(xmin, int(runtimes[-1]) + 300, 300)
     scale = max(len(bins) / 100.0, 1.0)
-    bins = range(int(xmin), int(runtimes[-1]) + scale * 300, scale * 300)
+    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True, vs_time=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
     transferred[transferred < 0] = 0
 
     # One hour bins
-    bins = range(int(xmin), int(runtimes[-1]) + 3600, 3600)
+    bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
     wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
 
     print "Reducing WQ log"
@@ -374,9 +374,9 @@ if __name__ == '__main__':
 
     # Five minute bins, or larger, to keep the number of bins around 100
     # max.
-    bins = xrange(int(xmin), int(runtimes[-1]) + 300, 300)
+    bins = xrange(xmin, int(runtimes[-1]) + 300, 300)
     scale = max(len(bins) / 100.0, 1.0)
-    bins = xrange(int(xmin), int(runtimes[-1]) + scale * 300, scale * 300)
+    bins = xrange(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
     success_times = (success_jobs['t_retrieved'] - start_time / 1e6)
     failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6)
 

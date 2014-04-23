@@ -55,7 +55,7 @@ def make_histo(a, num_bins, xlabel, ylabel, filename, dir, vs_time=False, **kwar
 
     if vs_time:
         f = np.vectorize(unix2matplotlib)
-        a = map(lambda xs: f(xs), a)
+        a = map(lambda xs: f(xs) if len(xs) > 0 else xs, a)
         interval = 2**math.floor(math.log((num_bins[-1] - num_bins[0]) / 9000.0) / math.log(2))
         num_bins = map(unix2matplotlib, num_bins)
         ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
@@ -112,6 +112,14 @@ def make_frequency_pie(a, name, dir, threshold=0.05):
     rest = total - sum(counts)
 
     plt.pie(counts + (rest, ), labels=vals + ('Other', ))
+    fig = plt.gcf()
+    fig.set_size_inches(3, 3)
+    fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
+
+    return save_and_close(dir, name)
+
+def make_pie(vals, labels, name, dir):
+    plt.pie(vals, labels=labels)
     fig = plt.gcf()
     fig.set_size_inches(3, 3)
     fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
@@ -294,14 +302,17 @@ if __name__ == '__main__':
     bins = range(xmin, int(runtimes[-1]) + 300, 300)
     scale = max(len(bins) / 100.0, 1.0)
     bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    wtags += make_histo([runtimes], bins, 'Time (m)', 'Activity', 'activity', top_dir, log=True, vs_time=True)
+    wtags += make_histo([runtimes], bins, '', 'Activity', 'activity', top_dir, log=True, vs_time=True)
 
     transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
     transferred[transferred < 0] = 0
+    transferred_sum = np.cumsum(transferred)
 
     # One hour bins
     bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
-    wtags += make_histo([runtimes], bins, 'Time (m)', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
+    wtags += make_histo([runtimes], bins, '', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
+
+    wtags += make_plot([(runtimes, transferred_sum, '')], '', 'Output (GB)', 'total_output', top_dir, vs_time=True)
 
     print "Reducing WQ log"
     wq_stats = reduce(wq_stats_raw, 0, 300.)
@@ -311,7 +322,26 @@ if __name__ == '__main__':
                (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
                (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
                [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               'Time (m)', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
+               '', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
+
+    delta_sendtime_raw = (wq_stats[:,headers['total_send_time']] - np.roll(wq_stats[:,headers['total_send_time']], 1, 0))
+    delta_receivetime_raw = (wq_stats[:,headers['total_receive_time']] - np.roll(wq_stats[:,headers['total_receive_time']], 1, 0))
+
+    select = np.logical_and(delta_receivetime_raw >= 0, delta_sendtime_raw >= 0)
+    delta_sendtime = delta_sendtime_raw[select]
+    delta_receivetime = delta_receivetime_raw[select]
+    delta_runtimes = runtimes[select]
+
+    bins = range(xmin, int(runtimes[-1]) + 300, 300)
+    scale = max(len(bins) / 100.0, 1.0)
+    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
+    delta = float(bins[1] - bins[0]) * 1e6
+
+    wtags += make_histo(
+            [delta_runtimes, delta_runtimes], bins,
+            '', 'Fraction', 'time_fraction', top_dir, vs_time=True,
+            weights=[delta_sendtime / delta, delta_receivetime / delta],
+            label=['send time', 'receive time'])
 
     db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
     stats = {}
@@ -323,6 +353,7 @@ if __name__ == '__main__':
         exit_code,
         time_submit,
         time_retrieved,
+        time_on_worker,
         time_total_on_worker
         from jobs
         where status=3 and time_retrieved>=? and time_retrieved<=?""",
@@ -334,6 +365,7 @@ if __name__ == '__main__':
                 ('exit_code', 'i4'),
                 ('t_submit', 'i4'),
                 ('t_retrieved', 'i4'),
+                ('t_goodput', 'i8'),
                 ('t_allput', 'i8')
                 ])
 
@@ -370,25 +402,47 @@ if __name__ == '__main__':
     total_time_failed = np.sum(failed_jobs['t_allput'])
     total_time_success = np.sum(success_jobs['t_allput'])
     total_time_good = np.sum(success_jobs['t_goodput'])
-    total_time_pure = np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']) * 1e6
+    total_time_pure = np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev'])
+
+    total_failed_time = np.sum(failed_jobs['t_goodput'])
+    total_eviction_time = total_time_failed + total_time_success - total_time_good - total_failed_time
+    total_overhead_time = np.sum(success_jobs['t_first_ev'] - success_jobs['t_wrapper_start'])
+    total_processing_time = total_time_pure
 
     # Five minute bins, or larger, to keep the number of bins around 100
     # max.
     bins = xrange(xmin, int(runtimes[-1]) + 300, 300)
     scale = max(len(bins) / 100.0, 1.0)
     bins = xrange(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    success_times = (success_jobs['t_retrieved'] - start_time / 1e6)
-    failed_times = (failed_jobs['t_retrieved'] - start_time / 1e6)
 
-    wtags += make_histo([success_times, failed_times], bins, 'Time (m)', 'Jobs', 'jobs', top_dir, label=['succesful', 'failed'], color=['green', 'red'], vs_time=True)
+    split_codes, split_jobs = split_by_column(success_jobs, 'status')
+    times = []
+    labels = []
+    colors = []
+
+    code_map = {2: ('successful', 'green'), 5: ('incomplete', 'cyan'), 6: ('published', 'blue')}
+    for (code, jobs) in zip(split_codes, split_jobs):
+        times.append(jobs['t_retrieved'])
+        labels.append(code_map[code][0])
+        colors.append(code_map[code][1])
+
+    times.append(failed_jobs['t_retrieved'])
+    labels.append('failed')
+    colors.append('red')
+
+    wtags += make_histo(
+            times,
+            bins, '', 'Jobs', 'jobs', top_dir,
+            label=labels,
+            color=colors, vs_time=True)
     wtags += make_profile(
             success_jobs['t_wrapper_start'],
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir, vs_time=True)
 
     fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
-    fail_times = [vs['t_retrieved'] / 1e6 for vs in fail_values]
-    wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
+    fail_times = [vs['t_retrieved'] for vs in fail_values]
+    wtags += make_histo(fail_times, bins, '', 'Jobs',
             'fail_times', top_dir, label=map(str, fail_labels), vs_time=True)
 
     # for cases where jobits per job changes during run, get per-jobit info
@@ -413,7 +467,7 @@ if __name__ == '__main__':
     if any([x>0 for x in finished_jobit_cum]):
         wtags += make_plot([(bin_centers, finished_jobit_cum, 'total finished'),
                             (bin_centers, finished_jobit_cum * (-1) + total_jobits, 'total unfinished')],
-                           'Time (m)', 'Jobits' , 'finished_jobits', top_dir, log=True, vs_time=True)
+                           '', 'Jobits' , 'finished_jobits', top_dir, log=True, vs_time=True)
 
     label2id = {}
     id2label = {}
@@ -442,12 +496,12 @@ if __name__ == '__main__':
     cmsrun_times = [(vs['t_first_ev'] - vs['t_wrapper_ready']) / 60. for vs in dset_values]
 
     stageout_times = [(vs['t_retrieved'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
-    wait_times = [(vs['t_recv_start'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
-    transfer_times = [(vs['t_recv_end'] - vs['t_recv_start']) / 60. for vs in dset_values]
+    # wait_times = [(vs['t_recv_start'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
+    # transfer_times = [(vs['t_recv_end'] - vs['t_recv_start']) / 60. for vs in dset_values]
     transfer_bytes = [vs['b_recv'] / 1024.0**2 for vs in dset_values]
-    transfer_rates = []
-    for (bytes, times) in zip(transfer_bytes, transfer_times):
-        transfer_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
+    # transfer_rates = []
+    # for (bytes, times) in zip(transfer_bytes, transfer_times):
+        # transfer_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
 
     send_times = [(vs['t_send_end'] - vs['t_send_start']) / 60. for vs in dset_values]
     send_bytes = [vs['b_sent'] / 1024.0**2 for vs in dset_values]
@@ -455,37 +509,42 @@ if __name__ == '__main__':
     for (bytes, times) in zip(send_bytes, send_times):
         send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
-    pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1e6, vs['t_allput']) for vs in dset_values]
+    pureput_ratio = [np.divide(vs['t_wrapper_end'] -  vs['t_first_ev'], vs['t_allput']) for vs in dset_values]
 
 
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=dset_labels, stats=True)
+    # jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=dset_labels, stats=True)
+    # jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=dset_labels, stats=True)
+    # jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=dset_labels, stats=True)
+    # jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=dset_labels, stats=True)
+    # jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(transfer_bytes,
             num_bins, 'Data received (MiB)', 'Jobs', 'recv_data', top_dir,
             label=dset_labels, stats=True)
-    jtags += make_histo(transfer_rates,
-            num_bins, 'Data received rate (MiB/s)', 'Jobs', 'recv_rate', top_dir,
-            label=dset_labels, stats=True)
+    # jtags += make_histo(transfer_rates,
+            # num_bins, 'Data received rate (MiB/s)', 'Jobs', 'recv_rate', top_dir,
+            # label=dset_labels, stats=True)
 
     if args.samplelogs:
         jtags += html_tag('a', make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir), href='errors.html')
     else:
         jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
-    dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
-    dtags += make_histo(send_bytes,
-            num_bins, 'Data sent (MiB)', 'Jobs', 'send_data', top_dir,
-            label=dset_labels, stats=True)
-    dtags += make_histo(send_rates,
-            num_bins, 'Data sent rate (MiB/s)', 'Jobs', 'send_rate', top_dir,
-            label=dset_labels, stats=True)
+    jtags += make_pie(
+            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time),
+            ("Eviction", "Failed", "Overhead", "Processing"),
+            "time_split", top_dir)
+
+    # dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
+    # dtags += make_histo(send_bytes,
+            # num_bins, 'Data sent (MiB)', 'Jobs', 'send_data', top_dir,
+            # label=dset_labels, stats=True)
+    # dtags += make_histo(send_rates,
+            # num_bins, 'Data sent rate (MiB/s)', 'Jobs', 'send_rate', top_dir,
+            # label=dset_labels, stats=True)
     # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
     dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)

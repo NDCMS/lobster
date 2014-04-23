@@ -30,10 +30,16 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
 
 def extract_processed_lumis(report_filename):
     dom = xml.dom.minidom.parse(report_filename)
+
+    skipped = []
+    skippedfiles = dom.getElementsByTagName("SkippedFile")
+    for entry in skippedfiles:
+        skipped.append(entry.getAttribute("Lfn"))
+
     files = dom.getElementsByTagName("File")
 
     if len(files) == 0:
-        return LumiList()
+        return LumiList(), skipped
 
     runs = files[0].getElementsByTagName("Run")
     lumis = []
@@ -43,7 +49,7 @@ def extract_processed_lumis(report_filename):
         for lumi in run.getElementsByTagName("LumiSection"):
             lumis.append((run_number, int(lumi.getAttribute("ID"))))
 
-    return LumiList(lumis=lumis)
+    return LumiList(lumis=lumis), skipped
 
 def extract_time(filename):
     with open(filename) as f:
@@ -89,7 +95,7 @@ edit_process_source(configfile, files, lumis)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 
 try:
-    run_info = extract_processed_lumis('report.xml')
+    run_info, skipped = extract_processed_lumis('report.xml')
 except Exception as e:
     print e
     if exit_code == 0:
@@ -117,7 +123,7 @@ times.append(now)
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((run_info, times), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((run_info, skipped, times), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:

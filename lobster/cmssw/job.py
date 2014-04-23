@@ -175,7 +175,7 @@ class JobProvider(lobster.job.JobProvider):
         return tasks
 
     def release(self, tasks):
-        jobs = []
+        jobs = defaultdict(list)
         for task in tasks:
             failed = (task.return_status != 0)
             jdir = self.__jobdirs[task.tag]
@@ -188,11 +188,12 @@ class JobProvider(lobster.job.JobProvider):
 
             try:
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
-                    out_lumis, task_times = pickle.load(f)
+                    out_lumis, skipped_files, task_times = pickle.load(f)
             except (EOFError, IOError) as e:
                 print e
                 failed = True
                 out_lumis = LumiList()
+                skipped_files = []
                 task_times = [None] * 6
 
             try:
@@ -235,7 +236,10 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__dash.update_job(task.tag, dash.DONE)
 
-            jobs.append([task.tag, dset, task.hostname, failed, task.return_status, submissions, processed, not_processed, times, data, processed_events])
+            jobs[dset].append([
+                task.tag, task.hostname, failed, task.return_status, submissions,
+                processed, not_processed, skipped_files,
+                times, data, processed_events])
 
         self.__dash.free()
 

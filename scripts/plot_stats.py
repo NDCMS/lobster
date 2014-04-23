@@ -391,18 +391,20 @@ if __name__ == '__main__':
     wtags += make_histo(fail_times, bins, 'Time (m)', 'Jobs',
             'fail_times', top_dir, label=map(str, fail_labels), vs_time=True)
 
-    #for cases where jobits per job changes during run, get per-jobit info
-    success_jobits = np.array(db.execute("""
-        select jobits.id, jobs.time_retrieved
-        from jobits, jobs
-        where jobits.job==jobs.id
-        and (jobits.status=2 or jobits.status=5 or jobits.status=6)
-        and jobs.time_retrieved>=? and jobs.time_retrieved<=?
-        group by jobs.time_retrieved""",
-        (xmin, xmax)).fetchall(),
-            dtype=[('id', 'i4'), ('t_retrieved', 'i4')])
-    total_jobits = db.execute('select count(*) from jobits').fetchone()[0]
+    # for cases where jobits per job changes during run, get per-jobit info
+    total_jobits = db.execute('select sum(jobits) from datasets').fetchone()[0]
+    success_jobits = []
+    for (label,) in db.execute("select label from datasets"):
+        success_jobits.append(np.array(db.execute("""
+            select jobits_{0}.id, jobs.time_retrieved
+            from jobits_{0}, jobs
+            where jobits_{0}.job == jobs.id
+                and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
+                and jobs.time_retrieved>=? and jobs.time_retrieved<=?""".format(label),
+            (xmin, xmax)).fetchall(),
+                dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
 
+    success_jobits = np.concatenate(success_jobits)
     finished_jobit_times = success_jobits['t_retrieved']
     finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times, bins)
     bin_centers = [(x+y)/2 for x, y in zip(jobit_bins[:-1], jobit_bins[1:])]

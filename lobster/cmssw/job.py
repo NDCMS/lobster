@@ -164,7 +164,7 @@ class JobProvider(lobster.job.JobProvider):
             outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
-            cmd = './wrapper.sh python job.py {0} parameters.pkl'.format(config)
+            cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
             tasks.append((id, cmd, inputs, outputs))
 

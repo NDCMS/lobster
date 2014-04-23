@@ -1,7 +1,5 @@
-#!/usr/bin/env python
 # vim: fileencoding=utf-8
 
-from argparse import ArgumentParser
 from os.path import expanduser
 from collections import defaultdict
 from datetime import datetime
@@ -11,6 +9,7 @@ import os
 import pytz
 import sqlite3
 import gzip
+import yaml
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -255,19 +254,16 @@ def save_and_close(dir, name):
 
     return html_tag("img", src='{0}.png'.format(name))
 
-if __name__ == '__main__':
-    parser = ArgumentParser(description='make histos')
-    parser.add_argument('directory', help="Specify input directory")
-    parser.add_argument('outdir', nargs='?', help="Specify output directory")
-    parser.add_argument("--xmin", type=int, help="Specify custom x-axis minimum", default=0, metavar="MIN")
-    parser.add_argument("--xmax", type=int, help="Specify custom x-axis maximum", default=None, metavar="MAX")
-    parser.add_argument('--samplelogs', action='store_true', help='Make a table with links to sample error logs', default=False)
-    args = parser.parse_args()
+def plot(args):
+    with open(args.configfile) as configfile:
+        config = yaml.load(configfile)
+        workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
 
     if args.outdir:
         top_dir = args.outdir
     else:
-        top_dir = os.path.join(os.environ['HOME'], 'www',  os.path.basename(os.path.normpath(args.directory)))
+        top_dir = config.get("plotdir", config['id'])
+    top_dir = os.path.expandvars(os.path.expanduser(top_dir))
 
     print 'Saving plots to: ' + top_dir
     if not os.path.isdir(top_dir):
@@ -278,9 +274,9 @@ if __name__ == '__main__':
     wtags = SmartList()
 
     print "Reading WQ log"
-    with open(os.path.join(args.directory, 'work_queue.log')) as f:
+    with open(os.path.join(workdir, 'work_queue.log')) as f:
         headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-    wq_stats_raw_all = np.loadtxt(os.path.join(args.directory, 'work_queue.log'))
+    wq_stats_raw_all = np.loadtxt(os.path.join(workdir, 'work_queue.log'))
     start_time = wq_stats_raw_all[0,0] / 1e6
     end_time = wq_stats_raw_all[-1,0]
 
@@ -343,7 +339,7 @@ if __name__ == '__main__':
             weights=[delta_sendtime / delta, delta_receivetime / delta],
             label=['send time', 'receive time'])
 
-    db = sqlite3.connect(os.path.join(args.directory, 'lobster.db'))
+    db = sqlite3.connect(os.path.join(workdir, 'lobster.db'))
     stats = {}
 
     failed_jobs = np.array(db.execute("""select
@@ -619,7 +615,7 @@ if __name__ == '__main__':
                         rows[row].append('')
                     else:
                         id, ds, e = j
-                        from_path = os.path.join(args.directory, id2label[ds], 'failed', str(id))
+                        from_path = os.path.join(workdir, id2label[ds], 'failed', str(id))
                         to_path = os.path.join(os.path.join(top_dir, 'errors'), str(id))
                         if os.path.exists(to_path):
                             shutil.rmtree(to_path)

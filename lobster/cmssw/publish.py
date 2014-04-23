@@ -338,3 +338,20 @@ class BlockDump:
 
     def __setitem__(self, key, value):
         self.data[key] = value
+
+def publish(args):
+    with open(args.configfile) as f:
+        config = yaml.load(f)
+
+    dir = config['workdir']
+
+    if len(args.labels) == 0:
+        args.labels = [task['label'] for task in config.get('tasks', [])]
+
+    for label in args.labels:
+        publisher = Publisher(config, dir, label)
+
+        if args.clean:
+            publisher.clean()
+        else:
+            publisher.publish(args.block_size)

@@ -47,7 +47,7 @@ else
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_EXEC $PARROT_DEBUG_FLAGS -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" $0 "$*"
+		exec $PARROT_EXEC $PARROT_DEBUG_FLAGS -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi
 
 	source $VO_CMS_SW_DIR/cmsset_default.sh

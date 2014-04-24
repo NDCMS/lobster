@@ -507,7 +507,7 @@ def plot(args):
     for (bytes, times) in zip(send_bytes, send_times):
         send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
-    pureput_ratio = [np.divide(vs['t_wrapper_end'] -  vs['t_first_ev'], vs['t_allput']) for vs in dset_values]
+    pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1.0, vs['t_allput']) for vs in dset_values]
 
 
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)

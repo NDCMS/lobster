@@ -469,19 +469,22 @@ def plot(args):
 
     label2id = {}
     id2label = {}
-    total_events = {}
-    processed_events = {}
+    events_total = {}
+    events_read = {}
+    events_written = {}
 
-    for dset_label, dset_id, t_events, p_events in db.execute("""select
+    for dset_label, dset_id, t_events, r_events, w_events in db.execute("""select
             label,
             id,
-            total_events,
-            processed_events
+            events,
+            events_read,
+            events_written
             from datasets"""):
         label2id[dset_label] = dset_id
         id2label[dset_id] = dset_label
-        total_events[dset_label] = t_events
-        processed_events[dset_label] = p_events
+        events_total[dset_label] = t_events
+        events_read[dset_label] = r_events
+        events_written[dset_label] = w_events
 
     dset_labels, dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
 
@@ -547,8 +550,8 @@ def plot(args):
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
     dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)
 
-    events_remaining = dict((dl, total_events[dl]-processed_events[dl]) for dl in dset_labels)
-    event_stats = [[dl, total_events[dl], events_remaining[dl], processed_events[dl], '%.0f%%' % (processed_events[dl] / float(total_events[dl]) * 100)] for dl in dset_labels]
+    events_remaining = dict((dl, events_total[dl] - events_read[dl]) for dl in dset_labels)
+    event_stats = [[dl, events_total[dl], events_remaining[dl], events_read[dl], events_written[dl],'%.0f%%' % (events_read[dl] / float(events_total[dl]) * 100)] for dl in dset_labels]
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
@@ -583,7 +586,7 @@ def plot(args):
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:
         body = html_tag("div",
                 *([html_tag("h2", "Job Statistics")] +
-                  [html_table(['dataset', 'total events', 'remaining events', 'processed events', 'percent processed'], [[str(x) for x in ds] for ds in event_stats])] +
+                  [html_table(['dataset', 'total events', 'remaining', 'read', 'written', 'progress'], [[str(x) for x in ds] for ds in event_stats])] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
                     [html_tag("h2", "Debug Job Statistics")] +
                     map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +

@@ -18,7 +18,6 @@ from jobit import SQLInterface as JobitStore
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
-from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 class JobProvider(lobster.job.JobProvider):
     def __init__(self, config):
@@ -188,12 +187,14 @@ class JobProvider(lobster.job.JobProvider):
 
             try:
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
-                    out_lumis, skipped_files, task_times = pickle.load(f)
+                    out_lumis, skipped_files, read, written, task_times = pickle.load(f)
             except (EOFError, IOError) as e:
                 print e
                 failed = True
                 out_lumis = LumiList()
                 skipped_files = []
+                read = 0
+                written = 0
                 task_times = [None] * 6
 
             try:
@@ -224,14 +225,9 @@ class JobProvider(lobster.job.JobProvider):
                     ]
             data = [task.total_bytes_received, task.total_bytes_sent]
 
-            processed_events = 0
             if failed:
                 shutil.move(jdir, jdir.replace('running', 'failed'))
             else:
-                f = gzip.open(os.path.join(jdir, 'report.xml.gz'), 'r')
-                for report in readJobReport(f)[0].files:
-                    processed_events += int(report['TotalEvents'])
-                f.close()
                 shutil.move(jdir, jdir.replace('running', 'successful'))
 
             self.__dash.update_job(task.tag, dash.DONE)
@@ -239,7 +235,7 @@ class JobProvider(lobster.job.JobProvider):
             jobs[dset].append([
                 task.tag, task.hostname, failed, task.return_status, submissions,
                 processed, not_processed, skipped_files,
-                times, data, processed_events])
+                times, data, read, written])
 
         self.__dash.free()
 

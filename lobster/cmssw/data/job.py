@@ -8,10 +8,12 @@ import pickle
 import shutil
 import subprocess
 import sys
-import xml.dom.minidom
+
+sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
+from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 fragment = """import FWCore.ParameterSet.Config as cms
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
@@ -28,28 +30,32 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
         print "---"
         config.write(frag)
 
-def extract_processed_lumis(report_filename):
-    dom = xml.dom.minidom.parse(report_filename)
-
+def extract_info(report_filename):
     skipped = []
-    skippedfiles = dom.getElementsByTagName("SkippedFile")
-    for entry in skippedfiles:
-        skipped.append(entry.getAttribute("Lfn"))
-
-    files = dom.getElementsByTagName("File")
-
-    if len(files) == 0:
-        return LumiList(), skipped
-
-    runs = files[0].getElementsByTagName("Run")
     lumis = []
-    for run in runs:
-        run_number = int(run.getAttribute("ID"))
-        lumi_sections = []
-        for lumi in run.getElementsByTagName("LumiSection"):
-            lumis.append((run_number, int(lumi.getAttribute("ID"))))
+    read = 0
+    written = 0
 
-    return LumiList(lumis=lumis), skipped
+    with open(report_filename) as f:
+        for report in readJobReport(f):
+            for file in report.skippedFiles:
+                skipped.append(file['Lfn'])
+
+            use_fileinfo = len(report.files) > 0
+            for file in report.files:
+                written += int(file['TotalEvents'])
+                for run, ls in file['Runs'].items():
+                    for lumi in ls:
+                        lumis.append((run, lumi))
+
+            for file in report.inputFiles:
+                read += int(file['EventsRead'])
+                if not use_fileinfo:
+                    for run, ls in file['Runs'].items():
+                        for lumi in ls:
+                            lumis.append((run, lumi))
+
+    return LumiList(lumis=lumis), skipped, read, written
 
 def extract_time(filename):
     with open(filename) as f:
@@ -95,7 +101,7 @@ edit_process_source(configfile, files, lumis)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 
 try:
-    run_info, skipped = extract_processed_lumis('report.xml')
+    run_info, skipped, read, written = extract_info('report.xml')
 except Exception as e:
     print e
     if exit_code == 0:
@@ -123,7 +129,7 @@ times.append(now)
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((run_info, skipped, times), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((run_info, skipped, read, written, times), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:

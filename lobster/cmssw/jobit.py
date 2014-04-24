@@ -44,8 +44,9 @@ class SQLInterface:
             jobits integer,
             jobits_running int default 0,
             jobits_done int default 0,
-            total_events int default 0,
-            processed_events int default 0)""")
+            events int default 0,
+            events_read int default 0,
+            events_written int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             host text,
@@ -110,7 +111,7 @@ class SQLInterface:
                        cfg,
                        uuid,
                        jobsize,
-                       total_events)
+                       events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            cfg['dataset'],
                            label,
@@ -308,7 +309,7 @@ class SQLInterface:
 
             for (id, host, failed, return_code, submissions, \
                     processed_lumis, missed_lumis, skipped_files, \
-                    times, data, processed_events) in jobs:
+                    times, data, read, written) in jobs:
                 id = int(id)
                 jobids.append(id)
 
@@ -318,9 +319,10 @@ class SQLInterface:
                 try:
                     dsets[dset][0] += missed + processed
                     dsets[dset][1] += processed
-                    dsets[dset][2] += processed_events
+                    dsets[dset][2] += read
+                    dsets[dset][3] += written
                 except KeyError:
-                    dsets[dset] = [missed + processed, processed, processed_events]
+                    dsets[dset] = [missed + processed, processed, read, written]
 
                 if failed:
                     job_status = FAILED
@@ -403,13 +405,14 @@ class SQLInterface:
             missed_lumis=?
             where id=?""",
             up_jobs)
-        for (dset, (num, complete, events)) in dsets.items():
+        for (dset, (num, complete, read, written)) in dsets.items():
             self.db.execute("""update datasets set
                 jobits_running=(jobits_running - ?),
                 jobits_done=(jobits_done + ?),
-                processed_events=(processed_events + ?)
+                events_read=(events_read + ?),
+                events_written=(events_written + ?)
                 where label=?""",
-                (num, complete, events, dset))
+                (num, complete, read, written, dset))
         self.db.commit()
 
         with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:

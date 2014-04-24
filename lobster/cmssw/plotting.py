@@ -37,10 +37,12 @@ def html_tag(tag, *args, **kwargs):
 
 def html_table(headers, rows, **kwargs):
     import itertools
-    row_classes = itertools.cycle(["tr class=alt", "tr"])
+    row_classes = itertools.cycle([{"class": "alt"}, {}])
 
     top = [html_tag('tr', *(html_tag('th', h) for h in headers))]
-    body = [html_tag(rc, *(html_tag('td', x) for x in row)) for rc, row in itertools.izip(row_classes, rows)]
+    body = []
+    for row, args in itertools.izip(rows, row_classes):
+        body.append(html_tag('tr', *(html_tag('td', x) for x in row), **args))
 
     return html_tag('table', *(top+body), **kwargs)
 

@@ -84,11 +84,13 @@ class Publisher():
        self.dbs_local_reader = DbsApi(url=self.dbs_url+'DBSReader')
        self.dbs_migrator = DbsApi(url=os.path.join(self.dbs_url, 'DBSMigrate'))
 
-       if not self.pset_hash:
-#       if not self.pset_hash or self.pset_hash=='None':
+       if not self.pset_hash or self.pset_hash=='None':
            print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
-           self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
-           self.db.update_datasets('pset_hash', self.pset_hash, label)
+           try:
+               self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
+               self.db.update_datasets('pset_hash', self.pset_hash, label)
+           except:
+               print 'Error calculating cmssw parameter set hash!  Continuing with empty hash for now...' #FIXME
 
        self.dset = dset.strip('/').split('/')[0]
 

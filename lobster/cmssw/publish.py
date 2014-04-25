@@ -50,6 +50,8 @@ def required_path(path, username, primary_ds, publish_label, publish_hash, versi
     required_path = os.path.join('/store', 'user', username, primary_ds, publish_label+'_'+publish_hash)
     if path != required_path:
         if not os.path.exists(required_path):
+            if not os.path.isdir(os.path.dirname(required_path)):
+                os.makedirs(os.path.dirname(required_path))
             os.symlink(path, required_path)
 
     return required_path
@@ -65,16 +67,15 @@ class Publisher():
 #        handle = subprocess.Popen(['grid-proxy-info', '-identity'], stdout=subprocess.PIPE)
 #        self.user_info = handle.stdout.read().strip()
 #        handle.terminate()
-
        (dset,
         self.path,
         self.release,
         self.gtag,
-        publish_label,
+        self.publish_label,
         cfg,
         self.pset_hash,
         self.ds_id,
-        publish_hash) = [str(x) for x in self.db.dataset_info(label)]
+        self.publish_hash) = [str(x) for x in self.db.dataset_info(label)]
 
        self.dbs_url = config.get('dbs url', 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/')
        self.dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
@@ -84,6 +85,7 @@ class Publisher():
        self.dbs_migrator = DbsApi(url=os.path.join(self.dbs_url, 'DBSMigrate'))
 
        if not self.pset_hash:
+#       if not self.pset_hash or self.pset_hash=='None':
            print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
            self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
            self.db.update_datasets('pset_hash', self.pset_hash, label)
@@ -99,12 +101,17 @@ class Publisher():
                os.remove(file)
 
    def publish(self, max_jobs):
-       self.required_path = required_path(self.path, os.environ['USER'], self.dset, publish_label, publish_hash, 1)
+       self.required_path = required_path(self.path, os.environ['USER'], self.dset, self.publish_label, self.publish_hash, 1)
 
        self.block_dump = BlockDump(os.environ['USER'])
-       self.block_dump.set_primary_dataset(dset, self.dbs_global)
-       self.block_dump.set_dataset(publish_label, dset, 1, publish_hash)
-       self.block_dump.set_block(publish_label, dset, 1, publish_hash)
+       self.block_dump.set_primary_dataset(self.dset, self.dbs_global)
+       self.block_dump.set_dataset(self.publish_label, self.dset, 1, self.publish_hash)
+       self.block_dump.set_block(self.publish_label, self.dset, 1, self.publish_hash)
+       try:
+           self.dbs_local.insertPrimaryDataset(self.block_dump.data['primds'])
+       except Exception, ex:
+           print ex
+           raise
        try:
            self.dbs_local.insertDataset(self.block_dump.data['dataset'])
        except Exception, ex:
@@ -131,9 +138,11 @@ class Publisher():
                        self.block_dump.add_file_config(LFN, self.release, self.pset_hash, self.gtag)
                        self.block_dump.add_file(LFN, report)
                        self.block_dump.add_dataset_config(self.release, self.pset_hash, self.gtag)
+                       print 'Adding %s to block...' % LFN
+
                    except:
                        successful_jobs.remove(job)
-                       break
+                       continue
 
            if self.config.get('migrate parents'):
                parents_to_migrate = list(set([p['parent_logical_file_name'] for p in self.block_dump['file_parent_list']]))
@@ -240,6 +249,7 @@ class BlockDump:
         self.data['dataset']['dataset'] = u'/%s/%s/USER' % (primary_ds_name, processed_ds_name)
         self.data['dataset']['processing_version'] = version
         self.data['dataset']['acquisition_era_name'] = self.username
+        self.data['dataset']['physics_group_name'] = 'NoGroup'
 
     def set_block(self, publish_label, primary_ds_name, version, publish_hash):
         if self.data['dataset'] == {}:

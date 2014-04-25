@@ -110,7 +110,7 @@ class Publisher():
        self.block_dump.set_dataset(self.publish_label, self.dset, 1, self.publish_hash)
        self.block_dump.set_block(self.publish_label, self.dset, 1, self.publish_hash)
        try:
-           self.dbs_local.insertAcquisitionEra({self.username})
+           self.dbs_local.insertAcquisitionEra({'acquisition_era_name': os.environ['USER']})
            self.dbs_local.insertPrimaryDataset(self.block_dump.data['primds'])
            self.dbs_local.insertDataset(self.block_dump.data['dataset'])
        except Exception, ex:

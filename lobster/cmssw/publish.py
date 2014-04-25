@@ -84,7 +84,7 @@ class Publisher():
        self.dbs_local_reader = DbsApi(url=self.dbs_url+'DBSReader')
        self.dbs_migrator = DbsApi(url=os.path.join(self.dbs_url, 'DBSMigrate'))
 
-       if not self.pset_hash or self.pset_hash=='None':
+       if not self.pset_hash or self.pset_hash == 'None':
            print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
            try:
                self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
@@ -110,11 +110,8 @@ class Publisher():
        self.block_dump.set_dataset(self.publish_label, self.dset, 1, self.publish_hash)
        self.block_dump.set_block(self.publish_label, self.dset, 1, self.publish_hash)
        try:
+           self.dbs_local.insertAcquisitionEra({self.username})
            self.dbs_local.insertPrimaryDataset(self.block_dump.data['primds'])
-       except Exception, ex:
-           print ex
-           raise
-       try:
            self.dbs_local.insertDataset(self.block_dump.data['dataset'])
        except Exception, ex:
            print ex

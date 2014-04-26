@@ -10,6 +10,7 @@ from dbs.apis.dbsClient import DbsApi
 class DatasetInfo():
     def __init__(self):
         self.events = {}
+        self.event_counts = defaultdict(int)
         self.files = []
         self.jobsize = 1
         self.lumis = defaultdict(list)
@@ -58,16 +59,23 @@ class DASInterface:
 
         infos = self.__apis[instance].listFileSummaries(dataset=dataset)
         result.total_events = sum([info['num_event'] for info in infos])
+        result.total_lumis = sum([info['num_lumi'] for info in infos])
+
+        for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
+            result.event_counts[info['logical_file_name']] = info['event_count']
 
         files = set()
+        check = defaultdict(set)
         blocks = self.__apis[instance].listBlocks(dataset=dataset)
         for block in blocks:
             runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
             for run in runs:
                 file = run['logical_file_name']
                 files.add(file)
-                result.lumis[file] += [(run['run_num'], ls) for ls in run['lumi_section_num']]
-                result.total_lumis += len(result.lumis[file])
+                for lumi in run['lumi_section_num']:
+                    if lumi not in check[run['run_num']]:
+                        check[run['run_num']].add(lumi)
+                        result.lumis[file].append((run['run_num'], lumi))
         result.files = list(files)
 
         return result

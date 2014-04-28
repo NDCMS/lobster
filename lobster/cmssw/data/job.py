@@ -33,7 +33,7 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
 def extract_info(report_filename):
     skipped = []
     lumis = []
-    read = 0
+    read = {}
     written = 0
 
     with open(report_filename) as f:
@@ -49,7 +49,7 @@ def extract_info(report_filename):
                         lumis.append((run, lumi))
 
             for file in report.inputFiles:
-                read += int(file['EventsRead'])
+                read[file['LFN']] = int(file['EventsRead'])
                 if not use_fileinfo:
                     for run, ls in file['Runs'].items():
                         for lumi in ls:

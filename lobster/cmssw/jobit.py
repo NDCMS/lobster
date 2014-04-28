@@ -55,7 +55,11 @@ class SQLInterface:
             status int default 0,
             exit_code int,
             submissions int default 0,
-            missed_lumis int default 0,
+            jobits int default 0,
+            jobits_processed int default 0,
+            jobits_missed int default 0,
+            events_read int default 0,
+            events_written int default 0,
             time_submit int,
             time_transfer_in_start int,
             time_transfer_in_end int,
@@ -127,11 +131,13 @@ class SQLInterface:
 
         self.db.execute("""create table if not exists files_{0}(
             id integer primary key autoincrement,
+            filename text,
             skipped int default 0,
-            running int default 0,
-            done int default 0,
-            size int,
-            filename text)""".format(label))
+            jobits int,
+            jobits_done int default 0,
+            jobits_running int default 0,
+            events int,
+            events_read int default 0)""".format(label))
 
         cur.execute("""create table if not exists jobits_{0}(
             id integer primary key autoincrement,
@@ -146,8 +152,8 @@ class SQLInterface:
         lumis = 0
         for file in dataset_info.files:
             file_lumis = len(dataset_info.lumis[file])
-            cur.execute("""insert into files_{0}(size, filename) values (?, ?)""".format(label),
-                    (file_lumis, file))
+            cur.execute("""insert into files_{0}(jobits, events, filename) values (?, ?, ?)""".format(label),
+                    (file_lumis, dataset_info.event_counts[file], file))
             file_id = cur.lastrowid
 
             columns = [(file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
@@ -183,7 +189,7 @@ class SQLInterface:
 
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}
-                    where done + running < size
+                    where jobits_done + jobits_running < jobits
                     order by skipped""".format(dataset)))
         files = [x for (x, y) in fileinfo]
         fileinfo = dict(fileinfo)
@@ -215,6 +221,7 @@ class SQLInterface:
         lumis = set()
         all_lumis = set()
         jobs = []
+        job_update = {}
         lumi_update = []
         file_update = defaultdict(int)
         current_size = 0
@@ -249,6 +256,7 @@ class SQLInterface:
             current_size += 1
 
             if current_size == size[0]:
+                job_update[job_id] = len(lumis)
                 jobs.append((
                     str(job_id),
                     dataset,
@@ -262,7 +270,8 @@ class SQLInterface:
                 lumis = set()
                 current_size = 0
 
-        if len(lumis) > 0:
+        if current_size > 0:
+            job_update[job_id] = len(lumis)
             jobs.append((
                 str(job_id),
                 dataset,
@@ -271,16 +280,16 @@ class SQLInterface:
 
             total_lumis += len(lumis)
 
-        if total_lumis > 0:
-            self.db.execute(
-                    "update datasets set jobits_running=(jobits_running + ?) where id=?",
-                    (total_lumis, dataset_id))
+        self.db.execute(
+                "update datasets set jobits_running=(jobits_running + ?) where id=?",
+                (total_lumis, dataset_id))
 
-        if len(file_update) > 0:
-            self.db.executemany("update files_{0} set running=(running + ?) where id=?".format(dataset), [(v, k) for (k, v) in file_update.items()])
-
-        if len(lumi_update) > 0:
-            self.db.executemany("update jobits_{0} set status=1, job=? where id=?".format(dataset), lumi_update)
+        self.db.executemany("update files_{0} set jobits_running=(jobits_running + ?) where id=?".format(dataset),
+                [(v, k) for (k, v) in file_update.items()])
+        self.db.executemany("update jobs set jobits=? where id=?",
+                [(v, k) for (k, v) in job_update.items()])
+        self.db.executemany("update jobits_{0} set status=1, job=? where id=?".format(dataset),
+                lumi_update)
 
         self.db.commit()
 
@@ -298,7 +307,7 @@ class SQLInterface:
             db.execute("update datasets set jobits_running=0")
             db.execute("update jobs set status=4 where status=1")
             for (label,) in db.execute("select label from datasets"):
-                db.execute("update files_{0} set running=0".format(label))
+                db.execute("update files_{0} set jobits_running=0".format(label))
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
         return ids
 
@@ -310,6 +319,7 @@ class SQLInterface:
         for (dset, jobs) in jobinfos.items():
             up_jobits = []
             up_missed = []
+            up_read = defaultdict(int)
             up_skipped = defaultdict(int)
 
             jobids = []
@@ -326,10 +336,10 @@ class SQLInterface:
                 try:
                     dsets[dset][0] += missed + processed
                     dsets[dset][1] += processed
-                    dsets[dset][2] += read
+                    dsets[dset][2] += sum(read.values())
                     dsets[dset][3] += written
                 except KeyError:
-                    dsets[dset] = [missed + processed, processed, read, written]
+                    dsets[dset] = [missed + processed, processed, sum(read.values()), written]
 
                 if failed:
                     job_status = FAILED
@@ -346,7 +356,10 @@ class SQLInterface:
                 for file in skipped_files:
                     up_skipped[file] += 1
 
-                up_jobs.append([job_status, host, return_code, submissions] + times + data + [missed, id])
+                for (file, count) in read.items():
+                    up_read[file] += count
+
+                up_jobs.append([job_status, host, return_code, submissions] + times + data + [processed, missed, sum(read.values()), written, id])
                 up_jobits.append((jobit_status, id))
 
             self.db.executemany("""update jobits_{0} set
@@ -376,13 +389,17 @@ class SQLInterface:
                     up_done[file_id] += count
 
             self.db.executemany("""update files_{0} set
-                running=(running - ?)
+                jobits_running=(jobits_running - ?)
                 where id=?""".format(dset),
                 [(v, k) for (k, v) in up_processed.items()])
             self.db.executemany("""update files_{0} set
-                done=(done + ?)
+                jobits_done=(jobits_done + ?)
                 where id=?""".format(dset),
                 [(v, k) for (k, v) in up_done.items()])
+            self.db.executemany("""update files_{0} set
+                events_read=(events_read + ?)
+                where filename=?""".format(dset),
+                [(v, k) for (k, v) in up_read.items()])
             self.db.executemany("""update files_{0} set
                 skipped=(skipped + ?)
                 where filename=?""".format(dset),
@@ -409,7 +426,10 @@ class SQLInterface:
             time_total_on_worker=?,
             bytes_received=?,
             bytes_sent=?,
-            missed_lumis=?
+            jobits_processed=?,
+            jobits_missed=?,
+            events_read=?,
+            events_written=?
             where id=?""",
             up_jobs)
         for (dset, (num, complete, read, written)) in dsets.items():

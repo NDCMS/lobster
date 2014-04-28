@@ -194,7 +194,7 @@ class JobProvider(lobster.job.JobProvider):
                 failed = True
                 out_lumis = LumiList()
                 skipped_files = []
-                read = 0
+                read = {}
                 written = 0
                 task_times = [None] * 6
 

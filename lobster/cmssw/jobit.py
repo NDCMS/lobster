@@ -180,19 +180,17 @@ class SQLInterface:
 
         dataset, dataset_id, remaining, jobsize = random.choice(rows)
         size = [int(jobsize)] * num
-        total_size = sum(size)
 
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}
                     where done + running < size
-                    order by skipped
-                    limit ?""".format(dataset), (total_size,)))
+                    order by skipped""".format(dataset)))
         files = [x for (x, y) in fileinfo]
         fileinfo = dict(fileinfo)
 
         rows = []
         if bijective:
-            remaining = total_size
+            remaining = sum(size)
             size = []
             for file in files:
                 lumis = self.db.execute("""
@@ -214,14 +212,18 @@ class SQLInterface:
                     """.format(dataset, ', '.join('?' for _ in chunck)), chunck))
 
         files = set()
-        lumis = []
+        lumis = set()
+        all_lumis = set()
         jobs = []
         lumi_update = []
-        file_update = {}
+        file_update = defaultdict(int)
         current_size = 0
         total_lumis = 0
 
         for id, file, run, lumi in rows:
+            if (run, lumi) in all_lumis:
+                continue
+
             if current_size == 0:
                 if len(size) == 0:
                     break
@@ -229,15 +231,20 @@ class SQLInterface:
                 cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))
                 job_id = cur.lastrowid
 
-            try:
-                file_update[file] += 1
-            except KeyError:
-                file_update[file] = 1
-
-            files.add(file)
             if lumi > 0:
-                lumis.append((run, lumi))
-            lumi_update.append((job_id, id))
+                lumis.add((run, lumi))
+                all_lumis.add((run, lumi))
+                for (ls_id, ls_file) in self.db.execute("""
+                        select id, file
+                        from jobits_{0}
+                        where run=? and lumi=?""".format(dataset), (run, lumi)):
+                    lumi_update.append((job_id, ls_id))
+                    files.add(ls_file)
+                    file_update[ls_file] += 1
+            else:
+                lumi_update.append((job_id, id))
+                files.add(file)
+                file_update[file] += 1
 
             current_size += 1
 
@@ -252,7 +259,7 @@ class SQLInterface:
 
                 size.pop(0)
                 files = set()
-                lumis = []
+                lumis = set()
                 current_size = 0
 
         if len(lumis) > 0:
@@ -267,7 +274,7 @@ class SQLInterface:
         if total_lumis > 0:
             self.db.execute(
                     "update datasets set jobits_running=(jobits_running + ?) where id=?",
-                    (total_lumis, dataset))
+                    (total_lumis, dataset_id))
 
         if len(file_update) > 0:
             self.db.executemany("update files_{0} set running=(running + ?) where id=?".format(dataset), [(v, k) for (k, v) in file_update.items()])

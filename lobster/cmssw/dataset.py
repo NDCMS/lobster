@@ -65,7 +65,6 @@ class DASInterface:
             result.event_counts[info['logical_file_name']] = info['event_count']
 
         files = set()
-        check = defaultdict(set)
         blocks = self.__apis[instance].listBlocks(dataset=dataset)
         for block in blocks:
             runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
@@ -73,9 +72,7 @@ class DASInterface:
                 file = run['logical_file_name']
                 files.add(file)
                 for lumi in run['lumi_section_num']:
-                    if lumi not in check[run['run_num']]:
-                        check[run['run_num']].add(lumi)
-                        result.lumis[file].append((run['run_num'], lumi))
+                    result.lumis[file].append((run['run_num'], lumi))
         result.files = list(files)
 
         return result

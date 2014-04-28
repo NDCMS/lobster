@@ -115,8 +115,9 @@ class SQLInterface:
                        cfg,
                        uuid,
                        jobsize,
+                       jobits,
                        events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            cfg['dataset'],
                            label,
                            os.path.join(self.config['stageout location'], label),
@@ -126,6 +127,7 @@ class SQLInterface:
                            cfg['cmssw config'],
                            self.uuid,
                            dataset_info.jobsize,
+                           dataset_info.total_lumis,
                            dataset_info.total_events))
         dset_id = cur.lastrowid
 
@@ -149,7 +151,6 @@ class SQLInterface:
             foreign key(job) references jobs(id),
             foreign key(file) references files(id))""".format(label))
 
-        lumis = 0
         for file in dataset_info.files:
             file_lumis = len(dataset_info.lumis[file])
             cur.execute("""insert into files_{0}(jobits, events, filename) values (?, ?, ?)""".format(label),
@@ -158,10 +159,6 @@ class SQLInterface:
 
             columns = [(file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
             self.db.executemany("insert into jobits_{0}(file, run, lumi) values (?, ?, ?)".format(label), columns)
-
-            lumis += file_lumis
-
-        self.db.execute("update datasets set jobits=? where id=?", (lumis, dset_id))
 
         # self.db.execute("create index if not exists index_skipped_{0} on files_{0}(skipped)".format(label))
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))

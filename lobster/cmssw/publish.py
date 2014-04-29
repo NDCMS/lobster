@@ -62,7 +62,7 @@ class Publisher():
        self.dir = dir
        self.db = SQLInterface(config)
        self.config = config
-
+       self.user = config.get('publish user', os.environ['USER'])
 # Not sure if 'create_by' should be username or grid info, it is mixed in DBS: for now, use username
 #        handle = subprocess.Popen(['grid-proxy-info', '-identity'], stdout=subprocess.PIPE)
 #        self.user_info = handle.stdout.read().strip()
@@ -103,14 +103,18 @@ class Publisher():
                os.remove(file)
 
    def publish(self, max_jobs):
-       self.required_path = required_path(self.path, os.environ['USER'], self.dset, self.publish_label, self.publish_hash, 1)
+       self.required_path = required_path(self.path, self.user, self.dset, self.publish_label, self.publish_hash, 1)
 
-       self.block_dump = BlockDump(os.environ['USER'])
+       self.block_dump = BlockDump(self.user)
        self.block_dump.set_primary_dataset(self.dset, self.dbs_global)
        self.block_dump.set_dataset(self.publish_label, self.dset, 1, self.publish_hash)
        self.block_dump.set_block(self.publish_label, self.dset, 1, self.publish_hash)
+       if len(self.dbs_local.listAcquisitionEras(acquisition_era_name=self.user)) == 0:
+           try:
+               self.dbs_local.insertAcquisitionEra({'acquisition_era_name': self.user})
+           except Exception, ex:
+               print ex
        try:
-           self.dbs_local.insertAcquisitionEra({'acquisition_era_name': os.environ['USER']})
            self.dbs_local.insertPrimaryDataset(self.block_dump.data['primds'])
            self.dbs_local.insertDataset(self.block_dump.data['dataset'])
        except Exception, ex:

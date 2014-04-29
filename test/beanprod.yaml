@@ -22,6 +22,8 @@ task defaults:
     cmssw config: test/makeBEAN_cfg.py
     # if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
     outputs: [ttH_pat2bean_53x.root]
+    # optional renaming of files, based on their basename and extension:
+    # output format: "this_is_file_{id}_{base}.{ext}"
     publish label: 'test'
     matching:
       - label: '^WJets.*' # match all labels starting with "WJets"

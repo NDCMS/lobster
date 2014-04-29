@@ -35,6 +35,7 @@ class JobProvider(lobster.job.JobProvider):
         self.__jobdirs = {}
         self.__jobdatasets = {}
         self.__outputs = {}
+        self.__outputformats = {}
 
         create = not os.path.exists(self.__workdir)
         if create:
@@ -85,6 +86,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__extra_inputs[label] = cfg.get('extra inputs', [])
             self.__args[label] = cfg.get('parameters', [])
             self.__outputs[label] = []
+            self.__outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
 
             if cfg.has_key('outputs'):
                 self.__outputs[label].extend(cfg['outputs'])
@@ -161,7 +163,11 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__jobdirs[id] = jdir
             self.__jobdatasets[id] = label
-            outputs = [(os.path.join(sdir, f.replace('.root', '_%s.root' % id)), f) for f in self.__outputs[label]]
+            outputs = []
+            for filename in self.__outputs[label]:
+                base, ext = os.path.splitext(filename)
+                outname = self.__outputformats[label].format(base=base, ext=ext, id=id)
+                outputs.append((os.path.join(sdir, outname), filename))
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
             cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)

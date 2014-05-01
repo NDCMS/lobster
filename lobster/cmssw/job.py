@@ -196,11 +196,12 @@ class JobProvider(lobster.job.JobProvider):
 
             try:
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
-                    lumis_out, files_skipped, events_read, events_written, task_times = pickle.load(f)
+                    lumis_out, files_skipped, events_read, events_written, task_times, cmssw_exit_code = pickle.load(f)
             except (EOFError, IOError) as e:
                 print e
                 failed = True
                 task_times = [None] * 6
+                cmssw_exit_code = None
 
             if not failed:
                 try:
@@ -213,6 +214,11 @@ class JobProvider(lobster.job.JobProvider):
                     # FIXME treat this properly
                     failed = True
 
+            if cmssw_exit_code not in (None, 0):
+                exit_code = cmssw_exit_code
+            else:
+                exit_code = task.return_status
+
             if failed:
                 files_skipped = []
                 lumis_processed = []
@@ -220,7 +226,7 @@ class JobProvider(lobster.job.JobProvider):
                 events_read = {}
                 events_written = 0
 
-            print "Job", task.tag, "returned with exit code", task.return_status
+            print "Job", task.tag, "returned with exit code", exit_code
 
             submissions = task.total_submissions
             times = [
@@ -246,7 +252,7 @@ class JobProvider(lobster.job.JobProvider):
             self.__dash.update_job(task.tag, dash.DONE)
 
             jobs[dset].append([
-                task.tag, task.hostname, failed, task.return_status, submissions,
+                task.tag, task.hostname, failed, exit_code, submissions,
                 lumis_processed, lumis_skipped, files_skipped,
                 times, data, events_read, events_written])
 

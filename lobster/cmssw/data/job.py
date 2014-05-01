@@ -31,6 +31,7 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
         config.write(frag)
 
 def extract_info(report_filename):
+    exit_code = 0
     skipped = []
     lumis = []
     read = {}
@@ -38,6 +39,9 @@ def extract_info(report_filename):
 
     with open(report_filename) as f:
         for report in readJobReport(f):
+            for error in report.errors:
+                exit_code = error.get('ExitStatus', exit_code)
+
             for file in report.skippedFiles:
                 skipped.append(file['Lfn'])
 
@@ -55,7 +59,7 @@ def extract_info(report_filename):
                         for lumi in ls:
                             lumis.append((run, lumi))
 
-    return LumiList(lumis=lumis), skipped, read, written
+    return LumiList(lumis=lumis), skipped, read, written, exit_code
 
 def extract_time(filename):
     with open(filename) as f:
@@ -101,7 +105,7 @@ edit_process_source(configfile, files, lumis)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 
 try:
-    run_info, skipped, read, written = extract_info('report.xml')
+    run_info, skipped, read, written, cmssw_exit_code = extract_info('report.xml')
 except Exception as e:
     print e
     if exit_code == 0:
@@ -129,7 +133,7 @@ times.append(now)
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((run_info, skipped, read, written, times), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((run_info, skipped, read, written, times, cmssw_exit_code), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:
@@ -151,11 +155,14 @@ for filename in 'cmssw.log report.xml'.split():
 
 print "Execution time", str(times[-1] - times[0])
 print "Exiting with code", str(exit_code)
+print "Reporting ExeExitCode", str(cmssw_exit_code)
 
 apmonSend(taskid, monitorid, {
             'ExeEnd': 'cmsRun',
             'ExeTime': str(times[-1] - times[0]),
-            'ExeExitCode': str(exit_code),
+            'ExeExitCode': str(cmssw_exit_code),
+            'JobExitCode': str(exit_code),
+            'JobExitReason': '',
             'StageOutSE': ' ndcms.crc.nd.edu',
             'StageOutExitStatus': '0',
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',

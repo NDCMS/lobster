@@ -60,6 +60,11 @@ echo "---8<---"
 env X509_USER_PROXY=proxy voms-proxy-info
 echo "--->8---"
 echo
+echo ">>> working directory at startup"
+echo "---8<---"
+ls -l
+echo "--->8---"
+echo
 
 tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
@@ -71,6 +76,12 @@ old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment
 
 export SCRAM_ARCH=$arch
 
+echo
+echo ">>> working directory before release fixing"
+echo "---8<---"
+ls -l
+echo "--->8---"
+echo
 echo ">>> creating new release $rel"
 mkdir tmp || exit_on_error $? 173 "Failed to create temporary directory"
 cd tmp

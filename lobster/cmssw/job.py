@@ -34,6 +34,7 @@ class JobProvider(lobster.job.JobProvider):
         self.__args = {}
         self.__jobdirs = {}
         self.__jobdatasets = {}
+        self.__joboutputs = {}
         self.__outputs = {}
         self.__outputformats = {}
 
@@ -168,6 +169,7 @@ class JobProvider(lobster.job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.__outputformats[label].format(base=base, ext=ext, id=id)
                 outputs.append((os.path.join(sdir, outname), filename))
+            self.__joboutputs[id] = map(lambda (a, b): a, outputs)
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
             cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)
@@ -194,27 +196,29 @@ class JobProvider(lobster.job.JobProvider):
 
             try:
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
-                    out_lumis, skipped_files, read, written, task_times = pickle.load(f)
+                    lumis_out, files_skipped, events_read, events_written, task_times = pickle.load(f)
             except (EOFError, IOError) as e:
                 print e
                 failed = True
-                out_lumis = LumiList()
-                skipped_files = []
-                read = {}
-                written = 0
                 task_times = [None] * 6
 
-            try:
-                with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
-                    in_lumis = pickle.load(f)[2]
-                not_processed = (in_lumis - out_lumis).getLumis()
-                processed = out_lumis.getLumis()
-            except (EOFError, IOError) as e:
-                print e
-                # FIXME treat this properly
-                failed = True
-                not_processed = in_lumis.getLumis()
-                processed = []
+            if not failed:
+                try:
+                    with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
+                        lumis_in = pickle.load(f)[2]
+                    lumis_skipped = (lumis_in - lumis_out).getLumis()
+                    lumis_processed = lumis_out.getLumis()
+                except (EOFError, IOError) as e:
+                    print e
+                    # FIXME treat this properly
+                    failed = True
+
+            if failed:
+                files_skipped = []
+                lumis_processed = []
+                lumis_skipped = []
+                events_read = {}
+                events_written = 0
 
             print "Job", task.tag, "returned with exit code", task.return_status
 
@@ -234,6 +238,8 @@ class JobProvider(lobster.job.JobProvider):
 
             if failed:
                 shutil.move(jdir, jdir.replace('running', 'failed'))
+                for filename in filter(os.path.isfile, self.__joboutputs[task.tag]):
+                    os.unlink(filename)
             else:
                 shutil.move(jdir, jdir.replace('running', 'successful'))
 
@@ -241,8 +247,8 @@ class JobProvider(lobster.job.JobProvider):
 
             jobs[dset].append([
                 task.tag, task.hostname, failed, task.return_status, submissions,
-                processed, not_processed, skipped_files,
-                times, data, read, written])
+                lumis_processed, lumis_skipped, files_skipped,
+                times, data, events_read, events_written])
 
         self.__dash.free()
 

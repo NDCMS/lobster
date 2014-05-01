@@ -11,6 +11,7 @@ from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 
 SUBMITTED = 'Pending'
 DONE = 'Done'
+RETRIEVED = 'Retrieved'
 ABORTED = 'Aborted'
 
 class DummyMonitor(object):

@@ -189,6 +189,8 @@ class JobProvider(lobster.job.JobProvider):
             jdir = self.__jobdirs[task.tag]
             dset = self.__jobdatasets[task.tag]
 
+            self.__dash.update_job(task.tag, dash.DONE)
+
             if task.output:
                 f = gzip.open(os.path.join(jdir, 'job.log.gz'), 'wb')
                 f.write(task.output)
@@ -249,7 +251,7 @@ class JobProvider(lobster.job.JobProvider):
             else:
                 shutil.move(jdir, jdir.replace('running', 'successful'))
 
-            self.__dash.update_job(task.tag, dash.DONE)
+            self.__dash.update_job(task.tag, dash.RETRIEVED)
 
             jobs[dset].append([
                 task.tag, task.hostname, failed, exit_code, submissions,

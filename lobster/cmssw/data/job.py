@@ -104,6 +104,8 @@ edit_process_source(configfile, files, lumis)
 # exit_code = subprocess.call('python "{0}" {1}'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 
+apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
+
 try:
     run_info, skipped, read, written, cmssw_exit_code = extract_info('report.xml')
 except Exception as e:
@@ -153,12 +155,17 @@ for filename in 'cmssw.log report.xml'.split():
             if exit_code == 0:
                 exit_code = 194
 
+p = subprocess.Popen(["ps", "-p", str(os.getppid()), "-o", "cputime"], stdout=subprocess.PIPE)
+output = p.communicate()[0].splitlines()[-1]
+cputime = 0
+for unit in output.split(':'):
+    cputime = cputime * 60 + int(unit)
+
 print "Execution time", str(times[-1] - times[0])
 print "Exiting with code", str(exit_code)
 print "Reporting ExeExitCode", str(cmssw_exit_code)
 
 apmonSend(taskid, monitorid, {
-            'ExeEnd': 'cmsRun',
             'ExeTime': str(times[-1] - times[0]),
             'ExeExitCode': str(cmssw_exit_code),
             'JobExitCode': str(exit_code),
@@ -166,10 +173,10 @@ apmonSend(taskid, monitorid, {
             'StageOutSE': ' ndcms.crc.nd.edu',
             'StageOutExitStatus': '0',
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
-            # 'CrabUserCpuTime': '178.08',
+            'CrabUserCpuTime': str(cputime),
             # 'CrabSysCpuTime': '5.91',
             # 'CrabCpuPercentage': '18%',
-            # 'CrabWrapperTime': '1074',
+            'CrabWrapperTime': str(times[-1] - times[0]),
             # 'CrabStageoutTime': '50',
             })
 apmonFree()

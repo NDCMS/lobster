@@ -82,8 +82,6 @@ class SQLInterface:
         try:
             cur = self.db.execute("select max(id) from jobs")
             count = int(cur.fetchone()[0])
-            if count:
-                print "Restarting with job counter", count
         except:
             pass
 
@@ -93,11 +91,11 @@ class SQLInterface:
     def register_jobits(self, cfg):
         label = cfg['label']
 
-        print "Querying {0}...".format(label)
+        logging.info("querying backend for {0}".format(label))
 
         dataset_info = self.__interface.get_info(cfg)
 
-        print "Registering {0}...".format(label)
+        logging.info("registering {0} in database".format(label))
 
         if cfg.has_key('lumi mask'):
             lumi_mask = LumiList(filename=cfg['lumi mask'])

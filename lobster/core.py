@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import time
@@ -11,6 +12,11 @@ import work_queue as wq
 def run(args):
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
+
+    logging.basicConfig(
+            datefmt="%Y-%m-%d %H:%M:%S",
+            format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
+            level=config.get('log level', 2) * 10)
 
     config['filepath'] = args.configfile
     if config.get('type', 'cmssw') == 'simple':
@@ -38,22 +44,20 @@ def run(args):
     queue.specify_keepalive_timeout(300)
 # queue.tune("short-timeout", 600)
 
-    print "Starting queue as", queue.name
-    print "Submit workers with: condor_submit_workers -N", queue.name, "<num>"
+    logging.info("starting queue as {0}".format(queue.name))
+    logging.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
 
     payload = 400
 
     while not job_src.done():
         stats = queue.stats
 
-        sys.stdout.write("Status: Slaves {0}/{1} - Jobs {3}/{4}/{5} - Work {2} [{6}]\n".format(
+        logging.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
                 stats.workers_busy,
                 stats.workers_busy + stats.workers_ready,
                 job_src.work_left(),
-                stats.tasks_waiting,
                 stats.tasks_running,
-                stats.tasks_complete,
-                time.strftime("%d %b %Y %H:%M:%S", time.localtime())))
+                stats.tasks_waiting))
 
         hunger = max(payload - stats.tasks_waiting, 0)
 

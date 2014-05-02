@@ -1,7 +1,7 @@
+import logging
 import os
 import re
 import shutil
-import sys
 import tarfile
 
 def dontpack(fn):
@@ -11,7 +11,7 @@ def dontpack(fn):
     return False
 
 def package(indir, outdir, blacklist=[], recycle=None):
-    print "Creating sandbox in", outdir
+    logging.info("creating sandbox in {0}".format(outdir))
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -46,19 +46,15 @@ def package(indir, outdir, blacklist=[], recycle=None):
             if not os.path.exists(inname):
                 continue
             outname = os.path.join(outdir, rtname, sandboxname)
-            sys.stdout.write("packing {0}\x1b[K\r".format(subdir))
-            sys.stdout.flush()
+            logging.debug("packing {0}".format(subdir))
             if os.path.isdir(inname):
                 shutil.copytree(inname, outname, symlinks=True, ignore=shutil.ignore_patterns(*blacklist))
             else:
                 shutil.copy2(inname, outname)
 
         outfile = (outdir if not outdir.endswith("/") else outdir[:-1]) + ".tar.bz2"
-        print "Packing sandbox into", outfile
+        logging.info("packing sandbox into {0}".format(outfile))
         tarball = tarfile.open(outfile, "w|bz2")
         for entry in os.listdir(outdir):
             tarball.add(os.path.join(outdir, entry), entry)
         tarball.close()
-
-    sys.stdout.write("\r\x1b[K")
-    sys.stdout.flush()

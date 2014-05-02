@@ -2,6 +2,7 @@ from collections import defaultdict
 import datetime
 import gzip
 import imp
+import logging
 import os
 import pickle
 import re
@@ -55,7 +56,7 @@ class JobProvider(lobster.job.JobProvider):
                 self.__taskid = pickle.load(f)
 
         if config.get('use dashboard', False):
-            print "Using Dashboard with task", self.__taskid
+            logging.info("using dashboard with task id {0}".format(self.__taskid))
             self.__dash = dash.Monitor(self.__taskid)
         else:
             self.__dash = dash.DummyMonitor(self.__taskid)
@@ -176,7 +177,7 @@ class JobProvider(lobster.job.JobProvider):
 
             tasks.append((id, cmd, inputs, outputs))
 
-        print "Creating job(s) {0}".format(", ".join(ids))
+        logging.info("creating job(s) {0}".format(", ".join(ids)))
 
         self.__dash.free()
 
@@ -200,7 +201,7 @@ class JobProvider(lobster.job.JobProvider):
                 with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
                     lumis_out, files_skipped, events_read, events_written, task_times, cmssw_exit_code = pickle.load(f)
             except (EOFError, IOError) as e:
-                print e
+                logging.error("error processing {0}:\n{1}".format(task.tag, e))
                 failed = True
                 task_times = [None] * 6
                 cmssw_exit_code = None
@@ -212,7 +213,7 @@ class JobProvider(lobster.job.JobProvider):
                     lumis_skipped = (lumis_in - lumis_out).getLumis()
                     lumis_processed = lumis_out.getLumis()
                 except (EOFError, IOError) as e:
-                    print e
+                    logging.error("error processing {0}:\n{1}".format(task.tag, e))
                     # FIXME treat this properly
                     failed = True
 
@@ -228,7 +229,7 @@ class JobProvider(lobster.job.JobProvider):
                 events_read = {}
                 events_written = 0
 
-            print "Job", task.tag, "returned with exit code", exit_code
+            logging.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 
             submissions = task.total_submissions
             times = [
@@ -276,7 +277,7 @@ class JobProvider(lobster.job.JobProvider):
             try:
                 return fct(*args, **kwargs)
             except sqlite3.OperationalError:
-                print "Failed to perform SQL operation.  {0} attempts remaining.".format(attempts)
+                logging.critical("failed to perform SQL operation.  {0} attempts remaining.".format(attempts))
                 if attempts <= 0:
                     raise
                 time.sleep(1)

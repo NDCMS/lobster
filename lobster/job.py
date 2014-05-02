@@ -1,3 +1,4 @@
+import logging
 import os
 
 class JobProvider:
@@ -46,7 +47,7 @@ class SimpleJobProvider(JobProvider):
                 inputs = [(x, x) for x in self.__inputs]
                 outputs = [(os.path.join(self.__stageoutdir, x.replace(x, '%s_%s' % (self.__id, x))), x) for x in self.__outputs]
 
-                print "Creating ", self.__id
+                logging.info("creating {0}".format(self.__id))
                 tasks.append((str(self.__id), self.__cmd, inputs, outputs))
             else:
                 break
@@ -58,7 +59,7 @@ class SimpleJobProvider(JobProvider):
             self.__running -= 1
             if task.return_status == 0:
                 self.__done += 1
-            print "Job %s returned with return code %s [%s jobs finished / %s total ]" % (id, task.return_status, self.__done, self.__max)
+            logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(id, task.return_status, self.__done, self.__max))
 
     def work_left(self):
         return self.__max - self.__done

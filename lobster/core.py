@@ -22,15 +22,18 @@ def run(args):
     if config.get('type', 'cmssw') == 'simple':
         job_src = job.SimpleJobProvider(config)
     else:
-        if config.get('check proxy', True):
-            from ProdCommon.Credential.CredentialAPI import CredentialAPI
-            cred = CredentialAPI({'credential': 'Proxy'})
-            if not cred.checkCredential(Time=60):
+        from ProdCommon.Credential.CredentialAPI import CredentialAPI
+        cred = CredentialAPI({'credential': 'Proxy'})
+        if not cred.checkCredential(Time=60):
+            if config.get('check proxy', True):
                 try:
                     cred.ManualRenewCredential()
                 except Exception as e:
-                    print e
+                    logging.critical("could not renew proxy")
                     sys.exit(1)
+            else:
+                logging.critical("please renew your proxy")
+                sys.exit(1)
 
         job_src = cmssw.JobProvider(config)
 

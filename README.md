@@ -14,10 +14,6 @@ Install the python `setuptools`, if not already present, with
 
     wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
 
-*At ND*
-
-    wget --no-check-certificate https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
-
 Now `lobster` can be installed, and any further python dependencies will be
 installed into your `~/.local` directory.
 
@@ -52,6 +48,14 @@ CMS):
 4. Running lobster
 
         lobster process test/beanprod.yaml
+
+   This will start a lobster instance in the background.  Check the logfile
+   printed on the terminal for info while running.
+
+   To stop lobster, you will need to find its PID and kill it manually.
+   Also check that there is no stale lock file, i.e.,
+   `<workdir>/lobster.pid.lock`, which will keep lobster from running with
+   more than one instance at any time.
 
 5. Starting workers --- see below.
 
@@ -89,6 +93,13 @@ or, for `tcsh` users,
 
     setenv PYTHONPATH ${PYTHONPATH}:/afs/nd.edu/user37/ccl/software/cctools-lobster/lib/python2.7/site-packages/
     setenv PATH /afs/nd.edu/user37/ccl/software/cctools-lobster/bin:${PATH}
+
+## Installing `lobster`
+
+Use the following command to install the python setuptools, then proceed as
+above:
+
+    wget --no-check-certificate https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
 
 ## Running opportunistically
 

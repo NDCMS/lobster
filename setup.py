@@ -12,7 +12,8 @@ setup(
     package_data={'lobster': ['cmssw/data/job.py', 'cmssw/data/wrapper.sh']},
     install_requires=[
         'argparse',
-        'pyyaml'
+        'pyyaml',
+        'python-daemon'
     ],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']

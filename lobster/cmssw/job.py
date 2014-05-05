@@ -39,18 +39,17 @@ class JobProvider(lobster.job.JobProvider):
         self.__outputs = {}
         self.__outputformats = {}
 
-        create = not os.path.exists(self.__workdir)
-        if create:
-            blacklist = config.get('sandbox blacklist', [])
-            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
-
         statusfile = os.path.join(self.__workdir, 'status.pkl')
-        if not os.path.exists(statusfile):
+        create = not os.path.exists(statusfile)
+        if create:
             self.__taskid = 'lobster_{0}_{1}'.format(
                     self.__config['id'],
                     sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
             with open(statusfile, 'wb') as f:
                 pickle.dump(self.__taskid, f, pickle.HIGHEST_PROTOCOL)
+
+            blacklist = config.get('sandbox blacklist', [])
+            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
         else:
             with open(statusfile, 'rb') as f:
                 self.__taskid = pickle.load(f)

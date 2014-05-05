@@ -206,16 +206,14 @@ class JobProvider(lobster.job.JobProvider):
                 task_times = [None] * 6
                 cmssw_exit_code = None
 
+            with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
+                lumis_in = pickle.load(f)[2]
             if not failed:
-                try:
-                    with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
-                        lumis_in = pickle.load(f)[2]
-                    lumis_skipped = (lumis_in - lumis_out).getLumis()
-                    lumis_processed = lumis_out.getLumis()
-                except (EOFError, IOError) as e:
-                    logging.error("error processing {0}:\n{1}".format(task.tag, e))
-                    # FIXME treat this properly
-                    failed = True
+                lumis_skipped = (lumis_in - lumis_out).getLumis()
+                lumis_processed = lumis_out.getLumis()
+            else:
+                lumis_processed = []
+                lumis_skipped = lumis_in
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
@@ -224,8 +222,6 @@ class JobProvider(lobster.job.JobProvider):
 
             if failed:
                 files_skipped = []
-                lumis_processed = []
-                lumis_skipped = []
                 events_read = {}
                 events_written = 0
 

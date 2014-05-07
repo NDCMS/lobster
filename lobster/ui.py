@@ -10,8 +10,10 @@ def boil():
     subparsers = parser.add_subparsers(title='commands')
 
     parser_run = subparsers.add_parser('process', help='process configuration')
+    parser_run.add_argument('-f', '--foreground', action='store_true', default=False,
+            help='do not daemonize;  run in the foreground instead')
     parser_run.add_argument('-i', '--bijective', action='store_true', default=False,
-            help='Use a 1-1 mapping for input and output files (process one input file per output file).')
+            help='use a 1-1 mapping for input and output files (process one input file per output file).')
     parser_run.set_defaults(func=run)
 
     parser_plot = subparsers.add_parser('plot', help='plot progress of processing')

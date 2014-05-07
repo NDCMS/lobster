@@ -39,7 +39,9 @@ def run(args):
     print "saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
 
     with daemon.DaemonContext(
-            detach_process=True,
+            detach_process=not args.foreground,
+            stdout=sys.stdout if args.foreground else None,
+            stderr=sys.stderr if args.foreground else None,
             working_directory=workdir,
             pidfile=lockfile.FileLock(os.path.join(workdir, 'lobster.pid'))):
         logging.basicConfig(
@@ -47,6 +49,12 @@ def run(args):
                 format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
                 level=config.get('log level', 2) * 10,
                 filename=os.path.join(workdir, 'lobster.log'))
+
+        if args.foreground:
+            console = logging.StreamHandler()
+            console.setLevel(config.get('log level', 2) * 10)
+            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
+            logging.getLogger('').addHandler(console)
 
         config['configdir'] = args.configdir
         config['filepath'] = args.configfile

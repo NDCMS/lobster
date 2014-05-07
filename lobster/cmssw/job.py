@@ -17,7 +17,9 @@ from hashlib import sha1
 from lobster import job, util
 import dash
 import sandbox
+
 from jobit import SQLInterface as JobitStore
+from dataset import MetaInterface
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
@@ -41,6 +43,8 @@ class JobProvider(job.JobProvider):
         self.__joboutputs = {}
         self.__outputs = {}
         self.__outputformats = {}
+
+        self.__interface = MetaInterface()
 
         statusfile = os.path.join(self.__workdir, 'status.pkl')
         create = not os.path.exists(statusfile)
@@ -119,7 +123,16 @@ class JobProvider(job.JobProvider):
                 shutil.copy(util.findpath(self.__basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
                 shutil.copy(config['filepath'], os.path.join(self.__workdir, 'lobster_config.yaml'))
 
-                self.__store.register_jobits(cfg)
+                logging.info("querying backend for {0}".format(label))
+                dataset_info = self.__interface.get_info(cfg)
+
+                if cfg.has_key('lumi mask'):
+                    lumi_mask = LumiList(filename=cfg['lumi mask'])
+                    for file in dataset_info.files:
+                        dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
+
+                logging.info("registering {0} in database".format(label))
+                self.__store.register(cfg, dataset_info)
             elif os.path.exists(os.path.join(taskdir, 'running')):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))

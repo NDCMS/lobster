@@ -7,8 +7,6 @@ import uuid
 
 from FWCore.PythonUtilities.LumiList import LumiList
 
-from dataset import MetaInterface
-
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
 INITIALIZED = 0
@@ -25,8 +23,6 @@ class SQLInterface:
         self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
-
-        self.__interface = MetaInterface()
 
         # Use four databases: one for jobits, jobs, hosts, datasets each
         self.db.execute("""create table if not exists datasets(
@@ -88,19 +84,8 @@ class SQLInterface:
     def disconnect(self):
         self.db.close()
 
-    def register_jobits(self, cfg):
-        label = cfg['label']
-
-        logging.info("querying backend for {0}".format(label))
-
-        dataset_info = self.__interface.get_info(cfg)
-
-        logging.info("registering {0} in database".format(label))
-
-        if cfg.has_key('lumi mask'):
-            lumi_mask = LumiList(filename=cfg['lumi mask'])
-            for file in dataset_info.files:
-                dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
+    def register(self, dataset_cfg, dataset_info):
+        label = dataset_cfg['label']
 
         cur = self.db.cursor()
         cur.execute("""insert into datasets
@@ -116,13 +101,13 @@ class SQLInterface:
                        jobits,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-                           cfg['dataset'],
+                           dataset_cfg['dataset'],
                            label,
                            os.path.join(self.config['stageout location'], label),
                            os.path.basename(os.environ['LOCALRT']),
-                           cfg.get('global tag'),
-                           cfg.get('publish label', cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
-                           cfg['cmssw config'],
+                           dataset_cfg.get('global tag'),
+                           dataset_cfg.get('publish label', dataset_cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
+                           dataset_cfg['cmssw config'],
                            self.uuid,
                            dataset_info.jobsize,
                            dataset_info.total_lumis,

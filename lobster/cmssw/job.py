@@ -167,7 +167,7 @@ class JobProvider(lobster.job.JobProvider):
             outputs = []
             for filename in self.__outputs[label]:
                 base, ext = os.path.splitext(filename)
-                outname = self.__outputformats[label].format(base=base, ext=ext, id=id)
+                outname = self.__outputformats[label].format(base=base, ext=ext[1:], id=id)
                 outputs.append((os.path.join(sdir, outname), filename))
             self.__joboutputs[id] = map(lambda (a, b): a, outputs)
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])

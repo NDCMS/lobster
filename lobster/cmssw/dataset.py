@@ -82,11 +82,11 @@ class FileInterface:
         self.__dsets = {}
 
     def get_info(self, cfg):
+        label = cfg['label']
         files = cfg.get('files', None)
 
-        if files not in self.__dsets:
-            label = cfg['label']
-            dset =  DatasetInfo()
+        if label not in self.__dsets:
+            dset = DatasetInfo()
 
             if not files:
                 dset.files = [None for x in range(cfg.get('num jobs', 1))]
@@ -95,16 +95,19 @@ class FileInterface:
                 # we don't cache gen-jobs (avoid overwriting num jobs
                 # etc...)
                 return dset
-            elif os.path.isdir(files):
-                dset.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
-            elif os.path.isfile(files):
-                dset.files = ['file:'+f.strip() for f in open(files).readlines()]
-            elif isinstance(files, str):
-                dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
+            else:
+                dset.jobsize = cfg.get("files per job", 1)
+
+                if os.path.isdir(files):
+                    dset.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
+                elif os.path.isfile(files):
+                    dset.files = ['file:'+f.strip() for f in open(files).readlines()]
+                elif isinstance(files, str):
+                    dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
             for file in dset.files:
                 # hack because it will be slow to open all the input files to read the run/lumi info
                 dset.lumis[file] = [(-1, -1)]
 
-            self.__dsets[files] = dset
+            self.__dsets[label] = dset
 
-        return self.__dsets[files]
+        return self.__dsets[label]

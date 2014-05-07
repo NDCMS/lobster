@@ -212,7 +212,7 @@ class JobProvider(lobster.job.JobProvider):
                 lumis_processed = lumis_out.getLumis()
             else:
                 lumis_processed = []
-                lumis_skipped = lumis_in
+                lumis_skipped = lumis_in.getLumis()
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code

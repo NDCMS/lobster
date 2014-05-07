@@ -48,7 +48,9 @@ def run(args):
                 level=config.get('log level', 2) * 10,
                 filename=os.path.join(workdir, 'lobster.log'))
 
+        config['configdir'] = args.configdir
         config['filepath'] = args.configfile
+        config['startdir'] = args.startdir
         if cmsjob:
             job_src = cmssw.JobProvider(config)
         else:

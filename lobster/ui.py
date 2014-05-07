@@ -41,8 +41,10 @@ def boil():
         configfile = os.path.join(args.checkpoint, 'lobster_config.yaml')
         if not os.path.isfile(configfile):
             parser.error('the working directory specified does not contain a configuration')
-        args.configfile = configfile
+        args.configfile = os.path.abspath(configfile)
     else:
-        args.configfile = args.checkpoint
+        args.configfile = os.path.abspath(args.checkpoint)
 
+    args.configdir = os.path.dirname(args.configfile)
+    args.startdir = os.getcwd()
     args.func(args)

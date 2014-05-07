@@ -1,5 +1,6 @@
 from collections import defaultdict
 import datetime
+from functools import partial
 import gzip
 import imp
 import logging
@@ -13,7 +14,7 @@ import sys
 
 from hashlib import sha1
 
-import lobster.job
+from lobster import job, util
 import dash
 import sandbox
 from jobit import SQLInterface as JobitStore
@@ -21,9 +22,11 @@ from jobit import SQLInterface as JobitStore
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
 
-class JobProvider(lobster.job.JobProvider):
+class JobProvider(job.JobProvider):
     def __init__(self, config):
         self.__config = config
+
+        self.__basedirs = [config['configdir'], config['startdir']]
 
         self.__workdir = config['workdir']
         self.__stageout = config['stageout location']
@@ -84,7 +87,9 @@ class JobProvider(lobster.job.JobProvider):
 
             self.__datasets[label] = cfg['dataset']
             self.__configs[label] = os.path.basename(cms_config)
-            self.__extra_inputs[label] = cfg.get('extra inputs', [])
+            self.__extra_inputs[label] = map(
+                    partial(util.findpath, self.__basedirs),
+                    cfg.get('extra inputs', []))
             self.__args[label] = cfg.get('parameters', [])
             self.__outputs[label] = []
             self.__outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
@@ -111,7 +116,7 @@ class JobProvider(lobster.job.JobProvider):
                         # TODO warn about non-empty stageout directories
                         pass
 
-                shutil.copy(cms_config, os.path.join(taskdir, os.path.basename(cms_config)))
+                shutil.copy(util.findpath(self.__basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
                 shutil.copy(config['filepath'], os.path.join(self.__workdir, 'lobster_config.yaml'))
 
                 self.__store.register_jobits(cfg)

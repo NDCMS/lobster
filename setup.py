@@ -12,6 +12,7 @@ setup(
     package_data={'lobster': ['cmssw/data/job.py', 'cmssw/data/wrapper.sh']},
     install_requires=[
         'argparse',
+        'nose',
         'pyyaml',
         'python-daemon'
     ],

@@ -91,6 +91,7 @@ class FileInterface:
             if not files:
                 dset.files = [None for x in range(cfg.get('num jobs', 1))]
                 dset.lumis[None] = [(-1, -1)]
+                dset.total_lumis = cfg.get('num jobs', 1)
 
                 # we don't cache gen-jobs (avoid overwriting num jobs
                 # etc...)
@@ -104,6 +105,8 @@ class FileInterface:
                     dset.files = ['file:'+f.strip() for f in open(files).readlines()]
                 elif isinstance(files, str):
                     dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
+
+                dset.total_lumis = len(dset.files)
             for file in dset.files:
                 # hack because it will be slow to open all the input files to read the run/lumi info
                 dset.lumis[file] = [(-1, -1)]

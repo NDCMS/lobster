@@ -1,5 +1,6 @@
 from lobster import cmssw
 from lobster.cmssw.dataset import DatasetInfo
+from lobster.cmssw.job import JobHandler
 import os
 import shutil
 import tempfile
@@ -36,6 +37,25 @@ class TestSQLBackend(object):
     @classmethod
     def teardown_class(cls):
         pass
+
+    def create_file_dataset(self, label, files, jobsize):
+        info = DatasetInfo()
+        info.file_based = True
+        info.jobsize = jobsize
+
+        info.files = ['/test/{0}.root'.format(i) for i in range(files)]
+        info.lumis = dict((file, [(-1, -1)]) for file in info.files)
+
+        info.total_lumis = len(info.files)
+
+        cfg = {
+                'dataset': '/Test',
+                'global tag': 'test',
+                'label': label,
+                'cmssw config': ''
+        }
+
+        return cfg, info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, jobsize=5):
         info = DatasetInfo()
@@ -103,14 +123,16 @@ class TestSQLBackend(object):
 
         assert total == 1100
 
-    def test_return_obtain(self):
+    def test_obtain(self):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, jobsize=15))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
         (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, events_read, events_written from datasets where label='test_obtain'"
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
                 ).fetchone()
+
         assert jr == 15
         assert jd == 0
         assert er == 0
@@ -119,36 +141,66 @@ class TestSQLBackend(object):
     def test_return_good(self):
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_good', lumis=20, filesize=2.2, jobsize=15))
+                    'test_good', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
-        times = [0] * 14
+
         data = [0, 0]
-        self.interface.update_jobits({'test_good': [(
-            id, "", False, 0, 1,
-            lumis.getLumis(), [], [],
-            times, data, {'/test/0.root': 100, '/test/1.root': 50}, 100,
-        )]})
+        exit_code = 0
+        submissions = 0
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                            '/test/2.root': (160, [(1, 5), (1, 6)])
+                        },
+                        [],
+                        100
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
         (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, events_read, events_written from datasets where label='test_good'"
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
                 ).fetchone()
+
         assert jr == 0
-        assert jd == 15
-        assert er == 150
+        assert jd == 6
+        assert er == 600
         assert ew == 100
 
     def test_return_bad(self):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
-        times = [0] * 14
+
         data = [0, 0]
-        self.interface.update_jobits({'test_bad': [(
-            id, "", True, 8008, 1,
-            [], lumis.getLumis(), files,
-            times, data, {}, 0
-        )]})
+        exit_code = 123
+        submissions = 1
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        True,
+                        {},
+                        [],
+                        0
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
         (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, events_read, events_written from datasets where label='test_bad'"
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
                 ).fetchone()
+
         assert jr == 0
         assert jd == 0
         assert er == 0
@@ -157,24 +209,237 @@ class TestSQLBackend(object):
     def test_return_ugly(self):
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_ugly', lumis=20, filesize=2.2, jobsize=15))
+                    'test_ugly', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
-        times = [0] * 14
+
         data = [0, 0]
-        ls_processed = lumis.getLumis()[:11]
-        ls_skipped = lumis.getLumis()[11:]
-        self.interface.update_jobits({'test_ugly': [(
-            id, "", True, 8008, 1,
-            ls_processed, ls_skipped, [],
-            times, data, {files[0]: 1000, files[1]: 100}, 0
-        )]})
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, events_read, events_written from datasets where label='test_ugly'"
+        exit_code = 0
+        submissions = 1
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/0.root': (120, [(1, 2), (1, 3)])
+                        },
+                        ['/test/1.root', '/test/2.root'],
+                        50
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        skipped = list(
+                self.interface.db.execute(
+                    "select skipped from files_{0}".format(label)))
+
+        assert skipped == [(0,), (1,), (1,), (0,), (0,)]
+
+        status = list(
+                self.interface.db.execute(
+                    "select status from jobits_{0} where file=2 group by status".format(label)))
+
+        assert status == [(3,)]
+
+        (jr, jd, jl, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, jobits_left, events_read, events_written from datasets where label=?",
+                (label,)
                 ).fetchone()
+
         assert jr == 0
-        assert jd == 11
-        assert er == 1100
+        assert jd == 2
+        assert jl == 10
+        assert er == 120
+        assert ew == 50
+
+    def test_return_uglier(self):
+        self.interface.register(
+                *self.create_dbs_dataset(
+                    'test_uglier', lumis=10, filesize=2.2, jobsize=6))
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        data = [0, 0]
+        exit_code = 0
+        submissions = 1
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                        },
+                        ['/test/2.root'],
+                        100
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        # grab another job
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
+                            '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
+                            '/test/4.root': (120, [(1, 9), (1, 10)]),
+                        },
+                        [],
+                        100
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        (jr, jd, jl, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, jobits_left, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 0
+        assert jd == 10
+        assert jl == 0
+        assert er == 1000
+        assert ew == 200
+
+    def test_file_obtain(self):
+        self.interface.register(
+                *self.create_file_dataset(
+                    'test_file_obtain', 5, 3))
+
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        job_files, job_lumis = JobHandler(id, label, files, lumis, None).get_job_info()
+
+        assert job_lumis == None
+
+        (jr, jd, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 3
+        assert jd == 0
+        assert er == 0
         assert ew == 0
+
+    def test_file_return_good(self):
+        self.interface.register(
+                *self.create_file_dataset(
+                    'test_file_return_good', 5, 3))
+
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        data = [0, 0]
+        exit_code = 0
+        submissions = 0
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                            '/test/2.root': (160, [(1, 5), (1, 6)])
+                        },
+                        [],
+                        100
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        (jr, jd, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 0
+        assert jd == 3
+        assert er == 600
+        assert ew == 100
+
+    def test_file_return_bad(self):
+        self.interface.register(
+                *self.create_file_dataset(
+                    'test_file_return_bad', 5, 3))
+
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        data = [0, 0]
+        exit_code = 1234
+        submissions = 0
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        True,
+                        {},
+                        [],
+                        0
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        (jr, jd, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 0
+        assert jd == 0
+        assert er == 0
+        assert ew == 0
+
+    def test_file_return_ugly(self):
+        self.interface.register(
+                *self.create_file_dataset(
+                    'test_file_return_ugly', 5, 3))
+
+        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
+        data = [0, 0]
+        exit_code = 0
+        submissions = 0
+        times = [0] * 14
+
+        handler = JobHandler(id, label, files, lumis, None)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        False,
+                        {
+                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                        },
+                        ['/test/2.root'],
+                        100
+                        )
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        (jr, jd, jl, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, jobits_left, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 0
+        assert jd == 2
+        assert jl == 3
+        assert er == 440
+        assert ew == 100
 
 class TestCMSSWProvider(object):
     @classmethod

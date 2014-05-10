@@ -5,8 +5,6 @@ import sqlite3
 import time
 import uuid
 
-from FWCore.PythonUtilities.LumiList import LumiList
-
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
 INITIALIZED = 0
@@ -17,7 +15,30 @@ ABORTED = 4
 INCOMPLETE = 5
 PUBLISHED = 6
 
-class SQLInterface:
+def unique_lumis(lumis):
+    """
+    Count the unique lumi sections.  Lumis may be double-counted when
+    they are split across several files.  This method should protect
+    against that.
+
+    >>> unique_lumis([(1, 1, 1, 3), (2, 1, 1, 4), (3, 2, 1, 4), (4, 3, 1, 5)])
+    3
+
+    >>> unique_lumis([(1, 1, -1, -1), (2, 2, -1, -1)])
+    2
+    """
+    duplicates = 0
+    unique_values = set()
+
+    for (id, file, run, lumi) in lumis:
+        if lumi > 0:
+            if (run, lumi) in unique_values:
+                duplicates += 1
+            unique_values.add((run, lumi))
+
+    return len(lumis) - duplicates
+
+class JobitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
         self.config = config
@@ -37,9 +58,11 @@ class SQLInterface:
             cfg text,
             uuid text,
             jobsize text,
+            file_based int,
             jobits integer,
             jobits_running int default 0,
             jobits_done int default 0,
+            jobits_left int default 0,
             events int default 0,
             events_read int default 0,
             events_written int default 0)""")
@@ -97,11 +120,13 @@ class SQLInterface:
                        publish_label,
                        cfg,
                        uuid,
+                       file_based,
                        jobsize,
                        jobits,
+                       jobits_left,
                        events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-                           dataset_cfg['dataset'],
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                           dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
                            label,
                            os.path.join(self.config['stageout location'], label),
                            os.path.basename(os.environ['LOCALRT']),
@@ -109,7 +134,9 @@ class SQLInterface:
                            dataset_cfg.get('publish label', dataset_cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
                            dataset_cfg['cmssw config'],
                            self.uuid,
+                           dataset_info.file_based,
                            dataset_info.jobsize,
+                           dataset_info.total_lumis,
                            dataset_info.total_lumis,
                            dataset_info.total_events))
         dset_id = cur.lastrowid
@@ -143,18 +170,24 @@ class SQLInterface:
             columns = [(file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
             self.db.executemany("insert into jobits_{0}(file, run, lumi) values (?, ?, ?)".format(label), columns)
 
-        # self.db.execute("create index if not exists index_skipped_{0} on files_{0}(skipped)".format(label))
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
-        # self.db.execute("create index if not exists index_events_{0} on jobits_{0}(run, lumi)".format(label))
         self.db.execute("create index if not exists index_events_{0} on jobits_{0}(run, lumi)".format(label))
         self.db.execute("create index if not exists index_files_{0} on jobits_{0}(file)".format(label))
-        # self.db.execute("create index if not exists dataset_index on jobits(dataset)")
-        # self.db.execute("create index if not exists ex on jobits_{0}(dataset, file asc)")
-        # self.db.execute("create index if not exists nfile_index on jobits(attempts, file)")
 
         self.db.commit()
 
     def pop_jobits(self, num=1, bijective=False):
+        """
+        Create a predetermined number of jobs.  The task these are
+        created for is drawn randomly from all unfinished tasks.
+
+        Arguments:
+            num: the number of jobs to be created (default 1)
+            bijective: process lumis from one file only, where possible (default False)
+        Returns:
+            a list containing an id, dataset label, file information (id,
+            filename), lumi information (id, file id, run, lumi)
+        """
         t = time.time()
 
         rows = [xs for xs in self.db.execute("""
@@ -170,7 +203,7 @@ class SQLInterface:
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}
                     where jobits_done + jobits_running < jobits
-                    order by skipped""".format(dataset)))
+                    order by skipped asc""".format(dataset)))
         files = [x for (x, y) in fileinfo]
         fileinfo = dict(fileinfo)
 
@@ -197,15 +230,16 @@ class SQLInterface:
                     where file in ({1}) and (status<>1 and status<>2 and status<>6)
                     """.format(dataset, ', '.join('?' for _ in chunck)), chunck))
 
+        # files and lumis for individual jobs
         files = set()
         lumis = set()
+
+        # lumi veto to avoid duplicated processing
         all_lumis = set()
+
+        # job container and current job size
         jobs = []
-        job_update = {}
-        lumi_update = []
-        file_update = defaultdict(int)
         current_size = 0
-        total_lumis = 0
 
         for id, file, run, lumi in rows:
             if (run, lumi) in all_lumis:
@@ -219,50 +253,53 @@ class SQLInterface:
                 job_id = cur.lastrowid
 
             if lumi > 0:
-                lumis.add((run, lumi))
                 all_lumis.add((run, lumi))
-                for (ls_id, ls_file) in self.db.execute("""
-                        select id, file
+                for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
+                        select id, file, run, lumi
                         from jobits_{0}
-                        where run=? and lumi=?""".format(dataset), (run, lumi)):
-                    lumi_update.append((job_id, ls_id))
+                        where run=? and lumi=? and status not in (1, 2)""".format(dataset), (run, lumi)):
+                    lumis.add((ls_id, ls_file, ls_run, ls_lumi))
                     files.add(ls_file)
-                    file_update[ls_file] += 1
             else:
-                lumi_update.append((job_id, id))
+                lumis.add((id, file, run, lumi))
                 files.add(file)
-                file_update[file] += 1
 
             current_size += 1
 
             if current_size == size[0]:
-                job_update[job_id] = len(lumis)
                 jobs.append((
                     str(job_id),
                     dataset,
-                    [fileinfo[id] for id in files],
-                    LumiList(lumis=lumis)))
+                    [(id, fileinfo[id]) for id in files],
+                    lumis))
 
-                total_lumis += len(lumis)
-
-                size.pop(0)
                 files = set()
                 lumis = set()
+
                 current_size = 0
+                size.pop(0)
 
         if current_size > 0:
-            job_update[job_id] = len(lumis)
             jobs.append((
                 str(job_id),
                 dataset,
-                [fileinfo[id] for id in files],
-                LumiList(lumis=lumis)))
+                [(id, fileinfo[id]) for id in files],
+                lumis))
 
-            total_lumis += len(lumis)
+        dataset_update = []
+        file_update = defaultdict(int)
+        job_update = defaultdict(int)
+        lumi_update = []
+
+        for (job, label, files, lumis) in jobs:
+            dataset_update += lumis
+            job_update[job] = unique_lumis(lumis)
+            lumi_update += [(job, id) for (id, file, run, lumi) in lumis]
+            file_update[id] += unique_lumis(filter(lambda tpl: tpl[1] == file, lumis))
 
         self.db.execute(
                 "update datasets set jobits_running=(jobits_running + ?) where id=?",
-                (total_lumis, dataset_id))
+                (unique_lumis(dataset_update), dataset_id))
 
         self.db.executemany("update files_{0} set jobits_running=(jobits_running + ?) where id=?".format(dataset),
                 [(v, k) for (k, v) in file_update.items()])
@@ -292,101 +329,48 @@ class SQLInterface:
         return ids
 
     def update_jobits(self, jobinfos):
-        t = time.time()
-        up_jobs = []
+        job_updates = []
+        dset_infos = {}
 
-        dsets = {}
-        for (dset, jobs) in jobinfos.items():
-            up_jobits = []
-            up_missed = []
-            up_read = defaultdict(int)
-            up_skipped = defaultdict(int)
+        for (dset, updates) in jobinfos.items():
+            file_updates = []
+            jobit_updates = []
+            jobit_generic_updates = []
 
-            jobids = []
+            for (job_update, file_update, jobit_update) in updates:
+                # jobits either fail or are successful
+                jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
+                job_updates.append(job_update)
 
-            for (id, host, failed, return_code, submissions, \
-                    processed_lumis, missed_lumis, skipped_files, \
-                    times, data, read, written) in jobs:
-                id = int(id)
-                jobids.append(id)
-
-                missed = len(missed_lumis)
-                processed = len(processed_lumis)
+                file_updates += file_update
+                jobit_updates += jobit_update
+                # the last entry in the job_update is the id
+                jobit_generic_updates.append((jobit_status, job_update[-1]))
 
                 try:
-                    dsets[dset][0] += missed + processed
-                    dsets[dset][1] += processed
-                    dsets[dset][2] += sum(read.values())
-                    dsets[dset][3] += written
+                    dset_infos[dset][0] += job_update[-4]
+                    dset_infos[dset][1] += job_update[-3]
                 except KeyError:
-                    dsets[dset] = [missed + processed, processed, sum(read.values()), written]
-
-                if failed:
-                    job_status = FAILED
-                    jobit_status = FAILED
-                elif missed > 0:
-                    job_status = INCOMPLETE
-                    jobit_status = SUCCESSFUL
-                    for run, lumi in missed_lumis:
-                        up_missed.append((FAILED, run, lumi))
-                else:
-                    job_status = SUCCESSFUL
-                    jobit_status = SUCCESSFUL
-
-                for file in skipped_files:
-                    up_skipped[file] += 1
-
-                for (file, count) in read.items():
-                    up_read[file] += count
-
-                up_jobs.append([job_status, host, return_code, submissions] + times + data + [processed, missed, sum(read.values()), written, id])
-                up_jobits.append((jobit_status, id))
+                    dset_infos[dset] = [job_update[-4], job_update[-3]]
 
             self.db.executemany("""update jobits_{0} set
                 status=?
                 where job=?""".format(dset),
-                up_jobits)
+                jobit_generic_updates)
             self.db.executemany("""update jobits_{0} set
                 status=?
-                where run=? and lumi=?""".format(dset),
-                up_missed)
-
-            up_processed = defaultdict(int)
-            up_done = defaultdict(int)
-
-            for id in jobids:
-                for (file_id, count) in self.db.execute("""select file, count(*)
-                        from jobits_{0}
-                        where job=?
-                        group by file""".format(dset),
-                        (id,)):
-                    up_processed[file_id] += count
-                for (file_id, count) in self.db.execute("""select file, count(*)
-                        from jobits_{0}
-                        where job=? and status=?
-                        group by file""".format(dset),
-                        (id, SUCCESSFUL)):
-                    up_done[file_id] += count
-
-            self.db.executemany("""update files_{0} set
-                jobits_running=(jobits_running - ?)
                 where id=?""".format(dset),
-                [(v, k) for (k, v) in up_processed.items()])
+                jobit_updates)
+
             self.db.executemany("""update files_{0} set
-                jobits_done=(jobits_done + ?)
-                where id=?""".format(dset),
-                [(v, k) for (k, v) in up_done.items()])
-            self.db.executemany("""update files_{0} set
-                events_read=(events_read + ?)
-                where filename=?""".format(dset),
-                [(v, k) for (k, v) in up_read.items()])
-            self.db.executemany("""update files_{0} set
+                jobits_running=(jobits_running - ?),
+                jobits_done=(jobits_done + ?),
+                events_read=(events_read + ?),
                 skipped=(skipped + ?)
-                where filename=?""".format(dset),
-                [(v, k) for (k, v) in up_skipped.items()])
+                where id=?""".format(dset),
+                file_updates)
 
         self.db.executemany("""update jobs set
-            status=?,
             host=?,
             exit_code=?,
             submissions=?,
@@ -409,24 +393,39 @@ class SQLInterface:
             jobits_processed=?,
             jobits_missed=?,
             events_read=?,
-            events_written=?
+            events_written=?,
+            status=?
             where id=?""",
-            up_jobs)
-        for (dset, (num, complete, read, written)) in dsets.items():
-            self.db.execute("""update datasets set
-                jobits_running=(jobits_running - ?),
-                jobits_done=(jobits_done + ?),
-                events_read=(events_read + ?),
-                events_written=(events_written + ?)
-                where label=?""",
-                (num, complete, read, written, dset))
+            job_updates)
+
+        for label in jobinfos.keys():
+            self.update_dataset_stats(label, *dset_infos[label])
+
         self.db.commit()
 
-        with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:
-            delta = time.time() - t
-            size = len(jobs)
-            ratio = delta / float(size) if size != 0 else 0
-            f.write("RECV {0} {1} {2}\n".format(size, delta, ratio))
+    def update_dataset_stats(self, label, events_read=0, events_written=0):
+        file_based = self.db.execute("select file_based from datasets where label=?", (label,)).fetchone()[0]
+
+        if file_based:
+            self.db.execute("""
+                update datasets set
+                    jobits_running=(select count(*) from jobits_{0} where status==1),
+                    jobits_done=(select count(*) from jobits_{0} where status==2),
+                    jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
+                    events_read=(events_read + ?),
+                    events_written=(events_written + ?)
+                where label=?""".format(label),
+                (events_read, events_written, label))
+        else:
+            self.db.execute("""
+                update datasets set
+                    jobits_running=(select count(*) from (select distinct run, lumi from jobits_{0} where status==1)),
+                    jobits_done=(select count(*) from (select distinct run, lumi from jobits_{0} where status==2)),
+                    jobits_left=(select count(*) from (select distinct run, lumi from jobits_{0} where status not in (1, 2))),
+                    events_read=(events_read + ?),
+                    events_written=(events_written + ?)
+                where label=?""".format(label),
+                (events_read, events_written, label))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done) from datasets")

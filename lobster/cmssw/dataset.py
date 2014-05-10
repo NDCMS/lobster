@@ -11,6 +11,7 @@ class DatasetInfo():
     def __init__(self):
         self.events = {}
         self.event_counts = defaultdict(int)
+        self.file_based = False
         self.files = []
         self.jobsize = 1
         self.lumis = defaultdict(list)
@@ -87,6 +88,7 @@ class FileInterface:
 
         if label not in self.__dsets:
             dset = DatasetInfo()
+            dset.file_based = True
 
             if not files:
                 dset.files = [None for x in range(cfg.get('num jobs', 1))]

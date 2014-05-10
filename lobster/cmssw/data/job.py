@@ -33,8 +33,7 @@ def edit_process_source(cmssw_config_file, files, lumis, events=-1):
 def extract_info(report_filename):
     exit_code = 0
     skipped = []
-    lumis = []
-    read = {}
+    infos = {}
     written = 0
 
     with open(report_filename) as f:
@@ -45,21 +44,17 @@ def extract_info(report_filename):
             for file in report.skippedFiles:
                 skipped.append(file['Lfn'])
 
-            use_fileinfo = len(report.files) > 0
             for file in report.files:
                 written += int(file['TotalEvents'])
-                for run, ls in file['Runs'].items():
-                    for lumi in ls:
-                        lumis.append((run, lumi))
 
             for file in report.inputFiles:
-                read[file['LFN']] = int(file['EventsRead'])
-                if not use_fileinfo:
-                    for run, ls in file['Runs'].items():
-                        for lumi in ls:
-                            lumis.append((run, lumi))
+                file_lumis = []
+                for run, ls in file['Runs'].items():
+                    for lumi in ls:
+                        file_lumis.append((run, lumi))
+                infos[file['LFN']] = (int(file['EventsRead']), file_lumis)
 
-    return LumiList(lumis=lumis), skipped, read, written, exit_code
+    return infos, skipped, written, exit_code
 
 def extract_time(filename):
     with open(filename) as f:
@@ -107,7 +102,7 @@ exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.fo
 apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
 try:
-    run_info, skipped, read, written, cmssw_exit_code = extract_info('report.xml')
+    files_info, files_skipped, events_written, cmssw_exit_code = extract_info('report.xml')
 except Exception as e:
     print e
     if exit_code == 0:
@@ -135,7 +130,7 @@ times.append(now)
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((run_info, skipped, read, written, times, cmssw_exit_code), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:

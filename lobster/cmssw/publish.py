@@ -16,7 +16,7 @@ from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
-from jobit import SQLInterface
+import jobit
 
 linebreak = '\n'+''.join(['*']*80)
 
@@ -60,7 +60,7 @@ class Publisher():
    def __init__(self, config, dir, label):
        self.label = label
        self.dir = dir
-       self.db = SQLInterface(config)
+       self.db = jobit.JobitStore(config)
        self.config = config
        self.user = config.get('publish user', os.environ['USER'])
 # Not sure if 'create_by' should be username or grid info, it is mixed in DBS: for now, use username

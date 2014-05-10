@@ -18,11 +18,110 @@ from lobster import job, util
 import dash
 import sandbox
 
-from jobit import SQLInterface as JobitStore
+import jobit
 from dataset import MetaInterface
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
+
+class JobHandler(object):
+    """
+    Handles mapping of lumi sections to files etc.
+    """
+
+    def __init__(self, id, dataset, files, lumis, jdir):
+        self.__id = id,
+        self.__dataset = dataset
+        self.__files = files
+        self.__file_based = any([run == -1 or lumi == -1 for (id, file, run, lumi) in lumis])
+        self.__lumis = lumis
+        self.__jobdir = jdir
+        self.__outputs = []
+
+    @property
+    def dataset(self):
+        return self.__dataset
+
+    @property
+    def jobdir(self):
+        return self.__jobdir
+
+    @jobdir.setter
+    def jobdir(self, dir):
+        self.__jobdir = dir
+
+    @property
+    def outputs(self):
+        return self.__outputs
+
+    @outputs.setter
+    def outputs(self, files):
+        self.__outputs = files
+
+    def get_job_info(self):
+        lumis = set([(run, lumi) for (id, file, run, lumi) in self.__lumis])
+        files = set([filename for (id, filename) in self.__files])
+
+        if self.__file_based:
+            lumis = None
+        else:
+            lumis = LumiList(lumis=lumis)
+
+        return files, lumis
+
+    def get_jobit_info(self, failed, files_info, files_skipped, events_written):
+        events_read = 0
+        file_update = []
+        lumi_update = []
+
+        processed = set()
+        missed = set()
+
+        for (id, file) in self.__files:
+            file_lumis = [tpl for tpl in self.__lumis if tpl[1] == id]
+
+            skipped = file in files_skipped
+            read = 0 if skipped or failed else files_info[file][0]
+
+            if not self.__file_based:
+                jobits_finished = len(file_lumis)
+                jobits_done = 0 if failed or skipped else len(files_info[file][1])
+            else:
+                jobits_finished = 1
+                jobits_done = 0 if failed or skipped else 1
+
+            events_read += read
+            file_update.append((jobits_finished, jobits_done, read, 1 if skipped else 0, id))
+
+            if not failed:
+                if skipped:
+                    for (lumi_id, lumi_file, r, l) in file_lumis:
+                        lumi_update.append((jobit.FAILED, lumi_id))
+                        missed.add((r, l))
+                elif not self.__file_based:
+                    for (lumi_id, lumi_file, r, l) in file_lumis:
+                        if (r, l) not in files_info[file][1]:
+                            lumi_update.append((jobit.FAILED, lumi_id))
+                            missed.add((r, l))
+                        else:
+                            processed.add((r, l))
+
+        if not self.__file_based:
+            jobits_processed = len(processed)
+            jobits_missed = jobit.unique_lumis(self.__lumis) if failed else len(missed)
+        else:
+            jobits_processed = len(files_info.keys())
+            jobits_missed = len(self.__files) - len(files_info.keys())
+
+        if failed:
+            status = jobit.FAILED
+        elif jobits_missed > 0:
+            status = jobit.INCOMPLETE
+        else:
+            status = jobit.SUCCESSFUL
+
+        return [jobits_processed, jobits_missed, events_read, events_written, status], \
+                file_update, lumi_update
 
 class JobProvider(job.JobProvider):
     def __init__(self, config):
@@ -38,9 +137,7 @@ class JobProvider(job.JobProvider):
         self.__configs = {}
         self.__extra_inputs = {}
         self.__args = {}
-        self.__jobdirs = {}
-        self.__jobdatasets = {}
-        self.__joboutputs = {}
+        self.__jobhandlers = {}
         self.__outputs = {}
         self.__outputformats = {}
 
@@ -70,7 +167,7 @@ class JobProvider(job.JobProvider):
         defaults = config.get('task defaults', {})
         matching = defaults.get('matching', [])
 
-        self.__store = JobitStore(config)
+        self.__store = jobit.JobitStore(config)
         for cfg in config['tasks']:
             label = cfg['label']
 
@@ -89,7 +186,7 @@ class JobProvider(job.JobProvider):
 
             cms_config = cfg['cmssw config']
 
-            self.__datasets[label] = cfg['dataset']
+            self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__configs[label] = os.path.basename(cms_config)
             self.__extra_inputs[label] = map(
                     partial(util.findpath, self.__basedirs),
@@ -145,14 +242,14 @@ class JobProvider(job.JobProvider):
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
-        res = self.retry(self.__store.pop_jobits, (num, bijective), {})
-        if not res:
+        jobinfos = self.retry(self.__store.pop_jobits, (num, bijective), {})
+        if not jobinfos or len(jobinfos) == 0:
             return None
 
         tasks = []
         ids = []
 
-        for (id, label, files, lumis) in res:
+        for (id, label, files, lumis) in jobinfos:
             ids.append(id)
 
             config = self.__configs[label]
@@ -176,23 +273,27 @@ class JobProvider(job.JobProvider):
 
             monitorid, syncid = self.__dash.register_job(id)
 
+            handler = JobHandler(id, label, files, lumis, jdir)
+            files, lumis = handler.get_job_info()
+
             with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
                 pickle.dump((args, files, lumis, self.__taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
             inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
-            self.__jobdirs[id] = jdir
-            self.__jobdatasets[id] = label
             outputs = []
             for filename in self.__outputs[label]:
                 base, ext = os.path.splitext(filename)
                 outname = self.__outputformats[label].format(base=base, ext=ext[1:], id=id)
                 outputs.append((os.path.join(sdir, outname), filename))
-            self.__joboutputs[id] = map(lambda (a, b): a, outputs)
+
+            handler.outputs = map(lambda (a, b): a, outputs)
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
             cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)
 
             tasks.append((id, cmd, inputs, outputs))
+
+            self.__jobhandlers[id] = handler
 
         logging.info("creating job(s) {0}".format(", ".join(ids)))
 
@@ -204,47 +305,39 @@ class JobProvider(job.JobProvider):
         jobs = defaultdict(list)
         for task in tasks:
             failed = (task.return_status != 0)
-            jdir = self.__jobdirs[task.tag]
-            dset = self.__jobdatasets[task.tag]
+
+            handler = self.__jobhandlers[task.tag]
 
             self.__dash.update_job(task.tag, dash.DONE)
 
             if task.output:
-                f = gzip.open(os.path.join(jdir, 'job.log.gz'), 'wb')
+                f = gzip.open(os.path.join(handler.jobdir, 'job.log.gz'), 'wb')
                 f.write(task.output)
                 f.close()
 
             try:
-                with open(os.path.join(jdir, 'report.pkl'), 'rb') as f:
-                    lumis_out, files_skipped, events_read, events_written, task_times, cmssw_exit_code = pickle.load(f)
+                with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
+                    files_info, files_skipped, events_written, task_times, cmssw_exit_code = pickle.load(f)
             except (EOFError, IOError) as e:
                 logging.error("error processing {0}:\n{1}".format(task.tag, e))
+
                 failed = True
+
+                files_info = {}
+                files_skipped = []
+                events_written = 0
                 task_times = [None] * 6
                 cmssw_exit_code = None
 
-            with open(os.path.join(jdir, 'parameters.pkl'), 'rb') as f:
-                lumis_in = pickle.load(f)[2]
-            if not failed:
-                lumis_skipped = (lumis_in - lumis_out).getLumis()
-                lumis_processed = lumis_out.getLumis()
-            else:
-                lumis_processed = []
-                lumis_skipped = lumis_in.getLumis()
-
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
+                if exit_code > 0:
+                    failed = True
             else:
                 exit_code = task.return_status
 
-            if failed:
-                files_skipped = []
-                events_read = {}
-                events_written = 0
-
             logging.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 
-            submissions = task.total_submissions
             times = [
                     task.submit_time / 1000000,
                     task.send_input_start / 1000000,
@@ -258,19 +351,25 @@ class JobProvider(job.JobProvider):
                     ]
             data = [task.total_bytes_received, task.total_bytes_sent]
 
+            job_update, file_update, lumi_update = \
+                    handler.get_jobit_info(failed, files_info, files_skipped, events_written)
+
+            submissions = task.total_submissions
+            job_update = [task.hostname, exit_code, task.total_submissions] \
+                    + times + data + job_update + [task.tag]
+
             if failed:
-                shutil.move(jdir, jdir.replace('running', 'failed'))
-                for filename in filter(os.path.isfile, self.__joboutputs[task.tag]):
+                shutil.move(handler.jobdir, handler.jobdir.replace('running', 'failed'))
+                for filename in filter(os.path.isfile, handler.outputs):
                     os.unlink(filename)
             else:
-                shutil.move(jdir, jdir.replace('running', 'successful'))
+                shutil.move(handler.jobdir, handler.jobdir.replace('running', 'successful'))
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 
-            jobs[dset].append([
-                task.tag, task.hostname, failed, exit_code, submissions,
-                lumis_processed, lumis_skipped, files_skipped,
-                times, data, events_read, events_written])
+            jobs[handler.dataset].append((job_update, file_update, lumi_update))
+
+            del self.__jobhandlers[task.tag]
 
         self.__dash.free()
 

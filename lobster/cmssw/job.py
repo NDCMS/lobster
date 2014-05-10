@@ -224,7 +224,7 @@ class JobProvider(job.JobProvider):
                 dataset_info = self.__interface.get_info(cfg)
 
                 if cfg.has_key('lumi mask'):
-                    lumi_mask = LumiList(filename=cfg['lumi mask'])
+                    lumi_mask = LumiList(filename=util.findpath(self.__basedirs, cfg['lumi mask']))
                     for file in dataset_info.files:
                         dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
 

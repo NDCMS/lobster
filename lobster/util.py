@@ -8,4 +8,4 @@ def findpath(dirs, path):
         joined = os.path.join(directory, path)
         if os.path.exists(joined):
             return joined
-    raise KeyError
+    raise KeyError, "Can't find '{0}' in {1}".format(path, dirs)

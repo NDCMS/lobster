@@ -65,7 +65,9 @@ class JobitStore:
             jobits_left int default 0,
             events int default 0,
             events_read int default 0,
-            events_written int default 0)""")
+            events_written int default 0,
+            bytes_input int default 0,
+            bytes_output int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             host text,
@@ -95,6 +97,7 @@ class JobitStore:
             time_total_on_worker int,
             bytes_received int,
             bytes_sent int,
+            bytes_output int default 0,
             foreign key(dataset) references datasets(id))""")
         self.db.commit()
 
@@ -124,8 +127,9 @@ class JobitStore:
                        jobsize,
                        jobits,
                        jobits_left,
-                       events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       events,
+                       bytes_input)
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
                            label,
                            os.path.join(self.config['stageout location'], label),
@@ -138,7 +142,8 @@ class JobitStore:
                            dataset_info.jobsize,
                            dataset_info.total_lumis,
                            dataset_info.total_lumis,
-                           dataset_info.total_events))
+                           dataset_info.total_events,
+                           sum(dataset_info.filesizes.values())))
         dset_id = cur.lastrowid
 
         self.db.execute("""create table if not exists files_{0}(
@@ -149,7 +154,8 @@ class JobitStore:
             jobits_done int default 0,
             jobits_running int default 0,
             events int,
-            events_read int default 0)""".format(label))
+            events_read,
+            bytes int default 0)""".format(label))
 
         cur.execute("""create table if not exists jobits_{0}(
             id integer primary key autoincrement,
@@ -163,8 +169,12 @@ class JobitStore:
 
         for file in dataset_info.files:
             file_lumis = len(dataset_info.lumis[file])
-            cur.execute("""insert into files_{0}(jobits, events, filename) values (?, ?, ?)""".format(label),
-                    (file_lumis, dataset_info.event_counts[file], file))
+            cur.execute(
+                    """insert into files_{0}(jobits, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
+                        file_lumis,
+                        dataset_info.event_counts[file],
+                        file,
+                        dataset_info.filesizes[file]))
             file_id = cur.lastrowid
 
             columns = [(file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
@@ -348,10 +358,11 @@ class JobitStore:
                 jobit_generic_updates.append((jobit_status, job_update[-1]))
 
                 try:
-                    dset_infos[dset][0] += job_update[-4]
-                    dset_infos[dset][1] += job_update[-3]
+                    dset_infos[dset][0] += job_update[-7]
+                    dset_infos[dset][1] += job_update[-4]
+                    dset_infos[dset][2] += job_update[-3]
                 except KeyError:
-                    dset_infos[dset] = [job_update[-4], job_update[-3]]
+                    dset_infos[dset] = [job_update[-7], job_update[-4], job_update[-3]]
 
             self.db.executemany("""update jobits_{0} set
                 status=?
@@ -390,6 +401,7 @@ class JobitStore:
             time_total_on_worker=?,
             bytes_received=?,
             bytes_sent=?,
+            bytes_output=?,
             jobits_processed=?,
             jobits_missed=?,
             events_read=?,
@@ -403,7 +415,7 @@ class JobitStore:
 
         self.db.commit()
 
-    def update_dataset_stats(self, label, events_read=0, events_written=0):
+    def update_dataset_stats(self, label, bytes_written=0, events_read=0, events_written=0):
         file_based = self.db.execute("select file_based from datasets where label=?", (label,)).fetchone()[0]
 
         if file_based:
@@ -413,9 +425,10 @@ class JobitStore:
                     jobits_done=(select count(*) from jobits_{0} where status==2),
                     jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
                     events_read=(events_read + ?),
-                    events_written=(events_written + ?)
+                    events_written=(events_written + ?),
+                    bytes_output=(bytes_output + ?)
                 where label=?""".format(label),
-                (events_read, events_written, label))
+                (events_read, events_written, bytes_written, label))
         else:
             self.db.execute("""
                 update datasets set

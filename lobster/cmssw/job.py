@@ -349,7 +349,11 @@ class JobProvider(job.JobProvider):
                     task.cmd_execution_time / 1000000,
                     task.total_cmd_execution_time / 1000000,
                     ]
-            data = [task.total_bytes_received, task.total_bytes_sent]
+            data = [
+                    task.total_bytes_received,
+                    task.total_bytes_sent,
+                    sum(map(os.path.getsize, filter(os.path.isfile, handler.outputs)))
+                    ]
 
             job_update, file_update, lumi_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)

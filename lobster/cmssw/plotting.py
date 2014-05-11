@@ -398,7 +398,8 @@ def plot(args):
                 ('t_goodput', 'i8'),
                 ('t_allput', 'i8'),
                 ('b_recv', 'i4'),
-                ('b_sent', 'i4')
+                ('b_sent', 'i4'),
+                ('b_output', 'i4')
                 ])
 
     total_time_failed = np.sum(failed_jobs['t_allput'])

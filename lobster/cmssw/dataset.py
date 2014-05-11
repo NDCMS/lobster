@@ -13,6 +13,7 @@ class DatasetInfo():
         self.event_counts = defaultdict(int)
         self.file_based = False
         self.files = []
+        self.filesizes = defaultdict(int)
         self.jobsize = 1
         self.lumis = defaultdict(list)
         self.total_events = 0
@@ -64,6 +65,7 @@ class DASInterface:
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             result.event_counts[info['logical_file_name']] = info['event_count']
+            result.filesizes[info['logical_file_name']] = info['file_size']
 
         files = set()
         blocks = self.__apis[instance].listBlocks(dataset=dataset)
@@ -112,6 +114,7 @@ class FileInterface:
             for file in dset.files:
                 # hack because it will be slow to open all the input files to read the run/lumi info
                 dset.lumis[file] = [(-1, -1)]
+                dset.filesizes[file] = os.path.getsize(file[5:])
 
             self.__dsets[label] = dset
 

@@ -144,7 +144,7 @@ class TestSQLBackend(object):
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 0
         submissions = 0
         times = [0] * 14
@@ -179,7 +179,7 @@ class TestSQLBackend(object):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 123
         submissions = 1
         times = [0] * 14
@@ -212,7 +212,7 @@ class TestSQLBackend(object):
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 0
         submissions = 1
         times = [0] * 14
@@ -260,7 +260,7 @@ class TestSQLBackend(object):
                     'test_uglier', lumis=10, filesize=2.2, jobsize=6))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 0
         submissions = 1
         times = [0] * 14
@@ -338,7 +338,7 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 0
         submissions = 0
         times = [0] * 14
@@ -376,7 +376,7 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 1234
         submissions = 0
         times = [0] * 14
@@ -410,7 +410,7 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
 
-        data = [0, 0]
+        data = [0, 0, 0]
         exit_code = 0
         submissions = 0
         times = [0] * 14

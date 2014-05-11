@@ -128,9 +128,15 @@ except Exception as e:
 
 times.append(now)
 
+p = subprocess.Popen(["ps", "-p", str(os.getppid()), "-o", "cputime"], stdout=subprocess.PIPE)
+output = p.communicate()[0].splitlines()[-1]
+cputime = 0
+for unit in output.split(':'):
+    cputime = cputime * 60 + int(unit)
+
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, cputime), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:
@@ -149,12 +155,6 @@ for filename in 'cmssw.log report.xml'.split():
             print e
             if exit_code == 0:
                 exit_code = 194
-
-p = subprocess.Popen(["ps", "-p", str(os.getppid()), "-o", "cputime"], stdout=subprocess.PIPE)
-output = p.communicate()[0].splitlines()[-1]
-cputime = 0
-for unit in output.split(':'):
-    cputime = cputime * 60 + int(unit)
 
 print "Execution time", str(times[-1] - times[0])
 print "Exiting with code", str(exit_code)

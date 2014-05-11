@@ -397,6 +397,7 @@ def plot(args):
                 ('t_retrieved', 'i4'),
                 ('t_goodput', 'i8'),
                 ('t_allput', 'i8'),
+                ('t_cpu', 'i8'),
                 ('b_recv', 'i4'),
                 ('b_sent', 'i4'),
                 ('b_output', 'i4')

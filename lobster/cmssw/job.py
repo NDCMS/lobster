@@ -317,7 +317,7 @@ class JobProvider(job.JobProvider):
 
             try:
                 with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
-                    files_info, files_skipped, events_written, task_times, cmssw_exit_code = pickle.load(f)
+                    files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime = pickle.load(f)
             except (EOFError, IOError) as e:
                 logging.error("error processing {0}:\n{1}".format(task.tag, e))
 
@@ -328,6 +328,7 @@ class JobProvider(job.JobProvider):
                 events_written = 0
                 task_times = [None] * 6
                 cmssw_exit_code = None
+                cputime = 0
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
@@ -348,6 +349,7 @@ class JobProvider(job.JobProvider):
                     task.finish_time / 1000000,
                     task.cmd_execution_time / 1000000,
                     task.total_cmd_execution_time / 1000000,
+                    cputime
                     ]
             data = [
                     task.total_bytes_received,

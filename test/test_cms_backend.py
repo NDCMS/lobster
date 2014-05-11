@@ -147,7 +147,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -182,7 +182,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 123
         submissions = 1
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -215,7 +215,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 0
         submissions = 1
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -263,7 +263,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 0
         submissions = 1
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -341,7 +341,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -379,7 +379,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 1234
         submissions = 0
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \
@@ -413,7 +413,7 @@ class TestSQLBackend(object):
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 14
+        times = [0] * 15
 
         handler = JobHandler(id, label, files, lumis, None)
         job_update, file_update, lumi_update = \

@@ -80,7 +80,7 @@ class JobHandler(object):
         for (id, file) in self.__files:
             file_lumis = [tpl for tpl in self.__lumis if tpl[1] == id]
 
-            skipped = file in files_skipped
+            skipped = file in files_skipped or file not in files_info
             read = 0 if skipped or failed else files_info[file][0]
 
             if not self.__file_based:

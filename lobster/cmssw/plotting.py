@@ -543,14 +543,21 @@ def plot(args):
     dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
     dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)
 
-    event_stats = list(db.execute("""
-        select label, events, events - events_read, events_read, events_written,
-            '' || round(
-                max(
-                    jobits_done * 100.0 / jobits,
-                    events_read * 100.0 / events
-                ), 1) || ' %'
-        from datasets"""))
+    event_stats = []
+    for data in db.execute("""
+            select label, events, events - events_read, events_read, events_written,
+                '' || round(
+                    max(
+                        jobits_done * 100.0 / jobits,
+                        events_read * 100.0 / events
+                    ), 1) || ' %',
+                jobits_done == jobits
+            from datasets"""):
+        kwargs = {"class": "blink"} if data[-1] == 1 else {}
+        row = [data[0]] \
+                + map(lambda e: html_tag("div", str(e), style="{float: right}"), data[1:-2]) \
+                + [html_tag("div", data[-2], style="{float: right}", **kwargs)]
+        event_stats.append(row)
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
@@ -580,6 +587,21 @@ def plot(args):
              tr.alt td
              {color:#000000;
              background-color:#B4B8C1;}
+
+             .blink {
+                 color: green;
+                 font-weight: bold;
+                -webkit-animation: blink 1s step-end infinite;
+                 animation: blink 1s step-end infinite
+             }
+
+             @-webkit-keyframes blink {
+                        80% { opacity: 0 }
+             }
+
+             @keyframes blink {
+                        80% { opacity: 0 }
+             }
              </style>"""
 
     with open(os.path.join(top_dir, 'index.html'), 'w') as f:

@@ -48,11 +48,12 @@ def extract_info(report_filename):
                 written += int(file['TotalEvents'])
 
             for file in report.inputFiles:
+                filename = file['LFN'] if len(file['LFN']) > 0 else file['PFN']
                 file_lumis = []
                 for run, ls in file['Runs'].items():
                     for lumi in ls:
                         file_lumis.append((run, lumi))
-                infos[file['LFN']] = (int(file['EventsRead']), file_lumis)
+                infos[filename] = (int(file['EventsRead']), file_lumis)
 
     return infos, skipped, written, exit_code
 

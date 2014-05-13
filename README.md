@@ -21,9 +21,7 @@ installed into your `~/.local` directory.
 
 Install lobster itself with
 
-    git clone git@github.com:matz-e/lobster.git
-    cd lobster
-    python setup.py install --user
+    easy_install https://github.com/matz-e/lobster/tarball/master
 
 and `lobster` will be installed as `~/.local/bin/lobster`.  Add it to your
 path with

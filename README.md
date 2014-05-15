@@ -1,5 +1,9 @@
 # Installation
 
+Lobster requires Python 2.6.  On SLC/RH 5, the following should be done
+after issuing `cmsenv` or equivalent in a release of the `5_3_X` series of
+CMSSW.
+
 ## Dependencies
 
 ### CClab tools

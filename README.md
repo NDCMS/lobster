@@ -87,11 +87,15 @@ memory, 4 Gb for disk).
 The following environment variables may be set to influence the environment
 of the job, and may need adjusting to run on the site:
 <dl>
-  <dt>`PARROT_PATH`</dt>
-  <dd>The path of `parrot_run`.  Default is Notre Dame's AFS.</dd>
+  <dt>PARROT_PATH</dt>
+  <dd>The path of <code>parrot_run</code>.  Default is to look
+  <code>parrot_run</code> in the <code>PATH</code> environment variable
+  where lobster is started and send this version to the worker.  If another
+  parrot binary is preferred, set this environment variable to the
+  corresponding directory.</dd>
 
-  <dt>`PARROT_DEBUG_FLAGS`</dt>
-  <dd>Which debug flags to use.  Default are none.  See the `parrot_run`
+  <dt>PARROT_DEBUG_FLAGS</dt>
+  <dd>Which debug flags to use.  Default are none.  See the <code>parrot_run</code>
   help for more details.</dd>
 </dl>
 

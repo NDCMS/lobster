@@ -195,6 +195,8 @@ class JobProvider(job.JobProvider):
             self.__outputs[label] = []
             self.__outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
 
+            self.__parrot_path = os.path.dirname(util.which('parrot_run'))
+
             if cfg.has_key('outputs'):
                 self.__outputs[label].extend(cfg['outputs'])
             else:
@@ -258,8 +260,12 @@ class JobProvider(job.JobProvider):
             inputs = [(os.path.join(self.__workdir, label, config), config),
                       (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py')
+                      (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
+                      (os.path.join(self.__parrot_path, 'parrot_run'), 'parrot_run'),
                       ]
+
+            if os.path.isfile(os.path.join(self.__parrot_path, 'parrot_helper.so')):
+                inputs.append((os.path.join(self.__parrot_path, 'parrot_helper.so'), 'parrot_helper.so'))
 
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))

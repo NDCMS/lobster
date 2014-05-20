@@ -38,10 +38,14 @@ def run(args):
 
     print "saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
 
+    if not args.foreground:
+        ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
+        print "saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
+
     with daemon.DaemonContext(
             detach_process=not args.foreground,
-            stdout=sys.stdout if args.foreground else None,
-            stderr=sys.stderr if args.foreground else None,
+            stdout=sys.stdout if args.foreground else ttyfile,
+            stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
             pidfile=lockfile.FileLock(os.path.join(workdir, 'lobster.pid'))):
         logging.basicConfig(

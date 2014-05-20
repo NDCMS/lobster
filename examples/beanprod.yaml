@@ -11,6 +11,7 @@ migrate parents: True
 #recycle sandbox: /tmpscratch/users/awoodard/sandbox.tar.bz2 #Option to specify sandbox instead of creating one at startup
 
 use dashboard: true
+check proxy: true
 
 # cmd: 'python make_big_file.py'
 # inputs: ['make_big_file.py']
@@ -30,54 +31,110 @@ task defaults:
         events per job: 5000
 
 tasks:
-  - dataset: '/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    label: TTJets
-    parameters: [jobParams=2012_X_MC-bg_2500]
-  - dataset: '/TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    label: TTH_125
-    lumis per job: 2
-    parameters: [jobParams=2012_X_MC-sigFullSim_9125]
-  - dataset: '/WJetsToLNu_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM'
-    label: WJets
-    parameters: [jobParams=2012_X_MC-bg_2400]
-  - dataset: '/DYJetsToLL_M-50_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    label: ZJets
-    parameters: [jobParams=2012_X_MC-bg_2850]
-  - dataset: '/TTWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM'
-    label: ttW
-    parameters: [jobParams=2012_X_MC-bg_2524]
-  - dataset: '/MET/Run2012A-13Jul2012-v1/AOD'
-    label: MET_Run2012A-13Jul2012-v1_lv5
-    lumi mask: json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
-    parameters: [jobParams=2012_A_data-PR_-5]
-  - dataset: '/MET/Run2012A-recover-06Aug2012-v1/AOD'
-    label: MET_Run2012A-recover-06Aug2012-v1_lv5
-    lumi mask: json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
-    parameters: [jobParams=2012_A_data-PR_-55]
-  - dataset: '/MET/Run2012B-13Jul2012-v1/AOD'
-    label: MET_Run2012B-13Jul2012-v1_lv5
-    lumi mask: json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
-    parameters: [jobParams=2012_A_data-PR_-555]
-  - dataset: '/MET/Run2012C-PromptReco-v2/AOD'
-    label: MET_Run2012C-PromptReco-v2_lv5
-    lumi mask: json/Cert_190456-206098_8TeV_PromptReco_Collisions12_JSON.txt
-    parameters: [jobParams=2012_A_data-PR_-5555]
-  - dataset: '/MET/Run2012C-24Aug2012-v1/AOD'
-    label: MET_Run2012C-24Aug2012-v1_lv5
-    lumi mask: json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
-    parameters: [jobParams=2012_A_data-PR_-55555]
-  - dataset: '/MET/Run2012D-PromptReco-v1/AOD'
-    label: MET_Run2012D-PromptReco-v1_lv5
-    lumi mask: json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
-    outputs: [pat_to_bean.root]
-    parameters: [jobParams=2012_A_data-PR_-555555]
-  - files: zz_lowmll_v2.list #to run on unpublished data, specify a list (one file per line) or a directory
-    label: zz_lowmll_v2
-    cmssw config: ttH_fastSim.py
-    outputs: [fastSim_FASTSIM_HLT_PU.root]
-  - num jobs: 1000  #To use an empty source (no input files), specify the number of times you want the job repeated
-    extra inputs: ['/afs/crc.nd.edu/user/a/awoodard/MG5_aMC_v2_1_0/mgPostProcv2.py']
-    label: zz_lowmll_v2
-    cmssw config: ttH_fastSim.py
-    outputs: [fastSim_FASTSIM_HLT_PU.root]
-
+  - {label: SingleMu_2012A, parameters: [jobParams=2012_A_data-RR_-1], dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}
+  - {label: SingleMu_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-11], dataset: /SingleMu/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: SingleMu_2012B, parameters: [jobParams=2012_B_data-RR_-111], dataset: /SingleMu/Run2012B-13Jul2012-v1/AOD}
+  - {label: SingleMu_2012C, parameters: [jobParams=2012_C_data-PR_-1111], dataset: /SingleMu/Run2012C-PromptReco-v2/AOD}
+  - {label: SingleMu_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-11111], dataset: /SingleMu/Run2012C-24Aug2012-v1/AOD}
+  - {label: SingleMu_2012D, parameters: [jobParams=2012_D_data-PR_-111111], dataset: /SingleMu/Run2012D-PromptReco-v1/AOD}
+  - {label: SingleElectron_2012A, parameters: [jobParams=2012_A_data-RR_-2], dataset: /SingleElectron/Run2012A-13Jul2012-v1/AOD}
+  - {label: SingleElectron_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-22], dataset: /SingleElectron/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: SingleElectron_2012B, parameters: [jobParams=2012_B_data-RR_-222], dataset: /SingleElectron/Run2012B-13Jul2012-v1/AOD}
+  - {label: SingleElectron_2012C, parameters: [jobParams=2012_C_data-PR_-2222], dataset: /SingleElectron/Run2012C-PromptReco-v2/AOD}
+  - {label: SingleElectron_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-22222], dataset: /SingleElectron/Run2012C-24Aug2012-v1/AOD}
+  - {label: SingleElectron_2012D, parameters: [jobParams=2012_D_data-PR_-222222], dataset: /SingleElectron/Run2012D-PromptReco-v1/AOD}
+  - {label: MET_2012A, parameters: [jobParams=2012_A_data-RR_-5], dataset: /MET/Run2012A-13Jul2012-v1/AOD}
+  - {label: MET_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-55], dataset: /MET/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: MET_2012B, parameters: [jobParams=2012_B_data-RR_-555], dataset: /MET/Run2012B-13Jul2012-v1/AOD}
+  - {label: MET_2012C, parameters: [jobParams=2012_C_data-PR_-5555], dataset: /MET/Run2012C-PromptReco-v2/AOD}
+  - {label: MET_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-55555], dataset: /MET/Run2012C-24Aug2012-v1/AOD}
+  - {label: MET_2012D, parameters: [jobParams=2012_D_data-PR_-555555], dataset: /MET/Run2012D-PromptReco-v1/AOD}
+  - {label: DoubleMu_2012A, parameters: [jobParams=2012_A_data-RR_-6], dataset: /DoubleMu/Run2012A-13Jul2012-v1/AOD}
+  - {label: DoubleMu_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-66], dataset: /DoubleMu/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: DoubleMu_2012B, parameters: [jobParams=2012_B_data-RR_-666], dataset: /DoubleMu/Run2012B-13Jul2012-v4/AOD}
+  - {label: DoubleMu_2012C, parameters: [jobParams=2012_C_data-PR_-6666], dataset: /DoubleMu/Run2012C-PromptReco-v2/AOD}
+  - {label: DoubleMu_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-66666], dataset: /DoubleMu/Run2012C-24Aug2012-v1/AOD}
+  - {label: DoubleMu_2012D, parameters: [jobParams=2012_D_data-PR_-666666], dataset: /DoubleMu/Run2012D-PromptReco-v1/AOD}
+  - {label: DoubleElectron_2012A, parameters: [jobParams=2012_A_data-RR_-7], dataset: /DoubleElectron/Run2012A-13Jul2012-v1/AOD}
+  - {label: DoubleElectron_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-77], dataset: /DoubleElectron/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: DoubleElectron_2012B, parameters: [jobParams=2012_B_data-RR_-777], dataset: /DoubleElectron/Run2012B-13Jul2012-v1/AOD}
+  - {label: DoubleElectron_2012C, parameters: [jobParams=2012_C_data-PR_-7777], dataset: /DoubleElectron/Run2012C-PromptReco-v2/AOD}
+  - {label: DoubleElectron_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-77777], dataset: /DoubleElectron/Run2012C-24Aug2012-v1/AOD}
+  - {label: DoubleElectron_2012D, parameters: [jobParams=2012_D_data-PR_-777777], dataset: /DoubleElectron/Run2012D-PromptReco-v1/AOD}
+  - {label: MuEG_2012A, parameters: [jobParams=2012_A_data-RR_-8], dataset: /MuEG/Run2012A-13Jul2012-v1/AOD}
+  - {label: MuEG_2012A_06Aug, parameters: [jobParams=2012_A_data-RRr_-88], dataset: /MuEG/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: MuEG_2012B, parameters: [jobParams=2012_B_data-RR_-888], dataset: /MuEG/Run2012B-13Jul2012-v1/AOD}
+  - {label: MuEG_2012C, parameters: [jobParams=2012_C_data-PR_-8888], dataset: /MuEG/Run2012C-PromptReco-v2/AOD}
+  - {label: MuEG_2012C_24Aug, parameters: [jobParams=2012_C_data-RR_-88888], dataset: /MuEG/Run2012C-24Aug2012-v1/AOD}
+  - {label: MuEG_2012D, parameters: [jobParams=2012_D_data-PR_-888888], dataset: /MuEG/Run2012D-PromptReco-v1/AOD}
+  - {label: ttH_110, parameters: [jobParams=2012_X_MC-sigFullSim_9110], dataset: /TTH_Inclusive_M-110_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_115, parameters: [jobParams=2012_X_MC-sigFullSim_9115], dataset: /TTH_Inclusive_M-115_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_120, parameters: [jobParams=2012_X_MC-sigFullSim_9120], dataset: /TTH_Inclusive_M-120_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_122p5, parameters: [jobParams=2012_X_MC-sigFullSim_9122], dataset: /TTH_Inclusive_M-122_5_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_125, parameters: [jobParams=2012_X_MC-sigFullSim_9125], dataset: /TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_127p5, parameters: [jobParams=2012_X_MC-sigFullSim_9127], dataset: /TTH_Inclusive_M-127_5_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_130, parameters: [jobParams=2012_X_MC-sigFullSim_9130], dataset: /TTH_Inclusive_M-130_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_135, parameters: [jobParams=2012_X_MC-sigFullSim_9135], dataset: /TTH_Inclusive_M-135_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_140, parameters: [jobParams=2012_X_MC-sigFullSim_9140], dataset: /TTH_Inclusive_M-140_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_110, parameters: [jobParams=2012_X_MC-sigFullSim_7110], dataset: /TTH_HToTauTau_M-110_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_115, parameters: [jobParams=2012_X_MC-sigFullSim_7115], dataset: /TTH_HToTauTau_M-115_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_120, parameters: [jobParams=2012_X_MC-sigFullSim_7120], dataset: /TTH_HToTauTau_M-120_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_122p5, parameters: [jobParams=2012_X_MC-sigFullSim_7122], dataset: /TTH_HToTauTau_M-122_5_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_125, parameters: [jobParams=2012_X_MC-sigFullSim_7125], dataset: /TTH_HToTauTau_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_127p5, parameters: [jobParams=2012_X_MC-sigFullSim_7127], dataset: /TTH_HToTauTau_M-127_5_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_130, parameters: [jobParams=2012_X_MC-sigFullSim_7130], dataset: /TTH_HToTauTau_M-130_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_135, parameters: [jobParams=2012_X_MC-sigFullSim_7135], dataset: /TTH_HToTauTau_M-135_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2tautau_140, parameters: [jobParams=2012_X_MC-sigFullSim_7140], dataset: /TTH_HToTauTau_M-140_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_110, parameters: [jobParams=2012_X_MC-sigFullSim_8110], dataset: /TTH_HToBB_M-110_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_115, parameters: [jobParams=2012_X_MC-sigFullSim_8115], dataset: /TTH_HToBB_M-115_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_120, parameters: [jobParams=2012_X_MC-sigFullSim_8120], dataset: /TTH_HToBB_M-120_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_125, parameters: [jobParams=2012_X_MC-sigFullSim_8125], dataset: /TTH_HToBB_M-125_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_130, parameters: [jobParams=2012_X_MC-sigFullSim_8130], dataset: /TTH_HToBB_M-130_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH2bb_135, parameters: [jobParams=2012_X_MC-sigFullSim_8135], dataset: /TTH_HToBB_M-135_8TeV-pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  #  - {label: ttH_125fast, parameters: [jobParams=2012_X_MC-sigFastSim_9025], dataset: /TTH_HToAll_M_125_8TeV_FastSim_pythia6/lwming-TTH_HToAll_M_125_8TeV_FastSim_pythia6-191b19832235558f2b51f7486e9bfa14/USER}
+  - {label: TTJets_chunck1,  parameters: [jobParams=2012_X_MC-bg_2500], dataset: /TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTJets_chunck2,  parameters: [jobParams=2012_X_MC-bg_2500], dataset: /TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM}
+  - {label: TTJets_had,  parameters: [jobParams=2012_X_MC-bg_2566], dataset: /TTJets_HadronicMGDecays_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A_ext-v1/AODSIM}
+  - {label: TTJets_semilep,  parameters: [jobParams=2012_X_MC-bg_2563], dataset: /TTJets_SemiLeptMGDecays_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A_ext-v1/AODSIM}
+  - {label: TTJets_fulllep,  parameters: [jobParams=2012_X_MC-bg_2533], dataset: /TTJets_FullLeptMGDecays_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM}
+  - {label: WJetsToLNu,  parameters: [jobParams=2012_X_MC-bg_2400], dataset: /WJetsToLNu_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM}
+  - {label: W1JetsToLNu,  parameters: [jobParams=2012_X_MC-bg_2401], dataset: /W1JetsToLNu_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: W2JetsToLNu,  parameters: [jobParams=2012_X_MC-bg_2402], dataset: /W2JetsToLNu_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: W3JetsToLNu,  parameters: [jobParams=2012_X_MC-bg_2403], dataset: /W3JetsToLNu_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: W4JetsToLNu,  parameters: [jobParams=2012_X_MC-bg_2404], dataset: /W4JetsToLNu_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DYJetsToLL_lomass,  parameters: [jobParams=2012_X_MC-bg_2850], dataset: /DYJetsToLL_M-10To50_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DYJetsToLL_himass,  parameters: [jobParams=2012_X_MC-bg_2800], dataset: /DYJetsToLL_M-50_TuneZ2Star_8TeV-madgraph-tarball/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DY1JetsToLL,  parameters: [jobParams=2012_X_MC-bg_2801], dataset: /DY1JetsToLL_M-50_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DY2JetsToLL,  parameters: [jobParams=2012_X_MC-bg_2802], dataset: /DY2JetsToLL_M-50_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DY3JetsToLL,  parameters: [jobParams=2012_X_MC-bg_2803], dataset: /DY3JetsToLL_M-50_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: DY4JetsToLL,  parameters: [jobParams=2012_X_MC-bg_2804], dataset: /DY4JetsToLL_M-50_TuneZ2Star_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleT_s,  parameters: [jobParams=2012_X_MC-bg_2600], dataset: /T_s-channel_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleTbar_s,  parameters: [jobParams=2012_X_MC-bg_2601], dataset: /Tbar_s-channel_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleT_t,  parameters: [jobParams=2012_X_MC-bg_2602], dataset: /T_t-channel_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleTbar_t,  parameters: [jobParams=2012_X_MC-bg_2603], dataset: /Tbar_t-channel_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleT_tW,  parameters: [jobParams=2012_X_MC-bg_2604], dataset: /T_tW-channel-DR_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: singleTbar_tW,  parameters: [jobParams=2012_X_MC-bg_2605], dataset: /Tbar_tW-channel-DR_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WW,  parameters: [jobParams=2012_X_MC-bg_2700], dataset: /WW_TuneZ2star_8TeV_pythia6_tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WZ,  parameters: [jobParams=2012_X_MC-bg_2701], dataset: /WZ_TuneZ2star_8TeV_pythia6_tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ZZ,  parameters: [jobParams=2012_X_MC-bg_2702], dataset: /ZZ_TuneZ2star_8TeV_pythia6_tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTWJets,  parameters: [jobParams=2012_X_MC-bg_2524], dataset: /TTWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTZJets,  parameters: [jobParams=2012_X_MC-bg_2523], dataset: /TTZJets_8TeV-madgraph_v2/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTWWJets,  parameters: [jobParams=2012_X_MC-bg_2534], dataset: /TTWWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTGJets,  parameters: [jobParams=2012_X_MC-bg_2560], dataset: /TTGJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TBZToLL,  parameters: [jobParams=2012_X_MC-bg_2623], dataset: /TBZToLL_4F_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7C-v1/AODSIM}
+  - {label: WWJetsTo2L2Nu,  parameters: [jobParams=2012_X_MC-bg_2700], dataset: /WWJetsTo2L2Nu_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WWWJets,  parameters: [jobParams=2012_X_MC-bg_2710], dataset: /WWWJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WWZNoGstarJets,  parameters: [jobParams=2012_X_MC-bg_2720], dataset: /WWZNoGstarJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WWGJets_chunck1,  parameters: [jobParams=2012_X_MC-bg_2730], dataset: /WWGJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WWGJets_chunck2,  parameters: [jobParams=2012_X_MC-bg_2721], dataset: /WWGJets_8TeV-madgraph_v2/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ZZZNoGstarJets,  parameters: [jobParams=2012_X_MC-bg_2722], dataset: /ZZZNoGstarJets_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WZJetsTo3LNu,  parameters: [jobParams=2012_X_MC-bg_2731], dataset: /WZJetsTo3LNu_TuneZ2_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ZZJetsTo4L,  parameters: [jobParams=2012_X_MC-bg_2732], dataset: /ZZJetsTo4L_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WZJetsTo2L2Q,  parameters: [jobParams=2012_X_MC-bg_2761], dataset: /WZJetsTo2L2Q_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ZZJetsTo2L2Q,  parameters: [jobParams=2012_X_MC-bg_2762], dataset: /ZZJetsTo2L2Q_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: WZJetsTo2QLNu,  parameters: [jobParams=2012_X_MC-bg_2791], dataset: /WZJetsTo2QLNu_8TeV-madgraph/Summer12_DR53X-PU_S10_START53_V7C-v1/AODSIM}
+  - {label: WH,  parameters: [jobParams=2012_X_MC-bg_2924], dataset: /WH_ZH_TTH_HToWW_M-125_8TeV-pythia6/Summer12-PU_S7_START52_V9-v2/AODSIM}
+  - {label: TTJets_up,  parameters: [jobParams=2012_X_MC-bg_3131], dataset: /TTJets_matchingdown_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTJets_down,  parameters: [jobParams=2012_X_MC-bg_4141], dataset: /TTJets_matchingup_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TT_CT10,  parameters: [jobParams=2012_X_MC-bg_6161], dataset: /TT_CT10_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM}
+  - {label: TT,  parameters: [jobParams=2012_X_MC-bg_5151], dataset: /TT_8TeV-mcatnlo/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}

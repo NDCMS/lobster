@@ -82,6 +82,24 @@ If the workers get evicted by condor, the memory and disk settings might need
 adjustment.  Check in them`lobster.py` for minimum settings (currently 1100 Mb for
 memory, 4 Gb for disk).
 
+## Altering the worker environment
+
+The following environment variables may be set to influence the environment
+of the job, and may need adjusting to run on the site:
+<dl>
+  <dt>`PARROT_PATH`</dt>
+  <dd>The path of `parrot_run`.  Default is Notre Dame's AFS.</dd>
+
+  <dt>`PARROT_DEBUG_FLAGS`</dt>
+  <dd>Which debug flags to use.  Default are none.  See the `parrot_run`
+  help for more details.</dd>
+</dl>
+
+To receive CVMFS debug messages from parrot, alter your environment with
+the following command **before** submitting workers:
+
+    export PARROT_DEBUG_FLAGS=cvmfs
+
 # Running at ND
 
 ## Setting up your environment

@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='Lobster',
-    version='0',
+    version='0.0.1',
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',

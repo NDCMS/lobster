@@ -24,36 +24,43 @@ if [ "x$PARROT_ENABLED" != "x" ]; then
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 else
 	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
-		# export MYCACHE=$PWD
-		export MYCACHE=$TMPDIR
-		# export PARROT_DEBUG_FLAGS="-d cvmfs"
-		export PARROT_DEBUG_FLAGS=
 		export CMS_LOCAL_SITE=T3_US_NotreDame
 		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
-		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
-		export PARROT_HELPER=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_helper.so
-		export PARROT_EXEC=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin/parrot_run
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
+		# These are allowed to be modified via the environment
+		# passed to the job (e.g. via condor)
+		export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
+		export PARROT_PATH=${PARROT_PATH:-/afs/nd.edu/user37/ccl/software/cctools-lobster/bin}
+
+		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
+		export PARROT_CACHE=$TMPDIR
+		export PARROT_HELPER=${PARROT_PATH}/parrot_helper.so
+
 		echo ">>> parrot helper: $PARROT_HELPER"
-		echo ">>> content of $MYCACHE:"
-		ls -lt $MYCACHE
+		echo ">>> content of $PARROT_CACHE:"
+		ls -lt $PARROT_CACHE
 
 		echo ">>> fixing JobConfig..."
 		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
 		sname=site-local-config.xml
-		$PARROT_EXEC -t "$MYCACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
+		$PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
 		exit_on_error $? 200 "Failed to fix site configuration!"
 		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
 		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_EXEC $PARROT_DEBUG_FLAGS -m mtab -t "$MYCACHE/ex_parrot_$(whoami)" bash $0 "$*"
+		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi
 
 	source $VO_CMS_SW_DIR/cmsset_default.sh
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 fi
 
+echo
+echo ">>> environment"
+echo "---8<---"
+env
+echo "--->8---"
 echo
 echo ">>> proxy information"
 echo "---8<---"

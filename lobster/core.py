@@ -4,6 +4,7 @@ from lockfile import AlreadyLocked
 import logging
 import os
 import sys
+import traceback
 import yaml
 
 from lobster import cmssw
@@ -163,4 +164,11 @@ def run(args):
                 else:
                     task = None
             if len(tasks) > 0:
-                job_src.release(tasks)
+                try:
+                    job_src.release(tasks)
+                except:
+                    tb = traceback.format_exc()
+                    logging.critical("cannot recover from the following exception:\n" + tb)
+                    for task in tasks:
+                        logging.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
+                    raise

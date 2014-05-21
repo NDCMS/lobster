@@ -54,15 +54,8 @@ else
 		echo ">>> content of $PARROT_CACHE:"
 		ls -lt $PARROT_CACHE
 
-		echo ">>> fixing JobConfig..."
-		sconf=/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/
-		sname=site-local-config.xml
-		$PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" /bin/cp $sconf$sname $sname
-		exit_on_error $? 200 "Failed to fix site configuration!"
-		sed -i -e "s@//pscratch/osg/app/cmssoft/cms/@/cvmfs/cms.cern.ch/@" $sname
-		echo "$sconf$sname	$sname" > mtab
 		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+		exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi
 
 	source $VO_CMS_SW_DIR/cmsset_default.sh

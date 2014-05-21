@@ -37,7 +37,6 @@ if [ "x$PARROT_ENABLED" != "x" ]; then
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 else
 	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
-		export CMS_LOCAL_SITE=T3_US_NotreDame
 		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 

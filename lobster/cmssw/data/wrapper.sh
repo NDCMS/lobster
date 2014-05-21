@@ -14,6 +14,19 @@ exit_on_error() {
 echo "[$(date '+%F %T')] wrapper start"
 date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
+echo "=kernel= "$(uname -a)
+
+echo
+echo ">>> tracing google"
+echo "---8<---"
+traceroute www.google.com
+echo "--->8---"
+echo
+echo ">>> environment at startup"
+echo "---8<---"
+env|sort
+echo "--->8---"
+echo
 
 export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
@@ -57,9 +70,9 @@ else
 fi
 
 echo
-echo ">>> environment"
+echo ">>> environment after sourcing startup scripts"
 echo "---8<---"
-env
+env|sort
 echo "--->8---"
 echo
 echo ">>> proxy information"
@@ -113,7 +126,7 @@ cd "$basedir"
 
 echo
 echo "---8<---"
-env
+env|sort
 echo "--->8---"
 echo
 

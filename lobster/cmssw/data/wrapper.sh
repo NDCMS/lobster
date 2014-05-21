@@ -19,7 +19,7 @@ echo "=kernel= "$(uname -a)
 echo
 echo ">>> tracing google"
 echo "---8<---"
-traceroute www.google.com
+traceroute -w 1 www.google.com
 echo "--->8---"
 echo
 echo ">>> environment at startup"

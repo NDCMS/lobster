@@ -3,7 +3,6 @@ import lockfile
 import logging
 import os
 import sys
-import time
 import yaml
 
 from lobster import cmssw
@@ -96,16 +95,7 @@ def run(args):
             hunger = max(payload - stats.tasks_waiting, 0)
 
             while hunger > 0:
-                t = time.time()
                 jobs = job_src.obtain(50, bijective=args.bijective)
-                with open(os.path.join(config["workdir"], 'debug_lobster_times'), 'a') as f:
-                    delta = time.time() - t
-                    if jobs == None:
-                        size = 0
-                    else:
-                        size = len(jobs)
-                    ratio = delta / float(size) if size != 0 else 0
-                    f.write("CREA {0} {1} {2}\n".format(size, delta, ratio))
 
                 if jobs == None or len(jobs) == 0:
                     break
@@ -143,10 +133,4 @@ def run(args):
                 else:
                     task = None
             if len(tasks) > 0:
-                t = time.time()
                 job_src.release(tasks)
-                with open(os.path.join(config["workdir"], 'debug_lobster_times'), 'a') as f:
-                    delta = time.time() - t
-                    size = len(tasks)
-                    ratio = delta / float(size) if size != 0 else 0
-                    f.write("RECV {0} {1} {2}\n".format(size, delta, ratio))

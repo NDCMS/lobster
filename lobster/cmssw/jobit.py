@@ -2,7 +2,6 @@ from collections import defaultdict
 import os
 import random
 import sqlite3
-import time
 import uuid
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
@@ -199,7 +198,6 @@ class JobitStore:
             a list containing an id, dataset label, file information (id,
             filename), lumi information (id, file id, run, lumi)
         """
-        t = time.time()
 
         rows = [xs for xs in self.db.execute("""
             select label, id, jobits - jobits_done - jobits_running, jobsize
@@ -320,12 +318,6 @@ class JobitStore:
                 lumi_update)
 
         self.db.commit()
-
-        with open(os.path.join(self.config["workdir"], 'debug_sql_times'), 'a') as f:
-            delta = time.time() - t
-            size = len(jobs)
-            ratio = delta / float(size) if size != 0 else 0
-            f.write("CREA {0} {1} {2}\n".format(size, delta, ratio))
 
         return jobs if len(lumi_update) > 0 else None
 

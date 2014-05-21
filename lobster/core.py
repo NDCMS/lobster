@@ -1,5 +1,6 @@
 import daemon
-import lockfile
+from lockfile.pidlockfile import PIDLockFile
+from lockfile import AlreadyLocked
 import logging
 import os
 import sys
@@ -9,6 +10,35 @@ from lobster import cmssw
 from lobster import job
 
 import work_queue as wq
+
+def get_lock(workdir, kill=False):
+    pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
+    try:
+        pidfile.acquire()
+    except AlreadyLocked:
+        if kill:
+            try:
+                os.kill(pidfile.read_pid(), 0)
+            except OSError:
+                pass
+
+            pidfile.break_lock()
+
+            if pidfile.is_locked():
+                pidfile.release()
+        else:
+            print "Another instance of lobster is accessing {0}".format(workdir)
+            raise
+    pidfile.break_lock()
+    return pidfile
+
+def kill(args):
+    with open(args.configfile) as configfile:
+        config = yaml.load(configfile)
+
+    workdir = config['workdir']
+
+    get_lock(workdir, True)
 
 def run(args):
     with open(args.configfile) as configfile:
@@ -35,18 +65,18 @@ def run(args):
                 logging.critical("please renew your proxy")
                 sys.exit(1)
 
-    print "saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
+    print "Saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
 
     if not args.foreground:
         ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
-        print "saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
+        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
 
     with daemon.DaemonContext(
             detach_process=not args.foreground,
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
-            pidfile=lockfile.FileLock(os.path.join(workdir, 'lobster.pid'))):
+            pidfile=get_lock(workdir)):
         logging.basicConfig(
                 datefmt="%Y-%m-%d %H:%M:%S",
                 format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",

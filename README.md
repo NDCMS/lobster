@@ -45,11 +45,11 @@ CMS):
 
 3. Adjusting the configuration file, e.g.:
 
-        vi test/beanprod.yaml
+        vi examples/beanprod.yaml
 
 4. Running lobster
 
-        lobster process test/beanprod.yaml
+        lobster process examples/beanprod.yaml
 
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
@@ -61,11 +61,15 @@ CMS):
 
 5. Starting workers --- see below.
 
-6. Creating summary plots
+6. Stopping lobster
+
+        lobster terminate examples/beanprod.yaml
+
+7. Creating summary plots
 
         lobster plot --outdir <your output directory> <your config/working directory>
 
-7. Publishing
+8. Publishing
 
         lobster publish <labels> <your config/working directory>
 

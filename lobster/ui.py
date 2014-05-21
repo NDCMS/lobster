@@ -3,7 +3,7 @@ import os
 
 from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
-from lobster.core import run
+from lobster.core import kill, run
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
@@ -15,6 +15,9 @@ def boil():
     parser_run.add_argument('-i', '--bijective', action='store_true', default=False,
             help='use a 1-1 mapping for input and output files (process one input file per output file).')
     parser_run.set_defaults(func=run)
+
+    parser_kill = subparsers.add_parser('terminate', help='terminate running lobster instance')
+    parser_kill.set_defaults(func=kill)
 
     parser_plot = subparsers.add_parser('plot', help='plot progress of processing')
     parser_plot.add_argument("--xmin", type=int, default=0, metavar="MIN",

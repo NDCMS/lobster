@@ -2,5 +2,6 @@ id: test
 workdir: work/test
 stageout location: work/test
 
+type: simple
 cmd: sleep 900
 max: 25000

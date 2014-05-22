@@ -29,9 +29,8 @@ class SimpleJobProvider(JobProvider):
         self.__running = 0
         self.__id = 0
 
-        for dir in [self.__workdir, self.__stageoutdir]:
-            if not os.path.exists(dir):
-                os.makedirs(self.__stageoutdir)
+        if not os.path.exists(self.__stageoutdir):
+            os.makedirs(self.__stageoutdir)
 
     def done(self):
         return self.__done == self.__max

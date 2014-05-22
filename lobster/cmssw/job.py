@@ -114,6 +114,7 @@ class JobHandler(object):
             jobits_missed = len(self.__files) - len(files_info.keys())
 
         if failed:
+            events_written = 0
             status = jobit.FAILED
         elif jobits_missed > 0:
             status = jobit.INCOMPLETE

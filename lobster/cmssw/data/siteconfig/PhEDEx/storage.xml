@@ -1,0 +1,29 @@
+<!-- storage.xml for T3_US_NotreDame
+
+    Storage element:  ndcms.crc.nd.edu
+    Storage software: bestman 2.2.1.2
+    Phedex host:      ndcms.crc.nd.edu
+
+    All CMS data are stored using the /store convention
+    Therefore we only need to map:
+           /+store/(.*)
+
+-->
+<storage-mapping>
+
+<!-- Translation rules for LFN to PFN (Logical File Name to Physical File Name 
+     Bestman does not support the srm v1 protocol so we fudge it with a file result
+-->
+
+  <lfn-to-pfn protocol="file"
+    path-match="/+store/(.*)" result="file:/store/$1"/>
+<!-- Xrootd fallback rules -->
+  <lfn-to-pfn protocol="xrootd" destination-match=".*" path-match="/+store/(.*)" result="root://xrootd.unl.edu//store/$1"/>
+
+
+<!-- Translation rules for PFN to LFN (Physical File Name to Logical File Name -->
+
+  <pfn-to-lfn protocol="file"
+    path-match="file:/store/(.*)" result="/store/$1"/>
+</storage-mapping>
+

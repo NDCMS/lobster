@@ -54,7 +54,7 @@ else
 		ls -lt $PARROT_CACHE
 
 		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi
 
 	source $VO_CMS_SW_DIR/cmsset_default.sh

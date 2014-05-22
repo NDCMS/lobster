@@ -9,7 +9,13 @@ setup(
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
     packages=['lobster', 'lobster.cmssw'],
-    package_data={'lobster': ['cmssw/data/job.py', 'cmssw/data/wrapper.sh']},
+    package_data={'lobster': [
+        'cmssw/data/job.py',
+        'cmssw/data/wrapper.sh',
+        'cmssw/data/mtab',
+        'cmssw/data/siteconfig/JobConfig/site-local-config.xml',
+        'cmssw/data/siteconfig/PhEDEx/storage.xml'
+    ]},
     install_requires=[
         'argparse',
         'nose',

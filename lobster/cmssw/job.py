@@ -260,8 +260,10 @@ class JobProvider(job.JobProvider):
 
             inputs = [(os.path.join(self.__workdir, label, config), config),
                       (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig'),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
                       (os.path.join(self.__parrot_path, 'parrot_run'), 'parrot_run'),
                       ]
 

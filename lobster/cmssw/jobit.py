@@ -304,7 +304,8 @@ class JobitStore:
             dataset_update += lumis
             job_update[job] = unique_lumis(lumis)
             lumi_update += [(job, id) for (id, file, run, lumi) in lumis]
-            file_update[id] += unique_lumis(filter(lambda tpl: tpl[1] == file, lumis))
+            for (id, filename) in files:
+                file_update[id] += unique_lumis(filter(lambda tpl: tpl[1] == id, lumis))
 
         self.db.execute(
                 "update datasets set jobits_running=(jobits_running + ?) where id=?",

@@ -128,6 +128,7 @@ class TestSQLBackend(object):
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, jobsize=15))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
+
         (jr, jd, er, ew) = self.interface.db.execute(
                 "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
                 (label,)
@@ -137,6 +138,12 @@ class TestSQLBackend(object):
         assert jd == 0
         assert er == 0
         assert ew == 0
+
+        (jr, jd) = self.interface.db.execute(
+                "select jobits_running, jobits_done from files_test_obtain where filename='/test/0.root'").fetchone()
+
+        assert jr == 3
+        assert jd == 0
 
     def test_return_good(self):
         self.interface.register(
@@ -175,6 +182,18 @@ class TestSQLBackend(object):
         assert er == 600
         assert ew == 100
 
+        (id, jr, jd) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done from files_test_good where filename='/test/0.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 3
+
+        (id, jr, jd) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done from files_test_good where filename='/test/2.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 2
+
     def test_return_bad(self):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis) = self.interface.pop_jobits()[0]
@@ -205,6 +224,12 @@ class TestSQLBackend(object):
         assert jd == 0
         assert er == 0
         assert ew == 0
+
+        (id, jr, jd) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done from files_test_bad where filename='/test/0.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 0
 
     def test_return_ugly(self):
         self.interface.register(
@@ -253,6 +278,18 @@ class TestSQLBackend(object):
         assert jl == 10
         assert er == 120
         assert ew == 50
+
+        (id, jr, jd) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done from files_test_ugly where filename='/test/0.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 2
+
+        (id, jr, jd) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done from files_test_ugly where filename='/test/1.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 0
 
     def test_return_uglier(self):
         self.interface.register(

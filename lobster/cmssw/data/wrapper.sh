@@ -36,8 +36,16 @@ if [ "x$PARROT_ENABLED" != "x" ]; then
 	source $VO_CMS_SW_DIR/cmsset_default.sh
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 else
-	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" && -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh ) ]]; then
-		export HTTP_PROXY="http://ndcms.crc.nd.edu:3128"
+	if [[ ! ( -f "$VO_CMS_SW_DIR/cmsset_default.sh" \
+			&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
+			&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
+		if [ -f /etc/cvmfs/default.local ]; then
+			cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
+			echo ">>> using CVMFS proxy: $cvmfsproxy"
+			export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
+		else
+			export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128}
+		fi
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 		# These are allowed to be modified via the environment

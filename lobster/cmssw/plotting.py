@@ -558,10 +558,26 @@ def plot(args):
                 jobits_done == jobits
             from datasets"""):
         kwargs = {"class": "blink"} if data[-1] == 1 else {}
+
         row = [data[0]] \
                 + map(lambda e: html_tag("div", str(e), style="{float: right}"), data[1:-2]) \
                 + [html_tag("div", data[-2], style="{float: right}", **kwargs)]
         event_stats.append(row)
+
+    summary_data = db.execute("""
+            select 'Total', sum(events), sum(events - events_read), sum(events_read), sum(events_written),
+                '' || round(
+                    max(
+                        sum(jobits_done) * 100.0 / sum(jobits),
+                        sum(events_read) * 100.0 / sum(events)
+                    ), 1) || ' %',
+                sum(jobits_done) == sum(jobits)
+            from datasets""").fetchone()
+
+    row = [summary_data[0]] \
+            + map(lambda e: html_tag("div", str(e), style="{float: right}"), summary_data[1:-2]) \
+            + [html_tag("div", summary_data[-2], style="{float: right}", **kwargs)]
+    event_stats.append(row)
 
     # hosts = vals['host']
     # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')

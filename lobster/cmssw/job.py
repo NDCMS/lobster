@@ -130,6 +130,7 @@ class JobProvider(job.JobProvider):
 
         self.__basedirs = [config['configdir'], config['startdir']]
 
+        self.__chirp = config.get('stageout server', None)
         self.__workdir = config['workdir']
         self.__stageout = config['stageout location']
         self.__sandbox = os.path.join(self.__workdir, 'sandbox')
@@ -265,6 +266,7 @@ class JobProvider(job.JobProvider):
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
                       (os.path.join(self.__parrot_path, 'parrot_run'), 'parrot_run'),
+                      (os.path.join(self.__parrot_path, 'chirp_put'), 'chirp_put'),
                       ]
 
             if os.path.isfile(os.path.join(self.__parrot_path, 'parrot_helper.so')):
@@ -285,18 +287,23 @@ class JobProvider(job.JobProvider):
             handler = JobHandler(id, label, files, lumis, jdir)
             files, lumis = handler.get_job_info()
 
-            with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                pickle.dump((args, files, lumis, self.__taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
-            inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
-
+            stageout = []
             outputs = []
             for filename in self.__outputs[label]:
                 base, ext = os.path.splitext(filename)
                 outname = self.__outputformats[label].format(base=base, ext=ext[1:], id=id)
-                outputs.append((os.path.join(sdir, outname), filename))
 
-            handler.outputs = map(lambda (a, b): a, outputs)
+                handler.outputs.append(os.path.join(sdir, outname))
+                if self.__chirp:
+                    stageout.append((filename, self.__chirp, os.path.join(label, outname)))
+                else:
+                    outputs.append((os.path.join(sdir, outname), filename))
+
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
+
+            with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
+                pickle.dump((args, files, lumis, stageout, self.__taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
+            inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
             cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)
 

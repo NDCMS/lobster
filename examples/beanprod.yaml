@@ -2,6 +2,7 @@ id: <your id here>
 workdir: <your working directory here>
 
 stageout location: <your stageout directory here>
+#  stageout server: "earth.crc.nd.edu:9094"
 sandbox blacklist: ['*DrawPlots*']
 
 dbs url: 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/' #For testing

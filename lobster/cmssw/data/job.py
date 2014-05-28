@@ -79,7 +79,7 @@ def extract_cmssw_times(log_filename, default=None):
 
 (config, data) = sys.argv[1:]
 with open(data, 'rb') as f:
-    (args, files, lumis, taskid, monitorid, syncid) = pickle.load(f)
+    (args, files, lumis, stageout, taskid, monitorid, syncid) = pickle.load(f)
 
 apmonSend(taskid, monitorid, {
             'ExeStart': 'cmsRun',
@@ -157,9 +157,20 @@ for filename in 'cmssw.log report.xml'.split():
             if exit_code == 0:
                 exit_code = 194
 
+stageout_exit_code = 0
+for (localname, server, remotename) in stageout:
+    if os.path.exists(localname):
+        status = subprocess.call(["./chirp_put", localname, server, remotename])
+        if status != 0 and stageout_exit_code == 0:
+            stageout_exit_code = status
+
+if stageout_exit_code != 0:
+    exit_code = 210
+
 print "Execution time", str(times[-1] - times[0])
 print "Exiting with code", str(exit_code)
 print "Reporting ExeExitCode", str(cmssw_exit_code)
+print "Reporting StageOutExitCode", str(stageout_exit_code)
 
 apmonSend(taskid, monitorid, {
             'ExeTime': str(times[-1] - times[0]),
@@ -167,7 +178,7 @@ apmonSend(taskid, monitorid, {
             'JobExitCode': str(exit_code),
             'JobExitReason': '',
             'StageOutSE': ' ndcms.crc.nd.edu',
-            'StageOutExitStatus': '0',
+            'StageOutExitStatus': str(stageout_exit_code),
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
             'CrabUserCpuTime': str(cputime),
             # 'CrabSysCpuTime': '5.91',

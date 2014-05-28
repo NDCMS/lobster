@@ -289,58 +289,6 @@ def plot(args):
 
     xmin = args.xmin * 60 + start_time
 
-    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
-
-    orig_times = wq_stats_raw[:,0].copy()
-    # Convert to seconds since UNIX epoch
-    runtimes = wq_stats_raw[:,0] / 1e6
-    print "First iteration..."
-
-    # Five minute bins (or more, if # of bins exceeds 100)
-    bins = range(xmin, int(runtimes[-1]) + 300, 300)
-    scale = max(len(bins) / 100.0, 1.0)
-    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    wtags += make_histo([runtimes], bins, '', 'Activity', 'activity', top_dir, log=True, vs_time=True)
-
-    transferred = (wq_stats_raw[:,headers['total_bytes_received']] - np.roll(wq_stats_raw[:,headers['total_bytes_received']], 1, 0)) / 1024**3
-    transferred[transferred < 0] = 0
-    transferred_sum = np.cumsum(transferred)
-
-    # One hour bins
-    bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
-    wtags += make_histo([runtimes], bins, '', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
-
-    wtags += make_plot([(runtimes, transferred_sum, '')], '', 'Output (GB)', 'total_output', top_dir, vs_time=True)
-
-    print "Reducing WQ log"
-    wq_stats = reduce(wq_stats_raw, 0, 300.)
-    runtimes = wq_stats[:,0] / 1e6
-
-    wtags += make_plot(([(runtimes, wq_stats[:,headers['workers_busy']], 'busy'),
-               (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
-               (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
-               [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               '', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
-
-    delta_sendtime_raw = (wq_stats[:,headers['total_send_time']] - np.roll(wq_stats[:,headers['total_send_time']], 1, 0))
-    delta_receivetime_raw = (wq_stats[:,headers['total_receive_time']] - np.roll(wq_stats[:,headers['total_receive_time']], 1, 0))
-
-    select = np.logical_and(delta_receivetime_raw >= 0, delta_sendtime_raw >= 0)
-    delta_sendtime = delta_sendtime_raw[select]
-    delta_receivetime = delta_receivetime_raw[select]
-    delta_runtimes = runtimes[select]
-
-    bins = range(xmin, int(runtimes[-1]) + 300, 300)
-    scale = max(len(bins) / 100.0, 1.0)
-    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    delta = float(bins[1] - bins[0]) * 1e6
-
-    wtags += make_histo(
-            [delta_runtimes, delta_runtimes], bins,
-            '', 'Fraction', 'time_fraction', top_dir, vs_time=True,
-            weights=[delta_sendtime / delta, delta_receivetime / delta],
-            label=['send time', 'receive time'])
-
     db = sqlite3.connect(os.path.join(workdir, 'lobster.db'))
     stats = {}
 
@@ -402,6 +350,60 @@ def plot(args):
                 ('b_sent', 'i4'),
                 ('b_output', 'i4')
                 ])
+
+    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
+
+    orig_times = wq_stats_raw[:,0].copy()
+    # Convert to seconds since UNIX epoch
+    runtimes = wq_stats_raw[:,0] / 1e6
+    print "First iteration..."
+
+    # Five minute bins (or more, if # of bins exceeds 100)
+    bins = range(xmin, int(runtimes[-1]) + 300, 300)
+    scale = max(len(bins) / 100.0, 1.0)
+    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
+    wtags += make_histo([runtimes], bins, '', 'Activity', 'activity', top_dir, log=True, vs_time=True)
+
+    transferred = success_jobs['b_output'] / 1024.0**3
+    transferred_histo, transferred_bins = np.histogram(success_jobs['t_retrieved'], bins, weights=success_jobs['b_output'] / 1024.0**3)
+    transferred_sum = np.cumsum(transferred_histo)
+    bin_centers = [(x+y)/2 for x, y in zip(transferred_bins[:-1], transferred_bins[1:])]
+
+    # One hour bins
+    bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
+    wtags += make_histo([success_jobs['t_retrieved']], bins, '', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
+
+    wtags += make_plot([(bin_centers, transferred_sum, '')], '', 'Output (GB)', 'total_output', top_dir, vs_time=True)
+
+    print "Reducing WQ log"
+    wq_stats = reduce(wq_stats_raw, 0, 300.)
+    runtimes = wq_stats[:,0] / 1e6
+
+    wtags += make_plot(([
+               (runtimes, wq_stats[:,headers['workers_busy']], 'busy'),
+               (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
+               (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
+               [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
+               '', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
+
+    delta_sendtime_raw = (wq_stats[:,headers['total_send_time']] - np.roll(wq_stats[:,headers['total_send_time']], 1, 0))
+    delta_receivetime_raw = (wq_stats[:,headers['total_receive_time']] - np.roll(wq_stats[:,headers['total_receive_time']], 1, 0))
+
+    select = np.logical_and(delta_receivetime_raw >= 0, delta_sendtime_raw >= 0)
+    delta_sendtime = delta_sendtime_raw[select]
+    delta_receivetime = delta_receivetime_raw[select]
+    delta_runtimes = runtimes[select]
+
+    bins = range(xmin, int(runtimes[-1]) + 300, 300)
+    scale = max(len(bins) / 100.0, 1.0)
+    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
+    delta = float(bins[1] - bins[0]) * 1e6
+
+    wtags += make_histo(
+            [delta_runtimes, delta_runtimes], bins,
+            '', 'Fraction', 'time_fraction', top_dir, vs_time=True,
+            weights=[delta_sendtime / delta, delta_receivetime / delta],
+            label=['send time', 'receive time'])
 
     total_time_failed = np.sum(failed_jobs['t_allput'])
     total_time_success = np.sum(success_jobs['t_allput'])

@@ -15,6 +15,7 @@ Lobster uses the following error codes:
 |  193 | Failed to write report information
 |  194 | Failed to compress output files
 |  200 | Generic parrot failure
+|  210 | Stageout failure
 |  500 | Publish failure
 
 Error codes lower than 170 may indicate a `cmsRun` problem.

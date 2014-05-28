@@ -40,12 +40,20 @@ else
 			&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
 			&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
 		if [ -f /etc/cvmfs/default.local ]; then
-			cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
-			echo ">>> using CVMFS proxy: $cvmfsproxy"
+			echo
+			echo ">>> trying to get proxy out of"
+			echo "---8<---"
+			cat /etc/cvmfs/default.local
+			echo "--->8---"
+			echo
+			cvmfsproxy=$(cat /etc/cvmfs/default.local|perl -ne '$file  = ""; while (<>) { s/\\\n//; $file .= $_ }; my $proxy = (grep /PROXY/, split("\n", $file))[0]; $proxy =~ s/^.*="?|"$//g; print $proxy;')
+			# cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
+			echo ">>> found CVMFS proxy: $cvmfsproxy"
 			export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
-		else
-			export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128}
 		fi
+
+		export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128;DIRECT}
+		echo ">>> using CVMFS proxy: $HTTP_PROXY"
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 		# These are allowed to be modified via the environment

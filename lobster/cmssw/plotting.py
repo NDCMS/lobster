@@ -119,8 +119,8 @@ def make_frequency_pie(a, name, dir, threshold=0.05):
 
     return save_and_close(dir, name)
 
-def make_pie(vals, labels, name, dir):
-    plt.pie(vals, labels=labels)
+def make_pie(vals, labels, name, dir, **kwargs):
+    plt.pie(vals, labels=labels, **kwargs)
     fig = plt.gcf()
     fig.set_size_inches(3, 3)
     fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
@@ -413,6 +413,7 @@ def plot(args):
     total_failed_time = np.sum(failed_jobs['t_goodput'])
     total_eviction_time = total_time_failed + total_time_success - total_time_good - total_failed_time
     total_overhead_time = np.sum(success_jobs['t_first_ev'] - success_jobs['t_wrapper_start'])
+    total_wait_time = np.sum(success_jobs['t_recv_start'] - success_jobs['t_wrapper_end'])
     total_processing_time = total_time_pure
 
     # Five minute bins, or larger, to keep the number of bins around 100
@@ -530,9 +531,10 @@ def plot(args):
         jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
     jtags += make_pie(
-            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time),
-            ("Eviction", "Failed", "Overhead", "Processing"),
-            "time_split", top_dir)
+            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time, total_wait_time),
+            ("Eviction", "Failed", "Overhead", "Processing", "Stage-out wait"),
+            "time_split", top_dir,
+            colors=('crimson', 'red', 'dodgerblue', 'green', 'skyblue'))
 
     # dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
     # dtags += make_histo(send_bytes,

@@ -8,9 +8,13 @@ CMSSW.
 
 ### CClab tools
 
+Download version 4.2.0rc1 of the cctools from the [Notre Dame Cooperative
+Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml) and install
+them with CVMFS (and, for chirp, globus authentication) enabled.
+
 See [instructions on github](https://github.com/cooperative-computing-lab/cctools)
-of the Notre Dame Cooperative Computing Lab to obtain versions of
-`parrot` and `work_queue`.
+of the Cooperative Computing Lab to obtain current versions of `parrot` and
+`work_queue`.
 
 ### Setuptools
 
@@ -114,13 +118,13 @@ the following command **before** submitting workers:
 
 Use `work_queue` etc from the CC lab:
 
-    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools-lobster/lib/python2.7/site-packages/
-    export PATH=/afs/nd.edu/user37/ccl/software/cctools-lobster/bin:$PATH
+    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
+    export PATH=/afs/nd.edu/user37/ccl/software/cctools/bin:$PATH
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/nd.edu/user37/ccl/software/cctools-lobster/lib/python2.7/site-packages/
-    setenv PATH /afs/nd.edu/user37/ccl/software/cctools-lobster/bin:${PATH}
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
+    setenv PATH /afs/nd.edu/user37/ccl/software/cctools/bin:${PATH}
 
 ## Installing `lobster`
 
@@ -137,13 +141,15 @@ On earth, do something akin to the following commands on earth:
     cp -r /usr/lib/hadoop/ .
     cp /usr/lib64/libhdfs* hadoop/lib/
     env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop \
-        /afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/chirp_server \
-            --root=hdfs://ndcms.crc.nd.edu:19000/
+        /afs/nd.edu/user37/ccl/software/cctools/bin/chirp_server \
+            --root=hdfs://ndcms.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop>
 
 and note the port chirp is running on.  Then add the follow line to your
 lobster configuration and you should be all set:
 
     stageout server: "earth.crc.nd.edu:<your_port>"
+
+This is optional, but will improve performance.
 
 ## Running opportunistically
 

@@ -91,14 +91,14 @@ memory, 4 Gb for disk).
 The following environment variables may be set to influence the environment
 of the job, and may need adjusting to run on the site:
 <dl>
-  <dt>PARROT_PATH</dt>
+  <dt>PARROT\_PATH</dt>
   <dd>The path of <code>parrot_run</code>.  Default is to look
   <code>parrot_run</code> in the <code>PATH</code> environment variable
   where lobster is started and send this version to the worker.  If another
   parrot binary is preferred, set this environment variable to the
   corresponding directory.</dd>
 
-  <dt>PARROT_DEBUG_FLAGS</dt>
+  <dt>PARROT\_DEBUG\_FLAGS</dt>
   <dd>Which debug flags to use.  Default are none.  See the <code>parrot_run</code>
   help for more details.</dd>
 </dl>
@@ -128,6 +128,22 @@ Use the following command to install the python setuptools, then proceed as
 above:
 
     wget --no-check-certificate https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
+
+## Using chirp with hadoop
+
+On earth, do something akin to the following commands on earth:
+
+    cd /var/tmp/
+    cp -r /usr/lib/hadoop/ .
+    cp /usr/lib64/libhdfs* hadoop/lib/
+    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop \
+        /afs/nd.edu/user37/ccl/software/cctools-autobuild/bin/chirp_server \
+            --root=hdfs://ndcms.crc.nd.edu:19000/
+
+and note the port chirp is running on.  Then add the follow line to your
+lobster configuration and you should be all set:
+
+    stageout server: "earth.crc.nd.edu:<your_port>"
 
 ## Running opportunistically
 

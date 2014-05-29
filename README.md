@@ -135,6 +135,15 @@ above:
 
 ## Using chirp with hadoop
 
+Create a file called `acl` with default access permissions in your home
+directory containing the following line:
+
+    globus:<your_globus_id> rwlda
+
+where the globus id can be obtained with the shell command
+
+    voms-proxy-info -identity|sed 's/ /_/g'
+
 On earth, do something akin to the following commands on earth:
 
     cd /var/tmp/

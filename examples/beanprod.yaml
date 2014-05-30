@@ -27,6 +27,7 @@ task defaults:
     # optional renaming of files, based on their basename and extension:
     # output format: "this_is_file_{id}_{base}.{ext}"
     publish label: 'test'
+    #lumis per job: 25 
     matching:
       - label: '^WJets.*' # match all labels starting with "WJets"
         events per job: 5000

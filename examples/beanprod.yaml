@@ -27,6 +27,7 @@ task defaults:
     # optional renaming of files, based on their basename and extension:
     # output format: "this_is_file_{id}_{base}.{ext}"
     publish label: 'test'
+    #lumis per job: 25 
     matching:
       - label: '^WJets.*' # match all labels starting with "WJets"
         events per job: 5000
@@ -139,3 +140,9 @@ tasks:
   - {label: TTJets_down,  parameters: [jobParams=2012_X_MC-bg_4141], dataset: /TTJets_matchingup_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
   - {label: TT_CT10,  parameters: [jobParams=2012_X_MC-bg_6161], dataset: /TT_CT10_TuneZ2star_8TeV-powheg-tauola/Summer12_DR53X-PU_S10_START53_V7A-v2/AODSIM}
   - {label: TT,  parameters: [jobParams=2012_X_MC-bg_5151], dataset: /TT_8TeV-mcatnlo/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: TTJets_MSd_166,  parameters: [jobParams=2012_X_MC-bg_7171], dataset: /TTJets_MSDecays_mass166_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_169,  parameters: [jobParams=2012_X_MC-bg_7172], dataset: /TTJets_MSDecays_mass169_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_171,  parameters: [jobParams=2012_X_MC-bg_7173], dataset: /TTJets_MSDecays_mass171_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_173,  parameters: [jobParams=2012_X_MC-bg_7174], dataset: /TTJets_MSDecays_mass173_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_175,  parameters: [jobParams=2012_X_MC-bg_7175], dataset: /TTJets_MSDecays_mass175_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_178,  parameters: [jobParams=2012_X_MC-bg_7176], dataset: /TTJets_MSDecays_mass178_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}

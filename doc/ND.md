@@ -1,7 +1,7 @@
 # Running at ND
 
 These instructions are not to be followed slavishly.  Customization to fit
-your setup might be neede.
+your setup might be needed.
 
 ## Setting up your environment
 
@@ -27,7 +27,7 @@ Then enter a `CMSSW` release directory and source the software environment:
 
     cmsenv
 
-## Installing `lobster`
+## Installing lobster
 
 Use the following command to install the python setuptools, then proceed as
 above:

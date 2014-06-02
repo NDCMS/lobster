@@ -24,7 +24,7 @@ Install the python `setuptools`, if not already present, with
 
     wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
 
-Now `lobster` can be installed, and any further python dependencies will be
+Now lobster can be installed, and any further python dependencies will be
 installed into your `~/.local` directory.
 
 ## Setup
@@ -33,7 +33,7 @@ Install lobster itself with
 
     easy_install https://github.com/matz-e/lobster/tarball/master
 
-and `lobster` will be installed as `~/.local/bin/lobster`.  Add it to your
+and lobster will be installed as `~/.local/bin/lobster`.  Add it to your
 path with
 
     export PATH=$PATH:$HOME/.local/bin

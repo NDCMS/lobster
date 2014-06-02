@@ -1,5 +1,6 @@
 # master
 
+* Update documentation
 * Do not store an unpacked sandbox
 
 # 0.1.0 "One fish"

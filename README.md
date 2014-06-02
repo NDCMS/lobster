@@ -1,3 +1,5 @@
+**See [special instructions](doc/ND.md) to run at Notre Dame.**
+
 # Installation
 
 Lobster requires Python 2.6.  On SLC/RH 5, the following should be done
@@ -58,11 +60,6 @@ CMS):
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
 
-   To stop lobster, you will need to find its PID and kill it manually.
-   Also check that there is no stale lock file, i.e.,
-   `<workdir>/lobster.pid.lock`, which will keep lobster from running with
-   more than one instance at any time.
-
 5. Starting workers --- see below.
 
 6. Stopping lobster
@@ -112,85 +109,7 @@ the following command **before** submitting workers:
 
     export PARROT_DEBUG_FLAGS=cvmfs
 
-# Running at ND
-
-## Setting up your environment
-
-Use `work_queue` etc from the CC lab:
-
-    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
-    export PATH=/afs/nd.edu/user37/ccl/software/cctools/bin:$PATH
-
-or, for `tcsh` users,
-
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
-    setenv PATH /afs/nd.edu/user37/ccl/software/cctools/bin:${PATH}
-
-## Installing `lobster`
-
-Use the following command to install the python setuptools, then proceed as
-above:
-
-    wget --no-check-certificate https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
-
-## Using chirp with hadoop
-
-Create a file called `acl` with default access permissions in your home
-directory containing the following line:
-
-    globus:<your_globus_id> rwlda
-
-where the globus id can be obtained with the shell command
-
-    voms-proxy-info -identity|sed 's/ /_/g'
-
-On earth, do something akin to the following commands on earth:
-
-    cd /var/tmp/
-    cp -r /usr/lib/hadoop/ .
-    cp /usr/lib64/libhdfs* hadoop/lib/
-    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop \
-        /afs/nd.edu/user37/ccl/software/cctools/bin/chirp_server \
-            --root=hdfs://ndcms.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop>
-
-and note the port chirp is running on.  Then add the follow line to your
-lobster configuration and you should be all set:
-
-    stageout server: "earth.crc.nd.edu:<your_port>"
-
-This is optional, but will improve performance.
-
-## Running opportunistically
-
-The CRC login nodes `opteron`, `newcell`, and `crcfe01` are connected to
-the ND opportunistic computing pool.  On these, multicore jobs are
-preferred and can be run with
-
-    cores=4
-    condor_submit_workers -N lobster_<your_id> --cores $cores \
-        --memory $(($cores * 1100)) --disk $(($cores * 4500)) 10
-
-or, for `tcsh` users,
-
-    set cores=4
-    condor_submit_workers -N lobster_<your_id> --cores $cores \
-        --memory `dc -e "$cores 1100 *p"` --disk `dc -e "$cores 4500 *p"` 10
-
-## Running locally
-
-To submit 10 workers (= 10 cores) to the T3 at ND, run
-
-    condor_submit_workers -N lobster_<your_id> --cores 1 \
-        --memory 1000 --disk 4500 10
-
-on `earth`.
-
-## Monitoring
+# Monitoring
 
 * [CMS dasboard](http://dashb-cms-job.cern.ch/dashboard/templates/web-job2/)
 * [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)
-* [Condor usage](http://condor.cse.nd.edu/condor_matrix.cgi)
-* [NDCMS trends](http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=ndcms.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=)
-  to monitor squid bandwidth
-* [External bandwidth](http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0)
-* `work_queue_status` on the command line

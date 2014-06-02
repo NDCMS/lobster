@@ -42,7 +42,13 @@ to get the most recent version, or
 
     easy_install https://github.com/matz-e/lobster/archive/v1.0.tar.gz
 
-for the latest stable release.
+for the latest stable release.  Then add `.local/bin` to your `PATH`:
+
+    export PATH=$PATH:$HOME/.local/bin
+
+or, for `tcsh` users,
+
+    setenv PATH $PATH:$HOME/.local/bin
 
 ## Running lobster
 

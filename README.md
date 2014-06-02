@@ -60,6 +60,9 @@ CMS):
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
 
+   In case of errors, [here](doc/ErrorCodes.md) is an explanation for
+   custom exit codes of lobster.
+
 5. Starting workers --- see below.
 
 6. Stopping lobster

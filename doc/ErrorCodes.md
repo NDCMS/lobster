@@ -18,4 +18,5 @@ Lobster uses the following error codes:
 |  210 | Stageout failure
 |  500 | Publish failure
 
-Error codes lower than 170 may indicate a `cmsRun` problem.
+Error codes lower than 170 may indicate a `cmsRun` problem, codes
+O(1k) may hint at a CMS configuration or runtime problem.

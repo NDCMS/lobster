@@ -82,6 +82,9 @@ follow these with
 
     tail -f <your_working_directory>/lobster.{err,log}
 
+If you see statements regarding failed jobs (exit code >0), some exit codes
+are listed [here](ErrorCodes.md).
+
 To stop lobster, use
 
     lobster terminate <your_config_file/your_working_directory>

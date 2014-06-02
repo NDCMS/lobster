@@ -126,7 +126,7 @@ directory via: (you will need a valid proxy for this!)
 
 On earth, do something akin to the following commands:
 
-    chirp_server <your_stageout_directory> -A ~/acl -p <your_port>
+    chirp_server --root=<your_stageout_directory> -A ~/acl -p <your_port>
 
 where the default port is `9094`, but may be occupied, in which case it
 should be best to linearly increment this port until you find a free one.

@@ -133,6 +133,9 @@ On earth, do something akin to the following commands:
 
 where the default port is `9094`, but may be occupied, in which case it
 should be best to linearly increment this port until you find a free one.
+**If you are using chirp to stage out to `/store`, limit the connections
+by adding `-M 50` to the arguments.**
+
 You should test chirp on `ndcms` or any other computer than earth:
 
     voms-proxy-init -voms cms -valid 192:00

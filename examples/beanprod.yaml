@@ -29,8 +29,18 @@ task defaults:
     publish label: 'test'
     #lumis per job: 25 
     matching:
-      - label: '^WJets.*' # match all labels starting with "WJets"
-        events per job: 5000
+      - label: '2012[AB]$' #match all labels with 2012A or 2012B
+        lumi mask: examples/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
+      - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
+        lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
+      - label: '2012C$'
+        lumi mask: examples/json/Cert_190456-206098_8TeV_PromptReco_Collisions12_JSON.txt
+      - label: '2012C_24Aug$'
+        lumi mask: examples/json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
+      - label: '2012D$'
+        lumi mask: examples/json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
+      #- label: '^WJets.*' # match all labels starting with "WJets"
+      #  events per job: 5000
 
 tasks:
   - {label: SingleMu_2012A, parameters: [jobParams=2012_A_data-RR_-1], dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}

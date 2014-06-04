@@ -39,8 +39,8 @@ task defaults:
         lumi mask: examples/json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
       - label: '2012D$'
         lumi mask: examples/json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
-      #- label: '^WJets.*' # match all labels starting with "WJets"
-      #  events per job: 5000
+      - label: '^WJets.*' # match all labels starting with "WJets"
+        events per job: 5000
 
 tasks:
   - {label: SingleMu_2012A, parameters: [jobParams=2012_A_data-RR_-1], dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}

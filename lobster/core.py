@@ -164,3 +164,4 @@ def run(args):
                     for task in tasks:
                         logging.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
+        logging.info("no more work left to do")

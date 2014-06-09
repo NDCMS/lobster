@@ -1,5 +1,10 @@
 import logging
 import os
+import itertools
+import gzip
+from functools import partial
+
+from lobster import util
 
 class JobProvider:
     def __init__(self):
@@ -23,11 +28,17 @@ class SimpleJobProvider(JobProvider):
         self.__stageoutdir = config.get('stageout location', os.getcwd())
         self.__cmd = config.get('cmd')
         self.__max = config.get('max')
-        self.__inputs = config.get('inputs', [])
-        self.__outputs = config.get('outputs', [])
+        self.__basedirs = [config['configdir'], config['startdir']]
         self.__done = 0
         self.__running = 0
         self.__id = 0
+        self.__outputs = config.get('outputs', [])
+        self.__inputs = map(
+                partial(util.findpath, self.__basedirs),
+                config.get('inputs', []))
+        self.__cycle_args = None
+        if config.get('cycle args'):
+            self.__cycle_args = itertools.cycle(config['cycle args'])
 
         if not os.path.exists(self.__stageoutdir):
             os.makedirs(self.__stageoutdir)
@@ -46,11 +57,15 @@ class SimpleJobProvider(JobProvider):
                 self.__running += 1
                 self.__id += 1
 
-                inputs = [(x, x) for x in self.__inputs]
+                inputs = [(x, os.path.basename(x)) for x in self.__inputs]
                 outputs = [(os.path.join(self.__stageoutdir, x.replace(x, '%s_%s' % (self.__id, x))), x) for x in self.__outputs]
 
                 logging.info("creating {0}".format(self.__id))
-                tasks.append((str(self.__id), self.__cmd, inputs, outputs))
+
+                cmd = self.__cmd
+                if self.__cycle_args:
+                    cmd += ' %s' % self.__cycle_args.next()
+                tasks.append((str(self.__id), cmd, inputs, outputs))
             else:
                 break
 

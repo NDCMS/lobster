@@ -61,7 +61,12 @@ class SimpleJobProvider(JobProvider):
             self.__running -= 1
             if task.return_status == 0:
                 self.__done += 1
-            logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(id, task.return_status, self.__done, self.__max))
+            logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(task.tag, task.return_status, self.__done, self.__max))
+
+            if task.output:
+                f = gzip.open(os.path.join(self.__stageoutdir, task.tag+'_job.log.gz'), 'wb')
+                f.write(task.output)
+                f.close()
 
     def work_left(self):
         return self.__max - self.__done

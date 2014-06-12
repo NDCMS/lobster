@@ -1,5 +1,6 @@
 import os
 import yaml
+import subprocess
 
 def findpath(dirs, path):
     if len(dirs) == 0:
@@ -33,3 +34,33 @@ def register_checkpoint(workdir, key, value):
     with open(statusfile, 'a') as f:
         yaml.dump({key: value}, f, default_flow_style=False)
 
+def ldd(name):
+    libs = []
+
+    env = dict(os.environ)
+
+    def anti_cms_filter(d):
+        return not (d.startswith('/cvmfs') or 'grid' in d or 'cms' in d)
+
+    env["LD_LIBRARY_PATH"] = os.path.pathsep.join(
+            filter(anti_cms_filter, os.environ.get("LD_LIBRARY_PATH", "").split(os.path.pathsep)))
+    env["PATH"] = os.path.pathsep.join(
+            filter(anti_cms_filter, os.environ.get("PATH", "").split(os.path.pathsep)))
+
+    p = subprocess.Popen(["ldd", which(name)], env=env,
+            stdout=subprocess.PIPE)
+    out, err = p.communicate()
+
+    for line in out.splitlines():
+        fields = line.split()
+
+        if len(fields) < 3 or fields[1] != "=>":
+            continue
+
+        lib = fields[0]
+        target = fields[2]
+
+        if lib.startswith('libssl') or lib.startswith('libcrypto'):
+            libs.append(target)
+
+    return libs

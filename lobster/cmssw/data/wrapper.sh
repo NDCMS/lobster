@@ -31,6 +31,12 @@ echo
 export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
 
+if [ -z "$LD_LIBRARY_PATH" ]; then
+	export LD_LIBRARY_PATH=lib
+else
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:lib
+fi
+
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"
 	source $VO_CMS_SW_DIR/cmsset_default.sh

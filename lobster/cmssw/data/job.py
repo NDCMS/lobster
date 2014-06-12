@@ -160,7 +160,7 @@ for filename in 'cmssw.log report.xml'.split():
 stageout_exit_code = 0
 for (localname, server, remotename) in stageout:
     if os.path.exists(localname):
-        status = subprocess.call(["./chirp_put", localname, server, remotename])
+        status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
         if status != 0 and stageout_exit_code == 0:
             stageout_exit_code = status
 

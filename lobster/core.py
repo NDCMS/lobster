@@ -12,22 +12,11 @@ from lobster import job, util, cmssw
 
 import work_queue as wq
 
-def get_lock(workdir, kill=False):
+def get_lock(workdir):
     pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
     try:
         pidfile.acquire()
     except AlreadyLocked:
-        if kill:
-            try:
-                os.kill(pidfile.read_pid(), 0)
-            except OSError:
-                pass
-
-            pidfile.break_lock()
-
-            if pidfile.is_locked():
-                pidfile.release()
-        else:
             print "Another instance of lobster is accessing {0}".format(workdir)
             raise
     pidfile.break_lock()
@@ -38,8 +27,7 @@ def kill(args):
         config = yaml.load(configfile)
 
     workdir = config['workdir']
-
-    get_lock(workdir, True)
+    util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 def run(args):
     with open(args.configfile) as configfile:
@@ -114,6 +102,10 @@ def run(args):
         payload = 400
 
         while not job_src.done():
+            if util.checkpoint(workdir, 'KILLED') == 'PENDING':
+                util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
+                break
+
             stats = queue.stats
 
             logging.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(

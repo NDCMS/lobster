@@ -280,14 +280,19 @@ def plot(args):
         headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
     wq_stats_raw_all = np.loadtxt(os.path.join(workdir, 'work_queue.log'))
     start_time = wq_stats_raw_all[0,0] / 1e6
-    end_time = wq_stats_raw_all[-1,0]
+    end_time = wq_stats_raw_all[-1,0] / 1e6
 
     if not args.xmax:
         xmax = end_time
-    else:
+    elif args.xmax >= 0:
         xmax = args.xmax * 60 + start_time
+    else:
+        xmax = args.xmax * 60 + end_time
 
-    xmin = args.xmin * 60 + start_time
+    if args.xmin >= 0:
+        xmin = args.xmin * 60 + start_time
+    else:
+        xmin = args.xmin * 60 + end_time
 
     db = sqlite3.connect(os.path.join(workdir, 'lobster.db'))
     stats = {}
@@ -303,7 +308,7 @@ def plot(args):
         time_total_on_worker
         from jobs
         where status=3 and time_retrieved>=? and time_retrieved<=?""",
-        (xmin / 1e6, xmax / 1e6)).fetchall(),
+        (xmin, xmax)).fetchall(),
             dtype=[
                 ('id', 'i4'),
                 ('host', 'a50'),
@@ -317,7 +322,7 @@ def plot(args):
 
     success_jobs = np.array(db.execute("""select * from jobs
         where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
-        (xmin / 1e6, xmax / 1e6)).fetchall(),
+        (xmin, xmax)).fetchall(),
             dtype=[
                 ('id', 'i4'),
                 ('host', 'a50'),
@@ -351,7 +356,7 @@ def plot(args):
                 ('b_output', 'i4')
                 ])
 
-    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] >= xmin, wq_stats_raw_all[:,0] <= xmax),:]
+    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] / 1e6 >= xmin, wq_stats_raw_all[:,0] / 1e6 <= xmax),:]
 
     orig_times = wq_stats_raw[:,0].copy()
     # Convert to seconds since UNIX epoch

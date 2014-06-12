@@ -65,7 +65,7 @@ else
 		# These are allowed to be modified via the environment
 		# passed to the job (e.g. via condor)
 		export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
-		export PARROT_PATH=${PARROT_PATH:-.}
+		export PARROT_PATH=${PARROT_PATH:-./bin}
 
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_CACHE=$TMPDIR

@@ -130,8 +130,8 @@ class JobProvider(job.JobProvider):
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
         self.__parrot_path = os.path.dirname(util.which('parrot_run'))
-        self.__parrot_bin = os.path.join(self.__workdir, 'bin')
-        self.__parrot_lib = os.path.join(self.__workdir, 'lib')
+        self.__parrot_bin = os.path.join(self.workdir, 'bin')
+        self.__parrot_lib = os.path.join(self.workdir, 'lib')
 
         self.__datasets = {}
         self.__configs = {}

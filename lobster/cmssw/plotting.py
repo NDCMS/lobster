@@ -514,7 +514,6 @@ def plot(args):
     put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
     pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1.0, vs['t_allput']) for vs in dset_values]
 
-
     jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)
     jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=dset_labels, stats=True)

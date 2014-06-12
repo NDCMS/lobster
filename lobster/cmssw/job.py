@@ -134,26 +134,20 @@ class JobProvider(job.JobProvider):
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(config)
 
-        statusfile = os.path.join(self.__workdir, 'status.pkl')
-        create = not os.path.exists(statusfile)
-        if create:
-            self.__taskid = 'lobster_{0}_{1}'.format(
-                    self.__config['id'],
-                    sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
-            with open(statusfile, 'wb') as f:
-                pickle.dump(self.__taskid, f, pickle.HIGHEST_PROTOCOL)
+        if config.get('use dashboard', False):
+            logging.info("using dashboard with task id {0}".format(self.taskid))
+            self.__dash = dash.Monitor(self.taskid)
+        else:
+            self.__dash = dash.DummyMonitor(self.taskid)
 
+        if not util.checkpoint(self.workdir, 'sandbox'):
             blacklist = config.get('sandbox blacklist', [])
             sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
+            util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
+            self.__dash.register_run()
         else:
-            with open(statusfile, 'rb') as f:
-                self.__taskid = pickle.load(f)
-
-        if config.get('use dashboard', False):
-            logging.info("using dashboard with task id {0}".format(self.__taskid))
-            self.__dash = dash.Monitor(self.__taskid)
-        else:
-            self.__dash = dash.DummyMonitor(self.__taskid)
+            for id in self.__store.reset_jobits():
+                self.__dash.update_job(id, dash.ABORTED)
 
         defaults = config.get('task defaults', {})
         matching = defaults.get('matching', [])
@@ -192,18 +186,9 @@ class JobProvider(job.JobProvider):
                     for m in cfg_interface.data.outputModules:
                         self.outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 
-            taskdir = os.path.join(self.__workdir, label)
-            stageoutdir = os.path.join(self.__stageout, label)
-            if create:
-                for dir in [taskdir, stageoutdir]:
-                    if not os.path.exists(dir):
-                        os.makedirs(dir)
-                    else:
-                        # TODO warn about non-empty stageout directories
-                        pass
-
-                shutil.copy(util.findpath(self.__basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
-                shutil.copy(config['filepath'], os.path.join(self.__workdir, 'lobster_config.yaml'))
+            taskdir = os.path.join(self.workdir, label)
+            if not util.checkpoint(self.workdir, label):
+                shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
 
                 logging.info("querying backend for {0}".format(label))
                 dataset_info = self.__interface.get_info(cfg)
@@ -215,15 +200,11 @@ class JobProvider(job.JobProvider):
 
                 logging.info("registering {0} in database".format(label))
                 self.__store.register(cfg, dataset_info)
+                util.register_checkpoint(self.workdir, label, 'REGISTERED')
+
             elif os.path.exists(os.path.join(taskdir, 'running')):
                 for d in os.listdir(os.path.join(taskdir, 'running')):
                     shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
-
-        if create:
-            self.__dash.register_run()
-        else:
-            for id in self.__store.reset_jobits():
-                self.__dash.update_job(id, dash.ABORTED)
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job

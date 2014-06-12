@@ -3,12 +3,12 @@ from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 import logging
 import os
+import datetime
 import sys
 import traceback
 import yaml
 
-from lobster import cmssw
-from lobster import job
+from lobster import job, util, cmssw
 
 import work_queue as wq
 

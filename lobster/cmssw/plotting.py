@@ -418,7 +418,8 @@ def plot(args):
     total_failed_time = np.sum(failed_jobs['t_goodput'])
     total_eviction_time = total_time_failed + total_time_success - total_time_good - total_failed_time
     total_overhead_time = np.sum(success_jobs['t_first_ev'] - success_jobs['t_wrapper_start'])
-    total_wait_time = np.sum(success_jobs['t_recv_start'] - success_jobs['t_wrapper_end'])
+    total_stage_in = np.sum(success_jobs['t_wrapper_start'] - success_jobs['t_send_start'])
+    total_stage_out = np.sum(success_jobs['t_recv_end'] - success_jobs['t_wrapper_end'])
     total_processing_time = total_time_pure
 
     # Five minute bins, or larger, to keep the number of bins around 100
@@ -536,8 +537,8 @@ def plot(args):
         jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
 
     jtags += make_pie(
-            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time, total_wait_time),
-            ("Eviction", "Failed", "Overhead", "Processing", "Stage-out wait"),
+            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time, total_stage_out),
+            ("Eviction", "Failed", "Overhead", "Processing", "Stage-out"),
             "time_split", top_dir,
             colors=('crimson', 'red', 'dodgerblue', 'green', 'skyblue'))
 

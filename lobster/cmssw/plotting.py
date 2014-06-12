@@ -452,6 +452,10 @@ def plot(args):
             success_jobs['t_wrapper_start'],
             (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
             bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir, vs_time=True)
+    wtags += make_profile(
+            success_jobs['t_retrieved'],
+            (success_jobs['t_recv_end'] - success_jobs['t_wrapper_end']) / 60.,
+            bins, 'Wrapper end time (m)', 'Stage-out (m)', 'stage-out_vs_time', top_dir, vs_time=True)
 
     fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
     fail_times = [vs['t_retrieved'] for vs in fail_values]

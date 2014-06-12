@@ -114,16 +114,16 @@ def make_frequency_pie(a, name, dir, threshold=0.05):
 
     plt.pie(counts + (rest, ), labels=vals + ('Other', ))
     fig = plt.gcf()
-    fig.set_size_inches(3, 3)
-    fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
+    fig.set_size_inches(4, 3)
+    fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
 
     return save_and_close(dir, name)
 
 def make_pie(vals, labels, name, dir, **kwargs):
     plt.pie(vals, labels=labels, **kwargs)
     fig = plt.gcf()
-    fig.set_size_inches(3, 3)
-    fig.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95)
+    fig.set_size_inches(4, 3)
+    fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
 
     return save_and_close(dir, name)
 

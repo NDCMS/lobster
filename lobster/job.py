@@ -34,6 +34,7 @@ class JobProvider(object):
                 yaml.dump({'id': self.taskid}, f, default_flow_style=False)
         else:
             self.taskid = util.checkpoint(self.workdir, 'id')
+            util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
         for cfg in config['tasks']:
             label = cfg['label']

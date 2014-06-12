@@ -1,14 +1,61 @@
 import logging
 import os
+import datetime
 import itertools
+import shutil
 import gzip
+import pickle
+import yaml
 from functools import partial
+
+from hashlib import sha1
 
 from lobster import util
 
-class JobProvider:
-    def __init__(self):
-        pass
+class JobProvider(object):
+    def __init__(self, config):
+        self.config = config
+        self.basedirs = [config['configdir'], config['startdir']]
+        self.workdir = config.get('workdir', os.getcwd())
+        self.stageout = config.get('stageout location', os.getcwd())
+        self.statusfile = os.path.join(self.workdir, 'status.yaml')
+
+        self.extra_inputs = {}
+        self.args = {}
+        self.outputs = {}
+        self.outputformats = {}
+
+        create = not util.checkpoint(self.workdir, 'id')
+        if create:
+            self.taskid = 'lobster_{0}_{1}'.format(
+                self.config['id'],
+                sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
+            with open(self.statusfile, 'wb') as f:
+                yaml.dump({'id': self.taskid}, f, default_flow_style=False)
+        else:
+            self.taskid = util.checkpoint(self.workdir, 'id')
+
+        for cfg in config['tasks']:
+            label = cfg['label']
+
+            self.extra_inputs[label] = map(
+                    partial(util.findpath, self.basedirs),
+                    cfg.get('extra inputs', []))
+            self.args[label] = cfg.get('parameters', [])
+            self.outputs[label] = []
+            self.outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
+
+            taskdir = os.path.join(self.workdir, label)
+            stageoutdir = os.path.join(self.stageout, label)
+            if create:
+                for dir in [taskdir, stageoutdir]:
+                    if not os.path.exists(dir):
+                        os.makedirs(dir)
+                    else:
+                        # TODO warn about non-empty stageout directories
+                        pass
+
+                shutil.copy(config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
 
     def done(self):
         raise NotImplementedError
@@ -24,24 +71,20 @@ class JobProvider:
 
 class SimpleJobProvider(JobProvider):
     def __init__(self, config):
-        self.__workdir = config.get('workdir', os.getcwd())
-        self.__stageoutdir = config.get('stageout location', os.getcwd())
-        self.__cmd = config.get('cmd')
+        super(SimpleJobProvider, self).__init__(config)
+
+        self.__cmds = {}
         self.__max = config.get('max')
-        self.__basedirs = [config['configdir'], config['startdir']]
         self.__done = 0
         self.__running = 0
         self.__id = 0
-        self.__outputs = config.get('outputs', [])
-        self.__inputs = map(
-                partial(util.findpath, self.__basedirs),
-                config.get('inputs', []))
-        self.__cycle_args = None
-        if config.get('cycle args'):
-            self.__cycle_args = itertools.cycle(config['cycle args'])
+        self.__unique_args = {}
 
-        if not os.path.exists(self.__stageoutdir):
-            os.makedirs(self.__stageoutdir)
+        self.__labels = itertools.cycle([cfg['label'] for cfg in config['tasks']])
+
+        for cfg in config['tasks']:
+            self.__cmds[cfg['label']] = cfg['cmd']
+            self.__unique_args[cfg['label']] = cfg.get('unique parameters', [])
 
     def done(self):
         return self.__done == self.__max
@@ -52,20 +95,28 @@ class SimpleJobProvider(JobProvider):
 
         tasks = []
 
+        label = self.__labels.next()
+        sdir = os.path.join(self.stageout, label)
         for i in range(num):
             if self.__id < self.__max:
                 self.__running += 1
                 self.__id += 1
 
-                inputs = [(x, os.path.basename(x)) for x in self.__inputs]
-                outputs = [(os.path.join(self.__stageoutdir, x.replace(x, '%s_%s' % (self.__id, x))), x) for x in self.__outputs]
+                inputs = [(x, os.path.basename(x)) for x in self.extra_inputs[label]]
+                outputs = []
+                for filename in self.outputs[label]:
+                    base, ext = os.path.splitext(filename)
+                    outname = self.outputformats[label].format(base=base, ext=ext[1:], id=self.__id)
+                    outputs.append((os.path.join(sdir, outname), filename))
 
                 logging.info("creating {0}".format(self.__id))
 
-                cmd = self.__cmd
-                if self.__cycle_args:
-                    cmd += ' %s' % self.__cycle_args.next()
-                tasks.append((str(self.__id), cmd, inputs, outputs))
+                cmd = self.__cmds[label]
+                if self.args[label]:
+                    cmd += ' ' + ' '.join(self.args[label])
+                if self.__unique_args[label]:
+                    cmd += ' %s' % self.__unique_args[label].pop()
+                tasks.append(("{0}_{1}".format(label, self.__id), cmd, inputs, outputs))
             else:
                 break
 
@@ -79,7 +130,8 @@ class SimpleJobProvider(JobProvider):
             logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(task.tag, task.return_status, self.__done, self.__max))
 
             if task.output:
-                f = gzip.open(os.path.join(self.__stageoutdir, task.tag+'_job.log.gz'), 'wb')
+                label, id = task.tag.split('_')
+                f = gzip.open(os.path.join(self.workdir, label, id+'_job.log.gz'), 'wb')
                 f.write(task.output)
                 f.close()
 

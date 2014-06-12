@@ -1,5 +1,4 @@
 from collections import defaultdict
-import datetime
 from functools import partial
 import gzip
 import imp
@@ -11,8 +10,6 @@ import shutil
 import sqlite3
 import time
 import sys
-
-from hashlib import sha1
 
 from lobster import job, util
 import dash
@@ -126,24 +123,16 @@ class JobHandler(object):
 
 class JobProvider(job.JobProvider):
     def __init__(self, config):
-        self.__config = config
-
-        self.__basedirs = [config['configdir'], config['startdir']]
+        super(JobProvider, self).__init__(config)
 
         self.__chirp = config.get('stageout server', None)
-        self.__workdir = config['workdir']
-        self.__stageout = config['stageout location']
-        self.__sandbox = os.path.join(self.__workdir, 'sandbox')
+        self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
         self.__datasets = {}
         self.__configs = {}
-        self.__extra_inputs = {}
-        self.__args = {}
         self.__jobhandlers = {}
-        self.__outputs = {}
-        self.__outputformats = {}
-
         self.__interface = MetaInterface()
+        self.__store = jobit.JobitStore(config)
 
         statusfile = os.path.join(self.__workdir, 'status.pkl')
         create = not os.path.exists(statusfile)
@@ -169,7 +158,6 @@ class JobProvider(job.JobProvider):
         defaults = config.get('task defaults', {})
         matching = defaults.get('matching', [])
 
-        self.__store = jobit.JobitStore(config)
         for cfg in config['tasks']:
             label = cfg['label']
 
@@ -190,17 +178,10 @@ class JobProvider(job.JobProvider):
 
             self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__configs[label] = os.path.basename(cms_config)
-            self.__extra_inputs[label] = map(
-                    partial(util.findpath, self.__basedirs),
-                    cfg.get('extra inputs', []))
-            self.__args[label] = cfg.get('parameters', [])
-            self.__outputs[label] = []
-            self.__outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
-
             self.__parrot_path = os.path.dirname(util.which('parrot_run'))
 
             if cfg.has_key('outputs'):
-                self.__outputs[label].extend(cfg['outputs'])
+                self.outputs[label].extend(cfg['outputs'])
             else:
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
                 with open(cms_config, 'r') as f:
@@ -209,7 +190,7 @@ class JobProvider(job.JobProvider):
                     if hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'): #Possibility: make this mandatory?
                         cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
                     for m in cfg_interface.data.outputModules:
-                        self.__outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
+                        self.outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 
             taskdir = os.path.join(self.__workdir, label)
             stageoutdir = os.path.join(self.__stageout, label)
@@ -228,7 +209,7 @@ class JobProvider(job.JobProvider):
                 dataset_info = self.__interface.get_info(cfg)
 
                 if cfg.has_key('lumi mask'):
-                    lumi_mask = LumiList(filename=util.findpath(self.__basedirs, cfg['lumi mask']))
+                    lumi_mask = LumiList(filename=util.findpath(self.basedirs, cfg['lumi mask']))
                     for file in dataset_info.files:
                         dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
 
@@ -257,9 +238,9 @@ class JobProvider(job.JobProvider):
             ids.append(id)
 
             config = self.__configs[label]
-            args = self.__args[label]
+            args = self.args[label]
 
-            inputs = [(os.path.join(self.__workdir, label, config), config),
+            inputs = [(os.path.join(self.workdir, label, config), config),
                       (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
                       (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
@@ -275,10 +256,10 @@ class JobProvider(job.JobProvider):
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
-            inputs += [(i, os.path.basename(i)) for i in self.__extra_inputs[label]]
+            inputs += [(i, os.path.basename(i)) for i in self.extra_inputs[label]]
 
-            sdir = os.path.join(self.__stageout, label)
-            jdir = os.path.join(self.__workdir, label, 'running', id)
+            sdir = os.path.join(self.stageout, label)
+            jdir = os.path.join(self.workdir, label, 'running', id)
             if not os.path.isdir(jdir):
                 os.makedirs(jdir)
 
@@ -289,9 +270,9 @@ class JobProvider(job.JobProvider):
 
             stageout = []
             outputs = []
-            for filename in self.__outputs[label]:
+            for filename in self.outputs[label]:
                 base, ext = os.path.splitext(filename)
-                outname = self.__outputformats[label].format(base=base, ext=ext[1:], id=id)
+                outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
                 handler.outputs.append(os.path.join(sdir, outname))
                 if self.__chirp:
@@ -302,7 +283,7 @@ class JobProvider(job.JobProvider):
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
             with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                pickle.dump((args, files, lumis, stageout, self.__taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
             inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
             cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)

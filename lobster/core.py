@@ -43,7 +43,10 @@ def run(args):
 
         from ProdCommon.Credential.CredentialAPI import CredentialAPI
         cred = CredentialAPI({'credential': 'Proxy'})
-        if not cred.checkCredential(Time=60):
+        if cred.checkCredential(Time=60):
+            if not 'X509_USER_PROXY' in os.environ:
+                os.environ['X509_USER_PROXY'] = cred.credObj.getUserProxy()
+        else:
             if config.get('check proxy', True):
                 try:
                     cred.ManualRenewCredential()

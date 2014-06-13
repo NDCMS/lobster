@@ -28,6 +28,7 @@ env|sort
 echo "--->8---"
 echo
 
+unset PARROT_HELPER
 export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
 
@@ -69,7 +70,7 @@ else
 
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_CACHE=$TMPDIR
-		export PARROT_HELPER=${PARROT_PATH}/parrot_helper.so
+		export PARROT_HELPER=$PWD/lib/libparrot_helper.so
 
 		echo ">>> parrot helper: $PARROT_HELPER"
 		echo ">>> content of $PARROT_CACHE:"

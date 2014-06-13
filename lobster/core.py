@@ -97,7 +97,8 @@ def run(args):
         queue.specify_log(os.path.join(workdir, "work_queue.log"))
         queue.specify_name("lobster_" + config["id"])
         queue.specify_keepalive_timeout(300)
-# queue.tune("short-timeout", 600)
+        # queue.tune("short-timeout", 600)
+        queue.tune("transfer-outlier-factor", 4)
 
         logging.info("starting queue as {0}".format(queue.name))
         logging.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))

@@ -36,13 +36,33 @@ class JobProvider(object):
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        for cfg in config['tasks']:
+        defaults = self.config.get('task defaults', {})
+        matching = defaults.get('matching', [])
+        configs = []
+
+        for cfg in self.config['tasks']:
             label = cfg['label']
+
+            for match in matching:
+                if re.search(match['label'], label):
+                    for k, v in match.items():
+                        if k == 'label':
+                            continue
+                        if k not in cfg:
+                            cfg[k] = v
+            for k, v in defaults.items():
+                if k == 'matching':
+                    continue
+                if k not in cfg:
+                    cfg[k] = v
+
+            configs.append(cfg)
 
             self.extra_inputs[label] = map(
                     partial(util.findpath, self.basedirs),
                     cfg.get('extra inputs', []))
             self.args[label] = cfg.get('parameters', [])
+
             self.outputs[label] = []
             self.outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
 
@@ -56,7 +76,9 @@ class JobProvider(object):
                         # TODO warn about non-empty stageout directories
                         pass
 
-                shutil.copy(config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
+                shutil.copy(self.config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
+
+        self.config['tasks'] = configs
 
     def done(self):
         raise NotImplementedError

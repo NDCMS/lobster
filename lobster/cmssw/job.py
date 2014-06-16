@@ -126,7 +126,7 @@ class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
 
-        self.__chirp = config.get('stageout server', None)
+        self.__chirp = self.config.get('stageout server', None)
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
         self.__parrot_path = os.path.dirname(util.which('parrot_run'))
@@ -137,17 +137,17 @@ class JobProvider(job.JobProvider):
         self.__configs = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
-        self.__store = jobit.JobitStore(config)
+        self.__store = jobit.JobitStore(self.config)
 
-        if config.get('use dashboard', False):
+        if self.config.get('use dashboard', False):
             logging.info("using dashboard with task id {0}".format(self.taskid))
             self.__dash = dash.Monitor(self.taskid)
         else:
             self.__dash = dash.DummyMonitor(self.taskid)
 
         if not util.checkpoint(self.workdir, 'sandbox'):
-            blacklist = config.get('sandbox blacklist', [])
-            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, config.get('recycle sandbox'))
+            blacklist = self.config.get('sandbox blacklist', [])
+            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, self.config.get('recycle sandbox'))
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
             self.__dash.register_run()
 
@@ -162,26 +162,12 @@ class JobProvider(job.JobProvider):
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
 
-        defaults = config.get('task defaults', {})
-        matching = defaults.get('matching', [])
-
-        for cfg in config['tasks']:
+        for cfg in self.config['tasks']:
             label = cfg['label']
 
-            for match in matching:
-                if re.search(match['label'], label):
-                    for k, v in match.items():
-                        if k == 'label':
-                            continue
-                        if k not in cfg:
-                            cfg[k] = v
-            for k, v in defaults.items():
-                if k == 'matching':
-                    continue
-                if k not in cfg:
-                    cfg[k] = v
-
-            cms_config = cfg['cmssw config']
+            cms_config = cfg.get('cmssw config')
+            if cms_config:
+                self.__configs[label] = os.path.basename(cms_config)
 
             self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__configs[label] = os.path.basename(cms_config)

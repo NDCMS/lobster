@@ -158,6 +158,10 @@ class JobProvider(job.JobProvider):
                 subprocess.check_call(["strip", os.path.join(self.__parrot_bin, exe)])
                 for lib in util.ldd(exe):
                     shutil.copy(lib, self.__parrot_lib)
+
+            head, tail = os.path.split(self.__parrot_path)
+            p_helper = os.path.join(head, 'lib', 'libparrot_helper.so')
+            shutil.copy(p_helper, self.__parrot_lib)
         else:
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
@@ -229,8 +233,6 @@ class JobProvider(job.JobProvider):
                       (self.__parrot_lib, 'lib'),
                       ]
 
-            if os.path.isfile(os.path.join(self.__parrot_path, 'parrot_helper.so')):
-                inputs.append((os.path.join(self.__parrot_path, 'parrot_helper.so'), 'parrot_helper.so'))
 
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))

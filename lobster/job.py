@@ -1,4 +1,5 @@
 import logging
+import re
 import os
 import datetime
 import itertools
@@ -24,6 +25,7 @@ class JobProvider(object):
         self.args = {}
         self.outputs = {}
         self.outputformats = {}
+        self.cmds = {}
 
         create = not util.checkpoint(self.workdir, 'id')
         if create:
@@ -61,10 +63,10 @@ class JobProvider(object):
             self.extra_inputs[label] = map(
                     partial(util.findpath, self.basedirs),
                     cfg.get('extra inputs', []))
+            self.outputs[label] = cfg.get('outputs', [])
             self.args[label] = cfg.get('parameters', [])
-
-            self.outputs[label] = []
             self.outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
+            self.cmds[label] = cfg.get('cmd')
 
             taskdir = os.path.join(self.workdir, label)
             stageoutdir = os.path.join(self.stageout, label)
@@ -96,18 +98,12 @@ class SimpleJobProvider(JobProvider):
     def __init__(self, config):
         super(SimpleJobProvider, self).__init__(config)
 
-        self.__cmds = {}
         self.__max = config.get('max')
         self.__done = 0
         self.__running = 0
         self.__id = 0
-        self.__unique_args = {}
 
         self.__labels = itertools.cycle([cfg['label'] for cfg in config['tasks']])
-
-        for cfg in config['tasks']:
-            self.__cmds[cfg['label']] = cfg['cmd']
-            self.__unique_args[cfg['label']] = cfg.get('unique parameters', [])
 
     def done(self):
         return self.__done == self.__max
@@ -134,12 +130,8 @@ class SimpleJobProvider(JobProvider):
 
                 logging.info("creating {0}".format(self.__id))
 
-                cmd = self.__cmds[label]
-                if self.args[label]:
-                    cmd += ' ' + ' '.join(self.args[label])
-                if self.__unique_args[label]:
-                    cmd += ' %s' % self.__unique_args[label].pop()
-                tasks.append(("{0}_{1}".format(label, self.__id), cmd, inputs, outputs))
+                cmd = '{0} {1}'.format(self.cmds[label], ' '.join(self.args[label]))
+                tasks.append(('{0}_{1}'.format(label, self.__id), cmd, inputs, outputs))
             else:
                 break
 
@@ -153,7 +145,8 @@ class SimpleJobProvider(JobProvider):
             logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(task.tag, task.return_status, self.__done, self.__max))
 
             if task.output:
-                label, id = task.tag.split('_')
+                label = task.tag[:task.tag.rfind('_')]
+                id = task.tag[task.tag.rfind('_')+1:]
                 f = gzip.open(os.path.join(self.workdir, label, id+'_job.log.gz'), 'wb')
                 f.write(task.output)
                 f.close()

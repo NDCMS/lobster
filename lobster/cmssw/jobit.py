@@ -136,7 +136,7 @@ class JobitStore:
                            os.path.basename(os.environ['LOCALRT']),
                            dataset_cfg.get('global tag'),
                            dataset_cfg.get('publish label', dataset_cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
-                           dataset_cfg['cmssw config'],
+                           dataset_cfg.get('cmssw config'),
                            self.uuid,
                            dataset_info.file_based,
                            dataset_info.jobsize,

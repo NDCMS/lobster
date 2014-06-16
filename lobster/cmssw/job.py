@@ -174,11 +174,8 @@ class JobProvider(job.JobProvider):
                 self.__configs[label] = os.path.basename(cms_config)
 
             self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
-            self.__configs[label] = os.path.basename(cms_config)
 
-            if cfg.has_key('outputs'):
-                self.outputs[label].extend(cfg['outputs'])
-            else:
+            if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
                 with open(cms_config, 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
@@ -190,7 +187,8 @@ class JobProvider(job.JobProvider):
 
             taskdir = os.path.join(self.workdir, label)
             if not util.checkpoint(self.workdir, label):
-                shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
+                if cms_config:
+                    shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
 
                 logging.info("querying backend for {0}".format(label))
                 dataset_info = self.__interface.get_info(cfg)
@@ -220,12 +218,9 @@ class JobProvider(job.JobProvider):
         for (id, label, files, lumis) in jobinfos:
             ids.append(id)
 
-            config = self.__configs[label]
-            args = self.args[label]
+            cms_config = self.__configs.get(label)
 
-            inputs = [(os.path.join(self.workdir, label, config), config),
-                      (self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
+            inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
                       (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
@@ -233,6 +228,10 @@ class JobProvider(job.JobProvider):
                       (self.__parrot_lib, 'lib'),
                       ]
 
+            if cms_config:
+                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
+                               (os.path.join(self.workdir, label, cms_config), cms_config)
+                               ])
 
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
@@ -261,13 +260,17 @@ class JobProvider(job.JobProvider):
                 else:
                     outputs.append((os.path.join(sdir, outname), filename))
 
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
+            args = self.args[label]
+            if not cms_config:
+                cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
+            else:
+                outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
-            with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
-            inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+                with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
+                    pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
+                inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
-            cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(config)
+                cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(cms_config)
 
             tasks.append((id, cmd, inputs, outputs))
 

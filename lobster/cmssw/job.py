@@ -27,7 +27,7 @@ class JobHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, lumis, jdir):
+    def __init__(self, id, dataset, files, lumis, jdir, cmssw_job):
         self.__id = id,
         self.__dataset = dataset
         self.__files = files
@@ -35,6 +35,11 @@ class JobHandler(object):
         self.__lumis = lumis
         self.__jobdir = jdir
         self.__outputs = []
+        self.__cmssw_job = cmssw_job
+
+    @property
+    def cmssw_job(self):
+        return self.__cmssw_job
 
     @property
     def dataset(self):
@@ -218,6 +223,7 @@ class JobProvider(job.JobProvider):
         for (id, label, files, lumis) in jobinfos:
             ids.append(id)
 
+            cmssw_job = self.__configs.has_key(label)
             cms_config = self.__configs.get(label)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
@@ -228,7 +234,7 @@ class JobProvider(job.JobProvider):
                       (self.__parrot_lib, 'lib'),
                       ]
 
-            if cms_config:
+            if cmssw_job:
                 inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
                                (os.path.join(self.workdir, label, cms_config), cms_config)
                                ])
@@ -245,7 +251,7 @@ class JobProvider(job.JobProvider):
 
             monitorid, syncid = self.__dash.register_job(id)
 
-            handler = JobHandler(id, label, files, lumis, jdir)
+            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job)
             files, lumis = handler.get_job_info()
 
             stageout = []
@@ -261,7 +267,7 @@ class JobProvider(job.JobProvider):
                     outputs.append((os.path.join(sdir, outname), filename))
 
             args = self.args[label]
-            if not cms_config:
+            if not cmssw_job:
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
@@ -296,20 +302,20 @@ class JobProvider(job.JobProvider):
                 f.write(task.output)
                 f.close()
 
-            try:
-                with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
-                    files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime = pickle.load(f)
-            except (EOFError, IOError) as e:
-                logging.error("error processing {0}:\n{1}".format(task.tag, e))
+            files_info = {}
+            files_skipped = []
+            events_written = 0
+            task_times = [None] * 6
+            cmssw_exit_code = None
+            cputime = 0
 
-                failed = True
-
-                files_info = {}
-                files_skipped = []
-                events_written = 0
-                task_times = [None] * 6
-                cmssw_exit_code = None
-                cputime = 0
+            if handler.cmssw_job:
+                try:
+                    with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
+                        files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime = pickle.load(f)
+                except (EOFError, IOError) as e:
+                    failed = True
+                    logging.error("error processing {0}:\n{1}".format(task.tag, e))
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code

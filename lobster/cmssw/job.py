@@ -271,8 +271,9 @@ class JobProvider(job.JobProvider):
             else:
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
+                sum = self.config.get('cmssw summary', True)
                 with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                    pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid), f, pickle.HIGHEST_PROTOCOL)
+                    pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
                 inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(cms_config)

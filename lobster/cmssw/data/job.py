@@ -18,13 +18,15 @@ from ProdCommon.FwkJobRep.ReportParser import readJobReport
 fragment = """import FWCore.ParameterSet.Config as cms
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
 
-def edit_process_source(cmssw_config_file, files, lumis, events=-1):
+def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1):
     with open(cmssw_config_file, 'a') as config:
         frag = fragment.format(events=events)
         if any([f for f in files]):
             frag += "\nprocess.source.fileNames = cms.untracked.vstring({input_files})".format(input_files=repr([str(f) for f in files]))
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis.getVLuminosityBlockRange()])
+        if want_summary:
+            frag += "\nprocess.options.wantSummary = cms.untracked.bool(True)"
         print "--- config file fragment:"
         print frag
         print "---"
@@ -79,7 +81,7 @@ def extract_cmssw_times(log_filename, default=None):
 
 (config, data) = sys.argv[1:]
 with open(data, 'rb') as f:
-    (args, files, lumis, stageout, taskid, monitorid, syncid) = pickle.load(f)
+    (args, files, lumis, stageout, taskid, monitorid, syncid, want_summary) = pickle.load(f)
 
 apmonSend(taskid, monitorid, {
             'ExeStart': 'cmsRun',

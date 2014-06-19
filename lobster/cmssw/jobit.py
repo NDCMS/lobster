@@ -235,12 +235,12 @@ class JobitStore:
                 rows += lumis
         else:
             for i in range(0, len(files), 40):
-                chunck = files[i:i + 40]
+                chunk = files[i:i + 40]
                 rows.extend(self.db.execute("""
                     select id, file, run, lumi, arg
                     from jobits_{0}
                     where file in ({1}) and (status<>1 and status<>2 and status<>6)
-                    """.format(dataset, ', '.join('?' for _ in chunck)), chunck))
+                    """.format(dataset, ', '.join('?' for _ in chunk)), chunk))
 
         # files and lumis for individual jobs
         files = set()

@@ -164,8 +164,7 @@ class JobProvider(job.JobProvider):
                 for lib in util.ldd(exe):
                     shutil.copy(lib, self.__parrot_lib)
 
-            head, tail = os.path.split(self.__parrot_path)
-            p_helper = os.path.join(head, 'lib', 'libparrot_helper.so')
+            p_helper = os.path.join(os.path.dirname(self.__parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
             shutil.copy(p_helper, self.__parrot_lib)
         else:
             for id in self.__store.reset_jobits():

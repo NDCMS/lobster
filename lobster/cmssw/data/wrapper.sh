@@ -11,22 +11,23 @@ exit_on_error() {
 	fi
 }
 
+print_output() {
+	echo
+	echo ">>> $1"
+	shift
+	echo "---8<---"
+	eval $*
+	echo "--->8---"
+	echo
+}
+
 echo "[$(date '+%F %T')] wrapper start"
 date +%s > t_wrapper_start
 echo "=hostname= "$(hostname)
 echo "=kernel= "$(uname -a)
 
-echo
-echo ">>> tracing google"
-echo "---8<---"
-traceroute -w 1 www.google.com
-echo "--->8---"
-echo
-echo ">>> environment at startup"
-echo "---8<---"
-env|sort
-echo "--->8---"
-echo
+print_output "tracing google" traceroute -w 1 www.google.com
+print_output "environment at startup" env\|sort
 
 unset PARROT_HELPER
 export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
@@ -47,12 +48,8 @@ else
 			&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
 			&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
 		if [ -f /etc/cvmfs/default.local ]; then
-			echo
-			echo ">>> trying to get proxy out of"
-			echo "---8<---"
-			cat /etc/cvmfs/default.local
-			echo "--->8---"
-			echo
+			print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
+
 			cvmfsproxy=$(cat /etc/cvmfs/default.local|perl -ne '$file  = ""; while (<>) { s/\\\n//; $file .= $_ }; my $proxy = (grep /PROXY/, split("\n", $file))[0]; $proxy =~ s/^.*="?|"$//g; print $proxy;')
 			# cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
 			echo ">>> found CVMFS proxy: $cvmfsproxy"
@@ -73,8 +70,7 @@ else
 		export PARROT_HELPER=$PWD/lib/libparrot_helper.so
 
 		echo ">>> parrot helper: $PARROT_HELPER"
-		echo ">>> content of $PARROT_CACHE:"
-		ls -lt $PARROT_CACHE
+		print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
 
 		echo ">>> starting parrot to access CMSSW..."
 		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
@@ -84,22 +80,9 @@ else
 	source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 fi
 
-echo
-echo ">>> environment after sourcing startup scripts"
-echo "---8<---"
-env|sort
-echo "--->8---"
-echo
-echo ">>> proxy information"
-echo "---8<---"
-env X509_USER_PROXY=proxy voms-proxy-info
-echo "--->8---"
-echo
-echo ">>> working directory at startup"
-echo "---8<---"
-ls -l
-echo "--->8---"
-echo
+print_output "environment after sourcing startup scripts" env\|sort
+print_output "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
+print_output "working directory at startup" ls -l
 
 tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
@@ -111,12 +94,8 @@ old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment
 
 export SCRAM_ARCH=$arch
 
-echo
-echo ">>> working directory before release fixing"
-echo "---8<---"
-ls -l
-echo "--->8---"
-echo
+print_output "working directory before release fixing" ls -l
+
 echo ">>> creating new release $rel"
 mkdir tmp || exit_on_error $? 173 "Failed to create temporary directory"
 cd tmp
@@ -139,31 +118,18 @@ done
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 
-echo
-echo "---8<---"
-env|sort
-echo "--->8---"
-echo
+print_output "environment before execution" env\|sort
 
-echo
 echo "[$(date '+%F %T')] wrapper ready"
 date +%s > t_wrapper_ready
-echo
-echo ">>> working directory before execution"
-echo "---8<---"
-ls -l
-echo "--->8---"
-echo
+
+print_output "working directory before execution" ls -l
 
 $*
 res=$?
 
-echo
-echo ">>> working directory after execution"
-echo "---8<---"
-ls -l
-echo "--->8---"
-echo
+print_output "working directory after execution" ls -l
+
 echo "[$(date '+%F %T')] wrapper done"
 
 exit $res

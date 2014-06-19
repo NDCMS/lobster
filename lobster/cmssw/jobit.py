@@ -112,6 +112,7 @@ class JobitStore:
 
     def register(self, dataset_cfg, dataset_info):
         label = dataset_cfg['label']
+        unique_args = dataset_cfg.get('unique parameters', [None])
 
         cur = self.db.cursor()
         cur.execute("""insert into datasets
@@ -140,8 +141,8 @@ class JobitStore:
                            self.uuid,
                            dataset_info.file_based,
                            dataset_info.jobsize,
-                           dataset_info.total_lumis,
-                           dataset_info.total_lumis,
+                           dataset_info.total_lumis * len(unique_args),
+                           dataset_info.total_lumis * len(unique_args),
                            dataset_info.total_events,
                            sum(dataset_info.filesizes.values())))
         dset_id = cur.lastrowid
@@ -164,6 +165,7 @@ class JobitStore:
             lumi integer,
             file integer,
             status integer default 0,
+            arg text,
             foreign key(job) references jobs(id),
             foreign key(file) references files(id))""".format(label))
 
@@ -171,14 +173,15 @@ class JobitStore:
             file_lumis = len(dataset_info.lumis[file])
             cur.execute(
                     """insert into files_{0}(jobits, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
-                        file_lumis,
+                        file_lumis * len(unique_args),
                         dataset_info.event_counts[file],
                         file,
                         dataset_info.filesizes[file]))
             file_id = cur.lastrowid
 
-            columns = [(file_id, run, lumi) for (run, lumi) in dataset_info.lumis[file]]
-            self.db.executemany("insert into jobits_{0}(file, run, lumi) values (?, ?, ?)".format(label), columns)
+            for arg in unique_args:
+                columns = [(file_id, run, lumi, arg) for (run, lumi) in dataset_info.lumis[file]]
+                self.db.executemany("insert into jobits_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), columns)
 
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
         self.db.execute("create index if not exists index_events_{0} on jobits_{0}(run, lumi)".format(label))
@@ -222,7 +225,7 @@ class JobitStore:
             size = []
             for file in files:
                 lumis = self.db.execute("""
-                    select id, file, run, lumi
+                    select id, file, run, lumi, arg
                     from jobits_{0}
                     where file=? and (status<>1 and status<>2 and status<>6)""".format(dataset), (file,))
                 size.append(len(lumis))
@@ -234,7 +237,7 @@ class JobitStore:
             for i in range(0, len(files), 40):
                 chunck = files[i:i + 40]
                 rows.extend(self.db.execute("""
-                    select id, file, run, lumi
+                    select id, file, run, lumi, arg
                     from jobits_{0}
                     where file in ({1}) and (status<>1 and status<>2 and status<>6)
                     """.format(dataset, ', '.join('?' for _ in chunck)), chunck))
@@ -250,7 +253,7 @@ class JobitStore:
         jobs = []
         current_size = 0
 
-        for id, file, run, lumi in rows:
+        for id, file, run, lumi, arg in rows:
             if (run, lumi) in all_lumis:
                 continue
 
@@ -280,7 +283,8 @@ class JobitStore:
                     str(job_id),
                     dataset,
                     [(id, fileinfo[id]) for id in files],
-                    lumis))
+                    lumis,
+                    arg))
 
                 files = set()
                 lumis = set()
@@ -293,14 +297,15 @@ class JobitStore:
                 str(job_id),
                 dataset,
                 [(id, fileinfo[id]) for id in files],
-                lumis))
+                lumis,
+                arg))
 
         dataset_update = []
         file_update = defaultdict(int)
         job_update = defaultdict(int)
         lumi_update = []
 
-        for (job, label, files, lumis) in jobs:
+        for (job, label, files, lumis, arg) in jobs:
             dataset_update += lumis
             job_update[job] = unique_lumis(lumis)
             lumi_update += [(job, id) for (id, file, run, lumi) in lumis]

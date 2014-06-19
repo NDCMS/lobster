@@ -219,7 +219,7 @@ class JobProvider(job.JobProvider):
         tasks = []
         ids = []
 
-        for (id, label, files, lumis) in jobinfos:
+        for (id, label, files, lumis, unique_arg) in jobinfos:
             ids.append(id)
 
             cmssw_job = self.__configs.has_key(label)
@@ -265,7 +265,7 @@ class JobProvider(job.JobProvider):
                 else:
                     outputs.append((os.path.join(sdir, outname), filename))
 
-            args = self.args[label]
+            args = [x for x in self.args[label] + [unique_arg] if x]
             if not cmssw_job:
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:

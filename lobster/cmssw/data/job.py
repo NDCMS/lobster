@@ -100,7 +100,7 @@ shutil.copy2(config, configfile)
 env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 
-edit_process_source(configfile, files, lumis)
+edit_process_source(configfile, files, lumis, want_summary)
 
 # exit_code = subprocess.call('python "{0}" {1}'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)
 exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(configfile, ' '.join(map(repr, args))), shell=True, env=env)

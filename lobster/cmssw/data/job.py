@@ -16,6 +16,9 @@ from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 fragment = """import FWCore.ParameterSet.Config as cms
+process.Timing = cms.Service("Timing",
+    useJobReport = cms.untracked.bool(True),
+    summaryOnly = cms.untracked.bool(True))
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
 
 def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1):

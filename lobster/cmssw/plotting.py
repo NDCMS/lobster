@@ -4,11 +4,14 @@ from os.path import expanduser
 from collections import defaultdict
 from datetime import datetime
 import glob
+import gzip
+import jinja2
 import math
+import multiprocessing
 import os
 import pytz
+import shutil
 import sqlite3
-import gzip
 import yaml
 
 import matplotlib
@@ -21,196 +24,6 @@ matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
 matplotlib.rc('font', **{'sans-serif' : 'DejaVu LGC Sans', 'family' : 'sans-serif'})
-
-class SmartList(list):
-    """Stupid extended list."""
-    def __init__(self, *args, **kwargs):
-        list.__init__(self, *args, **kwargs)
-    def __add__(self, other):
-        return super(SmartList, self).__add__([other])
-    def __iadd__(self, other):
-        return super(SmartList, self).__iadd__([other])
-
-def html_tag(tag, *args, **kwargs):
-    attr = " ".join(['{0}="{1}"'.format(a, b.replace('"', r'\"')) for a, b in kwargs.items()])
-    return '<{0}>\n{1}\n</{2}>\n'.format(" ".join([tag, attr]), "\n".join(args), tag)
-
-def html_table(headers, rows, **kwargs):
-    import itertools
-    row_classes = itertools.cycle([{"class": "alt"}, {}])
-
-    top = [html_tag('tr', *(html_tag('th', h) for h in headers))]
-    body = []
-    for row, args in itertools.izip(rows, row_classes):
-        body.append(html_tag('tr', *(html_tag('td', x) for x in row), **args))
-
-    return html_tag('table', *(top+body), **kwargs)
-
-def unix2matplotlib(time):
-    return dates.date2num(datetime.fromtimestamp(time, pytz.utc))
-
-def make_histo(a, num_bins, xlabel, ylabel, filename, dir, vs_time=False, **kwargs):
-    # fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True)
-
-    fig, ax = plt.subplots()
-
-    if vs_time:
-        f = np.vectorize(unix2matplotlib)
-        a = map(lambda xs: f(xs) if len(xs) > 0 else xs, a)
-        interval = 2**math.floor(math.log((num_bins[-1] - num_bins[0]) / 9000.0) / math.log(2))
-        num_bins = map(unix2matplotlib, num_bins)
-        ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
-        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-
-    if 'log' in kwargs:
-        if kwargs['log'] == True or kwargs['log'] == 'y':
-            ax.set_yscale('log')
-        elif kwargs['log'] == 'x':
-            ax.set_xscale('log')
-        del kwargs['log']
-
-    if 'stats' in kwargs:
-        stats = kwargs['stats']
-        del kwargs['stats']
-    else:
-        stats = False
-
-    if 'histtype' in kwargs:
-        ax.hist(a, bins=num_bins, **kwargs)
-    else:
-        ax.hist(a, bins=num_bins, histtype='barstacked', **kwargs)
-
-    ax.grid(True)
-
-    if stats:
-        all = np.concatenate(a)
-        avg = np.average(all)
-        var = np.std(all)
-        med = np.median(all)
-        ax.text(0.75, 0.7,
-                u"μ = {0:.3g}, σ = {1:.3g}\nmedian = {2:.3g}".format(avg, var, med),
-                ha="center", transform=ax.transAxes, backgroundcolor='white')
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-
-    try:
-        ax.axis(xmin=num_bins[0], xmax=num_bins[-1])
-    except:
-        pass
-
-    if 'label' in kwargs:
-        ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
-
-    return save_and_close(dir, filename)
-
-def make_frequency_pie(a, name, dir, threshold=0.05):
-    vals = np.unique(a)
-    counts = [len(a[a == v]) for v in vals]
-    total = sum(counts)
-
-    counts, vals = zip(*filter(lambda (c, l): c / float(total) >= threshold, zip(counts, vals)))
-    rest = total - sum(counts)
-
-    plt.pie(counts + (rest, ), labels=vals + ('Other', ))
-    fig = plt.gcf()
-    fig.set_size_inches(4, 3)
-    fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
-
-    return save_and_close(dir, name)
-
-def make_pie(vals, labels, name, dir, **kwargs):
-    plt.pie(vals, labels=labels, **kwargs)
-    fig = plt.gcf()
-    fig.set_size_inches(4, 3)
-    fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
-
-    return save_and_close(dir, name)
-
-def make_plot(tuples, x_label, y_label, name, dir, fun=matplotlib.axes.Axes.plot, y_label2=None, log=False, vs_time=False, **kwargs):
-    fig, ax1 = plt.subplots()
-
-    if log == True or log == 'y':
-        ax1.set_yscale('log')
-    elif log == 'x':
-        ax1.set_xscale('log')
-
-    plots1 = tuples[0] if y_label2 else tuples
-
-    if vs_time:
-        f = np.vectorize(unix2matplotlib)
-        interval = 2**math.floor(math.log((plots1[0][0][-1] - plots1[0][0][0]) / 9000.0) / math.log(2))
-        ax1.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
-        ax1.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-
-    for x, y, l in plots1:
-        if vs_time:
-            x = f(x)
-        fun(ax1, x, y, label=l)
-
-    ax1.set_xlabel(x_label)
-    ax1.set_ylabel(y_label)
-    ax1.grid(True)
-
-    if y_label2:
-        ax2 = ax1.twinx()
-        if vs_time:
-            ax2.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
-            ax2.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-
-        for x, y, l in tuples[1]:
-            if vs_time:
-                x = f(x)
-            fun(ax2, x, y, ':', label=l)
-        ax2.set_ylabel(y_label2)
-        ax2.legend(bbox_to_anchor=(0.975, 0.9),
-                loc='lower right',
-                ncol=len(tuples[1]),
-                prop={'size': 7})
-
-    ax1.legend(bbox_to_anchor=(0.025 if y_label2 else 0.5, 0.9),
-            loc='lower left' if y_label2 else 'lower center',
-            ncol=len(plots1),
-            prop={'size': 7})
-
-    return save_and_close(dir, name)
-
-def make_profile(x, y, bins, xlabel, ylabel, name, dir, vs_time=False):
-    fig, ax = plt.subplots()
-
-    if vs_time:
-        f = np.vectorize(unix2matplotlib)
-        x = map(lambda xs: f(xs), x)
-        interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
-        bins = map(unix2matplotlib, bins)
-        ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=interval))
-        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-
-    sums, edges = np.histogram(x, bins=bins, weights=y)
-    squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
-    counts, edges = np.histogram(x, bins=bins)
-    avg = np.divide(sums, counts)
-    avg_sq = np.divide(squares, counts)
-    err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    centers = [(x + y) / 2.0 for x, y in zip(edges[:-1], edges[1:])]
-    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
-    ax.axis(xmin=bins[0], xmax=bins[-1], ymin=0)
-    ax.grid(True)
-
-    return save_and_close(dir, name)
-
-def make_scatter(x, y, bins, xlabel, ylabel, name, dir, yrange=None):
-    plt.hexbin(x, y, cmap=plt.cm.Purples, gridsize=(len(bins) - 1, 10))
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    if yrange is not None:
-        plt.ylim(yrange)
-    plt.axis(xmax=bins[-1])
-
-    return save_and_close(dir, name)
 
 def reduce(a, idx, interval):
     quant = a[:,idx]
@@ -243,445 +56,586 @@ def split_by_column(a, col, key=lambda x: x, threshold=None):
 
     return keys, vals
 
-def save_and_close(dir, name):
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    print "Saving", name
-    # plt.gcf().set_size_inches(6, 1.5)
+def unpack(source, target):
+    try:
+        print "unpacking", source
+        with open(target, 'w') as output:
+            input = gzip.open(source, 'rb')
+            output.writelines(input)
+            input.close()
+        print "unpacked into", target
+    except IOError:
+        print "cannot unpack", source
+        return False
+    return True
 
-    plt.savefig(os.path.join(dir, '%s.png' % name))
-    # plt.savefig(os.path.join(dir, '%s.pdf' % name))
+class Plotter(object):
+    TIME = 1
+    HIST = 2
+    PLOT = 4
+    PROF = 8
 
-    plt.close()
+    def __init__(self, args):
+        with open(args.configfile) as configfile:
+            config = yaml.load(configfile)
 
-    return html_tag("img", src='{0}.png'.format(name))
+        self.__workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
+        self.__id = config['id']
 
-def plot(args):
-    with open(args.configfile) as configfile:
-        config = yaml.load(configfile)
-        workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
+        if args.outdir:
+            self.__plotdir = args.outdir
+        else:
+            self.__plotdir = config.get("plotdir", self.__id)
+        self.__plotdir = os.path.expandvars(os.path.expanduser(self.__plotdir))
 
-    if args.outdir:
-        top_dir = args.outdir
-    else:
-        top_dir = config.get("plotdir", config['id'])
-    top_dir = os.path.expandvars(os.path.expanduser(top_dir))
+        if not os.path.isdir(self.__plotdir):
+            os.makedirs(self.__plotdir)
 
-    print 'Saving plots to: ' + top_dir
-    if not os.path.isdir(top_dir):
-        os.makedirs(top_dir)
+        self.__xmin = self.parsetime(args.xmin)
+        self.__xmax = self.parsetime(args.xmax)
 
-    jtags = SmartList()
-    dtags = SmartList()
-    wtags = SmartList()
+    def parsetime(self, time):
+        if not time:
+            return None
 
-    print "Reading WQ log"
-    with open(os.path.join(workdir, 'work_queue.log')) as f:
-        headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-    wq_stats_raw_all = np.loadtxt(os.path.join(workdir, 'work_queue.log'))
-    start_time = wq_stats_raw_all[0,0] / 1e6
-    end_time = wq_stats_raw_all[-1,0] / 1e6
+        try:
+            t = datetime.combine(
+                    datetime.today().date(),
+                    datetime.strptime(time, '%H:%M').timetz()
+            )
+            return int(t.strftime('%s'))
+        except ValueError:
+            pass
 
-    if not args.xmax:
-        xmax = end_time
-    elif args.xmax >= 0:
-        xmax = args.xmax * 60 + start_time
-    else:
-        xmax = args.xmax * 60 + end_time
+        try:
+            t = datetime.strptime(time, '%Y-%m-%d_%H:%M')
+            return int(t.strftime('%s'))
+        except ValueError:
+            pass
 
-    if args.xmin >= 0:
-        xmin = args.xmin * 60 + start_time
-    else:
-        xmin = args.xmin * 60 + end_time
+        t = datetime.strptime(time, '%Y-%m-%d')
+        return int(t.strftime('%s'))
 
-    db = sqlite3.connect(os.path.join(workdir, 'lobster.db'))
-    stats = {}
+    def readdb(self):
+        db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'))
+        stats = {}
 
-    failed_jobs = np.array(db.execute("""select
-        id,
-        host,
-        dataset,
-        exit_code,
-        time_submit,
-        time_retrieved,
-        time_on_worker,
-        time_total_on_worker
-        from jobs
-        where status=3 and time_retrieved>=? and time_retrieved<=?""",
-        (xmin, xmax)).fetchall(),
-            dtype=[
-                ('id', 'i4'),
-                ('host', 'a50'),
-                ('dataset', 'i4'),
-                ('exit_code', 'i4'),
-                ('t_submit', 'i4'),
-                ('t_retrieved', 'i4'),
-                ('t_goodput', 'i8'),
-                ('t_allput', 'i8')
-                ])
+        failed_jobs = np.array(db.execute("""
+            select
+                id,
+                host,
+                dataset,
+                exit_code,
+                time_submit,
+                time_retrieved,
+                time_on_worker,
+                time_total_on_worker
+            from jobs
+            where status=3 and time_retrieved>=? and time_retrieved<=?""",
+            (self.__xmin, self.__xmax)).fetchall(),
+                dtype=[
+                    ('id', 'i4'),
+                    ('host', 'a50'),
+                    ('dataset', 'i4'),
+                    ('exit_code', 'i4'),
+                    ('t_submit', 'i4'),
+                    ('t_retrieved', 'i4'),
+                    ('t_goodput', 'i8'),
+                    ('t_allput', 'i8')
+                    ])
 
-    success_jobs = np.array(db.execute("""select * from jobs
-        where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
-        (xmin, xmax)).fetchall(),
-            dtype=[
-                ('id', 'i4'),
-                ('host', 'a50'),
-                ('dataset', 'i4'),
-                ('file_block', 'a100'),
-                ('status', 'i4'),
-                ('exit_code', 'i4'),
-                ('retries', 'i4'),
-                ('lumis', 'i4'),
-                ('processed_lumis', 'i4'),
-                ('missed_lumis', 'i4'),
-                ('events_r', 'i4'),
-                ('events_w', 'i4'),
-                ('t_submit', 'i4'),
-                ('t_send_start', 'i4'),
-                ('t_send_end', 'i4'),
-                ('t_wrapper_start', 'i4'),
-                ('t_wrapper_ready', 'i4'),
-                ('t_file_req', 'i4'),
-                ('t_file_open', 'i4'),
-                ('t_first_ev', 'i4'),
-                ('t_wrapper_end', 'i4'),
-                ('t_recv_start', 'i4'),
-                ('t_recv_end', 'i4'),
-                ('t_retrieved', 'i4'),
-                ('t_goodput', 'i8'),
-                ('t_allput', 'i8'),
-                ('t_cpu', 'i8'),
-                ('b_recv', 'i4'),
-                ('b_sent', 'i4'),
-                ('b_output', 'i4')
-                ])
+        success_jobs = np.array(db.execute("""
+            select *
+            from jobs
+            where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
+            (self.__xmin, self.__xmax)).fetchall(),
+                dtype=[
+                    ('id', 'i4'),
+                    ('host', 'a50'),
+                    ('dataset', 'i4'),
+                    ('file_block', 'a100'),
+                    ('status', 'i4'),
+                    ('exit_code', 'i4'),
+                    ('retries', 'i4'),
+                    ('lumis', 'i4'),
+                    ('processed_lumis', 'i4'),
+                    ('missed_lumis', 'i4'),
+                    ('events_r', 'i4'),
+                    ('events_w', 'i4'),
+                    ('t_submit', 'i4'),
+                    ('t_send_start', 'i4'),
+                    ('t_send_end', 'i4'),
+                    ('t_wrapper_start', 'i4'),
+                    ('t_wrapper_ready', 'i4'),
+                    ('t_file_req', 'i4'),
+                    ('t_file_open', 'i4'),
+                    ('t_first_ev', 'i4'),
+                    ('t_wrapper_end', 'i4'),
+                    ('t_recv_start', 'i4'),
+                    ('t_recv_end', 'i4'),
+                    ('t_retrieved', 'i4'),
+                    ('t_goodput', 'i8'),
+                    ('t_allput', 'i8'),
+                    ('t_cpu', 'i8'),
+                    ('b_recv', 'i4'),
+                    ('b_sent', 'i4'),
+                    ('b_output', 'i4')
+                    ])
 
-    wq_stats_raw = wq_stats_raw_all[np.logical_and(wq_stats_raw_all[:,0] / 1e6 >= xmin, wq_stats_raw_all[:,0] / 1e6 <= xmax),:]
+        summary_data = list(db.execute("""
+                select label, events, events - events_read, events_read, events_written,
+                    '' || round(
+                        max(
+                            jobits_done * 100.0 / jobits,
+                            events_read * 100.0 / events
+                        ), 1) || ' %'
+                from datasets"""))
+        summary_data += list(db.execute("""
+                select
+                    'Total',
+                    sum(events),
+                    sum(events - events_read),
+                    sum(events_read),
+                    sum(events_written),
+                    '' || round(
+                        max(
+                            sum(jobits_done) * 100.0 / sum(jobits),
+                            sum(events_read) * 100.0 / sum(events)
+                        ), 1) || ' %'
+                from datasets"""))
 
-    orig_times = wq_stats_raw[:,0].copy()
-    # Convert to seconds since UNIX epoch
-    runtimes = wq_stats_raw[:,0] / 1e6
-    print "First iteration..."
-
-    # Five minute bins (or more, if # of bins exceeds 100)
-    bins = range(xmin, int(runtimes[-1]) + 300, 300)
-    scale = max(len(bins) / 100.0, 1.0)
-    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    wtags += make_histo([runtimes], bins, '', 'Activity', 'activity', top_dir, log=True, vs_time=True)
-
-    transferred = success_jobs['b_output'] / 1024.0**3
-    transferred_histo, transferred_bins = np.histogram(success_jobs['t_retrieved'], bins, weights=success_jobs['b_output'] / 1024.0**3)
-    transferred_sum = np.cumsum(transferred_histo)
-    bin_centers = [(x+y)/2 for x, y in zip(transferred_bins[:-1], transferred_bins[1:])]
-
-    # One hour bins
-    bins = range(xmin, int(runtimes[-1]) + 3600, 3600)
-    wtags += make_histo([success_jobs['t_retrieved']], bins, '', 'Output (GB/h)', 'rate', top_dir, weights=[transferred], vs_time=True)
-
-    wtags += make_plot([(bin_centers, transferred_sum, '')], '', 'Output (GB)', 'total_output', top_dir, vs_time=True)
-
-    print "Reducing WQ log"
-    wq_stats = reduce(wq_stats_raw, 0, 300.)
-    runtimes = wq_stats[:,0] / 1e6
-
-    wtags += make_plot(([
-               (runtimes, wq_stats[:,headers['workers_busy']], 'busy'),
-               (runtimes, wq_stats[:,headers['workers_idle']], 'idle'),
-               (runtimes, wq_stats[:,headers['total_workers_connected']], 'connected')],
-               [(runtimes, wq_stats[:,headers['tasks_running']], 'running')]),
-               '', 'Workers' , 'workers_active', top_dir, y_label2='Tasks', vs_time=True)
-
-    delta_sendtime_raw = (wq_stats[:,headers['total_send_time']] - np.roll(wq_stats[:,headers['total_send_time']], 1, 0))
-    delta_receivetime_raw = (wq_stats[:,headers['total_receive_time']] - np.roll(wq_stats[:,headers['total_receive_time']], 1, 0))
-
-    select = np.logical_and(delta_receivetime_raw >= 0, delta_sendtime_raw >= 0)
-    delta_sendtime = delta_sendtime_raw[select]
-    delta_receivetime = delta_receivetime_raw[select]
-    delta_runtimes = runtimes[select]
-
-    bins = range(xmin, int(runtimes[-1]) + 300, 300)
-    scale = max(len(bins) / 100.0, 1.0)
-    bins = range(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-    delta = float(bins[1] - bins[0]) * 1e6
-
-    wtags += make_histo(
-            [delta_runtimes, delta_runtimes], bins,
-            '', 'Fraction', 'time_fraction', top_dir, vs_time=True,
-            weights=[delta_sendtime / delta, delta_receivetime / delta],
-            label=['send time', 'receive time'])
-
-    total_time_failed = np.sum(failed_jobs['t_allput'])
-    total_time_success = np.sum(success_jobs['t_allput'])
-    total_time_good = np.sum(success_jobs['t_goodput'])
-    total_time_pure = np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev'])
-
-    total_failed_time = np.sum(failed_jobs['t_goodput'])
-    total_eviction_time = total_time_failed + total_time_success - total_time_good - total_failed_time
-    total_overhead_time = np.sum(success_jobs['t_first_ev'] - success_jobs['t_wrapper_start'])
-    total_stage_in = np.sum(success_jobs['t_wrapper_start'] - success_jobs['t_send_start'])
-    total_stage_out = np.sum(success_jobs['t_recv_end'] - success_jobs['t_wrapper_end'])
-    total_processing_time = total_time_pure
-
-    # Five minute bins, or larger, to keep the number of bins around 100
-    # max.
-    bins = xrange(xmin, int(runtimes[-1]) + 300, 300)
-    scale = max(len(bins) / 100.0, 1.0)
-    bins = xrange(xmin, int(runtimes[-1]) + scale * 300, scale * 300)
-
-    split_codes, split_jobs = split_by_column(success_jobs, 'status')
-    times = []
-    labels = []
-    colors = []
-
-    code_map = {2: ('successful', 'green'), 5: ('incomplete', 'cyan'), 6: ('published', 'blue')}
-    for (code, jobs) in zip(split_codes, split_jobs):
-        times.append(jobs['t_retrieved'])
-        labels.append(code_map[code][0])
-        colors.append(code_map[code][1])
-
-    times.append(failed_jobs['t_retrieved'])
-    labels.append('failed')
-    colors.append('red')
-
-    wtags += make_histo(
-            times,
-            bins, '', 'Jobs', 'jobs', top_dir,
-            label=labels,
-            color=colors, vs_time=True)
-    wtags += make_profile(
-            success_jobs['t_wrapper_start'],
-            (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.,
-            bins, 'Wrapper start time (m)', 'Overhead (m)', 'overhead_vs_time', top_dir, vs_time=True)
-    wtags += make_profile(
-            success_jobs['t_retrieved'],
-            (success_jobs['t_recv_end'] - success_jobs['t_wrapper_end']) / 60.,
-            bins, 'Wrapper end time (m)', 'Stage-out (m)', 'stage-out_vs_time', top_dir, vs_time=True)
-
-    fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
-    fail_times = [vs['t_retrieved'] for vs in fail_values]
-    wtags += make_histo(fail_times, bins, '', 'Jobs',
-            'fail_times', top_dir, label=map(str, fail_labels), vs_time=True)
-
-    # for cases where jobits per job changes during run, get per-jobit info
-    total_jobits = db.execute('select sum(jobits) from datasets').fetchone()[0]
-    success_jobits = []
-    for (label,) in db.execute("select label from datasets"):
-        success_jobits.append(np.array(db.execute("""
-            select jobits_{0}.id, jobs.time_retrieved
-            from jobits_{0}, jobs
-            where jobits_{0}.job == jobs.id
-                and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
-                and jobs.time_retrieved>=? and jobs.time_retrieved<=?""".format(label),
-            (xmin, xmax)).fetchall(),
+        # for cases where jobits per job changes during run, get per-jobit info
+        total_jobits = 0
+        completed_jobits = []
+        for (label,) in db.execute("select label from datasets"):
+            total_jobits += db.execute("select count(*) from jobits_{0}".format(label)).fetchone()[0]
+            completed_jobits.append(np.array(db.execute("""
+                select jobits_{0}.id, jobs.time_retrieved
+                from jobits_{0}, jobs
+                where jobits_{0}.job == jobs.id
+                    and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
+                    and time_retrieved>=? and time_retrieved<=?""".format(label),
+                (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
 
-    success_jobits = np.concatenate(success_jobits)
-    finished_jobit_times = success_jobits['t_retrieved']
-    finished_jobit_hist, jobit_bins = np.histogram(finished_jobit_times, bins)
-    bin_centers = [(x+y)/2 for x, y in zip(jobit_bins[:-1], jobit_bins[1:])]
-    finished_jobit_cum = np.cumsum(finished_jobit_hist)
+        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits
 
-    if any([x>0 for x in finished_jobit_cum]):
-        wtags += make_plot([(bin_centers, finished_jobit_cum, 'total finished'),
-                            (bin_centers, finished_jobit_cum * (-1) + total_jobits, 'total unfinished')],
-                           '', 'Jobits' , 'finished_jobits', top_dir, log=True, vs_time=True)
+    def readlog(self):
+        with open(os.path.join(self.__workdir, 'work_queue.log')) as f:
+            headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
+        stats = np.loadtxt(os.path.join(self.__workdir, 'work_queue.log'))
 
-    label2id = {}
-    id2label = {}
-    for dset_label, dset_id in db.execute("select label, id from datasets"):
-        label2id[dset_label] = dset_id
-        id2label[dset_id] = dset_label
+        diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
 
-    dset_labels, dset_values = split_by_column(success_jobs, 'dataset', key=lambda x: id2label[x])
+        # fix units of time
+        stats[:,0] /= 1e6
 
-    num_bins = 30
-    total_times = [(vs['t_wrapper_end'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
-    processing_times = [(vs['t_wrapper_end'] - vs['t_first_ev']) / 60. for vs in dset_values]
-    overhead_times = [(vs['t_first_ev'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
-    idle_times = [(vs['t_wrapper_start'] - vs['t_send_end']) / 60. for vs in dset_values]
-    init_times = [(vs['t_wrapper_ready'] - vs['t_wrapper_start']) / 60. for vs in dset_values]
-    cmsrun_times = [(vs['t_first_ev'] - vs['t_wrapper_ready']) / 60. for vs in dset_values]
+        stats[:,headers['total_workers_joined']] -= np.roll(stats[:,headers['total_workers_joined']], 1, 0)
+        stats[:,headers['total_workers_removed']] -= np.roll(stats[:,headers['total_workers_removed']], 1, 0)
 
-    stageout_times = [(vs['t_retrieved'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
-    # wait_times = [(vs['t_recv_start'] - vs['t_wrapper_end']) / 60. for vs in dset_values]
-    # transfer_times = [(vs['t_recv_end'] - vs['t_recv_start']) / 60. for vs in dset_values]
-    transfer_bytes = [vs['b_recv'] / 1024.0**2 for vs in dset_values]
-    # transfer_rates = []
-    # for (bytes, times) in zip(transfer_bytes, transfer_times):
-        # transfer_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
+        stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
+        stats[:,headers['total_send_time']] = np.divide(stats[:,headers['total_send_time']], diff)
+        stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
+        stats[:,headers['total_receive_time']] = np.divide(stats[:,headers['total_receive_time']], diff)
 
-    send_times = [(vs['t_send_end'] - vs['t_send_start']) / 60. for vs in dset_values]
-    send_bytes = [vs['b_sent'] / 1024.0**2 for vs in dset_values]
-    send_rates = []
-    for (bytes, times) in zip(send_bytes, send_times):
-        send_rates.append(np.divide(bytes[times != 0], times[times != 0] * 60.))
-    put_ratio = [np.divide(vs['t_goodput'] * 1.0, vs['t_allput']) for vs in dset_values]
-    pureput_ratio = [np.divide((vs['t_wrapper_end'] -  vs['t_first_ev']) * 1.0, vs['t_allput']) for vs in dset_values]
+        if not self.__xmin:
+            self.__xmin = stats[0,0]
+        if not self.__xmax:
+            self.__xmax = stats[-1,0]
 
-    jtags += make_histo(total_times, num_bins, 'Runtime (m)', 'Jobs', 'run_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(processing_times, num_bins, 'Pure processing time (m)', 'Jobs', 'processing_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(overhead_times, num_bins, 'Overhead time (m)', 'Jobs', 'overhead_time', top_dir, label=dset_labels, stats=True)
-    # jtags += make_histo(idle_times, num_bins, 'Idle time (m) - End receive job data to wrapper start', 'Jobs', 'idle_time', top_dir, label=dset_labels, stats=True)
-    # jtags += make_histo(init_times, num_bins, 'Wrapper initialization time (m)', 'Jobs', 'wrapper_time', top_dir, label=dset_labels, stats=True)
-    # jtags += make_histo(cmsrun_times, num_bins, 'cmsRun startup time (m)', 'Jobs', 'cmsrun_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(stageout_times, num_bins, 'Stage-out time (m)', 'Jobs', 'stageout_time', top_dir, label=dset_labels, stats=True)
-    # jtags += make_histo(wait_times, num_bins, 'Wait time (m)', 'Jobs', 'wait_time', top_dir, label=dset_labels, stats=True)
-    # jtags += make_histo(transfer_times, num_bins, 'Transfer time (m)', 'Jobs', 'transfer_time', top_dir, label=dset_labels, stats=True)
-    jtags += make_histo(transfer_bytes,
-            num_bins, 'Data received (MiB)', 'Jobs', 'recv_data', top_dir,
-            label=dset_labels, stats=True)
-    # jtags += make_histo(transfer_rates,
-            # num_bins, 'Data received rate (MiB/s)', 'Jobs', 'recv_rate', top_dir,
-            # label=dset_labels, stats=True)
+        return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
 
-    if args.samplelogs:
-        jtags += html_tag('a', make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir), href='errors.html')
-    else:
-        jtags += make_frequency_pie(failed_jobs['exit_code'], 'exit_codes', top_dir)
+    def savelogs(self, failed_jobs, samples=5):
+        logdir = os.path.join(self.__plotdir, 'logs')
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
 
-    jtags += make_pie(
-            (total_eviction_time, total_failed_time, total_overhead_time, total_processing_time, total_stage_out),
-            ("Eviction", "Failed", "Overhead", "Processing", "Stage-out"),
-            "time_split", top_dir,
-            colors=('crimson', 'red', 'dodgerblue', 'green', 'skyblue'))
+        pool = multiprocessing.Pool(processes=10)
+        work = []
+        codes = {}
 
-    # dtags += make_histo(send_times, num_bins, 'Send time (m)', 'Jobs', 'send_time', top_dir, label=dset_labels, stats=True)
-    # dtags += make_histo(send_bytes,
-            # num_bins, 'Data sent (MiB)', 'Jobs', 'send_data', top_dir,
-            # label=dset_labels, stats=True)
-    # dtags += make_histo(send_rates,
-            # num_bins, 'Data sent rate (MiB/s)', 'Jobs', 'send_rate', top_dir,
-            # label=dset_labels, stats=True)
-    # dtags += make_histo(put_ratio, num_bins, 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=[vs[0] for vs in dset_values], stats=True)
-    dtags += make_histo(put_ratio, [0.05 * i for i in range(21)], 'Goodput / (Goodput + Badput)', 'Jobs', 'put_ratio', top_dir, label=dset_labels, stats=True)
-    dtags += make_histo(pureput_ratio, [0.05 * i for i in range(21)], 'Pureput / (Goodput + Badput)', 'Jobs', 'pureput_ratio', top_dir, label=dset_labels, stats=True)
+        for exit_code, jobs in zip(*split_by_column(failed_jobs[['id', 'exit_code']], 'exit_code')):
+            codes[exit_code] = [len(jobs), {}]
 
-    event_stats = []
-    for data in db.execute("""
-            select label, events, events - events_read, events_read, events_written,
-                '' || round(
-                    max(
-                        jobits_done * 100.0 / jobits,
-                        events_read * 100.0 / events
-                    ), 1) || ' %',
-                jobits_done == jobits
-            from datasets"""):
-        kwargs = {"class": "blink"} if data[-1] == 1 else {}
+            print 'Copying sample logs for exit code ', exit_code
+            for id, e in list(jobs[-samples:]):
+                codes[exit_code][1][id] = []
 
-        row = [data[0]] \
-                + map(lambda e: html_tag("div", str(e), style="{float: right}"), data[1:-2]) \
-                + [html_tag("div", data[-2], style="{float: right}", **kwargs)]
-        event_stats.append(row)
+                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', str(id)))[0]
+                target = os.path.join(os.path.join(self.__plotdir, 'logs'), str(id))
+                if os.path.exists(target):
+                    shutil.rmtree(target)
+                os.makedirs(target)
 
-    summary_data = db.execute("""
-            select 'Total', sum(events), sum(events - events_read), sum(events_read), sum(events_written),
-                '' || round(
-                    max(
-                        sum(jobits_done) * 100.0 / sum(jobits),
-                        sum(events_read) * 100.0 / sum(events)
-                    ), 1) || ' %',
-                sum(jobits_done) == sum(jobits)
-            from datasets""").fetchone()
+                files = []
+                for l in ['cmssw.log.gz', 'job.log.gz']:
+                    s = os.path.join(source, l)
+                    t = os.path.join(target, l[:-3])
+                    if os.path.exists(s):
+                        codes[exit_code][1][id].append(l[:-3])
+                        work.append((exit_code, id, l[:-3], pool.apply_async(unpack, [s, t])))
+        for (code, id, file, res) in work:
+            if not res.get():
+                codes[code][1][id].remove(file)
+        pool.close()
+        pool.join()
 
-    row = [summary_data[0]] \
-            + map(lambda e: html_tag("div", str(e), style="{float: right}"), summary_data[1:-2]) \
-            + [html_tag("div", summary_data[-2], style="{float: right}", **kwargs)]
-    event_stats.append(row)
+        for code in codes:
+            for id in range(samples - len(codes[code][1])):
+                codes[code][1][-id] = []
 
-    # hosts = vals['host']
-    # host_clusters = np.char.rstrip(np.char.replace(vals['host'], '.crc.nd.edu', ''), '0123456789-')
+        return codes
 
-    header = """
-             <style>
-             body {font-family:"Trebuchet MS";}
+    def unix2matplotlib(self, time):
+        return dates.date2num(datetime.fromtimestamp(time))
 
-             table
-             {width:auto;
-             margin-left:auto;
-             margin-right:auto;
-             margin-bottom:50px;
-             border-collapse:collapse;}
+    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs):
+        if not modes:
+            modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
 
-             td, th
-             {border:1px solid #333437;
-             padding:3px 7px 2px 7px;}
+        for mode in modes:
+            filename = stub
+            fig, ax = plt.subplots()
 
-             th
-             {text-align:left;
-             padding-top:5px;
-             padding-bottom:4px;
-             background-color:#454648;
-             color:#ffffff;}
+            if mode & Plotter.TIME:
+                f = np.vectorize(self.unix2matplotlib)
+                a = [(f(x), y) for (x, y) in a if len(x) > 0]
 
-             tr.alt td
-             {color:#000000;
-             background-color:#B4B8C1;}
+                # interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
+                # num_bins = map(self.unix2matplotlib, bins)
+                # ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=24*60))
+                ax.xaxis.set_major_formatter(dates.DateFormatter("%m-%d\n%H:%M"))
+                ax.set_ylabel(xlabel)
+            else:
+                ax.set_xlabel(xlabel)
+                ax.set_ylabel(ylabel)
 
-             .blink {
-                 color: green;
-                 font-weight: bold;
-                -webkit-animation: blink 1s step-end infinite;
-                 animation: blink 1s step-end infinite
-             }
+            if mode & Plotter.HIST:
+                filename += '-hist'
 
-             @-webkit-keyframes blink {
-                        80% { opacity: 0 }
-             }
+                if mode & Plotter.TIME:
+                    ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
+                            bins=bins, histtype='barstacked', **kwargs)
+                else:
+                    ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
+            elif mode & Plotter.PROF:
+                filename += '-prof'
 
-             @keyframes blink {
-                        80% { opacity: 0 }
-             }
-             </style>"""
+                for (x, y) in a:
+                    sums, edges = np.histogram(x, bins=bins, weights=y)
+                    squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
+                    counts, edges = np.histogram(x, bins=bins)
+                    avg = np.divide(sums, counts)
+                    avg_sq = np.divide(squares, counts)
+                    err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
 
-    with open(os.path.join(top_dir, 'index.html'), 'w') as f:
-        body = html_tag("div",
-                *([html_tag("h2", "Job Statistics")] +
-                  [html_table(['dataset', 'total events', 'remaining', 'read', 'written', 'progress'], [[str(x) for x in ds] for ds in event_stats])] +
-                    map(lambda t: html_tag("div", t, style="clear: both;"), jtags) +
-                    [html_tag("h2", "Debug Job Statistics")] +
-                    map(lambda t: html_tag("div", t, style="clear: both;"), dtags) +
+                    centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+                    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
+            elif mode & Plotter.PLOT:
+                filename += '-plot'
+
+                if 'label' in kwargs:
+                    for (l, (x, y)) in zip(kwargs['label'], a):
+                        ax.plot(x, y, label=l)
+                else:
+                    for (x, y) in a:
+                        ax.plot(x, y)
+
+            ax.grid(True)
+
+            if mode & Plotter.TIME:
+                ax.axis(
+                        xmin=self.unix2matplotlib(self.__xmin),
+                        xmax=self.unix2matplotlib(self.__xmax),
+                        ymin=0
+                )
+            else:
+                ax.axis(ymin=0)
+
+            if not mode & Plotter.TIME and mode & Plotter.HIST:
+                all = np.concatenate([y for (x, y) in a])
+                avg = np.average(all)
+                var = np.std(all)
+                med = np.median(all)
+                ax.text(0.75, 0.7,
+                        u"μ = {0:.3g}, σ = {1:.3g}\nmedian = {2:.3g}".format(avg, var, med),
+                        ha="center", transform=ax.transAxes, backgroundcolor='white')
+
+            if 'label' in kwargs:
+                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
+
+            self.save_and_close(filename)
+
+    def make_pie(self, vals, labels, name, **kwargs):
+        plt.pie([max(0, val) for val in vals], labels=labels, **kwargs)
+        fig = plt.gcf()
+        fig.set_size_inches(4, 3)
+        fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
+
+        return self.save_and_close(name)
+
+    def save_and_close(self, name):
+        print "Saving", name
+        # plt.gcf().set_size_inches(6, 1.5)
+
+        plt.savefig(os.path.join(self.__plotdir, '%s.png' % name))
+        # plt.savefig(os.path.join(dir, '%s.pdf' % name))
+
+        plt.close()
+
+    def make_plots(self):
+        headers, stats = self.readlog()
+        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits = self.readdb()
+
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
+                ],
+                'Workers', 'workers',
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=['busy', 'idle', 'connected']
+        )
+
+        self.plot(
+                [(stats[:,headers['timestamp']], stats[:,headers['tasks_running']])],
+                'Tasks', 'tasks',
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=['running']
+        )
+
+        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
+        received, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_receive_time']])
+        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+
+        if len(edges > 1):
+            sent /= edges[1] - edges[0]
+            received /= edges[1] - edges[0]
+
+        self.plot(
+                [
+                    (centers, sent),
+                    (centers, received),
+                ],
+                'Fraction', 'fraction',
+                bins=100,
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['sending', 'receiving']
+        )
+
+        if len(success_jobs) > 0 or len(failed_jobs) > 0:
+            self.make_pie(
                     [
-                        html_tag("h2", "Lobster Statistics"),
-                        html_tag("p", "Successful jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success))),
-                        html_tag("p", "Successful jobs: Pureput / Allput = {0:.3f}".format(total_time_pure / float(total_time_success))),
-                        html_tag("p", "All jobs: Goodput / Allput = {0:.3f}".format(total_time_good / float(total_time_success + total_time_failed))),
-                        html_tag("p", "All jobs: Pureput / Allput = {0:.3f}".format(total_time_pure / float(total_time_success + total_time_failed)))
-                    ] +
-                    map(lambda t: html_tag("div", t, style="clear: both;"), wtags)),
-                style="margin: 1em auto; display: block; width: auto; text-align: center;")
-        f.write(header+body)
+                        np.sum(success_jobs['t_allput'] - success_jobs['t_goodput'])
+                            + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
+                        np.sum(failed_jobs['t_allput']),
+                        np.sum(success_jobs['t_first_ev'] - success_jobs['t_send_start']),
+                        np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']),
+                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_wrapper_end'])
+                    ],
+                    ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
+                    "time-pie",
+                    colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
+            )
 
-    if args.samplelogs:
-        with open(os.path.join(top_dir, 'errors.html'), 'w') as f:
-            f.write(header)
+            code_map = {
+                    2: ('successful', 'green'),
+                    5: ('incomplete', 'cyan'),
+                    6: ('published', 'blue')
+            }
+            codes, split_jobs = split_by_column(success_jobs, 'status')
 
-            if not os.path.exists(os.path.join(top_dir, 'errors')):
-                os.makedirs(os.path.join(top_dir, 'errors'))
+            self.plot(
+                    [(xs['t_retrieved'], [1] * len(xs['t_retrieved']))
+                        for xs in split_jobs + [failed_jobs]],
+                    'Jobs', 'all-jobs',
+                    modes=[Plotter.HIST|Plotter.TIME],
+                    label=[code_map[code][0] for code in codes] + ['failed'],
+                    color=[code_map[code][1] for code in codes] + ['red']
+            )
 
-            import shutil
-            headers = []
-            rows = [[], [], [], [], []]
-            num_samples = 5
-            for exit_code, jobs in zip(split_by_column(failed_jobs[['id', 'dataset', 'exit_code']], 'exit_code')):
-                headers.append('Exit %i <br>(%i failed jobs)' % (exit_code, len(jobs)))
-                print 'Copying sample logs for exit code ', exit_code
-                for row, j in enumerate(list(jobs[:num_samples])+[()]*(num_samples-len(jobs))):
-                    if len(j) == 0:
-                        rows[row].append('')
-                    else:
-                        id, ds, e = j
-                        from_path = os.path.join(workdir, id2label[ds], 'failed', str(id))
-                        to_path = os.path.join(os.path.join(top_dir, 'errors'), str(id))
-                        if os.path.exists(to_path):
-                            shutil.rmtree(to_path)
-                        os.makedirs(to_path)
-                        cell = []
-                        for l in ['cmssw.log.gz', 'job.log.gz']:
-                            if os.path.exists(os.path.join(from_path, l)):
-                                shutil.copy(os.path.join(from_path, l), os.path.join(to_path, l))
-                                os.popen('gunzip %s' % os.path.join(to_path, l)) #I don't know how to make our server serve these correctly
-                                cell.append(html_tag('a', l.replace('.gz', ''), href=os.path.join('errors', str(id), l.replace('.gz', ''))))
-                        rows[row].append(', '.join(cell))
+        if len(success_jobs) > 0:
+            completed, bins = np.histogram(completed_jobits['t_retrieved'], 100)
+            total_completed = np.cumsum(completed)
+            centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
 
-            f.write(html_table(headers, rows))
+            self.plot(
+                    [
+                        (centers, total_completed),
+                        (centers, total_completed * (-1.) + total_jobits)
+                    ],
+                    'Jobits', 'jobits-total',
+                    bins=100,
+                    modes=[Plotter.PLOT|Plotter.TIME]
+            )
 
+            output, bins = np.histogram(
+                    success_jobs['t_retrieved'], 100,
+                    weights=success_jobs['b_output'] / 1024.0**3
+            )
+
+            total_output = np.cumsum(output)
+            centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
+
+            scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0**3)
+
+            self.plot(
+                    [(success_jobs['t_retrieved'], success_jobs['b_output'] * scale)],
+                    'Output (GB/h)', 'output',
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+            self.plot(
+                    [(centers, total_output)],
+                    'Output (GB)', 'output-total',
+                    bins=100,
+                    modes=[Plotter.PLOT|Plotter.TIME]
+            )
+
+            self.make_pie(
+                    [
+                        np.sum(success_jobs['t_allput'] - success_jobs['t_goodput'])
+                            + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
+                        np.sum(failed_jobs['t_allput']),
+                        np.sum(success_jobs['t_send_end'] - success_jobs['t_send_start']),
+                        np.sum(success_jobs['t_wrapper_start'] - success_jobs['t_send_end']),
+                        np.sum(success_jobs['t_wrapper_ready'] - success_jobs['t_wrapper_start']),
+                        np.sum(success_jobs['t_file_req'] - success_jobs['t_wrapper_ready']),
+                        np.sum(success_jobs['t_file_open'] - success_jobs['t_file_req']),
+                        np.sum(success_jobs['t_first_ev'] - success_jobs['t_file_open']),
+                        np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']),
+                        np.sum(success_jobs['t_recv_start'] - success_jobs['t_wrapper_end']),
+                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_recv_start']),
+                    ],
+                    [
+                        "Eviction", "Failed", "Stage-in", "Startup",
+                        "Release setup", "CMSSW setup", "File request",
+                        "CMSSW job setup", "Processing", "Stage-out wait",
+                        "Stage-out"
+                    ],
+                    "time-detail-pie",
+                    colors=[
+                        "crimson", "red", "dodgerblue", "cornflowerblue",
+                        "royalblue", "mediumslateblue", "darkorchid",
+                        "mediumpurple", "green", "skyblue", "darkturquoise"
+                    ]
+            )
+
+            starttimes = success_jobs['t_wrapper_start']
+            endtimes = success_jobs['t_wrapper_end']
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_allput'] - success_jobs['t_goodput']) / 60.)],
+                    'Lost runtime (m)', 'eviction',
+                    color=["crimson"]
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_wrapper_end'] - success_jobs['t_wrapper_start']) / 60.)],
+                    'Runtime (m)', 'runtime'
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_send_end'] - success_jobs['t_send_start']) / 60.)],
+                    'Stage-in (m)', 'stage-in',
+                    color=["dodgerblue"]
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_wrapper_start'] - success_jobs['t_send_end']) / 60.)],
+                    'Startup (m)', 'startup',
+                    color=["cornflowerblue"]
+
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_wrapper_ready'] - success_jobs['t_wrapper_start']) / 60.)],
+                    'Release setup (m)', 'setup-release',
+                    color=["royalblue"]
+
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_file_req'] - success_jobs['t_wrapper_ready']) / 60.)],
+                    'CMSSW setup (m)', 'setup-cms',
+                    color=["mediumslateblue"]
+
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_file_open'] - success_jobs['t_file_req']) / 60.)],
+                    'File request (m)', 'file-open',
+                    color=["darkorchid"]
+
+            )
+
+            self.plot(
+                    [(starttimes, (success_jobs['t_first_ev'] - success_jobs['t_file_open']) / 60.)],
+                    'CMSSW job setup (m)', 'setup-job',
+                    color=["mediumblue"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.)],
+                    'Overhead (m)', 'overhead'
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']) / 60.)],
+                    'Processing (m)', 'processing',
+                    color=["green"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_recv_start'] - success_jobs['t_wrapper_end']) / 60.)],
+                    'Stage-out wait (m)', 'stage-out-wait',
+                    color=["skyblue"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_recv_end'] - success_jobs['t_recv_start']) / 60.)],
+                    'Stage-out work_queue (m)', 'stage-out-wq',
+                    color=["darkturquoise"]
+
+            )
+
+        if len(failed_jobs) > 0:
+            logs = self.savelogs(failed_jobs)
+
+            fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
+
+            self.make_pie(
+                    [len(xs['t_retrieved']) for xs in fail_values],
+                    fail_labels,
+                    "failed-pie"
+            )
+
+            self.plot(
+                    [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in fail_values],
+                    'Failed jobs', 'failed-jobs',
+                    modes=[Plotter.HIST|Plotter.TIME],
+                    label=map(str, fail_labels)
+            )
+
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(
+            os.path.join(os.path.dirname(__file__), 'data')))
+        env.tests["sum"] = lambda s: s == "Total"
+        template = env.get_template('template.html')
+
+        with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
+            f.write(template.render(
+                id=self.__id,
+                bad_jobs=len(failed_jobs) > 0,
+                good_jobs=len(success_jobs) > 0,
+                summary=summary_data,
+                bad_logs=logs
+            ))
+
+def plot(args):
+    p = Plotter(args)
+    p.make_plots()

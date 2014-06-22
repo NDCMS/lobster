@@ -20,14 +20,10 @@ def boil():
     parser_kill.set_defaults(func=kill)
 
     parser_plot = subparsers.add_parser('plot', help='plot progress of processing')
-    parser_plot.add_argument("--from", type=int, default=0, metavar="START", dest="xmin",
-            help="plot data from START minutes form the beginning of the run. " +
-            "If START is negative, start plotting START minutes from the end of the run.")
-    parser_plot.add_argument("--to", type=int, default=None, metavar="END", dest="xmax",
-            help="plot data until END minutes from the start of the run. " +
-            "If END is negative, plot until END minutes to the end of the run.")
-    parser_plot.add_argument('--samplelogs', action='store_true', default=False,
-            help='add links to sample error logs')
+    parser_plot.add_argument("--from", default=None, metavar="START", dest="xmin",
+            help="plot data from START.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+    parser_plot.add_argument("--to", default=None, metavar="END", dest="xmax",
+            help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
 

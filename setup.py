@@ -18,6 +18,7 @@ setup(
     ]},
     install_requires=[
         'argparse',
+        'jinja2',
         'nose',
         'pyyaml',
         'python-daemon'

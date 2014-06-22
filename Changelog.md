@@ -1,5 +1,6 @@
 # master
 
+* Rewritten plotting
 * Update documentation
 * Do not store an unpacked sandbox
 

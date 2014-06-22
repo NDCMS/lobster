@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>{{id}}</title>
+		<style>
+			@import url(http://fonts.googleapis.com/css?family=Lobster+Two:700italic);
+
+			.lobster {font-family: 'Lobster Two', cursive;}
+
+			body {font-family:"Trebuchet MS";}
+
+			h1, h2, h3 {clear: left}
+
+			table {
+				width:auto;
+				margin-bottom:50px;
+				border-collapse:collapse;
+			}
+
+			td, th {
+				border:1px solid #333437;
+				padding:3px 7px 2px 7px;
+			}
+
+			th {
+				text-align:left;
+				padding-top:5px;
+				padding-bottom:4px;
+				background-color:#454648;
+				color:#ffffff;
+			}
+
+			tr.alt td {
+				color:#000000;
+				background-color:#B4B8C1;
+			}
+		</style>
+		<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+		<script>
+			function src_replace(sel, a, b) {
+				$(sel).attr("src", function(idx, src) {
+					return src.replace(a, b);
+				});
+			};
+
+			$(document).ready(function() {
+				$("tr.tasksummary").hide();
+				$("div.good.more").hide();
+				$("table#logs").hide();
+
+				$("a#tasksummary").bind('click', function() {
+					$("tr.tasksummary").toggle();
+					return false;
+				});
+
+				$("a#goodmore").bind('click', function() {
+					$("div.good.more").slideToggle();
+					return false;
+				});
+
+				$("a#goodhist").bind('click', function() {
+					src_replace("img.good", "-prof", "-hist");
+					return false;
+				});
+				$("a#goodprof").bind('click', function() {
+					src_replace("img.good", "-hist", "-prof");
+					return false;
+				});
+
+				$("a#logs").bind('click', function() {
+					$("table#logs").toggle();
+					return false;
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Task Summary</h1>
+		<p><a href="#" id="tasksummary">show / hide</a></p>
+		<table>
+			<tr>
+				<th>Task</th>
+				<th>events</th>
+				<th>left</th>
+				<th>read</th>
+				<th>written</th>
+				<th>progress</th>
+			</tr>
+			{% for row in summary %}
+			{% if row[0] is sum %}
+			<tr>
+			{% else %}
+			<tr class="tasksummary{{ loop.cycle('', ' alt') }}">
+			{% endif %}
+				{% for cell in row %}
+				<td>{{ cell }}</td>
+				{% endfor %}
+			</tr>
+			{% endfor %}
+		</table>
+
+		<h1>Job Summary</h1>
+		{% if good_jobs or bad_jobs %}
+		<div style="float:left">
+			<img src="time-pie.png"></img>
+		</div>
+		<div style="margin-left:410px;">
+			<img src="all-jobs-hist.png"></img>
+		</div>
+		{% endif %}
+
+		<h2>Successful Jobs</h2>
+		{% if good_jobs %}
+		<p><a href="#" id="goodhist">statstics</a> <a href="#" id="goodprof">profile</a></p>
+		<p><a href="#" id="goodmore">show / hide timeline breakdown</a></p>
+		<div style="float:left">
+			<img src="time-detail-pie.png"></img>
+		</div>
+		<div style="margin-left:410px;">
+			<div class="good more">
+				<img class="good" src="eviction-hist.png"></img>
+			</div>
+			<div>
+				<img class="good" src="runtime-hist.png"></img>
+				<img class="good" src="overhead-hist.png"></img>
+			</div>
+			<div class="good more">
+			<img class="good" src="stage-in-hist.png"></img>
+			<img class="good" src="startup-hist.png"></img>
+			<img class="good" src="setup-release-hist.png"></img>
+			<img class="good" src="setup-cms-hist.png"></img>
+			<img class="good" src="file-open-hist.png"></img>
+			<img class="good" src="setup-job-hist.png"></img>
+			</div>
+			<div>
+				<img class="good" src="processing-hist.png"></img>
+			</div>
+			<div class="good more">
+				<img class="good" src="stage-out-wait-hist.png"></img>
+				<img class="good" src="stage-out-wq-hist.png"></img>
+			</div>
+		</div>
+		{% else %}
+		<p>No successful jobs yet!</p>
+		{% endif %}
+
+		<h2>Failed Jobs</h2>
+		{% if bad_jobs %}
+		<div style="float:left">
+			<img src="failed-pie.png"></img>
+		</div>
+		<div style="margin-left:410px;">
+			<img src="failed-jobs-hist.png"></img>
+			<p><a href="#" id="logs">show / hide</a> log files</p>
+			<table id="logs">
+				<tr>
+					<th>Exit code</th>
+					<th>occurences</th>
+					<th>logs 1</th>
+					<th>logs 2</th>
+					<th>logs 3</th>
+					<th>logs 4</th>
+					<th>logs 5</th>
+				</tr>
+				{% for code, values in bad_logs|dictsort %}
+				<tr {{ loop.cycle('', 'class="alt"') }}>
+					<td>{{ code }}</td>
+					<td>{{ values[0] }}</td>
+					{% for id, files in values[1]|dictsort|reverse %}
+					<td>{% for file in files %} <a href="logs/{{ id }}/{{ file }}">{{ file }}</a>{% endfor %}</td>
+					{% endfor %}
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+		{% else %}
+		<p>No failed jobs yet!</p>
+		{% endif %}
+
+		<h1><span class="lobster">Lobster</span> Summary</h1>
+		{% if good_jobs %}
+		<div style="margin-left:410px;">
+			<img src="workers-plot.png"></img>
+			<img src="tasks-plot.png"></img>
+			<img src="fraction-hist.png"></img>
+			<img src="output-hist.png"></img>
+			<img src="output-total-plot.png"></img>
+			<img src="jobits-total-plot.png"></img>
+		</div>
+		{% else %}
+		<p>No output yet!</p>
+		{% endif %}
+	</body>
+</html>

@@ -59,8 +59,10 @@ def extract_info(report_filename):
                     for lumi in ls:
                         file_lumis.append((run, lumi))
                 infos[filename] = (int(file['EventsRead']), file_lumis)
+            eventtime = report.performance.summaries['Timing']['TotalEventCPU']
+            cputime = report.performance.summaries['Timing']['TotalJobCPU']
 
-    return infos, skipped, written, exit_code
+    return infos, skipped, written, exit_code, eventtime, cputime
 
 def extract_time(filename):
     with open(filename) as f:
@@ -108,11 +110,17 @@ exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.fo
 apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
 try:
-    files_info, files_skipped, events_written, cmssw_exit_code = extract_info('report.xml')
+    files_info, files_skipped, events_written, cmssw_exit_code, eventtime, cputime = extract_info('report.xml')
 except Exception as e:
     print e
+
     if exit_code == 0:
         exit_code = 190
+
+    files_info = {}
+    files_skipped = []
+    eventtime = 0
+    cputime = 0
 
 try:
     times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
@@ -134,15 +142,21 @@ except Exception as e:
 
 times.append(now)
 
-p = subprocess.Popen(["ps", "-p", str(os.getppid()), "-o", "cputime"], stdout=subprocess.PIPE)
-output = p.communicate()[0].splitlines()[-1]
-cputime = 0
-for unit in output.split(':'):
-    cputime = cputime * 60 + int(unit)
+stageout_exit_code = 0
+for (localname, server, remotename) in stageout:
+    if os.path.exists(localname):
+        status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
+        if status != 0 and stageout_exit_code == 0:
+            stageout_exit_code = status
+
+if stageout_exit_code != 0:
+    exit_code = 210
+
+times.append(int(datetime.now().strftime('%s')))
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, cputime), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, eventtime), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:
@@ -161,16 +175,6 @@ for filename in 'cmssw.log report.xml'.split():
             print e
             if exit_code == 0:
                 exit_code = 194
-
-stageout_exit_code = 0
-for (localname, server, remotename) in stageout:
-    if os.path.exists(localname):
-        status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
-        if status != 0 and stageout_exit_code == 0:
-            stageout_exit_code = status
-
-if stageout_exit_code != 0:
-    exit_code = 210
 
 print "Execution time", str(times[-1] - times[0])
 print "Exiting with code", str(exit_code)

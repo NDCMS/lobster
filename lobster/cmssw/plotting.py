@@ -170,7 +170,8 @@ class Plotter(object):
                     ('t_file_req', 'i4'),
                     ('t_file_open', 'i4'),
                     ('t_first_ev', 'i4'),
-                    ('t_wrapper_end', 'i4'),
+                    ('t_processing_end', 'i4'),
+                    ('t_chirp_end', 'i4'),
                     ('t_recv_start', 'i4'),
                     ('t_recv_end', 'i4'),
                     ('t_retrieved', 'i4'),
@@ -451,8 +452,8 @@ class Plotter(object):
                             + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
                         np.sum(failed_jobs['t_allput']),
                         np.sum(success_jobs['t_first_ev'] - success_jobs['t_send_start']),
-                        np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']),
-                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_wrapper_end'])
+                        np.sum(success_jobs['t_processing_end'] - success_jobs['t_first_ev']),
+                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_processing_end'])
                     ],
                     ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
                     "time-pie",
@@ -525,26 +526,29 @@ class Plotter(object):
                         np.sum(success_jobs['t_file_req'] - success_jobs['t_wrapper_ready']),
                         np.sum(success_jobs['t_file_open'] - success_jobs['t_file_req']),
                         np.sum(success_jobs['t_first_ev'] - success_jobs['t_file_open']),
-                        np.sum(success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']),
-                        np.sum(success_jobs['t_recv_start'] - success_jobs['t_wrapper_end']),
+                        np.sum(success_jobs['t_cpu']),
+                        np.sum(success_jobs['t_processing_end'] - success_jobs['t_first_ev'] - success_jobs['t_cpu']),
+                        np.sum(success_jobs['t_chirp_end'] - success_jobs['t_processing_end']),
+                        np.sum(success_jobs['t_recv_start'] - success_jobs['t_chirp_end']),
                         np.sum(success_jobs['t_recv_end'] - success_jobs['t_recv_start']),
                     ],
                     [
                         "Eviction", "Failed", "Stage-in", "Startup",
                         "Release setup", "CMSSW setup", "File request",
-                        "CMSSW job setup", "Processing", "Stage-out wait",
-                        "Stage-out"
+                        "CMSSW job setup", "Processing CPU", "Processing",
+                        "Stage-out chirp", "Stage-out wait", "Stage-out"
                     ],
                     "time-detail-pie",
                     colors=[
                         "crimson", "red", "dodgerblue", "cornflowerblue",
                         "royalblue", "mediumslateblue", "darkorchid",
-                        "mediumpurple", "green", "skyblue", "darkturquoise"
+                        "mediumpurple", "forestgreen", "green",
+                        "powderblue", "skyblue", "darkturquoise"
                     ]
             )
 
             starttimes = success_jobs['t_wrapper_start']
-            endtimes = success_jobs['t_wrapper_end']
+            endtimes = success_jobs['t_processing_end']
 
             self.plot(
                     [(endtimes, (success_jobs['t_allput'] - success_jobs['t_goodput']) / 60.)],
@@ -553,7 +557,7 @@ class Plotter(object):
             )
 
             self.plot(
-                    [(endtimes, (success_jobs['t_wrapper_end'] - success_jobs['t_wrapper_start']) / 60.)],
+                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_wrapper_start']) / 60.)],
                     'Runtime (m)', 'runtime'
             )
 
@@ -604,14 +608,35 @@ class Plotter(object):
             )
 
             self.plot(
-                    [(endtimes, (success_jobs['t_wrapper_end'] - success_jobs['t_first_ev']) / 60.)],
-                    'Processing (m)', 'processing',
+                    [(endtimes, success_jobs['t_cpu'] / 60.)],
+                    'Processing CPU (m)', 'processing-cpu',
+                    color=["forestgreen"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev']) / 60.)],
+                    'Processing (m)', 'processing-non-cpu',
                     color=["green"]
 
             )
 
             self.plot(
-                    [(endtimes, (success_jobs['t_recv_start'] - success_jobs['t_wrapper_end']) / 60.)],
+                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev']) / 60.)],
+                    'Processing Total (m)', 'processing',
+                    color=["mediumseagreen"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_chirp_end'] - success_jobs['t_processing_end']) / 60.)],
+                    'Stage-out chirp (m)', 'stage-out-chirp',
+                    color=["powderblue"]
+
+            )
+
+            self.plot(
+                    [(endtimes, (success_jobs['t_recv_start'] - success_jobs['t_chirp_end']) / 60.)],
                     'Stage-out wait (m)', 'stage-out-wait',
                     color=["skyblue"]
 

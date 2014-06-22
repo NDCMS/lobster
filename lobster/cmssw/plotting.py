@@ -221,9 +221,9 @@ class Plotter(object):
         return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits
 
     def readlog(self):
-        with open(os.path.join(self.__workdir, 'work_queue.log')) as f:
+        with open(os.path.join(self.__workdir, 'lobster_stats.log')) as f:
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-        stats = np.loadtxt(os.path.join(self.__workdir, 'work_queue.log'))
+        stats = np.loadtxt(os.path.join(self.__workdir, 'lobster_stats.log'))
 
         diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
 
@@ -233,10 +233,14 @@ class Plotter(object):
         stats[:,headers['total_workers_joined']] -= np.roll(stats[:,headers['total_workers_joined']], 1, 0)
         stats[:,headers['total_workers_removed']] -= np.roll(stats[:,headers['total_workers_removed']], 1, 0)
 
+        stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
+        stats[:,headers['total_create_time']] = np.divide(stats[:,headers['total_create_time']], diff)
         stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
         stats[:,headers['total_send_time']] = np.divide(stats[:,headers['total_send_time']], diff)
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
         stats[:,headers['total_receive_time']] = np.divide(stats[:,headers['total_receive_time']], diff)
+        stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
+        stats[:,headers['total_return_time']] = np.divide(stats[:,headers['total_return_time']], diff)
 
         if not self.__xmin:
             self.__xmin = stats[0,0]
@@ -407,21 +411,37 @@ class Plotter(object):
 
         sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
         received, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_receive_time']])
+        created, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_create_time']])
+        returned, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_return_time']])
         centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
 
         if len(edges > 1):
             sent /= edges[1] - edges[0]
             received /= edges[1] - edges[0]
+            created /= edges[1] - edges[0]
+            returned /= edges[1] - edges[0]
 
         self.plot(
                 [
                     (centers, sent),
                     (centers, received),
+                    (centers, created),
+                    (centers, returned),
                 ],
                 'Fraction', 'fraction',
                 bins=100,
                 modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving']
+                label=['sending', 'receiving', 'creating', 'returning']
+        )
+
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                ],
+                'Workers', 'turnover',
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['joined', 'removed']
         )
 
         if len(success_jobs) > 0 or len(failed_jobs) > 0:

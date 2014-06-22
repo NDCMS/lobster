@@ -5,6 +5,7 @@ import logging
 import os
 import datetime
 import sys
+import time
 import traceback
 import yaml
 
@@ -105,22 +106,57 @@ def run(args):
 
         payload = 400
 
+        creation_time = 0
+        destruction_time = 0
+
+        with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
+            statsfile.write(
+                    "#timestamp " +
+                    "total_workers_connected total_workers_joined total_workers_removed " +
+                    "workers_busy workers_idle " +
+                    "tasks_running " +
+                    "total_send_time total_receive_time " +
+                    "total_create_time total_return_time " +
+                    "jobits_left\n")
+
         while not job_src.done():
+            jobits_left = job_src.work_left()
+            stats = queue.stats
+
+            with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
+                now = datetime.datetime.now()
+                statsfile.write(" ".join(map(str,
+                    [
+                        int(int(now.strftime('%s')) * 1e6 + now.microsecond),
+                        stats.total_workers_connected,
+                        stats.total_workers_joined,
+                        stats.total_workers_removed,
+                        stats.workers_busy,
+                        stats.workers_idle,
+                        stats.tasks_running,
+                        stats.total_send_time,
+                        stats.total_receive_time,
+                        creation_time,
+                        destruction_time,
+                        jobits_left
+                    ]
+                    )) + "\n"
+                )
+
             if util.checkpoint(workdir, 'KILLED') == 'PENDING':
                 util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
                 break
 
-            stats = queue.stats
-
             logging.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
                     stats.workers_busy,
                     stats.workers_busy + stats.workers_ready,
-                    job_src.work_left(),
+                    jobits_left,
                     stats.tasks_running,
                     stats.tasks_waiting))
 
             hunger = max(payload - stats.tasks_waiting, 0)
 
+            t = time.time()
             while hunger > 0:
                 jobs = job_src.obtain(50, bijective=args.bijective)
 
@@ -150,6 +186,7 @@ def run(args):
                         task.specify_output_file(str(local), str(remote))
 
                     queue.submit(task)
+            creation_time += int((time.time() - t) * 1e6)
 
             task = queue.wait(60)
             tasks = []
@@ -161,7 +198,9 @@ def run(args):
                     task = None
             if len(tasks) > 0:
                 try:
+                    t = time.time()
                     job_src.release(tasks)
+                    destruction_time += int((time.time() - t) * 1e6)
                 except:
                     tb = traceback.format_exc()
                     logging.critical("cannot recover from the following exception:\n" + tb)

@@ -641,6 +641,8 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=map(str, fail_labels)
             )
+        else:
+            logs = None
 
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))

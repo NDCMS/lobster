@@ -104,7 +104,7 @@ def run(args):
         logging.info("starting queue as {0}".format(queue.name))
         logging.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
 
-        payload = 400
+        payload = config.get('tune', {}).get('payload', 400)
 
         creation_time = 0
         destruction_time = 0

@@ -145,6 +145,7 @@ def run(args):
 
             if util.checkpoint(workdir, 'KILLED') == 'PENDING':
                 util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
+                logging.info("terminating gracefully")
                 break
 
             logging.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
@@ -207,4 +208,5 @@ def run(args):
                     for task in tasks:
                         logging.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
-        logging.info("no more work left to do")
+        if jobits_left == 0:
+            logging.info("no more work left to do")

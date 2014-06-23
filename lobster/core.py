@@ -105,6 +105,11 @@ def run(args):
         logging.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
 
         payload = config.get('tune', {}).get('payload', 400)
+        abort_active = False
+        abort_threshold = config.get('tune', {}).get('abort threshold', 400)
+        abort_multiplier = config.get('tune', {}).get('abort multiplier', 4)
+
+        successful_jobs = 0
 
         creation_time = 0
         destruction_time = 0
@@ -192,6 +197,8 @@ def run(args):
             task = queue.wait(60)
             tasks = []
             while task:
+                if task.return_status == 0:
+                    successful_jobs += 1
                 tasks.append(task)
                 if queue.stats.tasks_complete > 0:
                     task = queue.wait(1)
@@ -208,5 +215,9 @@ def run(args):
                     for task in tasks:
                         logging.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
+            if successful_jobs >= abort_threshold and not abort_active:
+                logging.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
+                abort_active = True
+                queue.activate_fast_abort(abort_multiplier)
         if jobits_left == 0:
             logging.info("no more work left to do")

@@ -56,7 +56,8 @@ else
 			export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
 		fi
 
-		export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128;DIRECT}
+		# export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128;DIRECT}
+		export HTTP_PROXY=${HTTP_PROXY:-http://129.74.85.4:3128}
 		echo ">>> using CVMFS proxy: $HTTP_PROXY"
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 

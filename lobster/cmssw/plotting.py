@@ -622,8 +622,8 @@ class Plotter(object):
             )
 
             self.plot(
-                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev']) / 60.)],
-                    'Processing (m)', 'processing-non-cpu',
+                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev'] - success_jobs['t_cpu']) / 60.)],
+                    'Non-CPU processing (m)', 'processing-non-cpu',
                     color=["green"]
 
             )

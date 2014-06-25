@@ -372,10 +372,17 @@ class Plotter(object):
             self.save_and_close(filename)
 
     def make_pie(self, vals, labels, name, **kwargs):
-        plt.pie([max(0, val) for val in vals], labels=labels, **kwargs)
-        fig = plt.gcf()
+        vals = [max(0, val) for val in vals]
+
+        fig, ax = plt.subplots()
         fig.set_size_inches(4, 3)
-        fig.subplots_adjust(left=0.125 + 0.0375, bottom=0.05, right=1.0 - 0.125 - 0.0375, top=0.95)
+        ax.set_position([0.2, 0, 0.75, 1])
+
+        if any([float(v)/sum(vals) < 0.01 for v in vals]):
+            patches, texts = ax.pie([max(0, val) for val in vals], **kwargs)
+            ax.legend(patches, labels, bbox_to_anchor=(0.3, 0.9))
+        else:
+            ax.pie([max(0, val) for val in vals], labels=labels, **kwargs)
 
         return self.save_and_close(name)
 

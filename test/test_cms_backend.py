@@ -127,7 +127,7 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, jobsize=15))
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         (jr, jd, er, ew) = self.interface.db.execute(
                 "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
@@ -149,14 +149,14 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,
@@ -196,14 +196,14 @@ class TestSQLBackend(object):
 
     def test_return_bad(self):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 123
         submissions = 1
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         True,
@@ -235,14 +235,14 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 0
         submissions = 1
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,
@@ -295,14 +295,14 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=10, filesize=2.2, jobsize=6))
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 0
         submissions = 1
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,
@@ -318,9 +318,9 @@ class TestSQLBackend(object):
         self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
 
         # grab another job
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,
@@ -352,9 +352,9 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
 
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
-        job_files, job_lumis = JobHandler(id, label, files, lumis, None).get_job_info()
+        job_files, job_lumis = JobHandler(id, label, files, lumis, None, True).get_job_info()
 
         assert job_lumis == None
 
@@ -373,14 +373,14 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
 
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,
@@ -411,14 +411,14 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
 
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 1234
         submissions = 0
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         True,
@@ -445,14 +445,14 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
 
-        (id, label, files, lumis) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
         exit_code = 0
         submissions = 0
-        times = [0] * 15
+        times = [0] * 16
 
-        handler = JobHandler(id, label, files, lumis, None)
+        handler = JobHandler(id, label, files, lumis, None, True)
         job_update, file_update, lumi_update = \
                 handler.get_jobit_info(
                         False,

@@ -362,8 +362,6 @@ class JobProvider(job.JobProvider):
 
             if failed:
                 shutil.move(handler.jobdir, handler.jobdir.replace('running', 'failed'))
-                for filename in filter(os.path.isfile, handler.outputs):
-                    os.unlink(filename)
             else:
                 shutil.move(handler.jobdir, handler.jobdir.replace('running', 'successful'))
 

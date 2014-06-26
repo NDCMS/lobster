@@ -69,7 +69,7 @@ else
 
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_CACHE=$TMPDIR
-		export PARROT_HELPER=${PARROT_PATH%bin*}lib/libparrot_helper.so
+		export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
 
 		echo ">>> parrot helper: $PARROT_HELPER"
 		print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE

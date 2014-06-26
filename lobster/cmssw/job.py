@@ -321,7 +321,7 @@ class JobProvider(job.JobProvider):
             if handler.cmssw_job:
                 try:
                     with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
-                        files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime = pickle.load(f)
+                        files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime, outsize = pickle.load(f)
                 except (EOFError, IOError) as e:
                     failed = True
                     logging.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -350,7 +350,7 @@ class JobProvider(job.JobProvider):
             data = [
                     task.total_bytes_received,
                     task.total_bytes_sent,
-                    sum(map(os.path.getsize, filter(os.path.isfile, handler.outputs)))
+                    outsize
                     ]
 
             job_update, file_update, lumi_update = \

@@ -144,25 +144,28 @@ except Exception as e:
 times.append(now)
 
 stageout_exit_code = 0
-if not cmssw_exit_code == 0:
-    for localname, remotename in stageout:
-        if os.path.exists(localname):
+outsize = 0
+
+for localname, remotename in stageout:
+    if os.path.exists(localname):
+        if not cmssw_exit_code == 0:
             os.remove(localname)
-elif server:
-    for (localname, remotename) in stageout:
-        if os.path.exists(localname):
+            continue
+
+        outsize += os.path.getsize(localname)
+
+        if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
             if status != 0 and stageout_exit_code == 0:
                 stageout_exit_code = status
-
-    if stageout_exit_code != 0:
-        exit_code = 210
+if stageout_exit_code != 0:
+    exit_code = 210
 
 times.append(int(datetime.now().strftime('%s')))
 
 try:
     f = open('report.pkl', 'wb')
-    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, eventtime), f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, eventtime, outsize), f, pickle.HIGHEST_PROTOCOL)
 except Exception as e:
     print e
     if exit_code == 0:

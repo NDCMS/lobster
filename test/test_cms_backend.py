@@ -182,17 +182,19 @@ class TestSQLBackend(object):
         assert er == 600
         assert ew == 100
 
-        (id, jr, jd) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done from files_test_good where filename='/test/0.root'").fetchone()
+        (id, jr, jd, er) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done, events_read from files_test_good where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 3
+        assert er == 220
 
-        (id, jr, jd) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done from files_test_good where filename='/test/2.root'").fetchone()
+        (id, jr, jd, er) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
 
         assert jr == 0
         assert jd == 2
+        assert er == 160
 
     def test_return_bad(self):
         self.interface.register(*self.create_dbs_dataset('test_bad'))

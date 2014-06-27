@@ -156,7 +156,7 @@ class JobitStore:
             jobits_done int default 0,
             jobits_running int default 0,
             events int,
-            events_read,
+            events_read int default 0,
             bytes int default 0)""".format(label))
 
         cur.execute("""create table if not exists jobits_{0}(

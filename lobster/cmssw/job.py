@@ -186,6 +186,7 @@ class JobProvider(job.JobProvider):
 
         for cfg in self.config['tasks']:
             label = cfg['label']
+            cfg['basedirs'] = self.basedirs
 
             cms_config = cfg.get('cmssw config')
             if cms_config:
@@ -210,11 +211,6 @@ class JobProvider(job.JobProvider):
 
                 logging.info("querying backend for {0}".format(label))
                 dataset_info = self.__interface.get_info(cfg)
-
-                if cfg.has_key('lumi mask'):
-                    lumi_mask = LumiList(filename=util.findpath(self.basedirs, cfg['lumi mask']))
-                    for file in dataset_info.files:
-                        dataset_info.lumis[file] = lumi_mask.filterLumis(dataset_info.lumis[file])
 
                 logging.info("registering {0} in database".format(label))
                 self.__store.register(cfg, dataset_info)

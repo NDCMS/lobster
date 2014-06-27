@@ -3,9 +3,11 @@ import glob
 import math
 import os
 import sys
+from lobster import util
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
+from FWCore.PythonUtilities.LumiList import LumiList
 
 class DatasetInfo():
     def __init__(self):
@@ -39,7 +41,8 @@ class DASInterface:
         dataset = cfg['dataset']
         if dataset not in self.__dsets:
             instance = cfg.get('dbs instance', 'global')
-            res = self.query_database(dataset, instance)
+            mask = util.findpath(cfg['basedirs'], cfg['lumi mask']) if cfg.get('lumi mask') else none
+            res = self.query_database(dataset, instance, mask)
 
             num = cfg.get('events per job')
             if num:
@@ -51,8 +54,7 @@ class DASInterface:
 
         return self.__dsets[dataset]
 
-    def query_database(self, dataset, instance):
-        # TODO switch to applying json mask here
+    def query_database(self, dataset, instance, mask):
         if instance not in self.__apis:
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
             self.__apis[instance] = DbsApi(dbs_url)
@@ -61,7 +63,6 @@ class DASInterface:
 
         infos = self.__apis[instance].listFileSummaries(dataset=dataset)
         result.total_events = sum([info['num_event'] for info in infos])
-        result.total_lumis = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             result.event_counts[info['logical_file_name']] = info['event_count']
@@ -69,14 +70,20 @@ class DASInterface:
 
         files = set()
         blocks = self.__apis[instance].listBlocks(dataset=dataset)
+        if mask:
+            unmasked_lumis = LumiList(filename=mask)
         for block in blocks:
             runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
             for run in runs:
                 file = run['logical_file_name']
-                files.add(file)
                 for lumi in run['lumi_section_num']:
-                    result.lumis[file].append((run['run_num'], lumi))
+                    if not mask or ((run['run_num'], lumi) in unmasked_lumis):
+                        result.lumis[file].append((run['run_num'], lumi))
+                if result.lumis.has_key(file):
+                    files.add(file)
+
         result.files = list(files)
+        result.total_lumis = len(sum([result.lumis[f] for f in result.files], []))
 
         return result
 

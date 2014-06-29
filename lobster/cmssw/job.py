@@ -270,9 +270,8 @@ class JobProvider(job.JobProvider):
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
                 handler.outputs.append(os.path.join(sdir, outname))
-                if self.__chirp:
-                    stageout.append((filename, self.__chirp, os.path.join(label, outname)))
-                else:
+                stageout.append((filename, os.path.join(label, outname)))
+                if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 
             args = [x for x in self.args[label] + [unique_arg] if x]
@@ -283,7 +282,7 @@ class JobProvider(job.JobProvider):
 
                 sum = self.config.get('cmssw summary', True)
                 with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                    pickle.dump((args, files, lumis, stageout, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
+                    pickle.dump((args, files, lumis, stageout, self.__chirp, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
                 inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(cms_config)

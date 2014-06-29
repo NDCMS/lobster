@@ -86,7 +86,7 @@ def extract_cmssw_times(log_filename, default=None):
 
 (config, data) = sys.argv[1:]
 with open(data, 'rb') as f:
-    (args, files, lumis, stageout, taskid, monitorid, syncid, want_summary) = pickle.load(f)
+    (args, files, lumis, stageout, server, taskid, monitorid, syncid, want_summary) = pickle.load(f)
 
 apmonSend(taskid, monitorid, {
             'ExeStart': 'cmsRun',
@@ -143,14 +143,19 @@ except Exception as e:
 times.append(now)
 
 stageout_exit_code = 0
-for (localname, server, remotename) in stageout:
-    if os.path.exists(localname):
-        status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
-        if status != 0 and stageout_exit_code == 0:
-            stageout_exit_code = status
+if not cmssw_exit_code == 0:
+    for localname, remotename in stageout:
+        if os.path.exists(localname):
+            os.remove(localname)
+elif server:
+    for (localname, remotename) in stageout:
+        if os.path.exists(localname):
+            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
+            if status != 0 and stageout_exit_code == 0:
+                stageout_exit_code = status
 
-if stageout_exit_code != 0:
-    exit_code = 210
+    if stageout_exit_code != 0:
+        exit_code = 210
 
 times.append(int(datetime.now().strftime('%s')))
 

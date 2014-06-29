@@ -270,7 +270,7 @@ class JobitStore:
                 for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
                         select id, file, run, lumi
                         from jobits_{0}
-                        where run=? and lumi=? and status not in (1, 2)""".format(dataset), (run, lumi)):
+                        where run=? and lumi=? and status not in (1, 2, 3)""".format(dataset), (run, lumi)):
                     lumis.add((ls_id, ls_file, ls_run, ls_lumi))
                     files.add(ls_file)
             else:

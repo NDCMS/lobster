@@ -207,9 +207,16 @@ class Plotter(object):
 
         # for cases where jobits per job changes during run, get per-jobit info
         total_jobits = 0
+        start_jobits = 0
         completed_jobits = []
         for (label,) in db.execute("select label from datasets"):
             total_jobits += db.execute("select count(*) from jobits_{0}".format(label)).fetchone()[0]
+            start_jobits += db.execute("""
+                select count(*)
+                from jobits_{0}, jobs
+                where jobits_{0}.job == jobs.id
+                    and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
+                    and time_retrieved<=?""".format(label), (self.__xmin,)).fetchone()[0]
             completed_jobits.append(np.array(db.execute("""
                 select jobits_{0}.id, jobs.time_retrieved
                 from jobits_{0}, jobs
@@ -219,7 +226,7 @@ class Plotter(object):
                 (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
 
-        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits
+        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits
 
     def readlog(self):
         with open(os.path.join(self.__workdir, 'lobster_stats.log')) as f:
@@ -397,7 +404,7 @@ class Plotter(object):
 
     def make_plots(self):
         headers, stats = self.readlog()
-        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits = self.readdb()
+        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits = self.readdb()
 
         self.plot(
                 [
@@ -491,7 +498,7 @@ class Plotter(object):
             self.plot(
                     [
                         (centers, total_completed),
-                        (centers, total_completed * (-1.) + total_jobits)
+                        (centers, total_completed * (-1.) + start_jobits)
                     ],
                     'Jobits', 'jobits-total',
                     bins=100,

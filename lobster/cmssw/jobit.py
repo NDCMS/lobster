@@ -245,19 +245,13 @@ class JobitStore:
 
         # files and lumis for individual jobs
         files = set()
-        lumis = set()
-
-        # lumi veto to avoid duplicated processing
-        all_lumis = set()
+        jobits = []
 
         # job container and current job size
         jobs = []
         current_size = 0
 
         for id, file, run, lumi, arg in rows:
-            if (run, lumi) in all_lumis:
-                continue
-
             if current_size == 0:
                 if len(size) == 0:
                     break
@@ -265,17 +259,8 @@ class JobitStore:
                 cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))
                 job_id = cur.lastrowid
 
-            if lumi > 0:
-                all_lumis.add((run, lumi))
-                for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
-                        select id, file, run, lumi
-                        from jobits_{0}
-                        where run=? and lumi=? and status not in (1, 2, 6)""".format(dataset), (run, lumi)):
-                    lumis.add((ls_id, ls_file, ls_run, ls_lumi))
-                    files.add(ls_file)
-            else:
-                lumis.add((id, file, run, lumi))
-                files.add(file)
+            jobits.append((id, file, run, lumi))
+            files.add(file)
 
             current_size += 1
 
@@ -284,11 +269,11 @@ class JobitStore:
                     str(job_id),
                     dataset,
                     [(id, fileinfo[id]) for id in files],
-                    lumis,
+                    jobits,
                     arg))
 
                 files = set()
-                lumis = set()
+                jobits = []
 
                 current_size = 0
                 size.pop(0)
@@ -298,35 +283,35 @@ class JobitStore:
                 str(job_id),
                 dataset,
                 [(id, fileinfo[id]) for id in files],
-                lumis,
+                jobits,
                 arg))
 
         dataset_update = []
         file_update = defaultdict(int)
         job_update = defaultdict(int)
-        lumi_update = []
+        jobit_update = []
 
-        for (job, label, files, lumis, arg) in jobs:
-            dataset_update += lumis
-            job_update[job] = unique_lumis(lumis)
-            lumi_update += [(job, id) for (id, file, run, lumi) in lumis]
+        for (job, label, files, jobits, arg) in jobs:
+            dataset_update += jobits
+            job_update[job] = len(jobits)
+            jobit_update += [(job, id) for (id, file, run, lumi) in jobits]
             for (id, filename) in files:
-                file_update[id] += unique_lumis(filter(lambda tpl: tpl[1] == id, lumis))
+                file_update[id] += len(filter(lambda tpl: tpl[1] == id, jobits))
 
         self.db.execute(
                 "update datasets set jobits_running=(jobits_running + ?) where id=?",
-                (unique_lumis(dataset_update), dataset_id))
+                (len(dataset_update), dataset_id))
 
         self.db.executemany("update files_{0} set jobits_running=(jobits_running + ?) where id=?".format(dataset),
                 [(v, k) for (k, v) in file_update.items()])
         self.db.executemany("update jobs set jobits=? where id=?",
                 [(v, k) for (k, v) in job_update.items()])
         self.db.executemany("update jobits_{0} set status=1, job=? where id=?".format(dataset),
-                lumi_update)
+                jobit_update)
 
         self.db.commit()
 
-        return jobs if len(lumi_update) > 0 else None
+        return jobs if len(jobit_update) > 0 else None
 
     def reset_jobits(self):
         with self.db as db:

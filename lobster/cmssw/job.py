@@ -27,12 +27,12 @@ class JobHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, lumis, jdir, cmssw_job):
+    def __init__(self, id, dataset, files, jobits, jdir, cmssw_job):
         self.__id = id,
         self.__dataset = dataset
         self.__files = files
-        self.__file_based = any([run == -1 or lumi == -1 for (id, file, run, lumi) in lumis])
-        self.__lumis = lumis
+        self.__file_based = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
+        self.__jobits = jobits
         self.__jobdir = jdir
         self.__outputs = []
         self.__cmssw_job = cmssw_job
@@ -62,7 +62,7 @@ class JobHandler(object):
         self.__outputs = files
 
     def get_job_info(self):
-        lumis = set([(run, lumi) for (id, file, run, lumi) in self.__lumis])
+        lumis = set([(run, lumi) for (id, file, run, lumi) in self.__jobits])
         files = set([filename for (id, filename) in self.__files])
 
         if self.__file_based:
@@ -77,43 +77,43 @@ class JobHandler(object):
         file_update = []
         lumi_update = []
 
-        processed = set()
-        missed = set()
+        processed = []
+        missed = []
 
         for (id, file) in self.__files:
-            file_lumis = [tpl for tpl in self.__lumis if tpl[1] == id]
+            file_jobits = [tpl for tpl in self.__jobits if tpl[1] == id]
 
             skipped = False
             if self.__cmssw_job:
                 skipped = file in files_skipped or file not in files_info
+
             read = 0 if skipped or failed else files_info[file][0]
-
-            if not self.__file_based:
-                jobits_finished = len(file_lumis)
-                jobits_done = 0 if failed or skipped else len(files_info[file][1])
-            else:
-                jobits_finished = 1
-                jobits_done = 0 if failed or skipped else 1
-
             events_read += read
-            file_update.append((jobits_finished, jobits_done, read, 1 if skipped else 0, id))
+
+            file_jobits_attempted = 1 if self.__file_based else len(file_jobits)
+            file_jobits_completed = 0
 
             if not failed:
                 if skipped:
-                    for (lumi_id, lumi_file, r, l) in file_lumis:
+                    for (lumi_id, lumi_file, r, l) in file_jobits:
                         lumi_update.append((jobit.FAILED, lumi_id))
-                        missed.add((r, l))
+                        missed.append((lumi_file, r, l))
                 elif not self.__file_based:
-                    for (lumi_id, lumi_file, r, l) in file_lumis:
+                    for (lumi_id, lumi_file, r, l) in file_jobits:
                         if (r, l) not in files_info[file][1]:
                             lumi_update.append((jobit.FAILED, lumi_id))
-                            missed.add((r, l))
+                            missed.append((lumi_file, r, l))
                         else:
-                            processed.add((r, l))
+                            processed.append((lumi_file, r, l))
+                            file_jobits_completed += 1
+                else:
+                    file_jobits_completed += 1
+
+            file_update.append((file_jobits_attempted, file_jobits_completed, read, 1 if skipped else 0, id))
 
         if not self.__file_based:
             jobits_processed = len(processed)
-            jobits_missed = jobit.unique_lumis(self.__lumis) if failed else len(missed)
+            jobits_missed = len(self.__jobits) if failed else len(missed)
         else:
             jobits_processed = len(files_info.keys())
             jobits_missed = len(self.__files) - len(files_info.keys())
@@ -353,7 +353,7 @@ class JobProvider(job.JobProvider):
                     outsize
                     ]
 
-            job_update, file_update, lumi_update = \
+            job_update, file_update, jobit_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)
 
             submissions = task.total_submissions
@@ -367,7 +367,7 @@ class JobProvider(job.JobProvider):
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 
-            jobs[handler.dataset].append((job_update, file_update, lumi_update))
+            jobs[handler.dataset].append((job_update, file_update, jobit_update))
 
             del self.__jobhandlers[task.tag]
 

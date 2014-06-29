@@ -121,6 +121,7 @@ except Exception as e:
     files_skipped = []
     eventtime = 0
     cputime = 0
+    cmssw_exit_code = 190
 
 try:
     times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]

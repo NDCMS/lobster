@@ -496,11 +496,8 @@ class Plotter(object):
             centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
 
             self.plot(
-                    [
-                        (centers, total_completed),
-                        (centers, total_completed * (-1.) + start_jobits)
-                    ],
-                    'Jobits', 'jobits-total',
+                    [(centers, total_completed * (-1.) + start_jobits)],
+                    'Jobits remaining', 'jobits-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )

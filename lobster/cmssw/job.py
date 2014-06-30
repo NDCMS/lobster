@@ -317,6 +317,7 @@ class JobProvider(job.JobProvider):
             task_times = [None] * 7
             cmssw_exit_code = None
             cputime = 0
+            outsize = 0
 
             if handler.cmssw_job:
                 try:

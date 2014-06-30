@@ -259,8 +259,16 @@ class JobitStore:
                 cur.execute("insert into jobs(dataset, status) values (?, 1)", (dataset_id,))
                 job_id = cur.lastrowid
 
-            jobits.append((id, file, run, lumi))
-            files.add(file)
+            if lumi > 0:
+                for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
+                        select id, file, run, lumi
+                        from jobits_{0}
+                        where run=? and lumi=? and status not in (1, 2, 6)""".format(dataset), (run, lumi)):
+                    jobits.append((ls_id, ls_file, ls_run, ls_lumi))
+                    files.add(ls_file)
+            else:
+                jobits.append((id, file, run, lumi))
+                files.add(file)
 
             current_size += 1
 

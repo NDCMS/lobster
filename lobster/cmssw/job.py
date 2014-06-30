@@ -77,9 +77,8 @@ class JobHandler(object):
         file_update = []
         lumi_update = []
 
-        processed = []
-        missed = []
-
+        jobits_processed = 0
+        jobits_missed = 0
         for (id, file) in self.__files:
             file_jobits = [tpl for tpl in self.__jobits if tpl[1] == id]
 
@@ -91,31 +90,29 @@ class JobHandler(object):
             events_read += read
 
             file_jobits_attempted = 1 if self.__file_based else len(file_jobits)
-            file_jobits_completed = 0
+            file_jobits_processed = 0
 
             if not failed:
                 if skipped:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         lumi_update.append((jobit.FAILED, lumi_id))
-                        missed.append((lumi_file, r, l))
+                        jobits_missed += 1
                 elif not self.__file_based:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         if (r, l) not in files_info[file][1]:
                             lumi_update.append((jobit.FAILED, lumi_id))
-                            missed.append((lumi_file, r, l))
+                            jobits_missed += 1
                         else:
-                            processed.append((lumi_file, r, l))
-                            file_jobits_completed += 1
+                            file_jobits_processed += 1
                 else:
-                    file_jobits_completed += 1
+                    file_jobits_processed += 1
 
-            file_update.append((file_jobits_attempted, file_jobits_completed, read, 1 if skipped else 0, id))
+            jobits_processed += file_jobits_processed
+            file_update.append((file_jobits_attempted, file_jobits_processed, read, 1 if skipped else 0, id))
 
         if not self.__file_based:
-            jobits_processed = len(processed)
-            jobits_missed = len(self.__jobits) if failed else len(missed)
+            jobits_missed = len(self.__jobits) if failed else jobits_missed
         else:
-            jobits_processed = len(files_info.keys())
             jobits_missed = len(self.__files) - len(files_info.keys())
 
         if failed:

@@ -242,13 +242,13 @@ class Plotter(object):
         stats[:,headers['total_workers_removed']] -= np.roll(stats[:,headers['total_workers_removed']], 1, 0)
 
         stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
-        stats[:,headers['total_create_time']] = np.divide(stats[:,headers['total_create_time']], diff)
+        stats[:,headers['total_create_time']] /= 60e6
         stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
-        stats[:,headers['total_send_time']] = np.divide(stats[:,headers['total_send_time']], diff)
+        stats[:,headers['total_send_time']] /= 60e6
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
-        stats[:,headers['total_receive_time']] = np.divide(stats[:,headers['total_receive_time']], diff)
+        stats[:,headers['total_receive_time']] /= 60e6
         stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
-        stats[:,headers['total_return_time']] = np.divide(stats[:,headers['total_return_time']], diff)
+        stats[:,headers['total_return_time']] /= 60e6
 
         if not self.__xmin:
             self.__xmin = stats[0,0]
@@ -428,13 +428,8 @@ class Plotter(object):
         received, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_receive_time']])
         created, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_create_time']])
         returned, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_return_time']])
+        idle = (edges[1] - edges[0])/60 - sent - received - created - returned
         centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-
-        if len(edges > 1):
-            sent /= edges[1] - edges[0]
-            received /= edges[1] - edges[0]
-            created /= edges[1] - edges[0]
-            returned /= edges[1] - edges[0]
 
         self.plot(
                 [
@@ -442,11 +437,12 @@ class Plotter(object):
                     (centers, received),
                     (centers, created),
                     (centers, returned),
+                    (centers, idle)
                 ],
-                'Fraction', 'fraction',
+                'Time (m)', 'fraction',
                 bins=100,
                 modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving', 'creating', 'returning']
+                label=['sending', 'receiving', 'creating', 'returning', 'idle']
         )
 
         self.plot(

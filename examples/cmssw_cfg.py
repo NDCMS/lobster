@@ -7,7 +7,7 @@ process.source = cms.Source("PoolSource",
                             )
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(-1))
 process.output = cms.OutputModule("PoolOutputModule",
-                                  outputCommands = cms.untracked.vstring("drop *", "keep recoTracks_*_*_*"),
+                                  outputCommands = cms.untracked.vstring("drop *", "keep hltTriggerSummaryAOD_*_*_*"),
                                   fileName = cms.untracked.string('minimal_output.root'),
                                   )
 

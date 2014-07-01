@@ -154,6 +154,9 @@ def run(args):
                     "tasks_running " +
                     "total_send_time total_receive_time " +
                     "total_create_time total_return_time " +
+                    "idle_percentage " +
+                    "capacity " +
+                    "efficiency " +
                     "jobits_left\n")
 
         while not job_src.done():
@@ -175,6 +178,9 @@ def run(args):
                         stats.total_receive_time,
                         creation_time,
                         destruction_time,
+                        stats.idle_percentage,
+                        stats.capacity,
+                        stats.efficiency,
                         jobits_left
                     ]
                     )) + "\n"

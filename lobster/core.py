@@ -1,6 +1,7 @@
 import daemon
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
+from collections import defaultdict
 import logging
 import os
 import datetime
@@ -29,6 +30,39 @@ def kill(args):
 
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
+
+def cleanup(args):
+    with open(args.configfile) as configfile:
+        config = yaml.load(configfile)
+
+    store = cmssw.jobit.JobitStore(config)
+    config = job.apply_matching(config)
+    outputformats = defaultdict(list)
+    deleted_files = 0
+    for cfg in config['tasks']:
+        good_files = set()
+        label = cfg['label']
+        for id in store.finished_jobs(label):
+            for base, ext in [os.path.splitext(o) for o in cfg['outputs']]:
+                output_format = cfg.get("output format", "{base}_{id}.{ext}")
+                good_files.add(output_format.format(base=base, id=id[0], ext=ext[1:]))
+
+        for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
+            print 'Looking for output files to cleanup in {0}...'.format(label)
+
+            files = set(filenames)
+            missing = good_files - files
+            extra = files - good_files
+
+            for file in missing:
+                print 'Warning!  Expected to find {0}, but it is missing!'.format(file)
+            for file in extra:
+                print 'Found output from failed job: deleting {0}...'.format(file)
+                deleted_files += 1
+                os.remove(os.path.join(dirpath, file))
+
+    conjugation = 's' if deleted_files != 1 else ''
+    print 'Finished cleaning; found {0} file{1} to clean up.'.format(deleted_files, conjugation)
 
 def run(args):
     with open(args.configfile) as configfile:

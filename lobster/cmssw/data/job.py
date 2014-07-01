@@ -21,6 +21,11 @@ process.Timing = cms.Service("Timing",
     summaryOnly = cms.untracked.bool(True))
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
 
+sum_frag = """\nif process.options:
+    process.options.wantSummary = cms.untracked.bool(True)
+else:
+    process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))"""
+
 def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1):
     with open(cmssw_config_file, 'a') as config:
         frag = fragment.format(events=events)
@@ -29,7 +34,8 @@ def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis.getVLuminosityBlockRange()])
         if want_summary:
-            frag += "\nprocess.options.wantSummary = cms.untracked.bool(True)"
+            frag += sum_frag
+
         print "--- config file fragment:"
         print frag
         print "---"

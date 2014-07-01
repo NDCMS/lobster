@@ -1,7 +1,6 @@
 import daemon
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
-from collections import defaultdict
 import logging
 import os
 import datetime
@@ -37,7 +36,6 @@ def cleanup(args):
 
     store = cmssw.jobit.JobitStore(config)
     config = job.apply_matching(config)
-    outputformats = defaultdict(list)
     deleted_files = 0
     for cfg in config['tasks']:
         good_files = set()

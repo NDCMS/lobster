@@ -224,10 +224,10 @@ def run(args):
                             task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
                                     wq.WORK_QUEUE_CACHE, recursive=True)
                         else:
+                            logging.critical("cannot send file to worker: {0}".format(local))
                             raise NotImplementedError
 
                     for (local, remote) in outputs:
-                        logging.critical("cannot send file to worker: {0}".format(local))
                         task.specify_output_file(str(local), str(remote))
 
                     queue.submit(task)

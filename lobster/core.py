@@ -227,6 +227,7 @@ def run(args):
                             raise NotImplementedError
 
                     for (local, remote) in outputs:
+                        logging.critical("cannot send file to worker: {0}".format(local))
                         task.specify_output_file(str(local), str(remote))
 
                     queue.submit(task)

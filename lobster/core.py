@@ -141,6 +141,9 @@ def run(args):
         abort_threshold = config.get('tune', {}).get('abort threshold', 400)
         abort_multiplier = config.get('tune', {}).get('abort multiplier', 4)
 
+        if util.checkpoint(workdir, 'KILLED') == 'PENDING':
+            util.register_checkpoint(workdir, 'KILLED', 'RESTART')
+
         successful_jobs = 0
 
         creation_time = 0

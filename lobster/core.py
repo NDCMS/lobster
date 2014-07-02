@@ -18,8 +18,8 @@ def get_lock(workdir):
     try:
         pidfile.acquire()
     except AlreadyLocked:
-            print "Another instance of lobster is accessing {0}".format(workdir)
-            raise
+        print "Another instance of lobster is accessing {0}".format(workdir)
+        raise
     pidfile.break_lock()
     return pidfile
 

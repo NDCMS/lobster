@@ -21,7 +21,7 @@ process.Timing = cms.Service("Timing",
     summaryOnly = cms.untracked.bool(True))
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
 
-sum_frag = """\nif process.options:
+sum_frag = """\nif hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))"""

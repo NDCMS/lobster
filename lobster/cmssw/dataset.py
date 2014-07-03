@@ -106,7 +106,6 @@ class FileInterface:
 
                 # we don't cache gen-jobs (avoid overwriting num jobs
                 # etc...)
-                return dset
             else:
                 dset.jobsize = cfg.get("files per job", 1)
 
@@ -118,10 +117,10 @@ class FileInterface:
                     dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
 
                 dset.total_lumis = len(dset.files)
-            for file in dset.files:
-                # hack because it will be slow to open all the input files to read the run/lumi info
-                dset.lumis[file] = [(-1, -1)]
-                dset.filesizes[file] = os.path.getsize(file[5:])
+                for file in dset.files:
+                    # hack because it will be slow to open all the input files to read the run/lumi info
+                    dset.lumis[file] = [(-1, -1)]
+                    dset.filesizes[file] = os.path.getsize(file[5:])
 
             self.__dsets[label] = dset
 

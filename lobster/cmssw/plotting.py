@@ -238,8 +238,8 @@ class Plotter(object):
         # fix units of time
         stats[:,0] /= 1e6
 
-        stats[:,headers['total_workers_joined']] -= np.roll(stats[:,headers['total_workers_joined']], 1, 0)
-        stats[:,headers['total_workers_removed']] -= np.roll(stats[:,headers['total_workers_removed']], 1, 0)
+        stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
+        stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
 
         stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
         stats[:,headers['total_create_time']] /= 60e6

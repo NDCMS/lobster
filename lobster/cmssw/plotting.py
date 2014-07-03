@@ -538,6 +538,60 @@ class Plotter(object):
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
 
+            def integrate_wall((x, y)):
+                indices = np.logical_and(stats[:,0] >= x, stats[:,0] < y)
+                values = stats[indices,headers['tasks_running']]
+                if len(values) > 0:
+                    return np.sum(values) * (y - x) / len(values)
+                return 0
+
+            walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
+            cputime = np.zeros(len(edges) - 1)
+
+            for (cpu, start, end) in zip(
+                    success_jobs['t_cpu'],
+                    success_jobs['t_first_ev'],
+                    success_jobs['t_processing_end']):
+                if end == start or cpu == 0:
+                    continue
+
+                ratio = cpu * 1. / (end - start)
+                time = 0
+                for i in range(len(edges) - 1):
+                    if start >= edges[i] and end < edges[i + 1]:
+                        cputime[i] += (end - start) * ratio
+                        time += (end - start) * ratio
+                    elif start < edges[i] and end >= edges[i + 1]:
+                        cputime[i] += (edges[i + 1] - edges[i]) * ratio
+                        time += (edges[i + 1] - edges[i]) * ratio
+                    elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
+                        cputime[i] += (end - edges[i]) * ratio
+                        time += (end - edges[i]) * ratio
+                    elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
+                        cputime[i] += (edges[i + 1] - start) * ratio
+                        time += (edges[i + 1] - start) * ratio
+                if abs(time - cpu)/cpu > 0.1:
+                    print time, cpu, start, end
+
+            centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
+            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'CPU / Wall', 'cpu-wall',
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'Integrated CPU / Wall', 'cpu-wall-int',
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
             self.make_pie(
                     [
                         np.sum(success_jobs['t_allput'] - success_jobs['t_goodput'])

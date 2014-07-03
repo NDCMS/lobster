@@ -301,7 +301,11 @@ class Plotter(object):
     def unix2matplotlib(self, time):
         return dates.date2num(datetime.fromtimestamp(time))
 
-    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs):
+    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs_raw):
+        kwargs = dict(kwargs_raw)
+        if 'ymax' in kwargs:
+            del kwargs['ymax']
+
         if not modes:
             modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
 
@@ -364,6 +368,9 @@ class Plotter(object):
             else:
                 ax.axis(ymin=0)
 
+            if 'ymax' in kwargs_raw:
+                ax.axis(ymax=kwargs_raw['ymax'])
+
             if not mode & Plotter.TIME and mode & Plotter.HIST:
                 all = np.concatenate([y for (x, y) in a])
                 avg = np.average(all)
@@ -425,24 +432,33 @@ class Plotter(object):
         )
 
         sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
-        received, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_receive_time']])
-        created, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_create_time']])
-        returned, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_return_time']])
-        idle = (edges[1] - edges[0])/60 - sent - received - created - returned
+        received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
+        created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
+        returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
+        idle_total = np.multiply(
+                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
+                stats[:,headers['idle_percentage']]
+        )
+        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
+        idle, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
+        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - sent - received - created - returned - idle, 0)
+        all = other + sent + received + created + returned + idle
         centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
 
         self.plot(
                 [
-                    (centers, sent),
-                    (centers, received),
-                    (centers, created),
-                    (centers, returned),
-                    (centers, idle)
+                    (centers, np.divide(sent, all)),
+                    (centers, np.divide(received, all)),
+                    (centers, np.divide(created, all)),
+                    (centers, np.divide(returned, all)),
+                    (centers, np.divide(idle, all)),
+                    (centers, np.divide(other, all))
                 ],
                 'Time (m)', 'fraction',
                 bins=100,
                 modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving', 'creating', 'returning', 'idle']
+                label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
+                ymax=1.
         )
 
         self.plot(

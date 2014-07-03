@@ -454,7 +454,7 @@ class Plotter(object):
                     (centers, np.divide(idle, all)),
                     (centers, np.divide(other, all))
                 ],
-                'Time (m)', 'fraction',
+                'Fraction', 'fraction',
                 bins=100,
                 modes=[Plotter.HIST|Plotter.TIME],
                 label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],

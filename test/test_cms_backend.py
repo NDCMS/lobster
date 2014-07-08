@@ -1,3 +1,4 @@
+# vim: foldmethod=marker
 from lobster import cmssw
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.cmssw.job import JobHandler
@@ -58,6 +59,7 @@ class TestSQLBackend(object):
         return cfg, info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, jobsize=5):
+        # {{{
         info = DatasetInfo()
         info.total_events = lumi_events * lumis
         info.total_lumis = lumis
@@ -110,8 +112,10 @@ class TestSQLBackend(object):
         }
 
         return cfg, info
+        # }}}
 
     def test_create_datasets(self):
+        # {{{
         cfg, info = self.create_dbs_dataset('test', 100, 11, 2.2, 3)
 
         total = 0
@@ -122,8 +126,33 @@ class TestSQLBackend(object):
             assert len(v) == 3
 
         assert total == 1100
+        # }}}
+
+    def test_handler(self):
+        # {{{
+        self.interface.register(
+                *self.create_dbs_dataset(
+                    'test_handler', lumis=11, filesize=2.2, jobsize=3))
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
+
+        handler = JobHandler(123, 'test_handler', files, lumis, 'test', True)
+
+        files_info = {
+                u'/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                u'/test/1.root': (80, [(1, 3)])
+        }
+        files_skipped = []
+        events_written = 123
+
+        job_update, file_update, lumi_update = handler.get_jobit_info(False, files_info, files_skipped, events_written)
+
+        assert job_update == [3, 0, 300, 123, 2]
+        assert file_update == [(3, 3, 220, 0, 1), (1, 1, 80, 0, 2)]
+        assert lumi_update == []
+        # }}}
 
     def test_obtain(self):
+        # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, jobsize=15))
@@ -144,8 +173,10 @@ class TestSQLBackend(object):
 
         assert jr == 3
         assert jd == 0
+        # }}}
 
     def test_return_good(self):
+        # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
@@ -195,8 +226,10 @@ class TestSQLBackend(object):
         assert jr == 0
         assert jd == 2
         assert er == 160
+        # }}}
 
     def test_return_bad(self):
+        # {{{
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
@@ -227,13 +260,62 @@ class TestSQLBackend(object):
         assert er == 0
         assert ew == 0
 
-        (id, jr, jd) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done from files_test_bad where filename='/test/0.root'").fetchone()
+        (id, jr, jd, er) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done, events_read from files_test_bad where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
+        assert er == 0
+        # }}}
+
+    def test_return_bad_again(self):
+        # {{{
+        self.interface.register(*self.create_dbs_dataset(
+            'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
+        (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
+
+        data = [0, 0, 0]
+        exit_code = 123
+        submissions = 1
+        times = [0] * 16
+
+        handler = JobHandler(id, label, files, lumis, None, True)
+        job_update, file_update, lumi_update = \
+                handler.get_jobit_info(
+                        True,
+                        {
+                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                            '/test/2.root': (160, [(1, 5), (1, 6)])
+                        },
+                        [],
+                        100
+                        )
+
+        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+
+        self.interface.update_jobits({label: [(job_update, file_update, lumi_update)]})
+
+        (jr, jd, er, ew) = self.interface.db.execute(
+                "select jobits_running, jobits_done, events_read, events_written from datasets where label=?",
+                (label,)
+                ).fetchone()
+
+        assert jr == 0
+        assert jd == 0
+        assert er == 0
+        assert ew == 0
+
+        (id, jr, jd, er) = self.interface.db.execute(
+                "select id, jobits_running, jobits_done, events_read from files_test_bad_again where filename='/test/0.root'").fetchone()
+
+        assert jr == 0
+        assert jd == 0
+        assert er == 0
+        # }}}
 
     def test_return_ugly(self):
+        # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
@@ -292,8 +374,10 @@ class TestSQLBackend(object):
 
         assert jr == 0
         assert jd == 0
+        # }}}
 
     def test_return_uglier(self):
+        # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=10, filesize=2.2, jobsize=6))
@@ -348,8 +432,10 @@ class TestSQLBackend(object):
         assert jl == 0
         assert er == 1000
         assert ew == 200
+        # }}}
 
     def test_file_obtain(self):
+        # {{{
         self.interface.register(
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
@@ -369,8 +455,10 @@ class TestSQLBackend(object):
         assert jd == 0
         assert er == 0
         assert ew == 0
+        # }}}
 
     def test_file_return_good(self):
+        # {{{
         self.interface.register(
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
@@ -407,8 +495,10 @@ class TestSQLBackend(object):
         assert jd == 3
         assert er == 600
         assert ew == 100
+        # }}}
 
     def test_file_return_bad(self):
+        # {{{
         self.interface.register(
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
@@ -441,8 +531,10 @@ class TestSQLBackend(object):
         assert jd == 0
         assert er == 0
         assert ew == 0
+        # }}}
 
     def test_file_return_ugly(self):
+        # {{{
         self.interface.register(
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
@@ -479,6 +571,7 @@ class TestSQLBackend(object):
         assert jl == 3
         assert er == 440
         assert ew == 100
+        # }}}
 
 class TestCMSSWProvider(object):
     @classmethod

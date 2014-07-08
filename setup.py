@@ -14,7 +14,8 @@ setup(
         'cmssw/data/wrapper.sh',
         'cmssw/data/mtab',
         'cmssw/data/siteconfig/JobConfig/site-local-config.xml',
-        'cmssw/data/siteconfig/PhEDEx/storage.xml'
+        'cmssw/data/siteconfig/PhEDEx/storage.xml',
+        'cmssw/data/template.html'
     ]},
     install_requires=[
         'argparse',

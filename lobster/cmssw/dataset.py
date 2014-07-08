@@ -41,7 +41,7 @@ class DASInterface:
         dataset = cfg['dataset']
         if dataset not in self.__dsets:
             instance = cfg.get('dbs instance', 'global')
-            mask = util.findpath(cfg['basedirs'], cfg['lumi mask']) if cfg.get('lumi mask') else none
+            mask = util.findpath(cfg['basedirs'], cfg['lumi mask']) if cfg.get('lumi mask') else None
             res = self.query_database(dataset, instance, mask)
 
             num = cfg.get('events per job')

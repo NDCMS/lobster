@@ -56,6 +56,14 @@ else
 			export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
 		fi
 
+		if [ -n "$OSG_SQUID_LOCATION" ]; then
+			export HTTP_PROXY=${HTTP_PROXY:-$OSG_SQUID_LOCATION}
+		elif [ -n "$GLIDEIN_Proxy_URL" ]; then
+			export HTTP_PROXY=${HTTP_PROXY:-$GLIDEIN_Proxy_URL}
+		fi
+
+		# Last safeguard, if everything else fails.  We need a
+		# proxy for parrot!
 		# export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128;DIRECT}
 		export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128}
 		export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]/eg')

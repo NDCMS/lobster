@@ -238,17 +238,17 @@ class Plotter(object):
         # fix units of time
         stats[:,0] /= 1e6
 
-        stats[:,headers['total_workers_joined']] -= np.roll(stats[:,headers['total_workers_joined']], 1, 0)
-        stats[:,headers['total_workers_removed']] -= np.roll(stats[:,headers['total_workers_removed']], 1, 0)
+        stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
+        stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
 
         stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
-        stats[:,headers['total_create_time']] = np.divide(stats[:,headers['total_create_time']], diff)
+        stats[:,headers['total_create_time']] /= 60e6
         stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
-        stats[:,headers['total_send_time']] = np.divide(stats[:,headers['total_send_time']], diff)
+        stats[:,headers['total_send_time']] /= 60e6
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
-        stats[:,headers['total_receive_time']] = np.divide(stats[:,headers['total_receive_time']], diff)
+        stats[:,headers['total_receive_time']] /= 60e6
         stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
-        stats[:,headers['total_return_time']] = np.divide(stats[:,headers['total_return_time']], diff)
+        stats[:,headers['total_return_time']] /= 60e6
 
         if not self.__xmin:
             self.__xmin = stats[0,0]
@@ -301,7 +301,11 @@ class Plotter(object):
     def unix2matplotlib(self, time):
         return dates.date2num(datetime.fromtimestamp(time))
 
-    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs):
+    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs_raw):
+        kwargs = dict(kwargs_raw)
+        if 'ymax' in kwargs:
+            del kwargs['ymax']
+
         if not modes:
             modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
 
@@ -364,6 +368,9 @@ class Plotter(object):
             else:
                 ax.axis(ymin=0)
 
+            if 'ymax' in kwargs_raw:
+                ax.axis(ymax=kwargs_raw['ymax'])
+
             if not mode & Plotter.TIME and mode & Plotter.HIST:
                 all = np.concatenate([y for (x, y) in a])
                 avg = np.average(all)
@@ -425,28 +432,33 @@ class Plotter(object):
         )
 
         sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
-        received, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_receive_time']])
-        created, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_create_time']])
-        returned, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_return_time']])
+        received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
+        created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
+        returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
+        idle_total = np.multiply(
+                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
+                stats[:,headers['idle_percentage']]
+        )
+        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
+        idle, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
+        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - sent - received - created - returned - idle, 0)
+        all = other + sent + received + created + returned + idle
         centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-
-        if len(edges > 1):
-            sent /= edges[1] - edges[0]
-            received /= edges[1] - edges[0]
-            created /= edges[1] - edges[0]
-            returned /= edges[1] - edges[0]
 
         self.plot(
                 [
-                    (centers, sent),
-                    (centers, received),
-                    (centers, created),
-                    (centers, returned),
+                    (centers, np.divide(sent, all)),
+                    (centers, np.divide(received, all)),
+                    (centers, np.divide(created, all)),
+                    (centers, np.divide(returned, all)),
+                    (centers, np.divide(idle, all)),
+                    (centers, np.divide(other, all))
                 ],
                 'Fraction', 'fraction',
                 bins=100,
                 modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving', 'creating', 'returning']
+                label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
+                ymax=1.
         )
 
         self.plot(
@@ -524,6 +536,60 @@ class Plotter(object):
                     'Output (GB)', 'output-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
+            )
+
+            def integrate_wall((x, y)):
+                indices = np.logical_and(stats[:,0] >= x, stats[:,0] < y)
+                values = stats[indices,headers['tasks_running']]
+                if len(values) > 0:
+                    return np.sum(values) * (y - x) / len(values)
+                return 0
+
+            walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
+            cputime = np.zeros(len(edges) - 1)
+
+            for (cpu, start, end) in zip(
+                    success_jobs['t_cpu'],
+                    success_jobs['t_first_ev'],
+                    success_jobs['t_processing_end']):
+                if end == start or cpu == 0:
+                    continue
+
+                ratio = cpu * 1. / (end - start)
+                time = 0
+                for i in range(len(edges) - 1):
+                    if start >= edges[i] and end < edges[i + 1]:
+                        cputime[i] += (end - start) * ratio
+                        time += (end - start) * ratio
+                    elif start < edges[i] and end >= edges[i + 1]:
+                        cputime[i] += (edges[i + 1] - edges[i]) * ratio
+                        time += (edges[i + 1] - edges[i]) * ratio
+                    elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
+                        cputime[i] += (end - edges[i]) * ratio
+                        time += (end - edges[i]) * ratio
+                    elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
+                        cputime[i] += (edges[i + 1] - start) * ratio
+                        time += (edges[i + 1] - start) * ratio
+                if abs(time - cpu)/cpu > 0.1:
+                    print time, cpu, start, end
+
+            centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
+            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'CPU / Wall', 'cpu-wall',
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'Integrated CPU / Wall', 'cpu-wall-int',
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
             )
 
             self.make_pie(

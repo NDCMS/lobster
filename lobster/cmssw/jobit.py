@@ -459,10 +459,11 @@ class JobitStore:
         return cur.fetchone()
 
     def finished_jobs(self, dataset):
-        cur = self.db.execute("""select id
-            from jobs
-            where status=?
-            and dataset=?""", (SUCCESSFUL, dataset,))
+        cur = self.db.execute("""select jobs.id
+            from jobs, datasets
+            where jobs.status=?
+            and datasets.label=?
+            and jobs.dataset==datasets.id""", (SUCCESSFUL, dataset))
 
         return cur.fetchall()
 

@@ -13,6 +13,33 @@ from hashlib import sha1
 
 from lobster import util
 
+def apply_matching(config):
+    defaults = config.get('task defaults', {})
+    matching = defaults.get('matching', [])
+    configs = []
+
+    for cfg in config['tasks']:
+        label = cfg['label']
+
+        for match in matching:
+            if re.search(match['label'], label):
+                for k, v in match.items():
+                    if k == 'label':
+                        continue
+                    if k not in cfg:
+                        cfg[k] = v
+        for k, v in defaults.items():
+            if k == 'matching':
+                continue
+            if k not in cfg:
+                cfg[k] = v
+
+        configs.append(cfg)
+
+    config['tasks'] = configs
+
+    return config
+
 class JobProvider(object):
     def __init__(self, config):
         self.config = config
@@ -38,28 +65,9 @@ class JobProvider(object):
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        defaults = self.config.get('task defaults', {})
-        matching = defaults.get('matching', [])
-        configs = []
-
+        self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
             label = cfg['label']
-
-            for match in matching:
-                if re.search(match['label'], label):
-                    for k, v in match.items():
-                        if k == 'label':
-                            continue
-                        if k not in cfg:
-                            cfg[k] = v
-            for k, v in defaults.items():
-                if k == 'matching':
-                    continue
-                if k not in cfg:
-                    cfg[k] = v
-
-            configs.append(cfg)
-
             self.extra_inputs[label] = map(
                     partial(util.findpath, self.basedirs),
                     cfg.get('extra inputs', []))
@@ -79,8 +87,6 @@ class JobProvider(object):
                         pass
 
                 shutil.copy(self.config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
-
-        self.config['tasks'] = configs
 
     def done(self):
         raise NotImplementedError

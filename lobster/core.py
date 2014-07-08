@@ -18,8 +18,8 @@ def get_lock(workdir):
     try:
         pidfile.acquire()
     except AlreadyLocked:
-            print "Another instance of lobster is accessing {0}".format(workdir)
-            raise
+        print "Another instance of lobster is accessing {0}".format(workdir)
+        raise
     pidfile.break_lock()
     return pidfile
 
@@ -29,6 +29,38 @@ def kill(args):
 
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
+
+def cleanup(args):
+    with open(args.configfile) as configfile:
+        config = yaml.load(configfile)
+
+    store = cmssw.jobit.JobitStore(config)
+    config = job.apply_matching(config)
+    deleted_files = 0
+    for cfg in config['tasks']:
+        good_files = set()
+        label = cfg['label']
+        for id in store.finished_jobs(label):
+            for base, ext in [os.path.splitext(o) for o in cfg['outputs']]:
+                output_format = cfg.get("output format", "{base}_{id}.{ext}")
+                good_files.add(output_format.format(base=base, id=id[0], ext=ext[1:]))
+
+        for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
+            print 'Looking for output files to cleanup in {0}...'.format(label)
+
+            files = set(filenames)
+            missing = good_files - files
+            extra = files - good_files
+
+            for file in missing:
+                print 'Warning!  Expected to find {0}, but it is missing!'.format(file)
+            for file in extra:
+                print 'Found output from failed job: deleting {0}...'.format(file)
+                deleted_files += 1
+                os.remove(os.path.join(dirpath, file))
+
+    conjugation = 's' if deleted_files != 1 else ''
+    print 'Finished cleaning; found {0} file{1} to clean up.'.format(deleted_files, conjugation)
 
 def run(args):
     with open(args.configfile) as configfile:
@@ -109,6 +141,9 @@ def run(args):
         abort_threshold = config.get('tune', {}).get('abort threshold', 400)
         abort_multiplier = config.get('tune', {}).get('abort multiplier', 4)
 
+        if util.checkpoint(workdir, 'KILLED') == 'PENDING':
+            util.register_checkpoint(workdir, 'KILLED', 'RESTART')
+
         successful_jobs = 0
 
         creation_time = 0
@@ -122,6 +157,9 @@ def run(args):
                     "tasks_running " +
                     "total_send_time total_receive_time " +
                     "total_create_time total_return_time " +
+                    "idle_percentage " +
+                    "capacity " +
+                    "efficiency " +
                     "jobits_left\n")
 
         while not job_src.done():
@@ -143,6 +181,9 @@ def run(args):
                         stats.total_receive_time,
                         creation_time,
                         destruction_time,
+                        stats.idle_percentage,
+                        stats.capacity,
+                        stats.efficiency,
                         jobits_left
                     ]
                     )) + "\n"
@@ -186,6 +227,7 @@ def run(args):
                             task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
                                     wq.WORK_QUEUE_CACHE, recursive=True)
                         else:
+                            logging.critical("cannot send file to worker: {0}".format(local))
                             raise NotImplementedError
 
                     for (local, remote) in outputs:

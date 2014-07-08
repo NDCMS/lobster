@@ -3,7 +3,7 @@ import os
 
 from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
-from lobster.core import kill, run
+from lobster.core import kill, cleanup, run
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
@@ -26,6 +26,9 @@ def boil():
             help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
+
+    parser_cleanup = subparsers.add_parser('cleanup', help='remove output files for failed jobs')
+    parser_cleanup.set_defaults(func=cleanup)
 
     parser_publish = subparsers.add_parser('publish', help='publish results for general consumption')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,

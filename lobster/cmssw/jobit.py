@@ -352,11 +352,11 @@ class JobitStore:
 
                 # bytes written, events read and written
                 try:
-                    dset_infos[dset][0] += job_update[-7]
+                    dset_infos[dset][0] += job_update[-6]
                     dset_infos[dset][1] += job_update[-4]
                     dset_infos[dset][2] += job_update[-3]
                 except KeyError:
-                    dset_infos[dset] = [job_update[-7], job_update[-4], job_update[-3]]
+                    dset_infos[dset] = [job_update[-6], job_update[-4], job_update[-3]]
 
             # update all jobits of the jobs
             self.db.executemany("""update jobits_{0} set

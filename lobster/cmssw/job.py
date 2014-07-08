@@ -89,9 +89,6 @@ class JobHandler(object):
             read = 0 if skipped or failed else files_info[file][0]
             events_read += read
 
-            file_jobits_attempted = 1 if self.__file_based else len(file_jobits)
-            file_jobits_processed = 0
-
             if not failed:
                 if skipped:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
@@ -102,13 +99,8 @@ class JobHandler(object):
                         if (r, l) not in files_info[file][1]:
                             lumi_update.append((jobit.FAILED, lumi_id))
                             jobits_missed += 1
-                        else:
-                            file_jobits_processed += 1
-                else:
-                    file_jobits_processed += 1
 
-            jobits_processed += file_jobits_processed
-            file_update.append((file_jobits_attempted, file_jobits_processed, read, 1 if skipped else 0, id))
+            file_update.append((read, 1 if skipped else 0, id))
 
         if not self.__file_based:
             jobits_missed = len(self.__jobits) if failed else jobits_missed
@@ -123,7 +115,7 @@ class JobHandler(object):
         else:
             status = jobit.SUCCESSFUL
 
-        return [jobits_processed, jobits_missed, events_read, events_written, status], \
+        return [jobits_missed, events_read, events_written, status], \
                 file_update, lumi_update
 
 class JobProvider(job.JobProvider):

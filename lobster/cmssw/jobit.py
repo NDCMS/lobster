@@ -77,7 +77,6 @@ class JobitStore:
             submissions int default 0,
             jobits int default 0,
             jobits_processed int default 0,
-            jobits_missed int default 0,
             events_read int default 0,
             events_written int default 0,
             time_submit int,
@@ -341,15 +340,17 @@ class JobitStore:
             jobit_generic_updates = []
 
             for (job_update, file_update, jobit_update) in updates:
+                job_updates.append(job_update)
+                file_updates += file_update
+
                 # jobits either fail or are successful
                 jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
-                job_updates.append(job_update)
 
-                file_updates += file_update
                 jobit_updates += jobit_update
                 # the last entry in the job_update is the id
                 jobit_generic_updates.append((jobit_status, job_update[-1]))
 
+                # bytes written, events read and written
                 try:
                     dset_infos[dset][0] += job_update[-7]
                     dset_infos[dset][1] += job_update[-4]
@@ -357,18 +358,22 @@ class JobitStore:
                 except KeyError:
                     dset_infos[dset] = [job_update[-7], job_update[-4], job_update[-3]]
 
+            # update all jobits of the jobs
             self.db.executemany("""update jobits_{0} set
                 status=?
                 where job=?""".format(dset),
                 jobit_generic_updates)
+
+            # update selected, missed jobits
             self.db.executemany("""update jobits_{0} set
                 status=?
                 where id=?""".format(dset),
                 jobit_updates)
 
+            # update files in the dataset
             self.db.executemany("""update files_{0} set
-                jobits_running=(jobits_running - ?),
-                jobits_done=(jobits_done + ?),
+                jobits_running=(select count(*) from jobits_{0} where status==1 and file=files_{0}.id),
+                jobits_done=(select count(*) from jobits_{0} where status==2 and file=files_{0}.id),
                 events_read=(events_read + ?),
                 skipped=(skipped + ?)
                 where id=?""".format(dset),
@@ -397,8 +402,7 @@ class JobitStore:
             bytes_received=?,
             bytes_sent=?,
             bytes_output=?,
-            jobits_processed=?,
-            jobits_missed=?,
+            jobits_processed=(jobits - ?),
             events_read=?,
             events_written=?,
             status=?
@@ -413,27 +417,16 @@ class JobitStore:
     def update_dataset_stats(self, label, bytes_written=0, events_read=0, events_written=0):
         file_based = self.db.execute("select file_based from datasets where label=?", (label,)).fetchone()[0]
 
-        if file_based:
-            self.db.execute("""
-                update datasets set
-                    jobits_running=(select count(*) from jobits_{0} where status==1),
-                    jobits_done=(select count(*) from jobits_{0} where status==2),
-                    jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
-                    events_read=(events_read + ?),
-                    events_written=(events_written + ?),
-                    bytes_output=(bytes_output + ?)
-                where label=?""".format(label),
-                (events_read, events_written, bytes_written, label))
-        else:
-            self.db.execute("""
-                update datasets set
-                    jobits_running=(select count(*) from (select distinct run, lumi from jobits_{0} where status==1)),
-                    jobits_done=(select count(*) from (select distinct run, lumi from jobits_{0} where status==2)),
-                    jobits_left=(select count(*) from (select distinct run, lumi from jobits_{0} where status not in (1, 2))),
-                    events_read=(events_read + ?),
-                    events_written=(events_written + ?)
-                where label=?""".format(label),
-                (events_read, events_written, label))
+        self.db.execute("""
+            update datasets set
+                jobits_running=(select count(*) from jobits_{0} where status==1),
+                jobits_done=(select count(*) from jobits_{0} where status==2),
+                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
+                events_read=(events_read + ?),
+                events_written=(events_written + ?),
+                bytes_output=(bytes_output + ?)
+            where label=?""".format(label),
+            (events_read, events_written, bytes_written, label))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done) from datasets")

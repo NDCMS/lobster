@@ -574,6 +574,10 @@ class Plotter(object):
                     print time, cpu, start, end
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
+
+            cputime[walltime == 0] = 0.
+            walltime[walltime == 0] = 1e-6
+
             ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
 
             self.plot(

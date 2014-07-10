@@ -146,8 +146,8 @@ class TestSQLBackend(object):
 
         job_update, file_update, lumi_update = handler.get_jobit_info(False, files_info, files_skipped, events_written)
 
-        assert job_update == [3, 0, 300, 123, 2]
-        assert file_update == [(3, 3, 220, 0, 1), (1, 1, 80, 0, 2)]
+        assert job_update == [0, 300, 123, 2]
+        assert file_update == [(220, 0, 1), (80, 0, 2)]
         assert lumi_update == []
         # }}}
 
@@ -155,7 +155,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_obtain', lumis=20, filesize=2.2, jobsize=15))
+                    'test_obtain', lumis=20, filesize=2.2, jobsize=3))
         (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         (jr, jd, er, ew) = self.interface.db.execute(
@@ -163,7 +163,8 @@ class TestSQLBackend(object):
                 (label,)
                 ).fetchone()
 
-        assert jr == 15
+        print jr
+        assert jr == 4
         assert jd == 0
         assert er == 0
         assert ew == 0
@@ -194,7 +195,7 @@ class TestSQLBackend(object):
                         {
                             '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
                             '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                            '/test/2.root': (160, [(1, 5), (1, 6)])
+                            '/test/2.root': (60, [(1, 5)])
                         },
                         [],
                         100
@@ -209,8 +210,8 @@ class TestSQLBackend(object):
                 ).fetchone()
 
         assert jr == 0
-        assert jd == 6
-        assert er == 600
+        assert jd == 7
+        assert er == 500
         assert ew == 100
 
         (id, jr, jd, er) = self.interface.db.execute(
@@ -224,8 +225,8 @@ class TestSQLBackend(object):
                 "select id, jobits_running, jobits_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
 
         assert jr == 0
-        assert jd == 2
-        assert er == 160
+        assert jd == 1
+        assert er == 60
         # }}}
 
     def test_return_bad(self):
@@ -359,7 +360,7 @@ class TestSQLBackend(object):
 
         assert jr == 0
         assert jd == 2
-        assert jl == 10
+        assert jl == 13
         assert er == 120
         assert ew == 50
 
@@ -380,7 +381,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_uglier', lumis=10, filesize=2.2, jobsize=6))
+                    'test_uglier', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg) = self.interface.pop_jobits()[0]
 
         data = [0, 0, 0]
@@ -413,7 +414,7 @@ class TestSQLBackend(object):
                         {
                             '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
                             '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
-                            '/test/4.root': (120, [(1, 9), (1, 10)]),
+                            '/test/4.root': (20, [(1, 9)]),
                         },
                         [],
                         100
@@ -428,9 +429,9 @@ class TestSQLBackend(object):
                 ).fetchone()
 
         assert jr == 0
-        assert jd == 10
-        assert jl == 0
-        assert er == 1000
+        assert jd == 13
+        assert jl == 2
+        assert er == 900
         assert ew == 200
         # }}}
 

@@ -14,29 +14,6 @@ ABORTED = 4
 INCOMPLETE = 5
 PUBLISHED = 6
 
-def unique_lumis(lumis):
-    """
-    Count the unique lumi sections.  Lumis may be double-counted when
-    they are split across several files.  This method should protect
-    against that.
-
-    >>> unique_lumis([(1, 1, 1, 3), (2, 1, 1, 4), (3, 2, 1, 4), (4, 3, 1, 5)])
-    3
-
-    >>> unique_lumis([(1, 1, -1, -1), (2, 2, -1, -1)])
-    2
-    """
-    duplicates = 0
-    unique_values = set()
-
-    for (id, file, run, lumi) in lumis:
-        if lumi > 0:
-            if (run, lumi) in unique_values:
-                duplicates += 1
-            unique_values.add((run, lumi))
-
-    return len(lumis) - duplicates
-
 class JobitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')

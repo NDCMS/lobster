@@ -236,7 +236,7 @@ def run(args):
                     queue.submit(task)
             creation_time += int((time.time() - t) * 1e6)
 
-            task = queue.wait(60)
+            task = queue.wait(300)
             tasks = []
             while task:
                 if task.return_status == 0:

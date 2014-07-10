@@ -344,8 +344,12 @@ class Plotter(object):
                     avg_sq = np.divide(squares, counts)
                     err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
 
+                    newargs = dict(kwargs)
+                    if 'color' in newargs:
+                        newargs['color'] = newargs['color'][0]
+
                     centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-                    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0)
+                    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
             elif mode & Plotter.PLOT:
                 filename += '-plot'
 
@@ -573,6 +577,10 @@ class Plotter(object):
                     print time, cpu, start, end
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
+
+            cputime[walltime == 0] = 0.
+            walltime[walltime == 0] = 1e-6
+
             ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
 
             self.plot(

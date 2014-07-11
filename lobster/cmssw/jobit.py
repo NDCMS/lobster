@@ -223,11 +223,17 @@ class JobitStore:
         files = set()
         jobits = []
 
+        # lumi veto to avoid duplicated processing
+        all_lumis = set()
+
         # job container and current job size
         jobs = []
         current_size = 0
 
         for id, file, run, lumi, arg in rows:
+            if (run, lumi) in all_lumis:
+                continue
+
             if current_size == 0:
                 if len(size) == 0:
                     break
@@ -236,6 +242,7 @@ class JobitStore:
                 job_id = cur.lastrowid
 
             if lumi > 0:
+                all_lumis.add((run, lumi))
                 for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
                         select id, file, run, lumi
                         from jobits_{0}

@@ -497,13 +497,20 @@ class Plotter(object):
             }
             codes, split_jobs = split_by_column(success_jobs, 'status')
 
+            datasets = [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in split_jobs + [failed_jobs]]
+            colors = [code_map[code][1] for code in codes]
+            labels = [code_map[code][0] for code in codes]
+
+            if len(failed_jobs) > 0:
+                colos += ['red']
+                labels += ['failed']
+
             self.plot(
-                    [(xs['t_retrieved'], [1] * len(xs['t_retrieved']))
-                        for xs in split_jobs + [failed_jobs]],
+                    datasets,
                     'Jobs', 'all-jobs',
                     modes=[Plotter.HIST|Plotter.TIME],
-                    label=[code_map[code][0] for code in codes] + ['failed'],
-                    color=[code_map[code][1] for code in codes] + ['red']
+                    label=labels,
+                    color=colors
             )
 
         if len(success_jobs) > 0:

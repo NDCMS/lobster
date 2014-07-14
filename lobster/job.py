@@ -7,6 +7,7 @@ import shutil
 import gzip
 import pickle
 import yaml
+import sqlite3
 from functools import partial
 
 from hashlib import sha1
@@ -99,6 +100,18 @@ class JobProvider(object):
 
     def work_left(self):
         raise NotImplementedError
+
+    def retry(self, fct, args, kwargs, attempts=10):
+        while attempts > 0:
+            attempts -= 1
+
+            try:
+                return fct(*args, **kwargs)
+            except sqlite3.OperationalError:
+                logging.critical("failed to perform SQL operation.  {0} attempts remaining.".format(attempts))
+                if attempts <= 0:
+                    raise
+                time.sleep(1)
 
 class SimpleJobProvider(JobProvider):
     def __init__(self, config):

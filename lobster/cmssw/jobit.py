@@ -13,6 +13,8 @@ FAILED = 3
 ABORTED = 4
 INCOMPLETE = 5
 PUBLISHED = 6
+MERGING = 7
+MERGED = 8
 
 class JobitStore:
     def __init__(self, config):
@@ -438,18 +440,66 @@ class JobitStore:
             id,
             uuid
             from datasets
-            where label==?""", (label,))
+            where label=?""", (label,))
 
         return cur.fetchone()
 
-    def finished_jobs(self, dataset):
-        cur = self.db.execute("""select jobs.id
-            from jobs, datasets
-            where jobs.status=?
-            and datasets.label=?
-            and jobs.dataset==datasets.id""", (SUCCESSFUL, dataset))
+    def latest_merge_id(self):
+        return self.db.execute("select max(merge_id) from jobs").fetchone()[0]
 
-        return cur.fetchall()
+    def reset_merged(self):
+        self.db.execute("update jobs set status=? where status=? or status=?", (SUCCESSFUL, MERGING, MERGED))
+
+        self.db.commit()
+
+    def update_merged(self, jobs):
+        self.db.executemany("update jobs set status=8, merge_id=? where id=?", jobs)
+
+        self.db.commit()
+
+    def unmerged_jobs(self):
+        res = self.db.execute("""select count(*)
+            from jobs
+            where status=?
+            and status<>?
+            and status<>?""", (SUCCESSFUL, MERGING, MERGED)).fetchone()[0]
+
+        return res
+
+    def pop_unmerged_jobs(self, num=1, max_megabytes=3500):
+        max_bytes = max_megabytes * 1000000
+        res = []
+        for dset_id, dset_label in self.db.execute('select id, label from datasets'):
+            chunk = []
+            size = 0
+            rows = self.db.execute("""select
+                    bytes_output,
+                    id,
+                    merge_id from jobs
+                    where status=?
+                    and dataset=?
+                    order by id""", (SUCCESSFUL, dset_id)).fetchall()
+
+            for bytes, id, merge_id in rows:
+                if len(res) == num:
+                    return res
+
+                if (size + bytes) < max_bytes:
+                    chunk += [(id, merge_id)]
+                    size += bytes
+                    if id == rows[-1][1] and len(chunk) > 1:
+                        res += [(dset_label, chunk)]
+                        break
+                else:
+                    if len(chunk) > 1:
+                        res += [(dset_label, chunk)]
+                    chunk = [(id, merge_id)]
+                    size = bytes
+
+        self.db.executemany("update jobs set status=7 where id=?", sum([x[1] for x in res], []))
+        self.db.commit()
+
+        return res
 
     def update_published(self, blocks):
         columns = [(PUBLISHED, block, id) for block, id in blocks]
@@ -465,9 +515,3 @@ class JobitStore:
 
         self.db.commit()
 
-    def update_datasets(self, column, value, label):
-        self.db.execute("""update datasets
-            set %s=?
-            where label=?""" % column, (value, label,))
-
-        self.db.commit()

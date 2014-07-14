@@ -30,11 +30,9 @@ def boil():
     parser_cleanup = subparsers.add_parser('cleanup', help='remove output files for failed jobs')
     parser_cleanup.set_defaults(func=cleanup)
 
-    parser_publish = subparsers.add_parser('publish', help='publish results for general consumption')
+    parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
             help='number of files to publish per file block.')
-    parser_publish.add_argument('--clean', action='store_true',
-            help='remove output files for failed jobs.')
     parser_publish.add_argument('labels', nargs='*', help='tasks to publish')
     parser_publish.set_defaults(func=publish)
 

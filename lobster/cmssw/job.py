@@ -8,7 +8,6 @@ import pickle
 import re
 import shutil
 import time
-import subprocess
 import sys
 
 from lobster import job, util
@@ -135,10 +134,6 @@ class JobProvider(job.JobProvider):
         self.__chirp = self.config.get('stageout server', None)
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
-        self.__parrot_path = os.path.dirname(util.which('parrot_run'))
-        self.__parrot_bin = os.path.join(self.workdir, 'bin')
-        self.__parrot_lib = os.path.join(self.workdir, 'lib')
-
         self.__datasets = {}
         self.__configs = {}
         self.__jobhandlers = {}
@@ -169,16 +164,6 @@ class JobProvider(job.JobProvider):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
             self.__dash.register_run()
 
-            os.makedirs(self.__parrot_bin)
-            os.makedirs(self.__parrot_lib)
-            for exe in ('parrot_run', 'chirp_put'):
-                shutil.copy(util.which(exe), self.__parrot_bin)
-                subprocess.check_call(["strip", os.path.join(self.__parrot_bin, exe)])
-                for lib in util.ldd(exe):
-                    shutil.copy(lib, self.__parrot_lib)
-
-            p_helper = os.path.join(os.path.dirname(self.__parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
-            shutil.copy(p_helper, self.__parrot_lib)
         else:
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
@@ -238,8 +223,8 @@ class JobProvider(job.JobProvider):
                       (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig'),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
-                      (self.__parrot_bin, 'bin'),
-                      (self.__parrot_lib, 'lib')
+                      (self.parrot_bin, 'bin'),
+                      (self.parrot_lib, 'lib')
                       ] + self.__grid_files
 
             if cmssw_job:

@@ -8,6 +8,7 @@ import gzip
 import pickle
 import yaml
 import sqlite3
+import subprocess
 from functools import partial
 
 from hashlib import sha1
@@ -48,6 +49,9 @@ class JobProvider(object):
         self.workdir = config.get('workdir', os.getcwd())
         self.stageout = config.get('stageout location', os.getcwd())
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
+        self.parrot_path = os.path.dirname(util.which('parrot_run'))
+        self.parrot_bin = os.path.join(self.workdir, 'bin')
+        self.parrot_lib = os.path.join(self.workdir, 'lib')
 
         self.extra_inputs = {}
         self.args = {}
@@ -88,6 +92,19 @@ class JobProvider(object):
                         pass
 
                 shutil.copy(self.config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
+
+        for p in (self.parrot_bin, self.parrot_lib):
+            if not os.path.exists(p):
+                os.makedirs(p)
+
+        for exe in ('parrot_run', 'chirp_put', 'chirp_get'):
+            shutil.copy(util.which(exe), self.parrot_bin)
+            subprocess.check_call(["strip", os.path.join(self.parrot_bin, exe)])
+            for lib in util.ldd(exe):
+                shutil.copy(lib, self.parrot_lib)
+
+        p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
+        shutil.copy(p_helper, self.parrot_lib)
 
     def done(self):
         raise NotImplementedError

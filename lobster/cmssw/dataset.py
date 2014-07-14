@@ -110,17 +110,17 @@ class FileInterface:
                 dset.jobsize = cfg.get("files per job", 1)
 
                 if os.path.isdir(files):
-                    dset.files = ['file:'+f for f in glob.glob(os.path.join(files, '*'))]
+                    dset.files = [f for f in glob.glob(os.path.join(files, '*'))]
                 elif os.path.isfile(files):
-                    dset.files = ['file:'+f.strip() for f in open(files).readlines()]
+                    dset.files = [f.strip() for f in open(files).readlines()]
                 elif isinstance(files, str):
-                    dset.files = ['file:'+f for f in glob.glob(os.path.join(files))]
+                    dset.files = [f for f in glob.glob(os.path.join(files))]
 
                 dset.total_lumis = len(dset.files)
                 for file in dset.files:
                     # hack because it will be slow to open all the input files to read the run/lumi info
                     dset.lumis[file] = [(-1, -1)]
-                    dset.filesizes[file] = os.path.getsize(file[5:])
+                    dset.filesizes[file] = os.path.getsize(file)
 
             self.__dsets[label] = dset
 

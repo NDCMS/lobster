@@ -55,6 +55,10 @@ class JobHandler(object):
     def outputs(self):
         return self.__outputs
 
+    @property
+    def file_based(self):
+        return self.__file_based
+
     @outputs.setter
     def outputs(self, files):
         self.__outputs = files
@@ -62,6 +66,8 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self.__lumis])
         files = set([filename for (id, filename) in self.__files])
+        if self.__cmssw_job and self.__file_based:
+            files = set(['file:'+filename for (id, filename) in self.__files])
 
         if self.__file_based:
             lumis = None
@@ -257,9 +263,13 @@ class JobProvider(job.JobProvider):
                 stageout.append((filename, os.path.join(label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
+                    if handler.file_based:
+                        inputs += [(f, os.path.basename(f)) for f in files]
 
             args = [x for x in self.args[label] + [unique_arg] if x]
             if not cmssw_job:
+                if handler.file_based:
+                    args += ['files '+','.join([os.path.basename(f) for f in files])]
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])

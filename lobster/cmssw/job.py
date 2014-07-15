@@ -88,17 +88,17 @@ class JobHandler(object):
             file_lumis = [tpl for tpl in self.__lumis if tpl[1] == id]
 
             skipped = False
+            read = 0
             if self.__cmssw_job:
                 skipped = file in files_skipped or file not in files_info
+                read = 0 if failed or skipped else files_info[file][0]
 
             if not self.__file_based:
                 jobits_finished = len(file_lumis)
                 jobits_done = 0 if failed or skipped else len(files_info[file][1])
-                read = 0 if failed or skipped else files_info[file][0]
             else:
                 jobits_finished = 1
                 jobits_done = 0 if failed or skipped else 1
-                read = 0 if failed or skipped else 1
 
             events_read += read
             file_update.append((jobits_finished, jobits_done, read, 1 if skipped else 0, id))
@@ -295,8 +295,6 @@ class JobProvider(job.JobProvider):
         jobs = defaultdict(list)
         for task in tasks:
             failed = (task.return_status != 0)
-            if task.return_status == 136:
-                failed = False
 
             handler = self.__jobhandlers[task.tag]
 

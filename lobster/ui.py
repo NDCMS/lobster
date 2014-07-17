@@ -14,6 +14,7 @@ def boil():
             help='do not daemonize;  run in the foreground instead')
     parser_run.add_argument('-i', '--bijective', action='store_true', default=False,
             help='use a 1-1 mapping for input and output files (process one input file per output file).')
+    parser_run.set_defaults(merge=False)
     parser_run.set_defaults(func=run)
 
     parser_kill = subparsers.add_parser('terminate', help='terminate running lobster instance')
@@ -35,6 +36,14 @@ def boil():
             help='number of files to publish per file block.')
     parser_publish.add_argument('labels', nargs='*', help='tasks to publish')
     parser_publish.set_defaults(func=publish)
+
+    parser_merge = subparsers.add_parser('merge', help='merge output files into larger files')
+    parser_merge.add_argument('--max-megabytes', dest='max_megabytes', type=float, default=3500, help='maximum merged file size')
+    parser_merge.add_argument('--server', metavar="SERVER:<port>", default=None, help='override stageout server in configuration')
+    parser_merge.set_defaults(foreground=False)
+    parser_merge.set_defaults(bijective=False)
+    parser_merge.set_defaults(merge=True)
+    parser_merge.set_defaults(func=run)
 
     parser.add_argument(metavar='{configfile,workdir}', dest='checkpoint',
             help='configuration file to use or working directory to resume.')

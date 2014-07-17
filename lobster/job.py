@@ -59,7 +59,7 @@ class JobProvider(object):
         self.outputformats = {}
         self.cmds = {}
 
-        create = not util.checkpoint(self.workdir, 'id')
+        create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
         if create:
             self.taskid = 'lobster_{0}_{1}'.format(
                 self.config['id'],

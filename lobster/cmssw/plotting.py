@@ -159,7 +159,6 @@ class Plotter(object):
                     ('retries', 'i4'),
                     ('lumis', 'i4'),
                     ('processed_lumis', 'i4'),
-                    ('missed_lumis', 'i4'),
                     ('events_r', 'i4'),
                     ('events_w', 'i4'),
                     ('t_submit', 'i4'),

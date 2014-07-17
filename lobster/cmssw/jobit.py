@@ -56,7 +56,6 @@ class JobitStore:
             submissions int default 0,
             jobits int default 0,
             jobits_processed int default 0,
-            jobits_missed int default 0,
             events_read int default 0,
             events_written int default 0,
             time_submit int,
@@ -231,7 +230,7 @@ class JobitStore:
 
         # files and lumis for individual jobs
         files = set()
-        lumis = set()
+        jobits = []
 
         # lumi veto to avoid duplicated processing
         all_lumis = set()
@@ -257,10 +256,10 @@ class JobitStore:
                         select id, file, run, lumi
                         from jobits_{0}
                         where run=? and lumi=? and status not in (1, 2, 6)""".format(dataset), (run, lumi)):
-                    lumis.add((ls_id, ls_file, ls_run, ls_lumi))
+                    jobits.append((ls_id, ls_file, ls_run, ls_lumi))
                     files.add(ls_file)
             else:
-                lumis.add((id, file, run, lumi))
+                jobits.append((id, file, run, lumi))
                 files.add(file)
 
             current_size += 1
@@ -270,11 +269,11 @@ class JobitStore:
                     str(job_id),
                     dataset,
                     [(id, fileinfo[id]) for id in files],
-                    lumis,
+                    jobits,
                     arg))
 
                 files = set()
-                lumis = set()
+                jobits = []
 
                 current_size = 0
                 size.pop(0)
@@ -284,35 +283,35 @@ class JobitStore:
                 str(job_id),
                 dataset,
                 [(id, fileinfo[id]) for id in files],
-                lumis,
+                jobits,
                 arg))
 
         dataset_update = []
         file_update = defaultdict(int)
         job_update = defaultdict(int)
-        lumi_update = []
+        jobit_update = []
 
-        for (job, label, files, lumis, arg) in jobs:
-            dataset_update += lumis
-            job_update[job] = unique_lumis(lumis)
-            lumi_update += [(job, id) for (id, file, run, lumi) in lumis]
+        for (job, label, files, jobits, arg) in jobs:
+            dataset_update += jobits
+            job_update[job] = len(jobits)
+            jobit_update += [(job, id) for (id, file, run, lumi) in jobits]
             for (id, filename) in files:
-                file_update[id] += unique_lumis(filter(lambda tpl: tpl[1] == id, lumis))
+                file_update[id] += len(filter(lambda tpl: tpl[1] == id, jobits))
 
         self.db.execute(
                 "update datasets set jobits_running=(jobits_running + ?) where id=?",
-                (unique_lumis(dataset_update), dataset_id))
+                (len(dataset_update), dataset_id))
 
         self.db.executemany("update files_{0} set jobits_running=(jobits_running + ?) where id=?".format(dataset),
                 [(v, k) for (k, v) in file_update.items()])
         self.db.executemany("update jobs set jobits=? where id=?",
                 [(v, k) for (k, v) in job_update.items()])
         self.db.executemany("update jobits_{0} set status=1, job=? where id=?".format(dataset),
-                lumi_update)
+                jobit_update)
 
         self.db.commit()
 
-        return jobs if len(lumi_update) > 0 else None
+        return jobs if len(jobit_update) > 0 else None
 
     def reset_jobits(self):
         with self.db as db:
@@ -334,34 +333,40 @@ class JobitStore:
             jobit_generic_updates = []
 
             for (job_update, file_update, jobit_update) in updates:
+                job_updates.append(job_update)
+                file_updates += file_update
+
                 # jobits either fail or are successful
                 jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
-                job_updates.append(job_update)
 
-                file_updates += file_update
                 jobit_updates += jobit_update
                 # the last entry in the job_update is the id
                 jobit_generic_updates.append((jobit_status, job_update[-1]))
 
+                # bytes written, events read and written
                 try:
-                    dset_infos[dset][0] += job_update[-7]
+                    dset_infos[dset][0] += job_update[-6]
                     dset_infos[dset][1] += job_update[-4]
                     dset_infos[dset][2] += job_update[-3]
                 except KeyError:
-                    dset_infos[dset] = [job_update[-7], job_update[-4], job_update[-3]]
+                    dset_infos[dset] = [job_update[-6], job_update[-4], job_update[-3]]
 
+            # update all jobits of the jobs
             self.db.executemany("""update jobits_{0} set
                 status=?
                 where job=?""".format(dset),
                 jobit_generic_updates)
+
+            # update selected, missed jobits
             self.db.executemany("""update jobits_{0} set
                 status=?
                 where id=?""".format(dset),
                 jobit_updates)
 
+            # update files in the dataset
             self.db.executemany("""update files_{0} set
-                jobits_running=(jobits_running - ?),
-                jobits_done=(jobits_done + ?),
+                jobits_running=(select count(*) from jobits_{0} where status==1 and file=files_{0}.id),
+                jobits_done=(select count(*) from jobits_{0} where status==2 and file=files_{0}.id),
                 events_read=(events_read + ?),
                 skipped=(skipped + ?)
                 where id=?""".format(dset),
@@ -390,8 +395,7 @@ class JobitStore:
             bytes_received=?,
             bytes_sent=?,
             bytes_output=?,
-            jobits_processed=?,
-            jobits_missed=?,
+            jobits_processed=(jobits - ?),
             events_read=?,
             events_written=?,
             status=?
@@ -406,27 +410,16 @@ class JobitStore:
     def update_dataset_stats(self, label, bytes_written=0, events_read=0, events_written=0):
         file_based = self.db.execute("select file_based from datasets where label=?", (label,)).fetchone()[0]
 
-        if file_based:
-            self.db.execute("""
-                update datasets set
-                    jobits_running=(select count(*) from jobits_{0} where status==1),
-                    jobits_done=(select count(*) from jobits_{0} where status==2),
-                    jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
-                    events_read=(events_read + ?),
-                    events_written=(events_written + ?),
-                    bytes_output=(bytes_output + ?)
-                where label=?""".format(label),
-                (events_read, events_written, bytes_written, label))
-        else:
-            self.db.execute("""
-                update datasets set
-                    jobits_running=(select count(*) from (select distinct run, lumi from jobits_{0} where status==1)),
-                    jobits_done=(select count(*) from (select distinct run, lumi from jobits_{0} where status==2)),
-                    jobits_left=(select count(*) from (select distinct run, lumi from jobits_{0} where status not in (1, 2))),
-                    events_read=(events_read + ?),
-                    events_written=(events_written + ?)
-                where label=?""".format(label),
-                (events_read, events_written, label))
+        self.db.execute("""
+            update datasets set
+                jobits_running=(select count(*) from jobits_{0} where status==1),
+                jobits_done=(select count(*) from jobits_{0} where status==2),
+                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
+                events_read=(events_read + ?),
+                events_written=(events_written + ?),
+                bytes_output=(bytes_output + ?)
+            where label=?""".format(label),
+            (events_read, events_written, bytes_written, label))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done) from datasets")

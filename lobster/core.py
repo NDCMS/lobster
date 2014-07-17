@@ -40,10 +40,11 @@ def cleanup(args):
     for cfg in config['tasks']:
         good_files = set()
         label = cfg['label']
-        for id in store.finished_jobs(label):
-            for base, ext in [os.path.splitext(o) for o in cfg['outputs']]:
+        for x, y in store.finished_jobs(label):
+            for output in cfg['outputs']:
                 output_format = cfg.get("output format", "{base}_{id}.{ext}")
-                good_files.add(output_format.format(base=base, id=id[0], ext=ext[1:]))
+                name = cmssw.merge.resolve_name(x, y, output, output_format)
+                good_files.add(name)
 
         for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
             print 'Looking for output files to cleanup in {0}...'.format(label)

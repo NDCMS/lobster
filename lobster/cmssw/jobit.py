@@ -559,3 +559,12 @@ class JobitStore:
 
         self.db.commit()
 
+
+    def finished_jobs(self, dataset):
+        cur = self.db.execute("""select jobs.id, jobs.merged_job
+            from jobs, datasets
+            where jobs.status=?
+            and datasets.label=?
+            and jobs.dataset==datasets.id""", (SUCCESSFUL, dataset))
+
+        return cur.fetchall()

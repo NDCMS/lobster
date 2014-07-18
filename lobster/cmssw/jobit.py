@@ -48,6 +48,8 @@ class JobitStore:
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             merged_job int default 0,
+            merging_job int default 0,
+            merge_status,
             host text,
             dataset int,
             published_file_block text,
@@ -81,7 +83,6 @@ class JobitStore:
 
         self.db.execute("""create table if not exists merge_jobs(
             id integer primary key autoincrement,
-            dataset string,
             status int default 0,
             bytes_output int default 0)""")
 
@@ -446,40 +447,35 @@ class JobitStore:
 
     def reset_merging(self):
         self.db.execute("update merge_jobs set status=? where status=?", (FAILED, MERGING))
+        self.db.execute("update jobs set merge_status=?, merging_job=?", (INITIALIZED, None))
 
         self.db.commit()
 
     def update_merged(self, jobs):
-        jobs_update = [(merging_job, job) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
+        success_update = [(merging_job, status, None, job) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
         merge_jobs_update = [(status, size, merging_job) for (job, merging_job, status, size) in jobs]
-        success_update = [(merging_job,) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
-        fail_update = [(merging_job) for (job, merging_job, status, size) in jobs if status == FAILED]
+        fail_update = [merging_job for (job, merging_job, status, size) in jobs if status == FAILED]
 
-        self.db.executemany("update jobs set merged_job=? where id=?", jobs_update)
+
         self.db.executemany("update merge_jobs set status=?, bytes_output=? where id=?", merge_jobs_update)
-        self.db.executemany("delete from merge_registry where merging_job=?", success_update)
+        self.db.executemany("update jobs set merged_job=?, merge_status=?, merging_job=? where id=?", success_update)
 
         for job in fail_update:
-            cur = self.db.execute("insert into merge_jobs(status, dataset) values (?, (select dataset from merge_jobs where id=?))", (ASSIGNED, job))
-            self.db.execute("update merge_registry set merging_job=? where merging_job=?", (cur.lastrowid, job))
+            cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
+            self.db.execute("update jobs set merging_job=?, merge_status=? where merging_job=?", (cur.lastrowid, ASSIGNED, job))
 
         self.db.commit()
 
     def unfinished_merging(self):
-        cur = self.db.execute("select count(distinct merging_job) from merge_registry")
+        cur = self.db.execute("select count(distinct merging_job) from jobs")
 
         return cur.fetchone()[0]
 
     def register_unmerged(self, max_megabytes=3500):
-        self.db.execute("drop table if exists merge_registry")
-        self.db.execute("""create table merge_registry(
-            job int,
-            merged_job int,
-            merging_job int)""")
-
         max_bytes = max_megabytes * 1000000
-        for dset_id, dset_label in self.db.execute("select id, label from datasets"):
-            cur = self.db.execute("insert into merge_jobs(status, dataset) values (?, ?)", (ASSIGNED, dset_label))
+
+        for dataset in self.db.execute("select id from datasets"):
+            cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             size = 0
             chunk = []
             rows = self.db.execute("""select jobs.id,
@@ -499,39 +495,39 @@ class JobitStore:
                 where merge_jobs.status=?
                 and jobs.dataset=?
                 group by merge_jobs.id
-                order by jobs.id""", (SUCCESSFUL, dset_id, SUCCESSFUL, dset_id)).fetchall()
+                order by jobs.id""", (SUCCESSFUL, dataset[0], SUCCESSFUL, dataset[0])).fetchall()
 
             for job, merged_job, bytes in rows:
                 if (size + bytes) < max_bytes:
-                    chunk += [(job, merged_job, cur.lastrowid)]
+                    chunk += [(cur.lastrowid, ASSIGNED, job)]
                     size += bytes
                     if id == rows[-1][1] and len(chunk) > 1:
-                        self.db.executemany("insert into merge_registry(job, merged_job, merging_job) values (?, ?, ?)", chunk)
-                        cur = self.db.execute("insert into merge_jobs(status, dataset) values (?, ?)", (ASSIGNED, dset_label))
+                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=?", chunk)
+                        cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                 else:
                     if len(chunk) > 1:
-                        self.db.executemany("insert into merge_registry(job, merged_job, merging_job) values (?, ?, ?)", chunk)
-                        cur = self.db.execute("insert into merge_jobs(status, dataset) values (?, ?)", (ASSIGNED, dset_label))
-                    chunk = [(job, merged_job, cur.lastrowid)]
+                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=?", chunk)
+                        cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
+                    chunk += [(cur.lastrowid, ASSIGNED, job)]
                     size = bytes
 
         self.db.commit()
 
     def pop_unmerged_jobs(self, max=1):
         res = []
-        for id, dataset in self.db.execute("""select distinct id,
-            dataset
-            from merge_jobs
-            inner join(
-                select merging_job
-                from merge_registry)
-             on merging_job=id
-             where status<>?
-             limit ?""", (MERGING, max)).fetchall():
+        for id, dataset in self.db.execute("""select distinct merging_job,
+            label
+            from jobs
+            join datasets
+            on datasets.id=jobs.dataset
+            where merge_status=?
+            or merge_status=?
+            limit ?""", (ASSIGNED, FAILED, max)).fetchall():
 
-            cur = self.db.execute("select job, merged_job from merge_registry where merging_job=?", (id,))
+            cur = self.db.execute("select id, merged_job from jobs where merging_job=?", (id,))
             res += [(id, dataset, cur.fetchall())]
 
+            self.db.execute("update jobs set merge_status=? where merging_job=?", (MERGING, id))
             self.db.execute("update merge_jobs set status=? where id=?", (MERGING, id))
 
         self.db.commit()

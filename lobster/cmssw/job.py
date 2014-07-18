@@ -91,7 +91,7 @@ class JobHandler(object):
                 read = 0 if failed or skipped else files_info[file][0]
 
             if not self.__file_based:
-                jobits_finished = len(file_lumis)
+                jobits_finished = len(file_jobits)
                 jobits_done = 0 if failed or skipped else len(files_info[file][1])
             else:
                 jobits_finished = 1

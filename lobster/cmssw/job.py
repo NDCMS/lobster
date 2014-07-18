@@ -99,7 +99,6 @@ class JobHandler(object):
                 jobits_finished = 1
                 jobits_done = 0 if failed or skipped else 1
 
-            read = 0 if skipped or failed else files_info[file][0]
             events_read += read
 
             if not failed:

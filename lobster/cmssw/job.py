@@ -66,8 +66,6 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self.__jobits])
         files = set([filename for (id, filename) in self.__files])
-        if self.__cmssw_job and self.__file_based:
-            files = set(['file:'+filename for (id, filename) in self.__files])
 
         if self.__file_based:
             lumis = None
@@ -260,8 +258,11 @@ class JobProvider(job.JobProvider):
                 stageout.append((filename, os.path.join(label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
-                    if handler.file_based:
-                        inputs += [(f, os.path.basename(f)) for f in files]
+
+            if handler.file_based:
+                inputs += [(f, os.path.basename(f)) for f in files]
+                if cmssw_job:
+                    files = ['file:' + os.path.basename(f) for f in files]
 
             args = [x for x in self.args[label] + [unique_arg] if x]
             if not cmssw_job:

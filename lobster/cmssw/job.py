@@ -86,6 +86,11 @@ class JobHandler(object):
 
             skipped = False
             read = 0
+            if self.__file_based:
+                file = os.path.basename(file)
+                if self.__cmssw_job:
+                    file = 'file:' + file
+
             if self.__cmssw_job:
                 skipped = file in files_skipped or file not in files_info
                 read = 0 if failed or skipped else files_info[file][0]

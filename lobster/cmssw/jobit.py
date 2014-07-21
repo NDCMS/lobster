@@ -154,7 +154,7 @@ class JobitStore:
             status integer default 0,
             arg text,
             foreign key(job) references jobs(id),
-            foreign key(file) references files(id))""".format(label))
+            foreign key(file) references files_{0}(id))""".format(label))
 
         for file in dataset_info.files:
             file_lumis = len(dataset_info.lumis[file])

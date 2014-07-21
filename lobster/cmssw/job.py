@@ -66,18 +66,25 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self.__jobits])
         files = set([filename for (id, filename) in self.__files])
+        localfiles = set([filename for (id, filename) in self.__files])
+
+        if self.__file_based:
+            if self.__cmssw_job:
+                localfiles = ['file:' + os.path.basename(f) for f in localfiles]
+            else:
+                localfiles = [os.path.basename(f) for f in localfiles]
 
         if self.__file_based:
             lumis = None
         else:
             lumis = LumiList(lumis=lumis)
 
-        return files, lumis
+        return files, localfiles, lumis
 
     def get_jobit_info(self, failed, files_info, files_skipped, events_written):
         events_read = 0
         file_update = []
-        lumi_update = []
+        jobit_update = []
 
         jobits_processed = 0
         jobits_missed = 0
@@ -107,12 +114,12 @@ class JobHandler(object):
             if not failed:
                 if skipped:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
-                        lumi_update.append((jobit.FAILED, lumi_id))
+                        jobit_update.append((jobit.FAILED, lumi_id))
                         jobits_missed += 1
                 elif not self.__file_based:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         if (r, l) not in files_info[file][1]:
-                            lumi_update.append((jobit.FAILED, lumi_id))
+                            jobit_update.append((jobit.FAILED, lumi_id))
                             jobits_missed += 1
 
             file_update.append((read, 1 if skipped else 0, id))
@@ -131,7 +138,7 @@ class JobHandler(object):
             status = jobit.SUCCESSFUL
 
         return [jobits_missed, events_read, events_written, status], \
-                file_update, lumi_update
+                file_update, jobit_update
 
 class JobProvider(job.JobProvider):
     def __init__(self, config):
@@ -251,9 +258,10 @@ class JobProvider(job.JobProvider):
             monitorid, syncid = self.__dash.register_job(id)
 
             handler = JobHandler(id, label, files, lumis, jdir, cmssw_job)
-            files, lumis = handler.get_job_info()
+            files, localfiles, lumis = handler.get_job_info()
 
             stageout = []
+            stagein = []
             outputs = []
             for filename in self.outputs[label]:
                 base, ext = os.path.splitext(filename)
@@ -266,20 +274,18 @@ class JobProvider(job.JobProvider):
 
             if handler.file_based:
                 inputs += [(f, os.path.basename(f)) for f in files]
-                if cmssw_job:
-                    files = ['file:' + os.path.basename(f) for f in files]
 
             args = [x for x in self.args[label] + [unique_arg] if x]
             if not cmssw_job:
                 if handler.file_based:
-                    args += ['files '+','.join([os.path.basename(f) for f in files])]
+                    args += [','.join(localfiles)]
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
 
                 sum = self.config.get('cmssw summary', True)
                 with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                    pickle.dump((args, files, lumis, stageout, self.__chirp, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
+                    pickle.dump((args, localfiles, lumis, stageout, self.__chirp, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
                 inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(cms_config)

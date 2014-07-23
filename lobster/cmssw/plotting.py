@@ -501,7 +501,7 @@ class Plotter(object):
             labels = [code_map[code][0] for code in codes]
 
             if len(failed_jobs) > 0:
-                colos += ['red']
+                colors += ['red']
                 labels += ['failed']
 
             self.plot(

@@ -145,7 +145,37 @@ class Plotter(object):
                     ])
 
         success_jobs = np.array(db.execute("""
-            select *
+            select
+            id,
+            host,
+            dataset,
+            published_file_block,
+            status,
+            exit_code,
+            submissions,
+            jobits,
+            jobits_processed,
+            events_read,
+            events_written,
+            time_submit,
+            time_transfer_in_start,
+            time_transfer_in_end,
+            time_wrapper_start,
+            time_wrapper_ready,
+            time_file_requested,
+            time_file_opened,
+            time_file_processing,
+            time_processing_end,
+            time_chirp_end,
+            time_transfer_out_start,
+            time_transfer_out_end,
+            time_retrieved,
+            time_on_worker,
+            time_total_on_worker,
+            time_cpu,
+            bytes_received,
+            bytes_sent,
+            bytes_output
             from jobs
             where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),

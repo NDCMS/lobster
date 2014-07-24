@@ -49,7 +49,7 @@ class JobitStore:
             id integer primary key autoincrement,
             merged_job int default 0,
             merging_job int default 0,
-            merge_status,
+            merge_status int default 0,
             host text,
             dataset int,
             published_file_block text,

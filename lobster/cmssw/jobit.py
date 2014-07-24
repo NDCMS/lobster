@@ -214,7 +214,7 @@ class JobitStore:
                 lumis = self.db.execute("""
                     select id, file, run, lumi, arg
                     from jobits_{0}
-                    where file=? and (status<>1 and status<>2 and status<>6)""".format(dataset), (file,))
+                    where file=? and (status<>1 and status<>2 and status<>6)""".format(dataset), (file,)).fetchall()
                 size.append(len(lumis))
                 remaining -= len(lumis)
                 if remaining <= 0:

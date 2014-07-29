@@ -61,9 +61,12 @@ def extract_info(report_filename):
             for file in report.inputFiles:
                 filename = file['LFN'] if len(file['LFN']) > 0 else file['PFN']
                 file_lumis = []
-                for run, ls in file['Runs'].items():
-                    for lumi in ls:
-                        file_lumis.append((run, lumi))
+                try:
+                    for run, ls in file['Runs'].items():
+                        for lumi in ls:
+                            file_lumis.append((run, lumi))
+                except AttributeError:
+                    print 'Detected file-based job.'
                 infos[filename] = (int(file['EventsRead']), file_lumis)
             eventtime = report.performance.summaries['Timing']['TotalEventCPU']
             cputime = report.performance.summaries['Timing']['TotalJobCPU']

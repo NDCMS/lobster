@@ -14,6 +14,7 @@ class DatasetInfo():
         self.events = {}
         self.event_counts = defaultdict(int)
         self.file_based = False
+        self.empty_source = False
         self.files = []
         self.filesizes = defaultdict(int)
         self.jobsize = 1
@@ -98,6 +99,7 @@ class FileInterface:
         if label not in self.__dsets:
             dset = DatasetInfo()
             dset.file_based = True
+            dset.empty_source = cfg.get('empty source', False)
 
             if not files:
                 dset.files = [None for x in range(cfg.get('num jobs', 1))]

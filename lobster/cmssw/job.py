@@ -25,7 +25,7 @@ class JobHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, jobits, jdir, cmssw_job):
+    def __init__(self, id, dataset, files, jobits, jdir, cmssw_job, empty_source):
         self.__id = id,
         self.__dataset = dataset
         self.__files = files
@@ -34,6 +34,7 @@ class JobHandler(object):
         self.__jobdir = jdir
         self.__outputs = []
         self.__cmssw_job = cmssw_job
+        self.__empty_source = empty_source
 
     @property
     def cmssw_job(self):
@@ -93,14 +94,12 @@ class JobHandler(object):
 
             skipped = False
             read = 0
-            if self.__file_based:
-                file = os.path.basename(file)
-                if self.__cmssw_job:
-                    file = 'file:' + file
-
             if self.__cmssw_job:
-                skipped = file in files_skipped or file not in files_info
-                read = 0 if failed or skipped else files_info[file][0]
+                if self.__file_based:
+                    file = 'file:' + os.path.basename(file)
+                if not self.__empty_source:
+                    skipped = file in files_skipped or file not in files_info
+                    read = 0 if failed or skipped else files_info[file][0]
 
             if not self.__file_based:
                 jobits_finished = len(file_jobits)
@@ -226,7 +225,7 @@ class JobProvider(job.JobProvider):
         tasks = []
         ids = []
 
-        for (id, label, files, lumis, unique_arg) in jobinfos:
+        for (id, label, files, lumis, unique_arg, empty_source) in jobinfos:
             ids.append(id)
 
             cmssw_job = self.__configs.has_key(label)
@@ -257,7 +256,7 @@ class JobProvider(job.JobProvider):
 
             monitorid, syncid = self.__dash.register_job(id)
 
-            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job)
+            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job, empty_source)
             files, localfiles, lumis = handler.get_job_info()
 
             stageout = []

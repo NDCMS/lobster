@@ -36,6 +36,7 @@ class JobitStore:
             uuid text,
             jobsize text,
             file_based int,
+            empty_source int,
             jobits integer,
             jobits_running int default 0,
             jobits_done int default 0,
@@ -112,12 +113,13 @@ class JobitStore:
                        cfg,
                        uuid,
                        file_based,
+                       empty_source,
                        jobsize,
                        jobits,
                        jobits_left,
                        events,
                        bytes_input)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
                            label,
                            os.path.join(self.config['stageout location'], label),
@@ -127,6 +129,7 @@ class JobitStore:
                            dataset_cfg.get('cmssw config'),
                            self.uuid,
                            dataset_info.file_based,
+                           dataset_info.empty_source,
                            dataset_info.jobsize,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.total_lumis * len(unique_args),
@@ -190,13 +193,13 @@ class JobitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, jobits - jobits_done - jobits_running, jobsize
+            select label, id, jobits - jobits_done - jobits_running, jobsize, empty_source
             from datasets
             where jobits_done + jobits_running < jobits""")]
         if len(rows) == 0:
             return None
 
-        dataset, dataset_id, remaining, jobsize = random.choice(rows)
+        dataset, dataset_id, remaining, jobsize, empty_source = random.choice(rows)
         size = [int(jobsize)] * num
 
         fileinfo = list(self.db.execute("""select id, filename
@@ -271,7 +274,8 @@ class JobitStore:
                     dataset,
                     [(id, fileinfo[id]) for id in files],
                     jobits,
-                    arg))
+                    arg,
+                    empty_source))
 
                 files = set()
                 jobits = []
@@ -285,14 +289,15 @@ class JobitStore:
                 dataset,
                 [(id, fileinfo[id]) for id in files],
                 jobits,
-                arg))
+                arg,
+                empty_source))
 
         dataset_update = []
         file_update = defaultdict(int)
         job_update = defaultdict(int)
         jobit_update = []
 
-        for (job, label, files, jobits, arg) in jobs:
+        for (job, label, files, jobits, arg, empty_source) in jobs:
             dataset_update += jobits
             job_update[job] = len(jobits)
             jobit_update += [(job, id) for (id, file, run, lumi) in jobits]

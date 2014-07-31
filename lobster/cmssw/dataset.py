@@ -105,6 +105,7 @@ class FileInterface:
                 dset.files = [None for x in range(cfg.get('num jobs', 1))]
                 dset.lumis[None] = [(-1, -1)]
                 dset.total_lumis = cfg.get('num jobs', 1)
+                dset.empty_source = True
 
                 # we don't cache gen-jobs (avoid overwriting num jobs
                 # etc...)

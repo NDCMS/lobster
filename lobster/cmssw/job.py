@@ -29,7 +29,8 @@ class JobHandler(object):
         self.__id = id,
         self.__dataset = dataset
         self.__files = files
-        self.__file_based = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
+        self.__use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
+        self.__file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in jobits]) or self.__use_local
         self.__jobits = jobits
         self.__jobdir = jdir
         self.__outputs = []
@@ -60,6 +61,10 @@ class JobHandler(object):
     def file_based(self):
         return self.__file_based
 
+    @property
+    def use_local(self):
+        return self.__use_local
+
     @outputs.setter
     def outputs(self, files):
         self.__outputs = files
@@ -69,7 +74,7 @@ class JobHandler(object):
         files = set([filename for (id, filename) in self.__files])
         localfiles = set([filename for (id, filename) in self.__files])
 
-        if self.__file_based:
+        if self.__use_local:
             if self.__cmssw_job:
                 localfiles = ['file:' + os.path.basename(f) for f in localfiles]
             else:
@@ -95,7 +100,7 @@ class JobHandler(object):
             skipped = False
             read = 0
             if self.__cmssw_job:
-                if self.__file_based:
+                if self.__use_local:
                     file = 'file:' + os.path.basename(file)
                 if not self.__empty_source:
                     skipped = file in files_skipped or file not in files_info
@@ -271,7 +276,7 @@ class JobProvider(job.JobProvider):
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 
-            if handler.file_based:
+            if handler.use_local:
                 inputs += [(f, os.path.basename(f)) for f in files]
 
             args = [x for x in self.args[label] + [unique_arg] if x]

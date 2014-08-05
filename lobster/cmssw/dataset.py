@@ -43,7 +43,8 @@ class DASInterface:
         if dataset not in self.__dsets:
             instance = cfg.get('dbs instance', 'global')
             mask = util.findpath(cfg['basedirs'], cfg['lumi mask']) if cfg.get('lumi mask') else None
-            res = self.query_database(dataset, instance, mask)
+            file_based = cfg.get('file based', False)
+            res = self.query_database(dataset, instance, mask, file_based)
 
             num = cfg.get('events per job')
             if num:
@@ -55,7 +56,7 @@ class DASInterface:
 
         return self.__dsets[dataset]
 
-    def query_database(self, dataset, instance, mask):
+    def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
             self.__apis[instance] = DbsApi(dbs_url)
@@ -70,18 +71,24 @@ class DASInterface:
             result.filesizes[info['logical_file_name']] = info['file_size']
 
         files = set()
-        blocks = self.__apis[instance].listBlocks(dataset=dataset)
-        if mask:
-            unmasked_lumis = LumiList(filename=mask)
-        for block in blocks:
-            runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
-            for run in runs:
-                file = run['logical_file_name']
-                for lumi in run['lumi_section_num']:
-                    if not mask or ((run['run_num'], lumi) in unmasked_lumis):
-                        result.lumis[file].append((run['run_num'], lumi))
-                if result.lumis.has_key(file):
-                    files.add(file)
+        if file_based:
+            for file in self.__apis[instance].listFiles(dataset=dataset):
+                filename = file['logical_file_name']
+                files.add(filename)
+                result.lumis[filename] = [(-2, -2)]
+        else:
+            blocks = self.__apis[instance].listBlocks(dataset=dataset)
+            if mask:
+                unmasked_lumis = LumiList(filename=mask)
+            for block in blocks:
+                runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
+                for run in runs:
+                    file = run['logical_file_name']
+                    for lumi in run['lumi_section_num']:
+                        if not mask or ((run['run_num'], lumi) in unmasked_lumis):
+                            result.lumis[file].append((run['run_num'], lumi))
+                    if result.lumis.has_key(file):
+                        files.add(file)
 
         result.files = list(files)
         result.total_lumis = len(sum([result.lumis[f] for f in result.files], []))

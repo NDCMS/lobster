@@ -212,7 +212,7 @@ def run(args):
 
             t = time.time()
             while hunger > 0:
-                jobs = job_src.obtain(50, bijective=args.bijective)
+                jobs = job_src.obtain(50)
 
                 if jobs == None or len(jobs) == 0:
                     break

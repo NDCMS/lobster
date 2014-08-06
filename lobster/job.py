@@ -145,10 +145,7 @@ class SimpleJobProvider(JobProvider):
     def done(self):
         return self.__done == self.__max
 
-    def obtain(self, num=1, bijective=False):
-        if bijective:
-            raise NotImplementedError
-
+    def obtain(self, num=1):
         tasks = []
 
         label = self.__labels.next()

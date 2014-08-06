@@ -223,7 +223,7 @@ class JobProvider(job.JobProvider):
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
-        jobinfos = self.retry(self.__store.pop_jobits, (num, bijective), {})
+        jobinfos = self.retry(self.__store.pop_jobits, (num,), {})
         if not jobinfos or len(jobinfos) == 0:
             return None
 

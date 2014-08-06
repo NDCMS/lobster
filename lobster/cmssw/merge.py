@@ -158,7 +158,7 @@ class MergeProvider(job.JobProvider):
         if not util.checkpoint(self.workdir, 'sandbox'):
             raise NotImplementedError
 
-    def obtain(self, num=1, bijective=False):
+    def obtain(self, num=1):
         unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (num,), {})
         if not unmerged_jobs or len(unmerged_jobs) == 0:
             return None

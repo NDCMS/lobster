@@ -12,8 +12,6 @@ def boil():
     parser_run = subparsers.add_parser('process', help='process configuration')
     parser_run.add_argument('-f', '--foreground', action='store_true', default=False,
             help='do not daemonize;  run in the foreground instead')
-    parser_run.add_argument('-i', '--bijective', action='store_true', default=False,
-            help='use a 1-1 mapping for input and output files (process one input file per output file).')
     parser_run.set_defaults(merge=False)
     parser_run.set_defaults(func=run)
 
@@ -41,7 +39,6 @@ def boil():
     parser_merge.add_argument('--max-megabytes', dest='max_megabytes', type=float, default=3500, help='maximum merged file size')
     parser_merge.add_argument('--server', metavar="SERVER:<port>", default=None, help='override stageout server in configuration')
     parser_merge.set_defaults(foreground=False)
-    parser_merge.set_defaults(bijective=False)
     parser_merge.set_defaults(merge=True)
     parser_merge.set_defaults(func=run)
 

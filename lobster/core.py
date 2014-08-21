@@ -69,7 +69,6 @@ def cleanup(args):
         print '%-20s %-20s %-20s' % ('label', 'number of bad files', 'total size [MB]')
         for (label, files), size in zip(deleted_files.items(), deleted_sizes.values()):
             if files > 0:
-                conjugation = 's' if deleted_files != 1 else ''
                 print '%-20s %-20i %-20i' % (label, files, size / 1000000)
 
         print '%-20s %-20i %-20i' % ('total', sum(deleted_files.values()), sum(deleted_sizes.values()))

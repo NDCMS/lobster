@@ -90,6 +90,27 @@ If the workers get evicted by condor, the memory and disk settings might need
 adjustment.  Check in them`lobster.py` for minimum settings (currently 1100 Mb for
 memory, 4 Gb for disk).
 
+## Using foremen
+
+To lessen the load on the master spooling out sandboxes and handling
+communication with workers, foreman can be used.  They can be started with,
+e.g.:
+
+    nohup work_queue_worker -olog_foreman_n -dall --foreman-name \
+        lobster-foreman-n -M lobster_chowder -s /tmp/<some_directory> --specify-log \
+        foreman_n.log --timeout=86400
+
+## Using `work_queue_pool`
+
+When using foremen, `work_queue_pool` can be used to relieve the user of
+the manual management of workers, and distribute them evenly between
+foremen.  To run 950 users, for example, use `work_queue_pool` with the
+following configuration file:
+
+    distribution: lobster-foreman.*=950
+    max_workers: 950
+    min_workers: 950
+
 ## Altering the worker environment
 
 The following environment variables may be set to influence the environment

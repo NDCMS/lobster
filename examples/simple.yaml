@@ -5,6 +5,15 @@ stageout location: work/test
 type: simple
 
 tasks:
-    - label: 'test'
+    - label: 'sleeping'
       cmd: sleep 900
-      max: 25000
+      max: 1000
+    - label: 'with_input'
+      cmd: python simple.py
+      inputs: ['simple.py']
+      max: 1000
+    - label: 'with_input_and_output'
+      cmd: python simple.py
+      inputs: ['simple.py']
+      outputs: ['output.txt']
+      max: 1000

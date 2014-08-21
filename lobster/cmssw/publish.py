@@ -94,14 +94,6 @@ class Publisher():
 
        self.dset = dset.strip('/').split('/')[0]
 
-   def clean(self):
-       successful_jobs = [x[0] for x in self.db.finished_jobs(self.ds_id)]
-       files = glob.glob(os.path.join(self.path, '*.root'))
-       for file in files:
-           id = file[file.rfind('_')+1:file.rfind('.root')]
-           if not any([str(job)==id for job in successful_jobs]):
-               os.remove(file)
-
    def publish(self, max_jobs):
        self.required_path = required_path(self.path, self.user, self.dset, self.publish_label, self.publish_hash, 1)
 

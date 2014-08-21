@@ -31,6 +31,7 @@ def boil():
     parser_cleanup.set_defaults(func=cleanup)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
+    parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
             help='number of files to publish per file block.')
     parser_publish.add_argument('labels', nargs='*', help='tasks to publish')

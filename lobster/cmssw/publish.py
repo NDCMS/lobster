@@ -138,10 +138,10 @@ class Publisher():
                        successful_jobs.remove(job)
                        continue
 
-           if self.config.get('migrate parents'):
                parents_to_migrate = list(set([p['parent_logical_file_name'] for p in self.block_dump['file_parent_list']]))
                self.migrate_parents(parents_to_migrate)
 #           self.block_dump.data = dict((k, v) for k, v in self.block_dump.data.items() if k not in ['processing_era'])
+           if args.migrate_parents:
 
            failed_jobs = set(successful_jobs) - set(jobs[first_job:first_job+max_jobs])
            for job in failed_jobs:

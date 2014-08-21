@@ -16,11 +16,11 @@ from lobster import job, util
 import jobit
 import dash
 
-def resolve_path(job, merge_job):
+def resolve_path(workdir, job, merge_job):
     topdir = 'successful' if merge_job == 0 else 'merged'
     bottomdir = str(job) if merge_job == 0 else str(merge_job)
 
-    return os.path.join(topdir, bottomdir)
+    return os.path.join(workdir, topdir, bottomdir, 'report.xml.gz')
 
 def resolve_name(job, merge_job, name, name_format):
     base, ext = os.path.splitext(name)
@@ -37,7 +37,7 @@ class MergeHandler(object):
         self.__sdir = sdir
         self.__jobs = jobs
 
-        self.__rpaths = []
+        self.__reports = []
         self.__inputs = []
 
         if num_outputs == 1:
@@ -53,8 +53,8 @@ class MergeHandler(object):
         return self.__jobs
 
     @property
-    def rpaths(self):
-        return self.__rpaths
+    def reports(self):
+        return self.__reports
 
     @property
     def inputs(self):
@@ -96,9 +96,8 @@ class MergeHandler(object):
 
     def merge_reports(self):
         reports = []
-        tdir = os.path.dirname(self.__jobdir)
-        for path in self.__rpaths:
-            f = gzip.open(os.path.join(os.path.dirname(tdir), path, 'report.xml.gz'))
+        for r in self.__reports:
+            f = gzip.open(r)
             report = readJobReport(f)
             reports.extend(report)
             f.close()
@@ -113,8 +112,8 @@ class MergeHandler(object):
 
     def cleanup(self):
 #         tdir = os.path.dirname(self.__jobdir) # FIXME Do we want to delete old report.xmls?
-#         for path in self.__rpaths:
-#             os.remove(os.path.join(os.path.dirname(tdir), path, 'report.xml.gz'))
+#         for r in self.__reports:
+#             os.remove(r)
         for file in self.__inputs:
             fullpath = os.path.join(self.__sdir, os.path.basename(file))
             os.remove(fullpath)
@@ -197,7 +196,7 @@ class MergeProvider(job.JobProvider):
                     inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
                 for job, merged_job in jobs:
-                    handler.rpaths.append(resolve_path(job, merged_job))
+                    handler.reports.append(resolve_path(os.path.join(self.workdir, dset), job, merged_job))
 
                     input = resolve_name(job, merged_job, local_outname, self.outputformats[dset])
                     handler.inputs.append(os.path.join(os.path.basename(sdir), input))

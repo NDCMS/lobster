@@ -5,9 +5,7 @@ import sys
 import uuid
 from zlib import adler32
 import gzip
-import sqlite3
 import yaml
-import glob
 
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
@@ -17,6 +15,7 @@ sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3clie
 from dbs.apis.dbsClient import DbsApi
 
 import jobit
+import merge
 
 linebreak = '\n'+''.join(['*']*80)
 

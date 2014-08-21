@@ -36,14 +36,15 @@ def cleanup(args):
 
     store = cmssw.jobit.JobitStore(config)
     config = job.apply_matching(config)
-    deleted_files = 0
+    deleted_files = dict((cfg['label'], 0) for cfg in config['tasks'])
+    deleted_sizes = dict((cfg['label'], 0) for cfg in config['tasks'])
     for cfg in config['tasks']:
         good_files = set()
         label = cfg['label']
-        for x, y in store.finished_jobs(label):
+        for job, merged_job in store.finished_jobs(label):
             for output in cfg['outputs']:
                 output_format = cfg.get("output format", "{base}_{id}.{ext}")
-                name = cmssw.merge.resolve_name(x, y, output, output_format)
+                name = cmssw.merge.resolve_name(job, merged_job, output, output_format)
                 good_files.add(name)
 
         for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
@@ -56,12 +57,22 @@ def cleanup(args):
             for file in missing:
                 print 'Warning!  Expected to find {0}, but it is missing!'.format(file)
             for file in extra:
-                print 'Found output from failed job: deleting {0}...'.format(file)
-                deleted_files += 1
-                os.remove(os.path.join(dirpath, file))
+                deleted_files[label] += 1
+                deleted_sizes[label] += os.path.getsize(os.path.join(dirpath, file))
+                if not args.dry_run:
+                    os.remove(os.path.join(dirpath, file))
 
-    conjugation = 's' if deleted_files != 1 else ''
-    print 'Finished cleaning; found {0} file{1} to clean up.'.format(deleted_files, conjugation)
+    print 'Finished cleaning.\n'
+    if sum(deleted_files.values()) < 0:
+        print 'No files found to cleanup.'
+    else:
+        print '%-20s %-20s %-20s' % ('label', 'number of bad files', 'total size [MB]')
+        for (label, files), size in zip(deleted_files.items(), deleted_sizes.values()):
+            if files > 0:
+                conjugation = 's' if deleted_files != 1 else ''
+                print '%-20s %-20i %-20i' % (label, files, size / 1000000)
+
+        print '%-20s %-20i %-20i' % ('total', sum(deleted_files.values()), sum(deleted_sizes.values()))
 
 def run(args):
     with open(args.configfile) as configfile:

@@ -27,6 +27,7 @@ def boil():
     parser_plot.set_defaults(func=plot)
 
     parser_cleanup = subparsers.add_parser('cleanup', help='remove output files for failed jobs')
+    parser_cleanup.add_argument('--dry-run', action='store_true', dest='dry_run', default=False, help='only print (do not remove) files to be cleaned')
     parser_cleanup.set_defaults(func=cleanup)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')

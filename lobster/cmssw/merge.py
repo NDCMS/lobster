@@ -7,7 +7,6 @@ import gzip
 import jobit
 import pickle
 import logging
-import shutil
 
 from IMProv.IMProvDoc import IMProvDoc
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
@@ -15,12 +14,6 @@ from ProdCommon.FwkJobRep.ReportParser import readJobReport
 from lobster import job, util
 import jobit
 import dash
-
-def resolve_path(workdir, job, merge_job):
-    topdir = 'successful' if merge_job == 0 else 'merged'
-    bottomdir = str(job) if merge_job == 0 else str(merge_job)
-
-    return os.path.join(workdir, topdir, bottomdir, 'report.xml.gz')
 
 def resolve_name(job, merge_job, name, name_format):
     base, ext = os.path.splitext(name)
@@ -55,6 +48,10 @@ class MergeHandler(object):
     @property
     def reports(self):
         return self.__reports
+
+    @property
+    def id(self):
+        return self.__id
 
     @property
     def inputs(self):
@@ -157,6 +154,13 @@ class MergeProvider(job.JobProvider):
         if not util.checkpoint(self.workdir, 'sandbox'):
             raise NotImplementedError
 
+    def get_report(self, label, job, merge_job):
+        if merge_job == 0:
+            jobdir = self.get_jobdir(job, label, 'successful')
+        else:
+            jobdir = self.get_jobdir(merge_job, label, 'merged')
+        return os.path.join(jobdir, 'report.xml.gz')
+
     def obtain(self, num=1):
         unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (num,), {})
         if not unmerged_jobs or len(unmerged_jobs) == 0:
@@ -169,9 +173,7 @@ class MergeProvider(job.JobProvider):
             monitorid, syncid = self.__dash.register_job(merging_job)
 
             sdir = os.path.join(self.stageout, dset)
-            jdir = os.path.join(self.workdir, dset, 'merging', str(merging_job))
-            if not os.path.isdir(jdir):
-                os.makedirs(jdir)
+            jdir = self.create_jobdir(merging_job, dset, 'merging')
 
             for outname_index, local_outname in enumerate(self.outputs[dset]):
                 base, ext = os.path.splitext(local_outname)
@@ -196,7 +198,7 @@ class MergeProvider(job.JobProvider):
                     inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
                 for job, merged_job in jobs:
-                    handler.reports.append(resolve_path(os.path.join(self.workdir, dset), job, merged_job))
+                    handler.reports.append(self.get_report(dset, job, merged_job))
 
                     input = resolve_name(job, merged_job, local_outname, self.outputformats[dset])
                     handler.inputs.append(os.path.join(os.path.basename(sdir), input))
@@ -256,11 +258,11 @@ class MergeProvider(job.JobProvider):
 
             jobs += handler.get_job_update(failed, outsize)
             if failed:
-                shutil.move(handler.jobdir, handler.jobdir.replace('merging', 'merge_failed'))
+                self.move_jobdir(handler.id, handler.dataset, 'merge_failed', 'merging')
             else:
                 handler.merge_reports()
                 handler.cleanup()
-                shutil.move(handler.jobdir, handler.jobdir.replace('merging', 'merged'))
+                self.move_jobdir(handler.id, handler.dataset, 'merged', 'merging')
 
             logging.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 

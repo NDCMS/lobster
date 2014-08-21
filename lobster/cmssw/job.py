@@ -46,6 +46,10 @@ class JobHandler(object):
         return self.__dataset
 
     @property
+    def id(self):
+        return self.__id
+
+    @property
     def jobdir(self):
         return self.__jobdir
 
@@ -218,8 +222,8 @@ class JobProvider(job.JobProvider):
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
 
             elif os.path.exists(os.path.join(taskdir, 'running')):
-                for d in os.listdir(os.path.join(taskdir, 'running')):
-                    shutil.move(os.path.join(taskdir, 'running', d), os.path.join(taskdir, 'failed'))
+                for id in self.get_jobids(label):
+                    self.move_jobdir(id, label, 'failed')
 
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
@@ -255,9 +259,7 @@ class JobProvider(job.JobProvider):
             inputs += [(i, os.path.basename(i)) for i in self.extra_inputs[label]]
 
             sdir = os.path.join(self.stageout, label)
-            jdir = os.path.join(self.workdir, label, 'running', id)
-            if not os.path.isdir(jdir):
-                os.makedirs(jdir)
+            jdir = self.create_jobdir(id, label, 'running')
 
             monitorid, syncid = self.__dash.register_job(id)
 
@@ -369,9 +371,9 @@ class JobProvider(job.JobProvider):
                     + times + data + job_update + [task.tag]
 
             if failed:
-                shutil.move(handler.jobdir, handler.jobdir.replace('running', 'failed'))
+                self.move_jobdir(self, handler.id, handler.dataset, 'failed')
             else:
-                shutil.move(handler.jobdir, handler.jobdir.replace('running', 'successful'))
+                self.move_jobdir(self, handler.id, handler.dataset, 'successful')
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 

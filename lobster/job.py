@@ -4,6 +4,7 @@ import os
 import datetime
 import itertools
 import shutil
+import glob
 import gzip
 import pickle
 import yaml
@@ -105,6 +106,41 @@ class JobProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
+
+    def get_jobdir(self, jobid, label='', status='running'):
+        # Currently known limitations on the number of entries in a
+        # sub-directory concern ext3, where said limit is 32k.  Use a
+        # modus of 10k to split the job numbers.  Famous last words:
+        # "(10k)² jobs should be enough for everyone." → we use two levels
+        # only.
+        man = str(jobid % 10000).zfill(4)
+        oku = str(jobid / 10000).zfill(4)
+        return os.normpath(os.path.join(self.workdir, label, status, oku, man))
+
+    def create_jobdir(self, jobid, label, status='running'):
+        jdir = self.get_jobdir(jobid, label, status)
+        if not os.path.isdir(jdir):
+            os.makedirs(jdir)
+        return jdir
+
+    def move_jobdir(self, jobid, label, status, oldstatus='running'):
+        # See above for job id splitting.  Moves directories and removes
+        # old empty directories.
+        old = self.get_jobdir(jobid, label, oldstatus)
+        new = self.get_jobdir(jobid, label, status)
+        parent = os.path.dirname(new)
+        if not os.path.isdir(parent):
+            os.makedirs(parent)
+        shutil.move(old, parent)
+        if len(os.listdir(os.path.dirname(old))) == 0:
+            os.removedirs(os.path.dirname(old))
+
+    def get_jobids(self, label, status='running'):
+        # Iterates over the job directories and returns all jobids found
+        # therein.
+        parent = os.path.join(self.workdir, label)
+        for d in glob.glob(os.path.join(parent, '*', '*')):
+            yield int(os.path.relpath(parent, d).replace(os.path.sep, ''))
 
     def done(self):
         raise NotImplementedError

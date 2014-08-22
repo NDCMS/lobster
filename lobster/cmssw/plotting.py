@@ -302,8 +302,12 @@ class Plotter(object):
             for id, e in list(jobs[-samples:]):
                 codes[exit_code][1][id] = []
 
-                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', str(id)))[0]
-                target = os.path.join(os.path.join(self.__plotdir, 'logs'), str(id))
+                jobid = int(id)
+                man = str(jobid % 10000).zfill(4)
+                oku = str(jobid / 10000).zfill(4)
+
+                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', oku, man))[0]
+                target = os.path.join(os.path.join(self.__plotdir, 'logs'), oku, man)
                 if os.path.exists(target):
                     shutil.rmtree(target)
                 os.makedirs(target)

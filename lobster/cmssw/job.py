@@ -26,7 +26,7 @@ class JobHandler(object):
     """
 
     def __init__(self, id, dataset, files, jobits, jdir, cmssw_job, empty_source):
-        self.__id = id,
+        self.__id = id
         self.__dataset = dataset
         self.__files = files
         self.__use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])

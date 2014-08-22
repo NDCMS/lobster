@@ -1,6 +1,19 @@
+# vim: set fileencoding=utf-8 :
+
 import os
 import yaml
 import subprocess
+
+def id2dir(id):
+    # Currently known limitations on the number of entries in a
+    # sub-directory concern ext3, where said limit is 32k.  Use a
+    # modus of 10k to split the job numbers.  Famous last words:
+    # "(10k)² jobs should be enough for everyone." → we use two levels
+    # only.
+    id = int(id)
+    man = str(id % 10000).zfill(4)
+    oku = str(id / 10000).zfill(4)
+    return os.path.join(oku, man)
 
 def findpath(dirs, path):
     if len(dirs) == 0:

@@ -1,5 +1,3 @@
-# vim: set fileencoding=utf-8 :
-
 import logging
 import re
 import os
@@ -110,15 +108,8 @@ class JobProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
     def get_jobdir(self, jobid, label='', status='running'):
-        # Currently known limitations on the number of entries in a
-        # sub-directory concern ext3, where said limit is 32k.  Use a
-        # modus of 10k to split the job numbers.  Famous last words:
-        # "(10k)² jobs should be enough for everyone." → we use two levels
-        # only.
-        jobid = int(jobid)
-        man = str(jobid % 10000).zfill(4)
-        oku = str(jobid / 10000).zfill(4)
-        return os.path.normpath(os.path.join(self.workdir, label, status, oku, man))
+        # See id2dir for job id formatting in filesystem paths
+        return os.path.normpath(os.path.join(self.workdir, label, status, util.id2dir(jobid)))
 
     def create_jobdir(self, jobid, label, status='running'):
         jdir = self.get_jobdir(jobid, label, status)

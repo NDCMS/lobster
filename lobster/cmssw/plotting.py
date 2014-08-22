@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 import numpy as np
 
+from lobster import util
+
 matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
@@ -302,12 +304,8 @@ class Plotter(object):
             for id, e in list(jobs[-samples:]):
                 codes[exit_code][1][id] = []
 
-                jobid = int(id)
-                man = str(jobid % 10000).zfill(4)
-                oku = str(jobid / 10000).zfill(4)
-
-                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', oku, man))[0]
-                target = os.path.join(os.path.join(self.__plotdir, 'logs'), oku, man)
+                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', util.id2dir(id)))[0]
+                target = os.path.join(os.path.join(self.__plotdir, 'logs'), util.id2dir(id))
                 if os.path.exists(target):
                     shutil.rmtree(target)
                 os.makedirs(target)

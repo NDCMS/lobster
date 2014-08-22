@@ -16,6 +16,7 @@ from dbs.apis.dbsClient import DbsApi
 
 import jobit
 import merge
+from lobster import util
 
 linebreak = '\n'+''.join(['*']*80)
 
@@ -123,7 +124,7 @@ class Publisher():
            print 'Preparing DBS entry for block of %i jobs: %s' % (len(jobs[first_job:first_job+max_jobs]), jstring)
            successful_jobs = jobs[first_job:first_job+max_jobs]
            for job in jobs[first_job:first_job+max_jobs]:
-               f = gzip.open(os.path.join(self.dir, self.label, 'successful', str(job), 'report.xml.gz'), 'r')
+               f = gzip.open(os.path.join(self.dir, self.label, 'successful', util.id2dir(job), 'report.xml.gz'), 'r')
                for report in readJobReport(f)[0].files:
                    filename = report['PFN'].replace('.root', '_%s.root' % job) #TODO: handle this properly
                    LFN = os.path.join(self.required_path, filename)

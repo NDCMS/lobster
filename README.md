@@ -96,9 +96,13 @@ To lessen the load on the master spooling out sandboxes and handling
 communication with workers, foreman can be used.  They can be started with,
 e.g.:
 
-    nohup work_queue_worker -olog_foreman_n -dall --foreman-name \
-        lobster-foreman-n -M lobster_chowder -s /tmp/<some_directory> --specify-log \
-        foreman_n.log --timeout=86400
+    work_queue_worker -olog_foreman_<n> -dall --foreman-name \
+        lobster-foreman-<n> -M lobster_chowder -s /tmp/<some_directory> --specify-log \
+        foreman_<n>.log --timeout=86400
+
+Prepending `nohup` to the command keeps it from getting killed when the
+current shell or ssh session is closed.  Alternatively, it is also possible
+to run the foremen in a `screen` or `tmux` session.
 
 ## Using `work_queue_pool`
 
@@ -110,6 +114,14 @@ following configuration file:
     distribution: lobster-foreman.*=950
     max_workers: 950
     min_workers: 950
+
+Then run the following command:
+
+    work_queue_pool -T condor -o work_queue_pool.log \
+        -M lobster_<your id> -c <your pool config> \
+        --cores $cores --memory $(($cores * 1100)) --disk $(($cores * 4500))
+
+The last line of arguments corresponds to the desired worker configuration.
 
 ## Altering the worker environment
 

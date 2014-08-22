@@ -1,3 +1,5 @@
+# vim: set fileencoding=utf-8 :
+
 import logging
 import re
 import os
@@ -113,9 +115,10 @@ class JobProvider(object):
         # modus of 10k to split the job numbers.  Famous last words:
         # "(10k)² jobs should be enough for everyone." → we use two levels
         # only.
+        jobid = int(jobid)
         man = str(jobid % 10000).zfill(4)
         oku = str(jobid / 10000).zfill(4)
-        return os.normpath(os.path.join(self.workdir, label, status, oku, man))
+        return os.path.normpath(os.path.join(self.workdir, label, status, oku, man))
 
     def create_jobdir(self, jobid, label, status='running'):
         jdir = self.get_jobdir(jobid, label, status)
@@ -138,9 +141,9 @@ class JobProvider(object):
     def get_jobids(self, label, status='running'):
         # Iterates over the job directories and returns all jobids found
         # therein.
-        parent = os.path.join(self.workdir, label)
+        parent = os.path.join(self.workdir, label, status)
         for d in glob.glob(os.path.join(parent, '*', '*')):
-            yield int(os.path.relpath(parent, d).replace(os.path.sep, ''))
+            yield int(os.path.relpath(d, parent).replace(os.path.sep, ''))
 
     def done(self):
         raise NotImplementedError

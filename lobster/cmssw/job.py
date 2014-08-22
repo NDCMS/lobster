@@ -371,9 +371,9 @@ class JobProvider(job.JobProvider):
                     + times + data + job_update + [task.tag]
 
             if failed:
-                self.move_jobdir(self, handler.id, handler.dataset, 'failed')
+                self.move_jobdir(handler.id, handler.dataset, 'failed')
             else:
-                self.move_jobdir(self, handler.id, handler.dataset, 'successful')
+                self.move_jobdir(handler.id, handler.dataset, 'successful')
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 

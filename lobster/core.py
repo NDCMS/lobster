@@ -162,6 +162,7 @@ def run(args):
         if util.checkpoint(workdir, 'KILLED') == 'PENDING':
             util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
+        jobits_left = 0
         successful_jobs = 0
 
         creation_time = 0

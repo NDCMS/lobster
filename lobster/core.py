@@ -139,6 +139,8 @@ def run(args):
         else:
             job_src = job.SimpleJobProvider(config)
 
+        logging.info("using wq from {0}".format(wq.__file__))
+
         wq.cctools_debug_flags_set("all")
         wq.cctools_debug_config_file(os.path.join(workdir, mode_label+"work_queue_debug.log"))
         wq.cctools_debug_config_file_size(1 << 29)

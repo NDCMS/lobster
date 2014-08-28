@@ -137,6 +137,7 @@
 				$("tr.tasksummary").hide();
 				$("div.good.more").hide();
 				$("table#logs").hide();
+				$("div.foreman.more").hide();				
 
 				$("a#tasksummary").bind('click', function() {
 					$("tr.tasksummary").toggle();
@@ -149,6 +150,13 @@
 					$("div.good.more").slideToggle();
 					$("span#goodmore").toggleClass("depressed");
 					$("span#goodmore").toggleClass("pressed");
+					return false;
+				});
+				
+				$("a#foremanmore").bind('click', function() {
+					$("div.foreman.more").slideToggle();
+					$("span#foremanmore").toggleClass("depressed");
+					$("span#foremanmore").toggleClass("pressed");
 					return false;
 				});
 
@@ -304,5 +312,29 @@
 			<p>No output yet!</p>
 			{% endif %}
 		</div>
+
+
+		
+		{% if fman %}
+		<h1>Foreman Summary</h1>
+		<span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
+		<div style="margin-left:410px;">
+		        <img src="foreman-tasks-plot.png"></img>
+                        <img src="foreman-idle-plot.png"></img>
+                        <img src="foreman-efficiency-plot.png"></img>
+                </div>
+		
+		{% for foreman in fmanlist %}
+		
+		<div class="foreman more"><h1>{{ foreman }} summary</h1></div>
+		<div class="foreman more" style="float:left">
+			<img src="{{ foreman }}-time-pie.png"></img>
+		</div>
+		<div class="foreman more" style="margin-left:410px;"><ul class = "img-list">
+			<img src="{{ foreman }}-workers-plot.png"></img>
+			<img src="{{ foreman }}-turnover-hist.png"></img>
+		</ul></div>
+		{% endfor %}
+		{% endif %}
 	</body>
 </html>

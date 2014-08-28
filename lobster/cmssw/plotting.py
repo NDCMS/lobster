@@ -13,6 +13,8 @@ import pytz
 import shutil
 import sqlite3
 import yaml
+import re
+import string
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -95,7 +97,8 @@ class Plotter(object):
 
         self.__xmin = self.parsetime(args.xmin)
         self.__xmax = self.parsetime(args.xmax)
-
+        #self.__foremanlist = args.foreman_list
+        
     def parsetime(self, time):
         if not time:
             return None
@@ -288,6 +291,40 @@ class Plotter(object):
 
         return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
 
+    def readflog(self,foreman):
+        with open(os.path.join('/tmp/cmuelle2/', foreman)) as f:
+            headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
+        stats = np.loadtxt(os.path.join('/tmp/cmuelle2/', foreman))
+
+        diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
+
+        # fix units of time
+        stats[:,0] /= 1e6
+
+        stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
+        stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
+
+#        stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
+#        stats[:,headers['total_create_time']] /= 60e6
+        stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
+        stats[:,headers['total_send_time']] /= 60e6
+        stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
+        stats[:,headers['total_receive_time']] /= 60e6
+#        stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
+#        stats[:,headers['total_return_time']] /= 60e6
+
+
+
+        if not self.__xmin:
+            self.__xmin = stats[0,0]
+        if not self.__xmax:
+            self.__xmax = stats[-1,0]
+
+        return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
+
+
+
+
     def savelogs(self, failed_jobs, samples=5):
         logdir = os.path.join(self.__plotdir, 'logs')
         if not os.path.exists(logdir):
@@ -444,7 +481,85 @@ class Plotter(object):
 
         plt.close()
 
-    def make_plots(self):
+    def make_plots(self,foreman_list=None):
+        strip_list = []
+        
+        if foreman_list:
+            tasks_list = []
+            idle_list = []
+            efficiency_list = []
+                    
+            for foreman in foreman_list:
+                headers, stats = self.readflog(foreman)
+
+                if re.match('.*log+',foreman):
+                    foreman=foreman[:foreman.rfind('.')]
+                    foreman = string.strip(foreman)
+                strip_list.append(foreman)
+                
+                tasks_list.append((stats[:,headers['timestamp']], stats[:,headers['tasks_running']]))
+                idle_list.append((stats[:,headers['timestamp']], stats[:,headers['idle_percentage']]))
+                efficiency_list.append((stats[:,headers['timestamp']], stats[:,headers['efficiency']]))
+
+                self.plot(
+                        [
+                            (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
+                            (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
+                            (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
+                        ],
+                        'foreman-Workers', foreman+'-workers',
+                        modes=[Plotter.PLOT|Plotter.TIME],
+                        label=['busy', 'idle', 'connected']
+                )
+
+                self.plot(
+                    [
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                    ],
+                    'foreman-Workers', foreman+'-turnover',
+                    modes=[Plotter.HIST|Plotter.TIME],
+                    label=['joined', 'removed']
+                )
+
+                self.make_pie(
+                    [
+                    np.sum(stats[:,headers['total_good_execute_time']]),
+                    np.sum(stats[:,headers['total_execute_time']])-np.sum(stats[:,headers['total_good_execute_time']])
+                    ],
+                    ["good execute time", "total-good execute time"],
+                    foreman+"-time-pie",
+                    colors=["green","red"]
+                )
+
+
+            self.plot(
+                tasks_list,
+                'foreman-Tasks', 'foreman-tasks',
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=strip_list
+            )
+
+            self.plot(
+                idle_list,
+                'foreman-Idle', 'foreman-idle',
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=strip_list
+            )
+            
+            self.plot(
+                efficiency_list,
+                'foreman-efficiency', 'foreman-efficiency',
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=strip_list#['total exec/wall connected-workers']
+            )
+            
+
+
+
+
+        
+        #regular make_plots starts here
         headers, stats = self.readlog()
         success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits = self.readdb()
 
@@ -803,9 +918,11 @@ class Plotter(object):
                 bad_jobs=len(failed_jobs) > 0,
                 good_jobs=len(success_jobs) > 0,
                 summary=summary_data,
-                bad_logs=logs
+                bad_logs=logs,
+                fman = len(strip_list) > 0,
+                fmanlist=strip_list
             ))
 
 def plot(args):
     p = Plotter(args)
-    p.make_plots()
+    p.make_plots(args.foreman_list)#["forman0.log","forman1.log","forman2.log","forman3.log"])

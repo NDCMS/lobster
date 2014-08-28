@@ -1,15 +1,17 @@
 import daemon
-from lockfile.pidlockfile import PIDLockFile
-from lockfile import AlreadyLocked
 import logging
 import os
 import datetime
+import signal
 import sys
 import time
 import traceback
 import yaml
 
+from functools import partial
 from lobster import job, util, cmssw
+from lockfile.pidlockfile import PIDLockFile
+from lockfile import AlreadyLocked
 
 import work_queue as wq
 
@@ -24,6 +26,7 @@ def get_lock(workdir):
     return pidfile
 
 def kill(args):
+    logging.info("setting flag to quit at the next checkpoint")
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
 
@@ -108,12 +111,16 @@ def run(args):
         ttyfile = open(os.path.join(workdir, mode_label+'lobster.err'), 'a')
         print "Saving stderr and stdout to {0}".format(os.path.join(workdir, mode_label+'lobster.err'))
 
+    signals = daemon.daemon.make_default_signal_map()
+    signals[signal.SIGTERM] = lambda num, frame: kill(args)
+
     with daemon.DaemonContext(
             detach_process=not args.foreground,
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
-            pidfile=get_lock(workdir)):
+            pidfile=get_lock(workdir),
+            signal_map=signals):
         logging.basicConfig(
                 datefmt="%Y-%m-%d %H:%M:%S",
                 format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",

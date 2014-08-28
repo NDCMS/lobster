@@ -304,16 +304,10 @@ class Plotter(object):
         stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
         stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
 
-#        stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
-#        stats[:,headers['total_create_time']] /= 60e6
         stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
         stats[:,headers['total_send_time']] /= 60e6
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
         stats[:,headers['total_receive_time']] /= 60e6
-#        stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
-#        stats[:,headers['total_return_time']] /= 60e6
-
-
 
         if not self.__xmin:
             self.__xmin = stats[0,0]
@@ -321,9 +315,6 @@ class Plotter(object):
             self.__xmax = stats[-1,0]
 
         return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
-
-
-
 
     def savelogs(self, failed_jobs, samples=5):
         logdir = os.path.join(self.__plotdir, 'logs')
@@ -532,7 +523,6 @@ class Plotter(object):
                     colors=["green","red"]
                 )
 
-
             self.plot(
                 tasks_list,
                 'foreman-Tasks', 'foreman-tasks',
@@ -553,11 +543,6 @@ class Plotter(object):
                 modes=[Plotter.PLOT|Plotter.TIME],
                 label=strip_list#['total exec/wall connected-workers']
             )
-            
-
-
-
-
         
         #regular make_plots starts here
         headers, stats = self.readlog()
@@ -925,4 +910,4 @@ class Plotter(object):
 
 def plot(args):
     p = Plotter(args)
-    p.make_plots(args.foreman_list)#["forman0.log","forman1.log","forman2.log","forman3.log"])
+    p.make_plots(args.foreman_list)

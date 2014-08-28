@@ -23,6 +23,8 @@ def boil():
             help="plot data from START.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
     parser_plot.add_argument("--to", default=None, metavar="END", dest="xmax",
             help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+    parser_plot.add_argument("--foreman-logs",default=None, metavar="FOREMAN_LIST", dest="foreman_list", nargs='+', type=str,
+            help="Valid values: log1 log2 log3...logN")
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
 

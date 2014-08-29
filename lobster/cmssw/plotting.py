@@ -98,7 +98,7 @@ class Plotter(object):
         self.__xmin = self.parsetime(args.xmin)
         self.__xmax = self.parsetime(args.xmax)
         #self.__foremanlist = args.foreman_list
-        
+
     def parsetime(self, time):
         if not time:
             return None
@@ -475,22 +475,22 @@ class Plotter(object):
 
         plt.close()
 
-    def make_plots(self,foreman_list=None):
+    def make_plots(self, foreman_list=None):
         strip_list = []
-        
+
         if foreman_list:
             tasks_list = []
             idle_list = []
             efficiency_list = []
-                    
+
             for foreman in foreman_list:
                 headers, stats = self.readflog(foreman)
 
-                if re.match('.*log+',foreman):
+                if re.match('.*log+', foreman):
                     foreman=foreman[:foreman.rfind('.')]
                     foreman = string.strip(foreman)
                 strip_list.append(foreman)
-                
+
                 tasks_list.append((stats[:,headers['timestamp']], stats[:,headers['tasks_running']]))
                 idle_list.append((stats[:,headers['timestamp']], stats[:,headers['idle_percentage']]))
                 efficiency_list.append((stats[:,headers['timestamp']], stats[:,headers['efficiency']]))
@@ -501,7 +501,7 @@ class Plotter(object):
                             (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
                             (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
                         ],
-                        'foreman-Workers', foreman+'-workers',
+                        'foreman-Workers', foreman + '-workers',
                         modes=[Plotter.PLOT|Plotter.TIME],
                         label=['busy', 'idle', 'connected']
                 )
@@ -511,7 +511,7 @@ class Plotter(object):
                     (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
                     (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
                     ],
-                    'foreman-Workers', foreman+'-turnover',
+                    'foreman-Workers', foreman + '-turnover',
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=['joined', 'removed']
                 )
@@ -519,7 +519,7 @@ class Plotter(object):
                 self.make_pie(
                     [
                     np.sum(stats[:,headers['total_good_execute_time']]),
-                    np.sum(stats[:,headers['total_execute_time']])-np.sum(stats[:,headers['total_good_execute_time']])
+                    np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
                     ],
                     ["good execute time", "total-good execute time"],
                     foreman+"-time-pie",
@@ -539,15 +539,14 @@ class Plotter(object):
                 modes=[Plotter.PLOT|Plotter.TIME],
                 label=strip_list
             )
-            
+
             self.plot(
                 efficiency_list,
                 'foreman-efficiency', 'foreman-efficiency',
                 modes=[Plotter.PLOT|Plotter.TIME],
-                label=strip_list#['total exec/wall connected-workers']
+                label=strip_list
             )
-        
-        #regular make_plots starts here
+
         headers, stats = self.readlog()
         success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits = self.readdb()
 

@@ -313,19 +313,16 @@
 			{% endif %}
 		</div>
 
-
-		
 		{% if fman %}
 		<h1>Foreman Summary</h1>
 		<span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
 		<div style="margin-left:410px;">
-		        <img src="foreman-tasks-plot.png"></img>
-                        <img src="foreman-idle-plot.png"></img>
-                        <img src="foreman-efficiency-plot.png"></img>
-                </div>
-		
+			<img src="foreman-tasks-plot.png"></img>
+			<img src="foreman-idle-plot.png"></img>
+			<img src="foreman-efficiency-plot.png"></img>
+		</div>
+
 		{% for foreman in fmanlist %}
-		
 		<div class="foreman more"><h1>{{ foreman }} summary</h1></div>
 		<div class="foreman more" style="float:left">
 			<img src="{{ foreman }}-time-pie.png"></img>

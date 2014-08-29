@@ -27,7 +27,7 @@
 				padding:3px 7px 2px 7px;
 			}
 
-			table.fancy th {
+			table.fancy th, td.footer {
 				text-align:left;
 				padding-top:5px;
 				padding-bottom:4px;
@@ -229,7 +229,7 @@
 			<tr class="tasksummary{{ loop.cycle('', ' alt') }}">
 			{% endif %}
 				{% for cell in row %}
-				<td>{{ cell }}</td>
+				<td{% if row == summary[-1] %} class="footer"{% endif %}>{{ cell }}</td>
 				{% endfor %}
 			</tr>
 			{% endfor %}

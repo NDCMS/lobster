@@ -284,6 +284,9 @@ class Plotter(object):
         stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
         stats[:,headers['total_return_time']] /= 60e6
 
+        self.__total_xmin = stats[0,0]
+        self.__total_xmax = stats[-1,0]
+
         if not self.__xmin:
             self.__xmin = stats[0,0]
         if not self.__xmax:
@@ -894,19 +897,24 @@ class Plotter(object):
 
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
+        env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
         env.tests["sum"] = lambda s: s == "Total"
         template = env.get_template('template.html')
 
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
             f.write(template.render(
                 id=self.__id,
+                plot_starttime=self.__xmin,
+                plot_endtime=self.__xmax,
+                run_starttime=self.__total_xmin,
+                run_endtime=self.__total_xmax,
                 bad_jobs=len(failed_jobs) > 0,
                 good_jobs=len(success_jobs) > 0,
                 summary=summary_data,
                 bad_logs=logs,
                 fman = len(strip_list) > 0,
                 fmanlist=strip_list
-            ))
+            ).encode('utf-8'))
 
 def plot(args):
     p = Plotter(args)

@@ -18,16 +18,16 @@
 
 			h1, h2, h3 {clear: left}
 
-			table {
+			table.fancy {
 				border-collapse:collapse;
 			}
 
-			td, th {
+			table.fancy td, th {
 				border:1px solid #333437;
 				padding:3px 7px 2px 7px;
 			}
 
-			th {
+			table.fancy th {
 				text-align:left;
 				padding-top:5px;
 				padding-bottom:4px;
@@ -35,7 +35,7 @@
 				color:#ffffff;
 			}
 
-			tr.alt td {
+			table.fancy tr.alt td {
 				color:#000000;
 				background-color:#B4B8C1;
 			}
@@ -187,9 +187,33 @@
 		</script>
 	</head>
 	<body>
+		<h1>Summary for Run “{{id}}”</h1>
+		<table>
+			<tr>
+				<td>Run start time: </td>
+				<td>{{run_starttime|datetime}}</td>
+			</tr>
+			{% if run_starttime != plot_starttime %}
+			<tr>
+				<td>Plot start time: </td>
+				<td>{{plot_starttime|datetime}}</td>
+			</tr>
+			{% endif %}
+			<tr>
+				<td>Run end time: </td>
+				<td>{{run_endtime|datetime}}</td>
+			</tr>
+			{% if run_endtime != plot_endtime %}
+			<tr>
+				<td>Plot end time: </td>
+				<td>{{plot_endtime|datetime}}</td>
+			</tr>
+			{% endif %}
+		</table>
+
 		<h1>Task Summary</h1>
 		<p><span class="button depressed" id="tasksummary"><a href="#" id="tasksummary">show breakdown</a></span></p>
-		<table>
+		<table class="fancy">
 			<tr>
 				<th>Task</th>
 				<th>events</th>
@@ -273,7 +297,7 @@
 		<div style="margin-left:410px;">
 			<img src="failed-jobs-hist.png"></img>
 			<p><span id="logs" class="button depressed"><a href="#" id="logs">show log files</a></span></p>
-			<table id="logs">
+			<table id="logs" class="fancy">
 				<tr>
 					<th>Exit code</th>
 					<th>occurences</th>

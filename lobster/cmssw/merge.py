@@ -15,15 +15,16 @@ from lobster import job, util
 import jobit
 import dash
 
-def resolve_name(job, merge_job, name, name_format):
+def resolve_name(job, merged_job, name, name_format):
     base, ext = os.path.splitext(name)
-    id = str(job) if merge_job == 0 else 'merged_{0}'.format(merge_job)
+    id = str(job) if merged_job == 0 else 'merged_{0}'.format(merged_job)
 
     return name_format.format(base=base, ext=ext[1:], id=id)
 
 class MergeHandler(object):
-    def __init__(self, id, chirp, jobdir, outname, num_outputs, outname_index, sdir, jobs):
+    def __init__(self, id, dataset, chirp, jobdir, outname, num_outputs, outname_index, sdir, jobs):
         self.__id = id
+        self.__dataset = dataset
         self.__chirp = chirp
         self.__jobdir = jobdir
         self.__outname = outname
@@ -40,6 +41,10 @@ class MergeHandler(object):
             base, ext = os.path.splitext(outname)
             self.__tag = '{0}_{1}'.format(id, outname_index)
             self.__base = '{0}_'.format(base)
+
+    @property
+    def dataset(self):
+        return self.__dataset
 
     @property
     def jobs(self):
@@ -180,6 +185,7 @@ class MergeProvider(job.JobProvider):
                 remote_outname = self.outputformats[dset].format(base=base, ext=ext[1:], id=out_tag)
 
                 handler = MergeHandler(merging_job,
+                                       dset,
                                        self.__chirp,
                                        jdir,
                                        local_outname,

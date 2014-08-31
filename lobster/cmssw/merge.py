@@ -159,11 +159,11 @@ class MergeProvider(job.JobProvider):
         if not util.checkpoint(self.workdir, 'sandbox'):
             raise NotImplementedError
 
-    def get_report(self, label, job, merge_job):
-        if merge_job == 0:
+    def get_report(self, label, job, merged_job):
+        if merged_job == 0:
             jobdir = self.get_jobdir(job, label, 'successful')
         else:
-            jobdir = self.get_jobdir(merge_job, label, 'merged')
+            jobdir = self.get_jobdir(merged_job, label, 'merged')
         return os.path.join(jobdir, 'report.xml.gz')
 
     def obtain(self, num=1):

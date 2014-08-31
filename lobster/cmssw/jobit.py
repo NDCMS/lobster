@@ -547,3 +547,8 @@ class JobitStore:
             and jobs.dataset==datasets.id""", (SUCCESSFUL, dataset))
 
         return cur.fetchall()
+
+    def update_pset_hash(self, pset_hash, dataset):
+        self.db.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))
+
+        self.db.commit()

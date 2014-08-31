@@ -132,7 +132,7 @@ class MergeProvider(job.JobProvider):
         self.__store = jobit.JobitStore(self.config)
         self.__store.reset_merging()
         logging.info("registering unmerged jobs")
-        self.__store.register_unmerged()
+        self.__store.register_unmerged(config.get('max megabytes', 3500))
 
         self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x)) for x in
                                  ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',

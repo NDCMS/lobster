@@ -31,8 +31,8 @@ class MergeHandler(object):
         self.__sdir = sdir
         self.__jobs = jobs
 
-        self.__reports = []
-        self.__inputs = []
+        self.__reports = set()
+        self.__inputs = set()
 
         if num_outputs == 1:
             self.__tag = str(id)
@@ -204,10 +204,10 @@ class MergeProvider(job.JobProvider):
                     inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
                 for job, merged_job in jobs:
-                    handler.reports.append(self.get_report(dset, job, merged_job))
+                    handler.reports.add(self.get_report(dset, job, merged_job))
 
                     input = resolve_name(job, merged_job, local_outname, self.outputformats[dset])
-                    handler.inputs.append(os.path.join(os.path.basename(sdir), input))
+                    handler.inputs.add(os.path.join(os.path.basename(sdir), input))
 
                     if not self.__chirp:
                         inputs.append((os.path.join(sdir, input), input))

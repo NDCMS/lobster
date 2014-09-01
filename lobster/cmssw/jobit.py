@@ -442,13 +442,13 @@ class JobitStore:
         self.db.commit()
 
     def update_merged(self, jobs):
-        success_update = [(merging_job, status, None, job) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
+        success_update = [(merging_job, status, None, merging_job) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
         merge_jobs_update = [(status, size, merging_job) for (job, merging_job, status, size) in jobs]
         fail_update = [merging_job for (job, merging_job, status, size) in jobs if status == FAILED]
 
 
         self.db.executemany("update merge_jobs set status=?, bytes_output=? where id=?", merge_jobs_update)
-        self.db.executemany("update jobs set merged_job=?, merge_status=?, merging_job=? where id=?", success_update)
+        self.db.executemany("update jobs set merged_job=?, merge_status=?, merging_job=? where merging_job=?", success_update)
 
         for job in fail_update:
             cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
@@ -469,7 +469,7 @@ class JobitStore:
             size = 0
             chunk = []
             rows = self.db.execute("""select jobs.id,
-                jobs.merged_job,
+                -1,
                 jobs.bytes_output
                 from jobs left join merge_jobs
                 on jobs.merged_job=merge_jobs.id
@@ -487,19 +487,20 @@ class JobitStore:
                 group by merge_jobs.id
                 order by jobs.id""", (SUCCESSFUL, dataset[0], SUCCESSFUL, dataset[0])).fetchall()
 
+            cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             for job, merged_job, bytes in rows:
                 if (size + bytes) < max_bytes:
-                    chunk += [(cur.lastrowid, ASSIGNED, job)]
+                    chunk += [(cur.lastrowid, ASSIGNED, job, merged_job)]
                     size += bytes
                     if id == rows[-1][1] and len(chunk) > 1:
-                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=?", chunk)
+                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=? or merged_job=?", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                 else:
                     if len(chunk) > 1:
-                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=?", chunk)
+                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=? or merged_job=?", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
-                    chunk += [(cur.lastrowid, ASSIGNED, job)]
-                    size = bytes
+                        chunk = [(cur.lastrowid, ASSIGNED, job, merged_job)]
+                        size = bytes
 
         self.db.commit()
 
@@ -544,7 +545,8 @@ class JobitStore:
             from jobs, datasets
             where jobs.status=?
             and datasets.label=?
-            and jobs.dataset==datasets.id""", (SUCCESSFUL, dataset))
+            and jobs.dataset==datasets.id
+            group by jobs.merged_job""", (SUCCESSFUL, dataset))
 
         return cur.fetchall()
 

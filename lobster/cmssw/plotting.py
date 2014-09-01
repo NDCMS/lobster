@@ -262,10 +262,15 @@ class Plotter(object):
 
         return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits
 
-    def readlog(self):
-        with open(os.path.join(self.__workdir, 'lobster_stats.log')) as f:
+    def readlog(self, filename=None):
+        if filename:
+            fn = filename
+        else:
+            fn = os.path.join(self.__workdir, 'lobster_stats.log')
+
+        with open(fn) as f:
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-        stats = np.loadtxt(os.path.join(self.__workdir, 'lobster_stats.log'))
+        stats = np.loadtxt(fn)
 
         diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
 
@@ -275,47 +280,27 @@ class Plotter(object):
         stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
         stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
 
-        stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
-        stats[:,headers['total_create_time']] /= 60e6
-        stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
-        stats[:,headers['total_send_time']] /= 60e6
-        stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
-        stats[:,headers['total_receive_time']] /= 60e6
-        stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
-        stats[:,headers['total_return_time']] /= 60e6
-
-        self.__total_xmin = stats[0,0]
-        self.__total_xmax = stats[-1,0]
-
-        if not self.__xmin:
-            self.__xmin = stats[0,0]
-        if not self.__xmax:
-            self.__xmax = stats[-1,0]
-
-        return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
-
-    def readflog(self,foreman):
-        with open(os.path.join('/tmp/cmuelle2/', foreman)) as f:
-            headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
-        stats = np.loadtxt(os.path.join('/tmp/cmuelle2/', foreman))
-
-        diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
-
-        # fix units of time
-        stats[:,0] /= 1e6
-
-        stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
-        stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
+        if 'total_create_time' in headers:
+            # these are attributes present in the lobster stats log, but
+            # not wq logs
+            stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
+            stats[:,headers['total_create_time']] /= 60e6
+            stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
+            stats[:,headers['total_return_time']] /= 60e6
 
         stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
         stats[:,headers['total_send_time']] /= 60e6
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
         stats[:,headers['total_receive_time']] /= 60e6
 
-        if not self.__xmin:
-            self.__xmin = stats[0,0]
-        if not self.__xmax:
-            self.__xmax = stats[-1,0]
+        if not filename:
+            self.__total_xmin = stats[0,0]
+            self.__total_xmax = stats[-1,0]
+
+            if not self.__xmin:
+                self.__xmin = stats[0,0]
+            if not self.__xmax:
+                self.__xmax = stats[-1,0]
 
         return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
 
@@ -475,80 +460,89 @@ class Plotter(object):
 
         plt.close()
 
-    def make_plots(self, foreman_list=None):
-        strip_list = []
+    def make_foreman_plots(self, logfiles):
+        tasks = []
+        idleness = []
+        efficiencies = []
 
-        if foreman_list:
-            tasks_list = []
-            idle_list = []
-            efficiency_list = []
+        names = []
 
-            for foreman in foreman_list:
-                headers, stats = self.readflog(foreman)
+        for filename in logfiles:
+            headers, stats = self.readlog(filename)
 
-                if re.match('.*log+', foreman):
-                    foreman=foreman[:foreman.rfind('.')]
-                    foreman = string.strip(foreman)
-                strip_list.append(foreman)
+            foreman = os.path.basename(filename)
 
-                tasks_list.append((stats[:,headers['timestamp']], stats[:,headers['tasks_running']]))
-                idle_list.append((stats[:,headers['timestamp']], stats[:,headers['idle_percentage']]))
-                efficiency_list.append((stats[:,headers['timestamp']], stats[:,headers['efficiency']]))
+            if re.match('.*log+', foreman):
+                foreman=foreman[:foreman.rfind('.')]
+                foreman = string.strip(foreman)
+            names.append(foreman)
 
-                self.plot(
-                        [
-                            (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
-                            (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
-                            (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
-                        ],
-                        'foreman-Workers', foreman + '-workers',
-                        modes=[Plotter.PLOT|Plotter.TIME],
-                        label=['busy', 'idle', 'connected']
-                )
+            tasks.append((stats[:,headers['timestamp']], stats[:,headers['tasks_running']]))
+            idleness.append((stats[:,headers['timestamp']], stats[:,headers['idle_percentage']]))
+            efficiencies.append((stats[:,headers['timestamp']], stats[:,headers['efficiency']]))
 
-                self.plot(
+            self.plot(
                     [
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                        (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
+                        (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
+                        (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
                     ],
-                    'foreman-Workers', foreman + '-turnover',
-                    modes=[Plotter.HIST|Plotter.TIME],
-                    label=['joined', 'removed']
-                )
-
-                self.make_pie(
-                    [
-                    np.sum(stats[:,headers['total_good_execute_time']]),
-                    np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
-                    ],
-                    ["good execute time", "total-good execute time"],
-                    foreman+"-time-pie",
-                    colors=["green","red"]
-                )
-
-            self.plot(
-                tasks_list,
-                'foreman-Tasks', 'foreman-tasks',
-                modes=[Plotter.PLOT|Plotter.TIME],
-                label=strip_list
+                    'Workers', foreman + '-workers',
+                    modes=[Plotter.PLOT|Plotter.TIME],
+                    label=['busy', 'idle', 'connected']
             )
 
             self.plot(
-                idle_list,
-                'foreman-Idle', 'foreman-idle',
-                modes=[Plotter.PLOT|Plotter.TIME],
-                label=strip_list
+                [
+                (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
+                (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                ],
+                'Workers', foreman + '-turnover',
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['joined', 'removed']
             )
 
-            self.plot(
-                efficiency_list,
-                'foreman-efficiency', 'foreman-efficiency',
-                modes=[Plotter.PLOT|Plotter.TIME],
-                label=strip_list
+            self.make_pie(
+                [
+                np.sum(stats[:,headers['total_good_execute_time']]),
+                np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
+                ],
+                ["good execute time", "total-good execute time"],
+                foreman + "-time-pie",
+                colors=["green","red"]
             )
 
+        self.plot(
+            tasks,
+            'Tasks', 'foreman-tasks',
+            modes=[Plotter.PLOT|Plotter.TIME],
+            label=names
+        )
+
+        self.plot(
+            idleness,
+            'Idle', 'foreman-idle',
+            modes=[Plotter.PLOT|Plotter.TIME],
+            label=names
+        )
+
+        self.plot(
+            efficiencies,
+            'Efficiency', 'foreman-efficiency',
+            modes=[Plotter.PLOT|Plotter.TIME],
+            label=names
+        )
+
+        return names
+
+    def make_plots(self, foremen=None):
         headers, stats = self.readlog()
         success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits = self.readdb()
+
+        foremen_names = []
+
+        if foremen:
+            foremen_names = self.make_foreman_plots(foremen)
 
         self.plot(
                 [
@@ -911,8 +905,7 @@ class Plotter(object):
                 good_jobs=len(success_jobs) > 0,
                 summary=summary_data,
                 bad_logs=logs,
-                fman = len(strip_list) > 0,
-                fmanlist=strip_list
+                foremen=foremen_names
             ).encode('utf-8'))
 
 def plot(args):

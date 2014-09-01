@@ -22,6 +22,7 @@ if options.chirp:
 process = cms.Process("PickEvent")
 process.source = cms.Source ("PoolSource",
 	  fileNames = cms.untracked.vstring(''),
+      duplicateCheckMode = cms.untracked.string('noDuplicateCheck')
 )
 
 process.out = cms.OutputModule("PoolOutputModule",

@@ -9,7 +9,8 @@ import traceback
 import yaml
 
 from functools import partial
-from lobster import job, util, cmssw
+from lobster import util, cmssw
+from lobster.job import apply_matching
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 
@@ -38,7 +39,7 @@ def cleanup(args):
         config = yaml.load(configfile)
 
     store = cmssw.jobit.JobitStore(config)
-    config = job.apply_matching(config)
+    config = apply_matching(config)
     deleted_files = dict((cfg['label'], 0) for cfg in config['tasks'])
     deleted_sizes = dict((cfg['label'], 0) for cfg in config['tasks'])
     for cfg in config['tasks']:
@@ -74,7 +75,7 @@ def cleanup(args):
             if files > 0:
                 print '%-20s %-20i %-20i' % (label, files, size / 1000000)
 
-        print '%-20s %-20i %-20i' % ('total', sum(deleted_files.values()), sum(deleted_sizes.values()))
+        print '%-20s %-20i %-20i' % ('total', sum(deleted_files.values()), sum(deleted_sizes.values()) / 1000000)
 
 def run(args):
     with open(args.configfile) as configfile:

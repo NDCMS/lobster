@@ -526,16 +526,11 @@ class JobitStore:
         return res
 
     def update_published(self, blocks):
-        columns = [(PUBLISHED, block, id) for block, id in blocks]
-
         self.db.executemany("""update jobs
-            set status=?,
+            set status=6,
             published_file_block=?
-            where id=?""", columns)
-
-        self.db.executemany("""update jobits
-            set status=?
-            where id=?""", [(x, z) for x, y, z in columns])
+            where id=?
+            or merged_job=?""", blocks)
 
         self.db.commit()
 

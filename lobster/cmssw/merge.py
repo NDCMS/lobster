@@ -223,8 +223,8 @@ class MergeProvider(job.JobProvider):
 
                 self.__mergehandlers[handler.tag] = handler
 
-                resolved_ids = [str(job) if merged_job==0 else str(merged_job) for job, merged_job in jobs]
-                logging.info("creating task {0} to merge jobs {1}".format(handler.tag, ", ".join(resolved_ids)))
+                originals = [str(job) for job, merged_job in jobs]
+                logging.info("creating task {0} to merge jobs {1}".format(handler.tag, ", ".join(originals)))
 
         return tasks
 

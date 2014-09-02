@@ -493,11 +493,19 @@ class JobitStore:
                     chunk += [(cur.lastrowid, ASSIGNED, job, merged_job)]
                     size += bytes
                     if id == rows[-1][1] and len(chunk) > 1:
-                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=? or merged_job=?", chunk)
+                        self.db.executemany("""update jobs
+                            set merging_job=?,
+                            merge_status=?
+                            where (id=? and merged_job=0)
+                            or merged_job=?""", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                 else:
                     if len(chunk) > 1:
-                        self.db.executemany("update jobs set merging_job=?, merge_status=? where id=? or merged_job=?", chunk)
+                        self.db.executemany("""update jobs
+                            set merging_job=?,
+                            merge_status=?
+                            where (id=? and merged_job=0)
+                            or merged_job=?""", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                         chunk = [(cur.lastrowid, ASSIGNED, job, merged_job)]
                         size = bytes
@@ -529,7 +537,7 @@ class JobitStore:
         self.db.executemany("""update jobs
             set status=6,
             published_file_block=?
-            where id=?
+            where (id=? and merged_job=0)
             or merged_job=?""", blocks)
 
         self.db.commit()

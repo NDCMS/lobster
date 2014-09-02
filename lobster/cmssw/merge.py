@@ -10,7 +10,7 @@ import logging
 
 from IMProv.IMProvDoc import IMProvDoc
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
-
+from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
 from lobster import job, util
 import jobit
 import dash
@@ -97,16 +97,26 @@ class MergeHandler(object):
         return args, files
 
     def merge_reports(self):
-        reports = []
+        merged = FwkJobReport()
         for r in self.__reports:
             f = gzip.open(r)
-            report = readJobReport(f)
-            reports.extend(report)
+            for report in readJobReport(f):
+                merged.inputFiles += report.inputFiles
+                if len(merged.files) == 0:
+                    merged.files = report.files
+                else:
+                    for run, lumis in report.files[0]['Runs'].items():
+                        if merged.files[0]['Runs'].has_key(run):
+                            merged.files[0]['Runs'][run] += lumis
+                        else:
+                            merged.files[0]['Runs'][run] = lumis
+                    merged.files[0]['Runs'].update(report.files[0]['Runs'])
+                    events = int(merged.files[0]['TotalEvents']) + int(report.files[0]['TotalEvents'])
+                    merged.files[0]['TotalEvents'] = str(events)
             f.close()
 
         output = IMProvDoc("JobReports")
-        for item in reports:
-            output.addNode(item.save())
+        output.addNode(merged.save())
 
         outfile = gzip.open(os.path.join(self.__jobdir, 'report.xml.gz'), 'wb')
         outfile.write(output.makeDOMDocument().toprettyxml())

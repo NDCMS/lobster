@@ -263,7 +263,7 @@ def publish(args):
     db = jobit.JobitStore(config)
     user = config.get('publish user', os.environ['USER'])
 
-    dbs_url = config.get('dbs url', 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/')
+    dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/'.format(config.get('dbs instance', 'phys03'))
     dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
     dbs_global = DbsApi(url=dbs_url_global)
     dbs_local = DbsApi(os.path.join(dbs_url, 'DBSWriter'))

@@ -8,8 +8,7 @@ check proxy: true
 ### optional ###
 # stageout server: "earth.crc.nd.edu:9094"
 # sandbox blacklist: ['*DrawPlots*'] # specify directories in CMSSW work area to omit from sandbox
-# dbs url: 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/' # DBS url to publish to (for testing)
-# dbs url: 'https://cmsweb.cern.ch/dbs/prod/phys03/' # DBS url to publish to (for production)
+# dbs instance: phys03 #DBS instance to publish to
 # publish user: username # overwrite the username to use for publishing, in case it is different from the environment var $USER
 # recycle sandbox: path/to/sandbox.tar.bz2 # specify sandbox instead of creating one at startup
 ################

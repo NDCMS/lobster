@@ -6,17 +6,19 @@ import uuid
 from zlib import adler32
 import gzip
 import yaml
+import shutil
 
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 from ProdCommon.FwkJobRep.SiteLocalConfig import SiteLocalConfig
+from ProdCommon.FwkJobRep.TrivialFileCatalog import readTFC
 from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
 import jobit
-import merge
 from lobster import util
+from lobster.job import apply_matching
 
 linebreak = '\n'+''.join(['*']*80)
 
@@ -43,176 +45,69 @@ def check_migration(status):
 
     return successful
 
-def required_path(path, username, primary_ds, publish_label, publish_hash, version):
-    #TODO: handle storage mapping in a general way
-    #see https://twiki.cern.ch/twiki/bin/viewauth/CMS/DMWMPG_Namespace#store_user_and_store_temp_user
-    #required_path = os.path.join('/store', 'user', username, primary_ds, publish_label+'_'+publish_hash, 'v%d' % version)
-    required_path = os.path.join('/store', 'user', username, primary_ds, publish_label+'_'+publish_hash)
-    if path != required_path:
-        if not os.path.exists(required_path):
-            if not os.path.isdir(os.path.dirname(required_path)):
-                os.makedirs(os.path.dirname(required_path))
-            os.symlink(path, required_path)
-
-    return required_path
-
-class Publisher():
-   def __init__(self, config, dir, label):
-       self.label = label
-       self.dir = dir
-       self.db = jobit.JobitStore(config)
-       self.config = config
-       self.user = config.get('publish user', os.environ['USER'])
-# Not sure if 'create_by' should be username or grid info, it is mixed in DBS: for now, use username
-#        handle = subprocess.Popen(['grid-proxy-info', '-identity'], stdout=subprocess.PIPE)
-#        self.user_info = handle.stdout.read().strip()
-#        handle.terminate()
-       (dset,
-        self.path,
-        self.release,
-        self.gtag,
-        self.publish_label,
-        cfg,
-        self.pset_hash,
-        self.ds_id,
-        self.publish_hash) = [str(x) for x in self.db.dataset_info(label)]
-
-       self.dbs_url = config.get('dbs url', 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/')
-       self.dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
-       self.dbs_global = DbsApi(url=self.dbs_url_global)
-       self.dbs_local = DbsApi(os.path.join(self.dbs_url, 'DBSWriter'))
-       self.dbs_local_reader = DbsApi(url=self.dbs_url+'DBSReader')
-       self.dbs_migrator = DbsApi(url=os.path.join(self.dbs_url, 'DBSMigrate'))
-
-       if not self.pset_hash or self.pset_hash == 'None':
-           print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
-           try:
-               self.pset_hash = createPSetHash(os.path.join(dir, label, os.path.basename(cfg)))[-32:]
-               self.db.update_datasets('pset_hash', self.pset_hash, label)
-           except:
-               print 'Error calculating cmssw parameter set hash!  Continuing with empty hash for now...' #FIXME
-
-       self.dset = dset.strip('/').split('/')[0]
-
-   def publish(self, max_jobs):
-       self.required_path = required_path(self.path, self.user, self.dset, self.publish_label, self.publish_hash, 1)
-
-       self.block_dump = BlockDump(self.user)
-       self.block_dump.set_primary_dataset(self.dset, self.dbs_global)
-       self.block_dump.set_dataset(self.publish_label, self.dset, 1, self.publish_hash)
-       self.block_dump.set_block(self.publish_label, self.dset, 1, self.publish_hash)
-       if len(self.dbs_local.listAcquisitionEras(acquisition_era_name=self.user)) == 0:
-           try:
-               self.dbs_local.insertAcquisitionEra({'acquisition_era_name': self.user})
-           except Exception, ex:
-               print ex
-       try:
-           self.dbs_local.insertPrimaryDataset(self.block_dump.data['primds'])
-           self.dbs_local.insertDataset(self.block_dump.data['dataset'])
-       except Exception, ex:
-           print ex
-           raise
-
-       jobs = [x[0] for x in self.db.finished_jobs(self.ds_id)]
-
-       first_job = 0
-       print 'Found %d successful %s jobs to publish.' % (len(jobs), self.label)
-       while first_job < len(jobs):
-           self.block_dump.reset_block()
-
-           jstring = ', '.join([str(x) for x in jobs[first_job:first_job+max_jobs]])
-           print 'Preparing DBS entry for block of %i jobs: %s' % (len(jobs[first_job:first_job+max_jobs]), jstring)
-           successful_jobs = jobs[first_job:first_job+max_jobs]
-           for job in jobs[first_job:first_job+max_jobs]:
-               f = gzip.open(os.path.join(self.dir, self.label, 'successful', util.id2dir(job), 'report.xml.gz'), 'r')
-               for report in readJobReport(f)[0].files:
-                   filename = report['PFN'].replace('.root', '_%s.root' % job) #TODO: handle this properly
-                   LFN = os.path.join(self.required_path, filename)
-                   try:
-                       self.block_dump.add_file_parent(LFN, report)
-                       self.block_dump.add_file_config(LFN, self.release, self.pset_hash, self.gtag)
-                       self.block_dump.add_file(LFN, report)
-                       self.block_dump.add_dataset_config(self.release, self.pset_hash, self.gtag)
-                       print 'Adding %s to block...' % LFN
-
-                   except:
-                       successful_jobs.remove(job)
-                       continue
-
-#           self.block_dump.data = dict((k, v) for k, v in self.block_dump.data.items() if k not in ['processing_era'])
-           if args.migrate_parents:
-               parents_to_migrate = list(set([p['parent_logical_file_name'] for p in self.block_dump['file_parent_list']]))
-               self.migrate_parents(parents_to_migrate)
-
-           failed_jobs = set(successful_jobs) - set(jobs[first_job:first_job+max_jobs])
-           for job in failed_jobs:
-               self.db.update_jobits(job, failed=True, return_code=500)
-
-           if len(successful_jobs) > 0:
-               try:
-                   self.dbs_local.insertBulkBlock(self.block_dump.data)
-                   blocks = [(self.block_dump['block']['block_name'], job) for job in successful_jobs]
-                   lfn_string = '\n'.join([d['logical_file_name'] for d in self.block_dump['files']])
-                   self.db.update_published(blocks)
-                   print '%s\nBlock inserted:\n%s\n\nFiles in block:\n%s%s' % (linebreak, self.block_dump['block']['block_name'], lfn_string, linebreak)
-               except HTTPError, e:
-                   print e
-
-           first_job += max_jobs
-
-   def migrate_parents(self, parents):
-       parent_blocks_to_migrate = []
-       for parent in parents:
-           print "Looking in the local DBS for blocks associated with the parent lfn:\n%s..." % parent
-           parent_blocks = self.dbs_local_reader.listBlocks(logical_file_name=parent)
-           if parent_blocks:
-               print 'Parent blocks found: no migration required.'
+def migrate_parents(parents, dbs_local, dbs_global, dbs_migrator):
+   parent_blocks_to_migrate = []
+   for parent in parents:
+       print "Looking in the local DBS for blocks associated with the parent lfn:\n%s..." % parent
+       parent_blocks = dbs_local.listBlocks(logical_file_name=parent)
+       if parent_blocks:
+           print 'Parent blocks found: no migration required.'
+       else:
+           print 'No parent blocks found in the local DBS, searching the global DBS...'
+           dbs_output = dbs_global.listBlocks(logical_file_name=parent)
+           if dbs_output:
+               parent_blocks_to_migrate.extend([entry['block_name'] for entry in dbs_output])
            else:
-               print 'No parent blocks found in the local DBS, searching the global DBS...'
-               dbs_output = self.dbs_global.listBlocks(logical_file_name=parent)
-               if dbs_output:
-                   parent_blocks_to_migrate.extend([entry['block_name'] for entry in dbs_output])
-               else:
-                   print 'No parent block found the global or local DBS: exiting...'
-                   exit()
-
-       parent_blocks_to_migrate = list(set(parent_blocks_to_migrate))
-       if len(parent_blocks_to_migrate) > 0:
-           print 'The following files will be migrated: %s...' % ', '.join(parent_blocks_to_migrate)
-
-           migration_complete = False
-           retries = 0
-           while (retries < 5 and not migration_complete):
-               migrated = []
-               all_migrated = True
-               for block in parent_blocks_to_migrate:
-                   migration_status = self.dbs_migrator.statusMigration(block_name=block)
-                   if not migration_status:
-                       print 'Block will be migrated: %s' % block
-                       dbs_output = self.dbs_migrator.submitMigration({'migration_url': self.dbs_url_global, 'migration_input': block})
-                       all_migrated = False
-                   else:
-                       migrated.append(block)
-                       all_migrated = all_migrated and check_migration(migration_status[0]['migration_status'])
-
-               for block in migrated:
-                   migration_status = self.dbs_migrator.statusMigration(block_name=block)
-                   all_migrated = migration_status and all_migrated and check_migration(migration_status[0]['migration_status'])
-
-               migration_complete = all_migrated
-               print 'Migration not complete, waiting 15 seconds and checking again...'
-               time.sleep(15)
-               retries += 1
-
-           if not migration_complete:
-               print 'Migration from global to local dbs failed: exiting...'
+               print 'No parent block found the global or local DBS: exiting...'
                exit()
-           else:
-               print 'Migration of all files complete.'
+
+   parent_blocks_to_migrate = list(set(parent_blocks_to_migrate))
+   if len(parent_blocks_to_migrate) > 0:
+       print 'The following files will be migrated: %s...' % ', '.join(parent_blocks_to_migrate)
+
+       migration_complete = False
+       retries = 0
+       while (retries < 5 and not migration_complete):
+           migrated = []
+           all_migrated = True
+           for block in parent_blocks_to_migrate:
+               migration_status = dbs_migrator.statusMigration(block_name=block)
+               if not migration_status:
+                   print 'Block will be migrated: %s' % block
+                   dbs_output = dbs_migrator.submitMigration({'migration_url': self.dbs_url_global, 'migration_input': block})
+                   all_migrated = False
+               else:
+                   migrated.append(block)
+                   all_migrated = all_migrated and check_migration(migration_status[0]['migration_status'])
+
+           for block in migrated:
+               migration_status = dbs_migrator.statusMigration(block_name=block)
+               all_migrated = migration_status and all_migrated and check_migration(migration_status[0]['migration_status'])
+
+           migration_complete = all_migrated
+           print 'Migration not complete, waiting 15 seconds and checking again...'
+           time.sleep(15)
+           retries += 1
+
+       if not migration_complete:
+           print 'Migration from global to local dbs failed: exiting...'
+           exit()
+       else:
+           print 'Migration of all files complete.'
 
 class BlockDump:
-    def __init__(self, username):
+    def __init__(self, username, dataset, dbs_global, publish_hash, publish_label, release, pset_hash, gtag):
         self.username = username
+        self.dataset = dataset
+        self.publish_label = publish_label
+        self.publish_hash = publish_hash
+        self.release = release
+        self.pset_hash = pset_hash
+        self.gtag = gtag
+
+        storage_path = '/cvmfs/cms.cern.ch/SITECONF/%s/PhEDEx/storage.xml' % os.environ['CMS_LOCAL_SITE']
+        self.catalog = readTFC(storage_path)
+
         self.data = {'dataset_conf_list': [],
                      'file_conf_list': [],
                      'files': [],
@@ -230,10 +125,26 @@ class BlockDump:
         self.data['processing_era']['processing_version'] = 1
         self.data['processing_era']['description'] = 'lobster'
 
-    def set_dataset(self, publish_label, primary_ds_name, version, publish_hash):
-        processed_ds_name = '%s-%s-v%d' % (self.username, publish_label+'_'+publish_hash, version) #TODO: VERSION INCREMENTING
+        self.set_primary_dataset(dataset, dbs_global)
+        self.set_dataset(1)
+        self.set_block(1)
 
-        self.data['dataset']['primary_ds_name'] = primary_ds_name
+    def set_primary_dataset(self, prim_ds, dbs_reader):
+        output = dbs_reader.listPrimaryDatasets(primary_ds_name=prim_ds)
+        if len(output) > 0:
+            self.data['primds'] = dict((k, v) for k, v in output[0].items() if k!= 'primary_ds_id')
+        else:
+            print "Cannot find any information about the primary dataset %s in the global dbs, using default parameters..." % prim_ds
+            self.data['primds']['create_by'] = ''
+            self.data['primds']['primary_ds_type'] = 'NOTSET'
+            self.data['primds']['primary_ds_name'] = prim_ds
+            self.data['primds']['creation_date'] = ''
+
+    def set_dataset(self, version):
+        #TODO: VERSION INCREMENTING
+        processed_ds_name = '%s-%s-v%d' % (self.username, self.publish_label+'_'+self.publish_hash, version)
+
+        self.data['dataset']['primary_ds_name'] = self.dataset
         self.data['dataset']['create_by'] = self.username
         self.data['dataset']['dataset_access_type'] = 'VALID'
         self.data['dataset']['data_tier_name'] = 'USER'
@@ -241,15 +152,12 @@ class BlockDump:
         self.data['dataset']['creation_date'] = int(time.time())
         self.data['dataset']['processed_ds_name'] = processed_ds_name
         self.data['dataset']['last_modification_date'] = int(time.time())
-        self.data['dataset']['dataset'] = u'/%s/%s/USER' % (primary_ds_name, processed_ds_name)
+        self.data['dataset']['dataset'] = u'/%s/%s/USER' % (self.dataset, processed_ds_name)
         self.data['dataset']['processing_version'] = version
         self.data['dataset']['acquisition_era_name'] = self.username
         self.data['dataset']['physics_group_name'] = 'NoGroup'
 
-    def set_block(self, publish_label, primary_ds_name, version, publish_hash):
-        if self.data['dataset'] == {}:
-            self.set_dataset(publish_label, processed_ds_name, version, publish_hash)
-
+    def set_block(self, version):
         site_config_path = '/cvmfs/cms.cern.ch/SITECONF/%s/JobConfig/site-local-config.xml' % os.environ['CMS_LOCAL_SITE']
 
         self.data['block']['create_by'] = self.username
@@ -260,7 +168,7 @@ class BlockDump:
         self.data['block']['file_count'] = 0
         self.data['block']['block_size'] = 0
 
-    def reset_block(self):
+    def reset(self):
         self.data['files'] = []
         self.data['file_conf_list'] = []
         self.data['file_parent_list'] = []
@@ -271,56 +179,46 @@ class BlockDump:
         self.data['block']['file_count'] = 0
         self.data['block']['block_size'] = 0
 
-    def add_dataset_config(self, release, pset_hash, gtag, app_name='cmsRun', output_label='Merged'):
-
-       dataset_config = {'release_version': release,
-                         'pset_hash': pset_hash,
+    def add_dataset_config(self, app_name='cmsRun', output_label='Merged'):
+       dataset_config = {'release_version': self.release,
+                         'pset_hash': self.pset_hash,
                          'app_name': app_name, #TODO PROPERLY
                          'output_module_label': output_label, #TODO PROPERLY
-                         'global_tag': gtag}
+                         'global_tag': self.gtag}
 
        self.data['dataset_conf_list'].append(dataset_config)
 
-    def set_primary_dataset(self, prim_ds, dbs_reader):
-        output = dbs_reader.listPrimaryDatasets(primary_ds_name=prim_ds)
-        if len(output) > 0:
-            self.data['primds'] = dict((k, v) for k, v in output[0].items() if k!= 'primary_ds_id') #for some reason dbs doesn't like its own dict keys
-        else:
-            print "Cannot find any information about the primary dataset %s in the global dbs, using default parameters..." % prim_ds
-            self.data['primds']['create_by'] = ''
-            self.data['primds']['primary_ds_type'] = 'NOTSET'
-            self.data['primds']['primary_ds_name'] = prim_ds
-            self.data['primds']['creation_date'] = ''
-
-    def add_file_config(self, LFN, release, pset_hash, gtag, app_name='cmsRun', output_label='Merged'):
-       conf_dict = {'release_version': release,
-                    'pset_hash': pset_hash,
+    def add_file_config(self, LFN, app_name='cmsRun', output_label='Merged'):
+       conf_dict = {'release_version': self.release,
+                    'pset_hash': self.pset_hash,
                     'lfn': LFN,
                     'app_name': app_name, #TODO PROPERLY
                     'output_module_label': output_label, #TODO PROPERLY
-                    'global_tag': gtag}
+                    'global_tag': self.gtag}
 
        self.data['file_conf_list'].append(conf_dict)
 
-    def add_file_parent(self, LFN, report):
-       p_list = [{'logical_file_name': LFN, 'parent_logical_file_name': PLFN} for PLFN in report.parentLFNs()]
-       self.data['file_parent_list'].extend(p_list)
+    def add_file_parents(self, LFN, report):
+        for f in report.inputFiles:
+            parent = {'logical_file_name': LFN, 'parent_logical_file_name': f['LFN']}
+            if parent not in self.data['file_parent_list']:
+                self.data['file_parent_list'].append(parent)
 
-    def add_file(self, LFN, report):
+    def add_file(self, LFN, output):
         lumi_dict_to_list = lambda d: [{'run_num': run, 'lumi_section_num': lumi} for run in d.keys() for lumi in d[run]]
-
-        c = subprocess.Popen('cksum %s' % LFN, shell=True, stdout=subprocess.PIPE)
+        PFN = self.catalog.matchLFN('direct', LFN)
+        c = subprocess.Popen('cksum %s' % PFN, shell=True, stdout=subprocess.PIPE)
         cksum, size = c.stdout.read().split()[:2]
 
         file_dict = {'check_sum': int(cksum),
-                     'file_lumi_list': lumi_dict_to_list(report['Runs']),
-                     'adler32': get_adler32(LFN),
-                     'event_count': int(report['TotalEvents']),
-                     'file_type': report['FileType'],
+                     'file_lumi_list': lumi_dict_to_list(output['Runs']),
+                     'adler32': get_adler32(PFN),
+                     'event_count': int(output['TotalEvents']),
+                     'file_type': output['FileType'],
                      'last_modified_by': self.username,
                      'logical_file_name': LFN,
                      'file_size': int(size),
-                     'last_modification_date': int(os.path.getmtime(LFN))}
+                     'last_modification_date': int(os.path.getmtime(PFN))}
 #                     'md5': 'NOTSET', #TODO EVENTUALLY
 #                     'auto_cross_section':  0.0 #TODO EVENTUALLY
 
@@ -328,6 +226,23 @@ class BlockDump:
 
         self.data['block']['block_size'] += int(size)
         self.data['block']['file_count'] += 1
+
+    def get_LFN(self, PFN):
+        #see https://twiki.cern.ch/twiki/bin/viewauth/CMS/DMWMPG_Namespace#store_user_and_store_temp_user
+        LFN = os.path.join('/store/user',
+                           self.username,
+                           self.dataset,
+                           self.publish_label+'_'+self.publish_hash,
+                           os.path.basename(PFN))
+
+        matched = self.catalog.matchLFN('direct', LFN)
+        matched_dir = os.path.dirname(matched)
+        if PFN != matched and not os.path.isfile(matched):
+            if not os.path.isdir(matched_dir):
+                os.makedirs(matched_dir)
+            shutil.move(PFN, matched_dir)
+
+        return LFN
 
     def __getitem__(self, item):
         return self.data[item]
@@ -339,15 +254,103 @@ def publish(args):
     with open(args.configfile) as f:
         config = yaml.load(f)
 
-    dir = config['workdir']
+    config = apply_matching(config)
 
     if len(args.labels) == 0:
         args.labels = [task['label'] for task in config.get('tasks', [])]
 
-    for label in args.labels:
-        publisher = Publisher(config, dir, label)
+    wdir = config['workdir']
+    db = jobit.JobitStore(config)
+    user = config.get('publish user', os.environ['USER'])
 
-        if args.clean:
-            publisher.clean()
-        else:
-            publisher.publish(args.block_size)
+    dbs_url = config.get('dbs url', 'https://cmsweb-testbed.cern.ch/dbs/int/phys03/')
+    dbs_url_global = 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader'
+    dbs_global = DbsApi(url=dbs_url_global)
+    dbs_local = DbsApi(os.path.join(dbs_url, 'DBSWriter'))
+    dbs_local_reader = DbsApi(url=dbs_url+'DBSReader')
+    dbs_migrator = DbsApi(url=os.path.join(dbs_url, 'DBSMigrate'))
+
+    for label in args.labels:
+        (dset,
+         stageout_path,
+         release,
+         gtag,
+         publish_label,
+         cfg,
+         pset_hash,
+         ds_id,
+         publish_hash) = [str(x) for x in db.dataset_info(label)]
+
+        dset = dset.strip('/').split('/')[0]
+        if not pset_hash or pset_hash == 'None':
+            print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
+            cfg_path = os.path.join(wdir, label, os.path.basename(cfg))
+            tmp_path = cfg_path.replace('.py', '_tmp.py')
+            with open(cfg_path, 'r') as infile:
+                with open(tmp_path, 'w') as outfile:
+                    fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
+                    outfile.write(fix.format(tmp_path))
+                    outfile.write(infile.read())
+            try:
+                pset_hash = createPSetHash(tmp_path)[-32:]
+                db.update_pset_hash(pset_hash, label)
+            except:
+                print 'Error calculating cmssw parameter set hash!  Continuing with empty hash...'
+            os.remove(tmp_path)
+
+        block = BlockDump(user, dset, dbs_global, publish_hash, publish_label, release, pset_hash, gtag)
+
+        if len(dbs_local.listAcquisitionEras(acquisition_era_name=user)) == 0:
+            try:
+                dbs_local.insertAcquisitionEra({'acquisition_era_name': user})
+            except Exception, ex:
+                print ex
+        try:
+            dbs_local.insertPrimaryDataset(block.data['primds'])
+            dbs_local.insertDataset(block.data['dataset'])
+        except Exception, ex:
+            print ex
+            raise
+
+        jobs = db.finished_jobs(label)
+
+        first_job = 0
+        print 'Found %d successful %s jobs to publish.' % (len(jobs), label)
+        while first_job < len(jobs):
+            block.reset()
+            blocks = []
+            chunk = jobs[first_job:first_job+args.block_size]
+            print 'Preparing DBS entry for block of %i jobs.' % len(chunk)
+
+            for job, merged_job in chunk:
+                status = 'successful' if merged_job == 0 else 'merged'
+                id = job if merged_job == 0 else merged_job
+                tag = str(job) if merged_job == 0 else 'merged_{0}'.format(merged_job)
+
+                f = gzip.open(os.path.join(wdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
+                report = readJobReport(f)[0]
+                PFN = os.path.join(stageout_path, report.files[0]['PFN'].replace('.root', '_%s.root' % tag))
+                LFN = block.get_LFN(PFN)
+
+                print 'Adding %s to block...' % LFN
+                block.add_file_parents(LFN, report)
+                block.add_file_config(LFN)
+                block.add_file(LFN, report.files[0])
+                block.add_dataset_config()
+                blocks += [(block['block']['block_name'], job, merged_job)]
+
+            if args.migrate_parents:
+                parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
+                migrate_parents(parents_to_migrate, dbs_local, dbs_global, dbs_migrator)
+
+            if len(block.data['files']) > 1:
+                try:
+                    dbs_local.insertBulkBlock(block.data)
+                    db.update_published(blocks)
+                    lfn_string = '\n'.join([d['logical_file_name'] for d in block['files']])
+                    info = (linebreak, block['block']['block_name'], lfn_string, linebreak)
+                    print '%s\nBlock inserted:\n%s\n\nFiles in block:\n%s%s' % info
+                except HTTPError, e:
+                    print e
+
+            first_job += args.block_size

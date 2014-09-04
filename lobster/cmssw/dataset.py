@@ -21,6 +21,7 @@ class DatasetInfo():
         self.lumis = defaultdict(list)
         self.total_events = 0
         self.total_lumis = 0
+        self.masked_lumis = 0
 
 class MetaInterface:
     def __init__(self):
@@ -92,6 +93,7 @@ class DASInterface:
 
         result.files = list(files)
         result.total_lumis = len(sum([result.lumis[f] for f in result.files], []))
+        result.masked_lumis = info['num_lumi'] - result.total_lumis
 
         return result
 
@@ -127,6 +129,7 @@ class FileInterface:
                     dset.files = [f for f in glob.glob(os.path.join(files))]
 
                 dset.total_lumis = len(dset.files)
+
                 for file in dset.files:
                     # hack because it will be slow to open all the input files to read the run/lumi info
                     dset.lumis[file] = [(-1, -1)]

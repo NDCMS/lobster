@@ -38,6 +38,7 @@ class JobitStore:
             file_based int,
             empty_source int,
             jobits integer,
+            masked_jobits int default 0,
             jobits_running int default 0,
             jobits_done int default 0,
             jobits_left int default 0,
@@ -116,10 +117,11 @@ class JobitStore:
                        empty_source,
                        jobsize,
                        jobits,
+                       masked_jobits,
                        jobits_left,
                        events,
                        bytes_input)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
                            label,
                            os.path.join(self.config['stageout location'], label),
@@ -132,6 +134,7 @@ class JobitStore:
                            dataset_info.empty_source,
                            dataset_info.jobsize,
                            dataset_info.total_lumis * len(unique_args),
+                           dataset_info.masked_jobits,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.total_events,
                            sum(dataset_info.filesizes.values())))

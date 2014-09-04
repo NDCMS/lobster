@@ -220,25 +220,22 @@ class Plotter(object):
                     ])
 
         summary_data = list(db.execute("""
-                select label, events, events - events_read, events_read, events_written,
+                select label, events, events_read, events_written, jobits, jobits_done,
                     '' || round(
-                        max(
                             jobits_done * 100.0 / jobits,
-                            events_read * 100.0 / events
-                        ), 1) || ' %'
+                        1) || ' %'
                 from datasets"""))
         summary_data += list(db.execute("""
                 select
                     'Total',
                     sum(events),
-                    sum(events - events_read),
                     sum(events_read),
                     sum(events_written),
+                    sum(jobits),
+                    sum(jobits_done),
                     '' || round(
-                        max(
                             sum(jobits_done) * 100.0 / sum(jobits),
-                            sum(events_read) * 100.0 / sum(events)
-                        ), 1) || ' %'
+                        1) || ' %'
                 from datasets"""))
 
         # for cases where jobits per job changes during run, get per-jobit info

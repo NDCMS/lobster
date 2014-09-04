@@ -533,23 +533,33 @@ class JobitStore:
 
         return res
 
-    def update_published(self, blocks):
-        self.db.executemany("""update jobs
+    def update_published(self, block):
+        self.db.execute("""update jobs
             set status=6,
             published_file_block=?
             where (id=? and merged_job=0)
-            or merged_job=?""", blocks)
+            or merged_job=?""", block)
 
         self.db.commit()
 
-
-    def finished_jobs(self, dataset):
+    def finished_jobs(self, label):
         cur = self.db.execute("""select jobs.id, jobs.merged_job
             from jobs, datasets
             where jobs.status=?
             and datasets.label=?
-            and jobs.dataset==datasets.id
-            group by jobs.merged_job""", (SUCCESSFUL, dataset))
+            and jobs.dataset=datasets.id
+            group by jobs.merged_job""", (SUCCESSFUL, label))
+
+        return cur.fetchall()
+
+    def finished_jobits(self, label):
+        cur = self.db.execute("""select jobits_{0}.run,
+            jobits_{0}.lumi
+            from jobits_{0}, jobs, datasets
+            where jobs.dataset=datasets.id
+            and jobs.status in (2, 6)
+            and datasets.label=?
+            and jobits_{0}.job=jobs.id""".format(label), (label,))
 
         return cur.fetchall()
 

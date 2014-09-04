@@ -230,7 +230,18 @@
 			{% endif %}
 				{% for cell in row %}
 				<td{% if row == summary[-1] %} class="footer"{% endif %}>{{ cell }}</td>
-				{% endfor %}
+                    {% if cell == row[-1] and jsons|length > 0%}
+                        {% if row == summary[-1] %}
+                        <td class="footer"></td>
+                        {% else %}
+                        <td>
+                            {% for path, name in jsons[row[0]] %}
+                            <a href={{ path }}>{{ name }}</a>
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
 			</tr>
 			{% endfor %}
 		</table>

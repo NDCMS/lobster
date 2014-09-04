@@ -23,6 +23,8 @@ import numpy as np
 
 from lobster import util
 
+from FWCore.PythonUtilities.LumiList import LumiList
+
 matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
@@ -243,6 +245,7 @@ class Plotter(object):
         total_jobits = 0
         start_jobits = 0
         completed_jobits = []
+        processed_lumis = {}
         for (label,) in db.execute("select label from datasets"):
             total_jobits += db.execute("select count(*) from jobits_{0}".format(label)).fetchone()[0]
             start_jobits += db.execute("""
@@ -259,8 +262,14 @@ class Plotter(object):
                     and time_retrieved>=? and time_retrieved<=?""".format(label),
                 (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
+            processed_lumis[label] = db.execute("""
+                select jobits_{0}.run,
+                jobits_{0}.lumi
+                from jobits_{0}, jobs
+                where jobits_{0}.job == jobs.id
+                    and (jobits_{0}.status in (2, 5, 6))""".format(label)).fetchall()
 
-        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits
+        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits, processed_lumis
 
     def readlog(self, filename=None):
         if filename:
@@ -303,6 +312,27 @@ class Plotter(object):
                 self.__xmax = stats[-1,0]
 
         return headers, stats[np.logical_and(stats[:,0] >= self.__xmin, stats[:,0] <= self.__xmax)]
+
+    def savejsons(self, processed):
+        jsondir = os.path.join(self.__plotdir, 'jsons')
+        if not os.path.exists(jsondir):
+            os.makedirs(jsondir)
+
+        res = {}
+        for label in processed:
+            jsondir = os.path.join('jsons', label)
+            if not os.path.exists(os.path.join(self.__plotdir, jsondir)):
+                os.makedirs(os.path.join(self.__plotdir, jsondir))
+            lumis = LumiList(lumis=processed[label])
+            lumis.writeJSON(os.path.join(self.__plotdir, jsondir, 'processed.json'))
+            res[label] = [(os.path.join(jsondir, 'processed.json'), 'processed')]
+
+            published = os.path.join(self.__workdir, label, 'published.json')
+            if os.path.isfile(published):
+                shutil.copy(published, os.path.join(self.__plotdir, jsondir))
+                res[label] += [(os.path.join(jsondir, 'published.json'), 'published')]
+
+        return res
 
     def savelogs(self, failed_jobs, samples=5):
         logdir = os.path.join(self.__plotdir, 'logs')
@@ -537,7 +567,7 @@ class Plotter(object):
 
     def make_plots(self, foremen=None):
         headers, stats = self.readlog()
-        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits = self.readdb()
+        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
 
         foremen_names = []
 
@@ -888,6 +918,8 @@ class Plotter(object):
         else:
             logs = None
 
+        jsons = self.savejsons(processed_lumis)
+
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
         env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
@@ -904,6 +936,7 @@ class Plotter(object):
                 bad_jobs=len(failed_jobs) > 0,
                 good_jobs=len(success_jobs) > 0,
                 summary=summary_data,
+                jsons=jsons,
                 bad_logs=logs,
                 foremen=foremen_names
             ).encode('utf-8'))

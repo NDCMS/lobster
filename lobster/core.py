@@ -141,6 +141,7 @@ def run(args):
             if args.server:
                 config['stageout server'] = args.server
             config['max megabytes'] = args.max_megabytes
+            config['datasets to merge'] = args.datasets
             job_src = cmssw.MergeProvider(config)
         elif cmsjob:
             job_src = cmssw.JobProvider(config)

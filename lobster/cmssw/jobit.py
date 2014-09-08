@@ -464,10 +464,14 @@ class JobitStore:
 
         return cur.fetchone()[0]
 
-    def register_unmerged(self, max_megabytes=3500):
+    def register_unmerged(self, datasets, max_megabytes):
         max_bytes = max_megabytes * 1000000
 
-        for dataset in self.db.execute("select id from datasets"):
+        select = "select id from datasets"
+        if datasets:
+            select += " where label in ({0})".format("'" + "', '".join(datasets) + "'")
+
+        for dataset in self.db.execute(select):
             cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             size = 0
             chunk = []

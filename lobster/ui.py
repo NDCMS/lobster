@@ -29,7 +29,8 @@ def boil():
     parser_plot.set_defaults(func=plot)
 
     parser_cleanup = subparsers.add_parser('cleanup', help='remove output files for failed jobs')
-    parser_cleanup.add_argument('--dry-run', action='store_true', dest='dry_run', default=False, help='only print (do not remove) files to be cleaned')
+    parser_cleanup.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
+            help='only print (do not remove) files to be cleaned')
     parser_cleanup.set_defaults(func=cleanup)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
@@ -41,6 +42,8 @@ def boil():
 
     parser_merge = subparsers.add_parser('merge', help='merge output files into larger files')
     parser_merge.add_argument('--max-megabytes', dest='max_megabytes', type=float, default=3500, help='maximum merged file size')
+    parser_merge.add_argument('--datasets', nargs='+', default=None,
+            help='dataset labels for which to merge files (default: all datasets)')
     parser_merge.add_argument('--server', metavar="SERVER:<port>", default=None, help='override stageout server in configuration')
     parser_merge.add_argument('-f', '--foreground', action='store_true', default=False,
             help='do not daemonize;  run in the foreground instead')

@@ -548,10 +548,17 @@ class JobitStore:
     def finished_jobs(self, label):
         cur = self.db.execute("""select jobs.id, jobs.merged_job
             from jobs, datasets
-            where jobs.status=?
+            where jobs.status=2
             and datasets.label=?
             and jobs.dataset=datasets.id
-            group by jobs.merged_job""", (SUCCESSFUL, label))
+            and jobs.merged_job=0
+            union
+            select jobs.id, jobs.merged_job
+            from jobs, datasets
+            where jobs.status=2
+            and datasets.label=?
+            and jobs.dataset=datasets.id
+            group by jobs.merged_job""", (label, label))
 
         return cur.fetchall()
 

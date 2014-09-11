@@ -581,3 +581,15 @@ class JobitStore:
         self.db.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))
 
         self.db.commit()
+
+    def update_missing(self, jobs):
+        for job, dataset in self.db.execute("""select jobs.id,
+            datasets.label
+            from jobs, datasets
+            where jobs.id in ({0})
+            and jobs.dataset=datasets.id""".format(", ".join(jobs))):
+            self.db.execute("update jobs set status=3 where id=?", (job,))
+            self.db.execute("update jobits_{0} set status=3 where job=?".format(dataset), (job,))
+            self.update_dataset_stats(dataset)
+
+        self.db.commit()

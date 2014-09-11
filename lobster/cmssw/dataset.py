@@ -21,6 +21,7 @@ class DatasetInfo():
         self.lumis = defaultdict(list)
         self.total_events = 0
         self.total_lumis = 0
+        self.unmasked_lumis = 0
         self.masked_lumis = 0
 
 class MetaInterface:
@@ -66,6 +67,7 @@ class DASInterface:
 
         infos = self.__apis[instance].listFileSummaries(dataset=dataset)
         result.total_events = sum([info['num_event'] for info in infos])
+        result.unmasked_lumis = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             result.event_counts[info['logical_file_name']] = info['event_count']
@@ -93,7 +95,7 @@ class DASInterface:
 
         result.files = list(files)
         result.total_lumis = len(sum([result.lumis[f] for f in result.files], []))
-        result.masked_lumis = info['num_lumi'] - result.total_lumis
+        result.masked_lumis = result.unmasked_lumis - result.total_lumis
 
         return result
 

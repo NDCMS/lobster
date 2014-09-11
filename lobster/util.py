@@ -50,8 +50,6 @@ def checkpoint(workdir, key):
         with open(statusfile, 'rb') as f:
             s = yaml.load(f)
             return s.get(key)
-    else:
-        return False
 
 def register_checkpoint(workdir, key, value):
     statusfile = os.path.join(workdir, 'status.yaml')

@@ -13,6 +13,7 @@ from lobster import util, cmssw
 from lobster.job import apply_matching
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
+from pkg_resources import get_distribution
 
 import work_queue as wq
 
@@ -84,6 +85,9 @@ def run(args):
     workdir = config['workdir']
     if not os.path.exists(workdir):
         os.makedirs(workdir)
+        register_checkpoint(workdir, "VERSION", get_distribution('Lobster').version)
+    else:
+        util.verify(workdir)
 
     cmsjob = False
     if config.get('type', 'cmssw') == 'cmssw':

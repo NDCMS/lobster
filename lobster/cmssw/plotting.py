@@ -940,5 +940,6 @@ class Plotter(object):
             ).encode('utf-8'))
 
 def plot(args):
+    util.verify(args.configdir)
     p = Plotter(args)
     p.make_plots(args.foreman_list)

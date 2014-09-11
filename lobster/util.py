@@ -4,6 +4,8 @@ import os
 import yaml
 import subprocess
 
+from pkg_resources import get_distribution
+
 def id2dir(id):
     # Currently known limitations on the number of entries in a
     # sub-directory concern ext3, where said limit is 32k.  Use a
@@ -32,6 +34,15 @@ def which(name):
         if os.path.exists(exe) and os.access(exe, os.F_OK|os.X_OK):
             return exe
     raise KeyError, "Can't find '{0}' in PATH".format(name)
+
+def verify(workdir):
+    if not os.path.exists(workdir):
+        return
+
+    my_version = get_distribution('Lobster').version
+    stored_version = checkpoint(workdir, 'VERSION')
+    if stored_version != my_version:
+        raise ValueError, "Lobster {0} cannot process a run created with version {1}".format(my_version, stored_version)
 
 def checkpoint(workdir, key):
     statusfile = os.path.join(workdir, 'status.yaml')

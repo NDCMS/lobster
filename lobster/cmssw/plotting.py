@@ -220,7 +220,7 @@ class Plotter(object):
                     ])
 
         summary_data = list(db.execute("""
-                select label, events, events_read, events_written, jobits + masked_jobits, jobits, jobits_done,
+                select label, events, events_read, events_written, jobits + masked_lumis, jobits, jobits_done,
                     '' || round(
                             jobits_done * 100.0 / jobits,
                         1) || ' %'
@@ -231,7 +231,7 @@ class Plotter(object):
                     sum(events),
                     sum(events_read),
                     sum(events_written),
-                    sum(jobits + masked_jobits),
+                    sum(jobits + masked_lumis),
                     sum(jobits),
                     sum(jobits_done),
                     '' || round(

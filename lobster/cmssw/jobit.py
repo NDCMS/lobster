@@ -38,7 +38,7 @@ class JobitStore:
             file_based int,
             empty_source int,
             jobits integer,
-            masked_jobits int default 0,
+            masked_lumis int default 0,
             jobits_running int default 0,
             jobits_done int default 0,
             jobits_left int default 0,
@@ -117,7 +117,7 @@ class JobitStore:
                        empty_source,
                        jobsize,
                        jobits,
-                       masked_jobits,
+                       masked_lumis,
                        jobits_left,
                        events,
                        bytes_input)
@@ -134,7 +134,7 @@ class JobitStore:
                            dataset_info.empty_source,
                            dataset_info.jobsize,
                            dataset_info.total_lumis * len(unique_args),
-                           dataset_info.masked_jobits,
+                           dataset_info.masked_lumis,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.total_events,
                            sum(dataset_info.filesizes.values())))

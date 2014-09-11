@@ -13,6 +13,7 @@ options.parseArguments()
 if options.chirp:
     for input in options.inputs:
         status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
+                                  "-a=globus",
                                   options.chirp,
                                   input,
                                   os.path.basename(input)])

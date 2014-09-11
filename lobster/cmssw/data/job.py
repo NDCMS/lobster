@@ -165,7 +165,11 @@ for localname, remotename in stageout:
         outsize += os.path.getsize(localname)
 
         if server:
-            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"), localname, server, remotename])
+            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
+                                      "-a=globus",
+                                      localname,
+                                      server,
+                                      remotename])
             if status != 0 and stageout_exit_code == 0:
                 stageout_exit_code = status
 if stageout_exit_code != 0:

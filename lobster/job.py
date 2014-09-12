@@ -65,8 +65,7 @@ class JobProvider(object):
             self.taskid = 'lobster_{0}_{1}'.format(
                 self.config['id'],
                 sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
-            with open(self.statusfile, 'wb') as f:
-                yaml.dump({'id': self.taskid}, f, default_flow_style=False)
+            util.register_checkpoint(self.workdir, 'id', self.taskid)
         else:
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))

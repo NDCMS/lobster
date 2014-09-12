@@ -40,9 +40,9 @@ def verify(workdir):
         return
 
     my_version = get_distribution('Lobster').version
-    stored_version = checkpoint(workdir, 'VERSION')
+    stored_version = checkpoint(workdir, 'version')
     if stored_version != my_version:
-        raise ValueError, "Lobster {0} cannot process a run created with version {1}".format(my_version, stored_version)
+        raise ValueError, "Lobster {0!r} cannot process a run created with version {1!r}".format(my_version, stored_version)
 
 def checkpoint(workdir, key):
     statusfile = os.path.join(workdir, 'status.yaml')

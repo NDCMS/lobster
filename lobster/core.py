@@ -90,7 +90,7 @@ def run(args):
     workdir = config['workdir']
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-        util.register_checkpoint(workdir, "VERSION", get_distribution('Lobster').version)
+        util.register_checkpoint(workdir, "version", get_distribution('Lobster').version)
     else:
         util.verify(workdir)
 

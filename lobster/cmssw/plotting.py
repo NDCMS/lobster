@@ -86,6 +86,7 @@ class Plotter(object):
             config = yaml.load(configfile)
 
         self.__workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
+        util.verify(self.__workdir)
         self.__id = config['id']
 
         if args.outdir:
@@ -940,6 +941,5 @@ class Plotter(object):
             ).encode('utf-8'))
 
 def plot(args):
-    util.verify(args.configdir)
     p = Plotter(args)
     p.make_plots(args.foreman_list)

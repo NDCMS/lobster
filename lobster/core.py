@@ -44,7 +44,6 @@ def cleanup(args):
     config = apply_matching(config)
     deleted_files = dict((cfg['label'], 0) for cfg in config['tasks'])
     deleted_sizes = dict((cfg['label'], 0) for cfg in config['tasks'])
-    missing_ids = []
     for cfg in config['tasks']:
         good_files = set()
         label = cfg['label']
@@ -56,7 +55,7 @@ def cleanup(args):
 
         for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
             print 'Looking for output files to cleanup in {0}...'.format(label)
-
+            missing_ids = []
             files = set(filenames)
             missing = good_files - files
             extra = files - good_files
@@ -64,14 +63,15 @@ def cleanup(args):
             for file in missing:
                 missing_ids += [re.match('.*_(\d*)\.root', file).group(1)]
                 print 'Warning!  Expected to find {0}, but it is missing!'.format(os.path.join(dirpath, file))
+                if not args.dry_run:
+                    store.update_missing(missing_ids)
             for file in extra:
                 deleted_files[label] += 1
                 deleted_sizes[label] += os.path.getsize(os.path.join(dirpath, file))
                 if not args.dry_run:
                     os.remove(os.path.join(dirpath, file))
 
-    if not args.dry_run:
-        store.update_missing(missing_ids)
+
     print 'Finished cleaning.\n'
     if sum(deleted_files.values()) < 0:
         print 'No files found to cleanup.'

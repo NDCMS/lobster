@@ -212,9 +212,15 @@ class BlockDump(object):
     def add_file(self, LFN, output, job, merged_job):
         lumi_dict_to_list = lambda d: [{'run_num': run, 'lumi_section_num': lumi} for run in d.keys() for lumi in d[run]]
         PFN = self.catalog.matchLFN('direct', LFN)
-        c = subprocess.Popen('cksum %s' % PFN, shell=True, stdout=subprocess.PIPE)
-        cksum, size = c.stdout.read().split()[:2]
+        cksum = 0
+        size = 0
+        try:
+            c = subprocess.Popen('cksum %s' % PFN, shell=True, stdout=subprocess.PIPE)
+            cksum, size = c.stdout.read().split()[:2]
+        except:
+            print "Error calculating checksum"
 
+        
         file_dict = {'check_sum': int(cksum),
                      'file_lumi_list': lumi_dict_to_list(output['Runs']),
                      'adler32': get_adler32(PFN),

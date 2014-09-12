@@ -107,6 +107,7 @@ class BlockDump(object):
         self.pset_hash = pset_hash
         self.gtag = gtag
         self.dbs = dbs
+        self.jobs = []
 
         storage_path = '/cvmfs/cms.cern.ch/SITECONF/%s/PhEDEx/storage.xml' % os.environ['CMS_LOCAL_SITE']
         self.catalog = readTFC(storage_path)
@@ -172,6 +173,7 @@ class BlockDump(object):
         self.data['block']['block_size'] = 0
 
     def reset(self):
+        self.jobs = []
         self.data['files'] = []
         self.data['file_conf_list'] = []
         self.data['file_parent_list'] = []
@@ -207,7 +209,7 @@ class BlockDump(object):
             if parent not in self.data['file_parent_list']:
                 self.data['file_parent_list'].append(parent)
 
-    def add_file(self, LFN, output):
+    def add_file(self, LFN, output, job, merged_job):
         lumi_dict_to_list = lambda d: [{'run_num': run, 'lumi_section_num': lumi} for run in d.keys() for lumi in d[run]]
         PFN = self.catalog.matchLFN('direct', LFN)
         c = subprocess.Popen('cksum %s' % PFN, shell=True, stdout=subprocess.PIPE)
@@ -230,6 +232,8 @@ class BlockDump(object):
         self.data['block']['block_size'] += int(size)
         self.data['block']['file_count'] += 1
 
+        self.jobs += [(job, merged_job)]
+
     def get_LFN(self, PFN):
         #see https://twiki.cern.ch/twiki/bin/viewauth/CMS/DMWMPG_Namespace#store_user_and_store_temp_user
         LFN = os.path.join('/store/user',
@@ -246,6 +250,11 @@ class BlockDump(object):
             shutil.move(PFN, matched_dir)
 
         return LFN
+
+    def get_publish_update(self):
+        update = [(self.data['block']['block_name'], job, merge_job) for job, merge_job in self.jobs]
+
+        return update
 
     def __getitem__(self, item):
         return self.data[item]
@@ -341,7 +350,7 @@ def publish(args):
                 print 'Adding %s to block...' % LFN
                 block.add_file_parents(LFN, report)
                 block.add_file_config(LFN)
-                block.add_file(LFN, report.files[0])
+                block.add_file(LFN, report.files[0], job, merged_job)
                 block.add_dataset_config()
 
             if args.migrate_parents:
@@ -352,7 +361,7 @@ def publish(args):
                 try:
                     inserted = True
                     dbs['local'].insertBulkBlock(block.data)
-                    db.update_published((block['block']['block_name'], job, merged_job))
+                    db.update_published(block.get_publish_update())
                     lfn_string = '\n'.join([d['logical_file_name'] for d in block['files']])
                     info = (linebreak, block['block']['block_name'], lfn_string, linebreak)
                     print '%s\nBlock inserted:\n%s\n\nFiles in block:\n%s%s' % info
@@ -368,4 +377,4 @@ def publish(args):
             json = os.path.join(wdir, label, 'published.json')
             lumis.writeJSON(json)
 
-            print 'Published json file saved to {0}'.format(json)
+            print 'Published json file saved to {0}\n'.format(json)

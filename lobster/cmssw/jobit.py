@@ -541,7 +541,7 @@ class JobitStore:
         return res
 
     def update_published(self, block):
-        self.db.execute("""update jobs
+        self.db.executemany("""update jobs
             set status=6,
             published_file_block=?
             where (id=? and merged_job=0)

@@ -1,4 +1,5 @@
 from collections import defaultdict
+import logging
 import os
 import random
 import sqlite3
@@ -45,7 +46,7 @@ class JobitStore:
             events int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
-            merged_job int default null,
+            merged_job int,
             merging_job int default 0,
             merge_status int default 0,
             host text,
@@ -449,52 +450,56 @@ class JobitStore:
 
         select = "select label, id from datasets"
         if datasets:
-            select += " where label in ({0})".format("'" + "', '".join(datasets) + "'")
+            select += " where label in ('{0}')".format("', '".join(datasets))
 
+        merge_updates = []
         for label, dataset in self.db.execute(select):
             logging.info('registering unmerged jobs for {0}'.format(label))
-            cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
+
+            rows = self.db.execute("""
+                select
+                    id, -1, bytes_output
+                from
+                    jobs
+                where
+                    status=?  and dataset=?  and merged_job is null
+               union
+                    select
+                        jobs.id, jobs.merged_job, merge_jobs.bytes_output
+                    from
+                        merge_jobs left join jobs on jobs.merged_job=merge_jobs.id
+                    where
+                        merge_jobs.status=?  and jobs.dataset=?
+                    group by merge_jobs.id
+                    order by jobs.id""", (SUCCESSFUL, dataset, SUCCESSFUL, dataset)).fetchall()
+
             size = 0
             chunk = []
-            rows = self.db.execute("""select id,
-                -1,
-                bytes_output
-                from jobs
-                where status=?
-                and dataset=?
-                and merged_job=null
-                union
-                select jobs.id,
-                jobs.merged_job,
-                merge_jobs.bytes_output
-                from merge_jobs left join jobs
-                on jobs.merged_job=merge_jobs.id
-                where merge_jobs.status=?
-                and jobs.dataset=?
-                group by merge_jobs.id
-                order by jobs.id""", (SUCCESSFUL, dataset, SUCCESSFUL, dataset)).fetchall()
 
             for job, merged_job, bytes in rows:
                 if (size + bytes) < max_bytes:
-                    chunk += [(cur.lastrowid, ASSIGNED, job, merged_job)]
+                    chunk += [(ASSIGNED, job, merged_job)]
                     size += bytes
                     if id == rows[-1][1] and len(chunk) > 1:
-                        self.db.executemany("""update jobs
-                            set merging_job=?,
-                            merge_status=?
-                            where (id=? and merged_job=null)
-                            or merged_job=?""", chunk)
-                        cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
+                        merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
+                        merge_updates += [(merge_id, status, job, merged_job) for (status, job, merged_job) in chunk]
                 else:
                     if len(chunk) > 1:
-                        self.db.executemany("""update jobs
-                            set merging_job=?,
-                            merge_status=?
-                            where (id=? and merged_job=null)
-                            or merged_job=?""", chunk)
-                        cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
-                        chunk = [(cur.lastrowid, ASSIGNED, job, merged_job)]
+                        merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
+                        merge_updates += [(merge_id, status, job, merged_job) for (status, job, merged_job) in chunk]
+
+                        # if this is the last row, len(chunk) == 1, and we don't merge
+                        chunk = [(ASSIGNED, job, merged_job)]
                         size = bytes
+
+        logging.info("updating {0} jobs to be merged".format(len(merge_updates)))
+        self.db.executemany("""
+            update
+                jobs
+            set
+                merging_job=?, merge_status=?
+            where
+                (id=? and merged_job is null) or merged_job=?""", merge_updates)
 
         self.db.commit()
 

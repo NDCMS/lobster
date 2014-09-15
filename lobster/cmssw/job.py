@@ -366,7 +366,6 @@ class JobProvider(job.JobProvider):
             job_update, file_update, jobit_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)
 
-            submissions = task.total_submissions
             job_update = [task.hostname, exit_code, task.total_submissions] \
                     + times + data + job_update + [task.tag]
 

@@ -480,7 +480,7 @@ class JobitStore:
                 if (size + bytes) < max_bytes:
                     chunk += [(ASSIGNED, job, merged_job)]
                     size += bytes
-                    if id == rows[-1][1] and len(chunk) > 1:
+                    if job == rows[-1][1] and len(chunk) > 1:
                         merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
                         merge_updates += [(merge_id, status, job, merged_job) for (status, job, merged_job) in chunk]
                 else:
@@ -492,14 +492,21 @@ class JobitStore:
                         chunk = [(ASSIGNED, job, merged_job)]
                         size = bytes
 
+        initial_merges = [(id, status, job) for (id, status, job, merged_job) in merge_updates if merged_job == -1]
+        remerges = [(id, status, merged_job) for (id, status, job, merged_job) in merge_updates if merged_job != -1]
         logging.info("updating {0} jobs to be merged".format(len(merge_updates)))
         self.db.executemany("""
             update
                 jobs
             set
                 merging_job=?, merge_status=?
-            where
-                (id=? and merged_job is null) or merged_job=?""", merge_updates)
+            where id=?""", initial_merges)
+        self.db.executemany("""
+            update
+                jobs
+            set
+                merging_job=?, merge_status=?
+            where merged_job=?""", remerges)
 
         self.db.commit()
 

@@ -45,7 +45,7 @@ class JobitStore:
             events int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
-            merged_job int default 0,
+            merged_job int default null,
             merging_job int default 0,
             merge_status int default 0,
             host text,
@@ -447,22 +447,22 @@ class JobitStore:
     def register_unmerged(self, datasets, max_megabytes):
         max_bytes = max_megabytes * 1000000
 
-        select = "select id from datasets"
+        select = "select label, id from datasets"
         if datasets:
             select += " where label in ({0})".format("'" + "', '".join(datasets) + "'")
 
-        for dataset in self.db.execute(select):
+        for label, dataset in self.db.execute(select):
+            print 'Registering unmerged jobs for ', label
             cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             size = 0
             chunk = []
-            rows = self.db.execute("""select jobs.id,
+            rows = self.db.execute("""select id,
                 -1,
-                jobs.bytes_output
-                from jobs left join merge_jobs
-                on jobs.merged_job=merge_jobs.id
-                where jobs.status=?
-                and jobs.dataset=?
-                and merge_jobs.id is null
+                bytes_output
+                from jobs
+                where status=?
+                and dataset=?
+                and merged_job=null
                 union
                 select jobs.id,
                 jobs.merged_job,
@@ -472,9 +472,8 @@ class JobitStore:
                 where merge_jobs.status=?
                 and jobs.dataset=?
                 group by merge_jobs.id
-                order by jobs.id""", (SUCCESSFUL, dataset[0], SUCCESSFUL, dataset[0])).fetchall()
+                order by jobs.id""", (SUCCESSFUL, dataset, SUCCESSFUL, dataset)).fetchall()
 
-            cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             for job, merged_job, bytes in rows:
                 if (size + bytes) < max_bytes:
                     chunk += [(cur.lastrowid, ASSIGNED, job, merged_job)]
@@ -483,7 +482,7 @@ class JobitStore:
                         self.db.executemany("""update jobs
                             set merging_job=?,
                             merge_status=?
-                            where (id=? and merged_job=0)
+                            where (id=? and merged_job=null)
                             or merged_job=?""", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                 else:
@@ -491,7 +490,7 @@ class JobitStore:
                         self.db.executemany("""update jobs
                             set merging_job=?,
                             merge_status=?
-                            where (id=? and merged_job=0)
+                            where (id=? and merged_job=null)
                             or merged_job=?""", chunk)
                         cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
                         chunk = [(cur.lastrowid, ASSIGNED, job, merged_job)]
@@ -543,17 +542,6 @@ class JobitStore:
             and datasets.label=?
             and jobs.dataset=datasets.id
             group by jobs.merged_job""", (label, label))
-
-        return cur.fetchall()
-
-    def finished_jobits(self, label):
-        cur = self.db.execute("""select jobits_{0}.run,
-            jobits_{0}.lumi
-            from jobits_{0}, jobs, datasets
-            where jobs.dataset=datasets.id
-            and jobs.status in (2, 6)
-            and datasets.label=?
-            and jobits_{0}.job=jobs.id""".format(label), (label,))
 
         return cur.fetchall()
 

@@ -42,11 +42,7 @@ class JobitStore:
             jobits_running int default 0,
             jobits_done int default 0,
             jobits_left int default 0,
-            events int default 0,
-            events_read int default 0,
-            events_written int default 0,
-            bytes_input int default 0,
-            bytes_output int default 0)""")
+            events int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             merged_job int default 0,
@@ -119,9 +115,8 @@ class JobitStore:
                        jobits,
                        masked_lumis,
                        jobits_left,
-                       events,
-                       bytes_input)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       events)
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
                            label,
                            os.path.join(self.config['stageout location'], label),
@@ -136,8 +131,7 @@ class JobitStore:
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.masked_lumis,
                            dataset_info.total_lumis * len(unique_args),
-                           dataset_info.total_events,
-                           sum(dataset_info.filesizes.values())))
+                           dataset_info.total_events))
         dset_id = cur.lastrowid
 
         self.db.execute("""create table if not exists files_{0}(
@@ -319,7 +313,6 @@ class JobitStore:
 
     def update_jobits(self, jobinfos):
         job_updates = []
-        dset_infos = {}
 
         for (dset, updates) in jobinfos.items():
             file_updates = []
@@ -336,14 +329,6 @@ class JobitStore:
                 jobit_updates += jobit_update
                 # the last entry in the job_update is the id
                 jobit_generic_updates.append((jobit_status, job_update[-1]))
-
-                # bytes written, events read and written
-                try:
-                    dset_infos[dset][0] += job_update[-6]
-                    dset_infos[dset][1] += job_update[-4]
-                    dset_infos[dset][2] += job_update[-3]
-                except KeyError:
-                    dset_infos[dset] = [job_update[-6], job_update[-4], job_update[-3]]
 
             # update all jobits of the jobs
             self.db.executemany("""update jobits_{0} set
@@ -397,23 +382,18 @@ class JobitStore:
             job_updates)
 
         for label in jobinfos.keys():
-            self.update_dataset_stats(label, *dset_infos[label])
+            self.update_dataset_stats(label)
 
         self.db.commit()
 
-    def update_dataset_stats(self, label, bytes_written=0, events_read=0, events_written=0):
-        file_based = self.db.execute("select file_based from datasets where label=?", (label,)).fetchone()[0]
-
+    def update_dataset_stats(self, label):
         self.db.execute("""
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status==1),
                 jobits_done=(select count(*) from jobits_{0} where status==2),
-                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2)),
-                events_read=(events_read + ?),
-                events_written=(events_written + ?),
-                bytes_output=(bytes_output + ?)
+                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2))
             where label=?""".format(label),
-            (events_read, events_written, bytes_written, label))
+            (label,))
 
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done) from datasets")

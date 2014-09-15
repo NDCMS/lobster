@@ -108,17 +108,11 @@ to run the foremen in a `screen` or `tmux` session.
 
 When using foremen, `work_queue_pool` can be used to relieve the user of
 the manual management of workers, and distribute them evenly between
-foremen.  To run 950 users, for example, use `work_queue_pool` with the
-following configuration file:
-
-    distribution: lobster-foreman.*=950
-    max_workers: 950
-    min_workers: 950
-
-Then run the following command:
+foremen.  Run the following command to create a minimum of 100 workers, and a
+maximum of 200 workers for a lobster master running with formen:
 
     work_queue_pool -T condor -o work_queue_pool.log \
-        -M lobster_<your id> -c <your pool config> \
+        -M lobster_<your id> -F "lobster-foreman.*" -w 100 -W 200 \
         --cores $cores --memory $(($cores * 1100)) --disk $(($cores * 4500))
 
 The last line of arguments corresponds to the desired worker configuration.

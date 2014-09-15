@@ -452,7 +452,7 @@ class JobitStore:
             select += " where label in ({0})".format("'" + "', '".join(datasets) + "'")
 
         for label, dataset in self.db.execute(select):
-            print 'Registering unmerged jobs for ', label
+            logging.info('registering unmerged jobs for {0}'.format(label))
             cur = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,))
             size = 0
             chunk = []

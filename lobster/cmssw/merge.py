@@ -17,7 +17,7 @@ import dash
 
 def resolve_name(job, merged_job, name, name_format):
     base, ext = os.path.splitext(name)
-    id = str(job) if merged_job == 0 else 'merged_{0}'.format(merged_job)
+    id = str(job) if not merged_job else 'merged_{0}'.format(merged_job)
 
     return name_format.format(base=base, ext=ext[1:], id=id)
 
@@ -170,7 +170,7 @@ class MergeProvider(job.JobProvider):
             raise NotImplementedError
 
     def get_report(self, label, job, merged_job):
-        if merged_job == 0:
+        if not merged_job:
             jobdir = self.get_jobdir(job, label, 'successful')
         else:
             jobdir = self.get_jobdir(merged_job, label, 'merged')

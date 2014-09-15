@@ -47,7 +47,7 @@ class JobitStore:
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
             merged_job int,
-            merging_job int default 0,
+            merging_job int,
             merge_status int default 0,
             host text,
             dataset int,
@@ -475,18 +475,17 @@ class JobitStore:
 
             size = 0
             chunk = []
-
             for job, merged_job, bytes in rows:
                 if (size + bytes) < max_bytes:
                     chunk += [(ASSIGNED, job, merged_job)]
                     size += bytes
                     if job == rows[-1][1] and len(chunk) > 1:
                         merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
-                        merge_updates += [(merge_id, status, job, merged_job) for (status, job, merged_job) in chunk]
+                        merge_updates += [(merge_id, x, y, z) for (x, y, z) in chunk]
                 else:
                     if len(chunk) > 1:
                         merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
-                        merge_updates += [(merge_id, status, job, merged_job) for (status, job, merged_job) in chunk]
+                        merge_updates += [(merge_id, x, y, z) for (x, y, z) in chunk]
 
                         # if this is the last row, len(chunk) == 1, and we don't merge
                         chunk = [(ASSIGNED, job, merged_job)]

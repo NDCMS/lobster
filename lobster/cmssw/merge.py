@@ -22,14 +22,13 @@ def resolve_name(job, merged_job, name, name_format):
     return name_format.format(base=base, ext=ext[1:], id=id)
 
 class MergeHandler(object):
-    def __init__(self, id, dataset, chirp, jobdir, outname, num_outputs, outname_index, sdir, jobs):
+    def __init__(self, id, dataset, chirp, jobdir, outname, num_outputs, outname_index, sdir):
         self.__id = id
         self.__dataset = dataset
         self.__chirp = chirp
         self.__jobdir = jobdir
         self.__outname = outname
         self.__sdir = sdir
-        self.__jobs = jobs
 
         self.__reports = set()
         self.__inputs = set()
@@ -45,10 +44,6 @@ class MergeHandler(object):
     @property
     def dataset(self):
         return self.__dataset
-
-    @property
-    def jobs(self):
-        return self.__jobs
 
     @property
     def reports(self):
@@ -84,7 +79,7 @@ class MergeHandler(object):
         else:
             status = jobit.SUCCESSFUL
 
-        return [(job, self.__id, status, outsize) for job in self.__jobs]
+        return [(self.__id, status, outsize)]
 
     def get_job_info(self):
         args = ['output=' + self.__outname]

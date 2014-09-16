@@ -426,9 +426,9 @@ class JobitStore:
         self.db.commit()
 
     def update_merged(self, jobs):
-        success_update = [(merging_job, status, None, merging_job) for (job, merging_job, status, size) in jobs if status == SUCCESSFUL]
-        merge_jobs_update = [(status, size, merging_job) for (job, merging_job, status, size) in jobs]
-        fail_update = [merging_job for (job, merging_job, status, size) in jobs if status == FAILED]
+        success_update = [(merging_job, status, None, merging_job) for (merging_job, status, size) in jobs if status == SUCCESSFUL]
+        merge_jobs_update = [(status, size, merging_job) for (merging_job, status, size) in jobs]
+        fail_update = [merging_job for (merging_job, status, size) in jobs if status == FAILED]
 
 
         self.db.executemany("update merge_jobs set status=?, bytes_output=? where id=?", merge_jobs_update)

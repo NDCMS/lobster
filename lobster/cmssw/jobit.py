@@ -534,7 +534,7 @@ class JobitStore:
         self.db.executemany("""update jobs
             set status=6,
             published_file_block=?
-            where (id=? and merged_job=0)
+            where (id=? and merged_job is null)
             or merged_job=?""", block)
 
         self.db.commit()
@@ -545,7 +545,7 @@ class JobitStore:
             where jobs.status=2
             and datasets.label=?
             and jobs.dataset=datasets.id
-            and jobs.merged_job=0
+            and jobs.merged_job is null
             union
             select jobs.id, jobs.merged_job
             from jobs, datasets

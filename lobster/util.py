@@ -56,6 +56,13 @@ def register_checkpoint(workdir, key, value):
     with open(statusfile, 'a') as f:
         yaml.dump({key: value}, f, default_flow_style=False)
 
+def verify_string(s):
+    try:
+        s.decode('ascii')
+    except UnicodeDecodeError:
+        return ""
+    return s
+
 def ldd(name):
     libs = []
 

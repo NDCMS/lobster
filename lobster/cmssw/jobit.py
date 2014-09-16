@@ -458,7 +458,7 @@ class JobitStore:
 
             rows = self.db.execute("""
                 select
-                    id, -1, bytes_output
+                    id, merged_job, bytes_output
                 from
                     jobs
                 where
@@ -491,8 +491,8 @@ class JobitStore:
                         chunk = [(ASSIGNED, job, merged_job)]
                         size = bytes
 
-        initial_merges = [(id, status, job) for (id, status, job, merged_job) in merge_updates if merged_job == -1]
-        remerges = [(id, status, merged_job) for (id, status, job, merged_job) in merge_updates if merged_job != -1]
+        initial_merges = [(id, status, job) for (id, status, job, merged_job) in merge_updates if not merged_job]
+        remerges = [(id, status, merged_job) for (id, status, job, merged_job) in merge_updates if merged_job]
         logging.info("updating {0} jobs to be merged".format(len(merge_updates)))
         self.db.executemany("""
             update

@@ -530,11 +530,18 @@ class JobitStore:
         return res
 
     def update_published(self, block):
+        unmerged = [(name, job) for (name, job, merged_job) in block]
+        merged = [(name, merged_job) for (name, job, merged_job) in block]
+
         self.db.executemany("""update jobs
             set status=6,
             published_file_block=?
-            where (id=? and merged_job is null)
-            or merged_job=?""", block)
+            where id=?""", unmerged)
+
+        self.db.executemany("""update jobs
+            set status=6,
+            published_file_block=?
+            where merged_job=?""", unmerged)
 
         self.db.commit()
 

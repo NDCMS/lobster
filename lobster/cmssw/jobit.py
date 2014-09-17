@@ -430,7 +430,6 @@ class JobitStore:
         merge_jobs_update = [(status, size, merging_job) for (merging_job, status, size) in jobs]
         fail_update = [merging_job for (merging_job, status, size) in jobs if status == FAILED]
 
-
         self.db.executemany("update merge_jobs set status=?, bytes_output=? where id=?", merge_jobs_update)
         self.db.executemany("update jobs set merged_job=?, merge_status=?, merging_job=? where merging_job=?", success_update)
 
@@ -562,11 +561,14 @@ class JobitStore:
         self.db.commit()
 
     def update_missing(self, jobs):
+        unmerged = [str(job) for job, merged_job in jobs if not merged_job]
+        merged = [str(merge_job) for job, merged_job in jobs if merged_job]
+
         for job, dataset in self.db.execute("""select jobs.id,
             datasets.label
             from jobs, datasets
-            where jobs.id in ({0})
-            and jobs.dataset=datasets.id""".format(", ".join(jobs))):
+            where (jobs.id in ({0}) or jobs.merged_job in ({1}))
+            and jobs.dataset=datasets.id""".format(", ".join(unmerged), ", ".join(merged))):
             self.db.execute("update jobs set status=3 where id=?", (job,))
             self.db.execute("update jobits_{0} set status=3 where job=?".format(dataset), (job,))
             self.update_dataset_stats(dataset)

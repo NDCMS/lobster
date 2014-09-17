@@ -26,7 +26,7 @@ def validate(args):
     deleted_sizes = dict((cfg['label'], 0) for cfg in config['tasks'])
     missing = []
     for cfg in config['tasks']:
-        good_files = set()
+        good_files = []
         label = cfg['label']
         logging.info('validating output files for {0}'.format(label))
         for job, merged_job in store.finished_jobs(label):
@@ -38,19 +38,18 @@ def validate(args):
                     missing += update
                     logging.warning('output file is missing for {0}'.format(''.join(cmssw.merge.resolve_joblist(update))))
                 else:
-                    good_files.add(name)
+                    good_files += [name]
 
         if args.cleanup:
             for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
                 logging.info('looking for output files to cleanup in {0}'.format(label))
-                files = set(filenames)
-                extra = files - good_files
 
-                for file in extra:
-                    deleted_files[label] += 1
-                    deleted_sizes[label] += os.path.getsize(os.path.join(dirpath, file))
-                    if not args.dry_run:
-                        os.remove(os.path.join(dirpath, file))
+                for file in filenames:
+                    if file not in good_files:
+                        deleted_files[label] += 1
+                        deleted_sizes[label] += os.path.getsize(os.path.join(dirpath, file))
+                        if not args.dry_run:
+                            os.remove(os.path.join(dirpath, file))
 
     if args.cleanup:
         logging.info('finished cleaning')

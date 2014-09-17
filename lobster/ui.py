@@ -40,13 +40,15 @@ def boil():
     parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
             help='number of files to publish per file block.')
-    parser_publish.add_argument('labels', nargs='*', help='tasks to publish')
+    parser_publish.add_argument('datasets', nargs='*', help='dataset labels to publish (default is all datasets)')
+    parser_publish.add_argument('-f', '--foreground', action='store_true', default=False,
+            help='do not daemonize;  run in the foreground instead')
     parser_publish.set_defaults(func=publish)
 
     parser_merge = subparsers.add_parser('merge', help='merge output files into larger files')
     parser_merge.add_argument('--max-megabytes', dest='max_megabytes', type=float, default=3500, help='maximum merged file size')
     parser_merge.add_argument('--datasets', nargs='+', default=None,
-            help='dataset labels for which to merge files (default: all datasets)')
+            help='dataset labels for which to merge files (default is all datasets)')
     parser_merge.add_argument('--server', metavar="SERVER:<port>", default=None, help='override stageout server in configuration')
     parser_merge.add_argument('-f', '--foreground', action='store_true', default=False,
             help='do not daemonize;  run in the foreground instead')

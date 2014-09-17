@@ -4,6 +4,8 @@ import os
 import yaml
 import subprocess
 
+from lockfile.pidlockfile import PIDLockFile
+from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
 def id2dir(id):
@@ -93,3 +95,13 @@ def ldd(name):
             libs.append(target)
 
     return libs
+
+def get_lock(workdir):
+    pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
+    try:
+        pidfile.acquire()
+    except AlreadyLocked:
+        print "Another instance of lobster is accessing {0}".format(workdir)
+        raise
+    pidfile.break_lock()
+    return pidfile

@@ -7,6 +7,9 @@ from zlib import adler32
 import gzip
 import yaml
 import shutil
+import daemon
+import logging
+import signal
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
@@ -17,12 +20,11 @@ from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
-import jobit
 from lobster import util
 from lobster.job import apply_matching
 from lobster.cmssw.dataset import MetaInterface
-
-linebreak = '\n'+''.join(['*']*80)
+from lobster.cmssw.jobit import JobitStore
+from lobster.cmssw.merge import resolve_joblist
 
 def get_adler32(filename):
     sum = 1L
@@ -35,37 +37,38 @@ def check_migration(status):
     successful = False
 
     if status == 0:
-        print 'Migration required.'
+        logging.info('migration required')
     elif status == 1:
-        print 'Migration in process.'
+        logging.info('migration in process')
         time.sleep(15)
     elif status == 2:
-        print 'Migration successful.'
+        logging.info('migration successful')
         successful = True
     elif status == 3:
-        print 'Migration failed.'
+        logging.info('migration failed')
 
     return successful
 
 def migrate_parents(parents, dbs):
    parent_blocks_to_migrate = []
    for parent in parents:
-       print "Looking in the local DBS for blocks associated with the parent lfn:\n%s..." % parent
+       logging.info("looking in the local DBS for blocks associated with the parent lfn %s" % parent)
        parent_blocks = dbs['local'].listBlocks(logical_file_name=parent)
        if parent_blocks:
-           print 'Parent blocks found: no migration required.'
+           logging.info('parent blocks found: no migration required')
        else:
-           print 'No parent blocks found in the local DBS, searching the global DBS...'
+           logging.info('no parents blocks found in the local DBS, searching global DBS')
            dbs_output = dbs['global'].listBlocks(logical_file_name=parent)
            if dbs_output:
                parent_blocks_to_migrate.extend([entry['block_name'] for entry in dbs_output])
            else:
-               print 'No parent block found the global or local DBS: exiting...'
+               logging.critical('unable to find parent blocks in the local or global DBS')
+               logging.critical("verify parent blocks exist in DBS, or set 'migrate parents: False' in your lobster configuration")
                exit()
 
    parent_blocks_to_migrate = list(set(parent_blocks_to_migrate))
    if len(parent_blocks_to_migrate) > 0:
-       print 'The following files will be migrated: %s...' % ', '.join(parent_blocks_to_migrate)
+       logging.info('the following files will be migrated: %s' % ', '.join(parent_blocks_to_migrate))
 
        migration_complete = False
        retries = 0
@@ -75,7 +78,7 @@ def migrate_parents(parents, dbs):
            for block in parent_blocks_to_migrate:
                migration_status = dbs['migrator'].statusMigration(block_name=block)
                if not migration_status:
-                   print 'Block will be migrated: %s' % block
+                   logging.info('block will be migrated: %s' % block)
                    dbs_output = dbs['migrator'].submitMigration({'migration_url': self.dbs_url_global, 'migration_input': block})
                    all_migrated = False
                else:
@@ -87,15 +90,15 @@ def migrate_parents(parents, dbs):
                all_migrated = migration_status and all_migrated and check_migration(migration_status[0]['migration_status'])
 
            migration_complete = all_migrated
-           print 'Migration not complete, waiting 15 seconds and checking again...'
+           logging.info('migration not complete, waiting 15 seconds before checking again')
            time.sleep(15)
            retries += 1
 
        if not migration_complete:
-           print 'Migration from global to local dbs failed: exiting...'
+           logging.critical('migration from global to local dbs failed')
            exit()
        else:
-           print 'Migration of all files complete.'
+           logging.info('migration of all files complete')
 
 class BlockDump(object):
     def __init__(self, username, dataset, dbs, publish_hash, publish_label, release, pset_hash, gtag):
@@ -138,7 +141,8 @@ class BlockDump(object):
         if len(output) > 0:
             self.data['primds'] = dict((k, v) for k, v in output[0].items() if k!= 'primary_ds_id')
         else:
-            print "Cannot find any information about the primary dataset %s in the global dbs, using default parameters..." % prim_ds
+            logging.warning("cannot find any information about the primary dataset %s in the global dbs" % prim_ds)
+            logging.info("using default parameters for primary dataset %s" % prim_ds)
             self.data['primds']['create_by'] = ''
             self.data['primds']['primary_ds_type'] = 'NOTSET'
             self.data['primds']['primary_ds_name'] = prim_ds
@@ -218,9 +222,8 @@ class BlockDump(object):
             c = subprocess.Popen('cksum %s' % PFN, shell=True, stdout=subprocess.PIPE)
             cksum, size = c.stdout.read().split()[:2]
         except:
-            print "Error calculating checksum"
+            logging.warning("error calculating checksum")
 
-        
         file_dict = {'check_sum': int(cksum),
                      'file_lumi_list': lumi_dict_to_list(output['Runs']),
                      'adler32': get_adler32(PFN),
@@ -274,113 +277,146 @@ def publish(args):
 
     config = apply_matching(config)
 
-    if len(args.labels) == 0:
-        args.labels = [task['label'] for task in config.get('tasks', [])]
+    if len(args.datasets) == 0:
+        args.datasets = [task['label'] for task in config.get('tasks', [])]
 
-    wdir = config['workdir']
-    db = jobit.JobitStore(config)
+    workdir = config['workdir']
     user = config.get('publish user', os.environ['USER'])
-    das_interface = MetaInterface()
-
     publish_instance = config.get('dbs instance', 'phys03')
     published = {'dataset': '', 'dbs instance': publish_instance}
-    dbs = {}
-    for path, key in [[('global', 'DBSReader'), 'global'],
-                      [(publish_instance, 'DBSWriter'), 'local'],
-                      [(publish_instance, 'DBSReader'), 'reader'],
-                      [(publish_instance, 'DBSMigrate'), 'migrator']]:
-        dbs[key] = DbsApi('https://cmsweb.cern.ch/dbs/prod/{0}/'.format(os.path.join(*path)))
 
-    for label in args.labels:
-        (dset,
-         stageout_path,
-         release,
-         gtag,
-         publish_label,
-         cfg,
-         pset_hash,
-         ds_id,
-         publish_hash) = [str(x) for x in db.dataset_info(label)]
+    print "Saving log to {0}".format(os.path.join(workdir, 'publish.log'))
+    if not args.foreground:
+        ttyfile = open(os.path.join(workdir, 'publish.err'), 'a')
+        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'publish.err'))
 
-        dset = dset.strip('/').split('/')[0]
-        if not pset_hash or pset_hash == 'None':
-            print 'The parameter set hash has not yet been calculated, doing it now... (this may take a few minutes)'
-            cfg_path = os.path.join(wdir, label, os.path.basename(cfg))
-            tmp_path = cfg_path.replace('.py', '_tmp.py')
-            with open(cfg_path, 'r') as infile:
-                with open(tmp_path, 'w') as outfile:
-                    fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
-                    outfile.write(fix.format(tmp_path))
-                    outfile.write(infile.read())
-            try:
-                pset_hash = createPSetHash(tmp_path)[-32:]
-                db.update_pset_hash(pset_hash, label)
-            except:
-                print 'Error calculating cmssw parameter set hash!  Continuing with empty hash...'
-            os.remove(tmp_path)
+    with daemon.DaemonContext(
+            detach_process=not args.foreground,
+            stdout=sys.stdout if args.foreground else ttyfile,
+            stderr=sys.stderr if args.foreground else ttyfile,
+            working_directory=workdir,
+            pidfile=util.get_lock(workdir)):
+        logging.basicConfig(
+                datefmt="%Y-%m-%d %H:%M:%S",
+                format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
+                level=config.get('log level', 2) * 10,
+                filename=os.path.join(workdir, 'publish.log'))
 
-        block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
+        if args.foreground:
+            console = logging.StreamHandler()
+            console.setLevel(config.get('log level', 2) * 10)
+            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
+            logging.getLogger('').addHandler(console)
 
-        if len(dbs['local'].listAcquisitionEras(acquisition_era_name=user)) == 0:
-            try:
-                dbs['local'].insertAcquisitionEra({'acquisition_era_name': user})
-            except Exception, ex:
-                print ex
-        try:
-            dbs['local'].insertPrimaryDataset(block.data['primds'])
-            dbs['local'].insertDataset(block.data['dataset'])
-        except Exception, ex:
-            print ex
-            raise
+        db = JobitStore(config)
+        das_interface = MetaInterface()
 
-        jobs = db.finished_jobs(label)
+        dbs = {}
+        for path, key in [[('global', 'DBSReader'), 'global'],
+                          [(publish_instance, 'DBSWriter'), 'local'],
+                          [(publish_instance, 'DBSReader'), 'reader'],
+                          [(publish_instance, 'DBSMigrate'), 'migrator']]:
+            dbs[key] = DbsApi('https://cmsweb.cern.ch/dbs/prod/{0}/'.format(os.path.join(*path)))
 
-        first_job = 0
-        inserted = False
-        print 'Found %d successful %s jobs to publish.' % (len(jobs), label)
-        while first_job < len(jobs):
-            block.reset()
-            chunk = jobs[first_job:first_job+args.block_size]
-            print 'Preparing DBS entry for block of %i jobs.' % len(chunk)
+        for label in args.datasets:
+            (dset,
+             stageout_path,
+             release,
+             gtag,
+             publish_label,
+             cfg,
+             pset_hash,
+             ds_id,
+             publish_hash) = [str(x) for x in db.dataset_info(label)]
 
-            for job, merged_job in chunk:
-                status = 'successful' if merged_job == 0 else 'merged'
-                id = job if merged_job == 0 else merged_job
-                tag = str(job) if merged_job == 0 else 'merged_{0}'.format(merged_job)
-
-                f = gzip.open(os.path.join(wdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
-                report = readJobReport(f)[0]
-                PFN = os.path.join(stageout_path, report.files[0]['PFN'].replace('.root', '_%s.root' % tag))
-                LFN = block.get_LFN(PFN)
-
-                print 'Adding %s to block...' % LFN
-                block.add_file_parents(LFN, report)
-                block.add_file_config(LFN)
-                block.add_file(LFN, report.files[0], job, merged_job)
-                block.add_dataset_config()
-
-            if args.migrate_parents:
-                parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
-                migrate_parents(parents_to_migrate, dbs)
-
-            if len(block.data['files']) > 0:
+            dset = dset.strip('/').split('/')[0]
+            if not pset_hash or pset_hash == 'None':
+                logging.info('the parameter set hash has not been calculated')
+                logging.info('calculating parameter set hash now (may take a few minutes)')
+                cfg_path = os.path.join(workdir, label, os.path.basename(cfg))
+                tmp_path = cfg_path.replace('.py', '_tmp.py')
+                with open(cfg_path, 'r') as infile:
+                    with open(tmp_path, 'w') as outfile:
+                        fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
+                        outfile.write(fix.format(tmp_path))
+                        outfile.write(infile.read())
                 try:
-                    inserted = True
-                    dbs['local'].insertBulkBlock(block.data)
-                    db.update_published(block.get_publish_update())
-                    lfn_string = '\n'.join([d['logical_file_name'] for d in block['files']])
-                    info = (linebreak, block['block']['block_name'], lfn_string, linebreak)
-                    print '%s\nBlock inserted:\n%s\n\nFiles in block:\n%s%s' % info
-                except HTTPError, e:
-                    print e
+                    pset_hash = createPSetHash(tmp_path)[-32:]
+                    db.update_pset_hash(pset_hash, label)
+                except:
+                    logging.warning('error calculating the cmssw parameter set hash')
+                os.remove(tmp_path)
 
-            first_job += args.block_size
+            block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
 
-        if inserted:
-            published.update({'dataset': block['dataset']['dataset']})
-            info = das_interface.get_info(published)
-            lumis = LumiList(lumis=sum(info.lumis.values(), []))
-            json = os.path.join(wdir, label, 'published.json')
-            lumis.writeJSON(json)
+            if len(dbs['local'].listAcquisitionEras(acquisition_era_name=user)) == 0:
+                try:
+                    dbs['local'].insertAcquisitionEra({'acquisition_era_name': user})
+                except Exception, ex:
+                    logging.warn(ex)
+            try:
+                dbs['local'].insertPrimaryDataset(block.data['primds'])
+                dbs['local'].insertDataset(block.data['dataset'])
+            except Exception, ex:
+                logging.warn(ex)
+                raise
 
-            print 'Published json file saved to {0}\n'.format(json)
+            jobs = db.finished_jobs(label)
+
+            first_job = 0
+            inserted = False
+            logging.info('found %d successful %s jobs to publish' % (len(jobs), label))
+            missing = []
+            while first_job < len(jobs):
+                block.reset()
+                chunk = jobs[first_job:first_job+args.block_size]
+                logging.info('preparing DBS entry for %i job block: %s' % (len(chunk), block['block']['block_name']))
+
+                for job, merged_job in chunk:
+                    status = 'merged' if merged_job else 'successful'
+                    id = merged_job if merged_job else job
+                    tag = 'merged_{0}'.format(merged_job) if merged_job else str(job)
+
+                    f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
+                    report = readJobReport(f)[0]
+                    PFN = os.path.join(stageout_path, report.files[0]['PFN'].replace('.root', '_%s.root' % tag))
+                    if not os.path.isfile(PFN):
+                        logging.warn('could not find expected output for %s: it will be marked as failed' % resolve_joblist([(job, merged_job)]))
+                        missing += [(job, merged_job)]
+                    else:
+                        LFN = block.get_LFN(PFN)
+                        logging.info('adding %s to block' % LFN)
+                        block.add_file_parents(LFN, report)
+                        block.add_file_config(LFN)
+                        block.add_file(LFN, report.files[0], job, merged_job)
+                        block.add_dataset_config()
+
+                if args.migrate_parents:
+                    parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
+                    migrate_parents(parents_to_migrate, dbs)
+
+                if len(block.data['files']) > 0:
+                    try:
+                        inserted = True
+                        dbs['local'].insertBulkBlock(block.data)
+                        db.update_published(block.get_publish_update())
+                        logging.info('block inserted: %s' % block['block']['block_name'])
+                    except HTTPError, e:
+                        logging.critical(e)
+
+                first_job += args.block_size
+
+            if inserted:
+                published.update({'dataset': block['dataset']['dataset']})
+                info = das_interface.get_info(published)
+                lumis = LumiList(lumis=sum(info.lumis.values(), []))
+                json = os.path.join(workdir, label, 'published.json')
+                lumis.writeJSON(json)
+
+                logging.info('publishing dataset %s complete' % label)
+                logging.info('json file of published runs and lumis saved to %s' % json)
+
+            if len(missing) > 0:
+                template = "the following have been marked as failed because their output could not be found: {0}"
+                logging.warning(template.format(resolve_joblist(missing)))
+

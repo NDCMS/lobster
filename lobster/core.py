@@ -12,21 +12,9 @@ import re
 from functools import partial
 from lobster import util, cmssw
 
-from lockfile.pidlockfile import PIDLockFile
-from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
 import work_queue as wq
-
-def get_lock(workdir):
-    pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
-    try:
-        pidfile.acquire()
-    except AlreadyLocked:
-        print "Another instance of lobster is accessing {0}".format(workdir)
-        raise
-    pidfile.break_lock()
-    return pidfile
 
 def kill(args):
     logging.info("setting flag to quit at the next checkpoint")
@@ -82,7 +70,7 @@ def run(args):
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
-            pidfile=get_lock(workdir),
+            pidfile=util.get_lock(workdir),
             signal_map=signals):
         logging.basicConfig(
                 datefmt="%Y-%m-%d %H:%M:%S",

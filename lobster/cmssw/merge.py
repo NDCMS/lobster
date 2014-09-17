@@ -21,6 +21,19 @@ def resolve_name(job, merged_job, name, name_format):
 
     return name_format.format(base=base, ext=ext[1:], id=id)
 
+def resolve_joblist(jobs):
+    conjugation = lambda x: 's' if len(x) > 1 else ''
+
+    unmerged = [str(job) for job, merged_job in jobs if not merged_job]
+    merged = [str(merged_job) for job, merged_job in jobs if merged_job]
+
+    res = []
+    for template, jobs in [('job{0} {1}', unmerged), ('merged job{0} {1}', merged)]:
+        if len(jobs) > 0:
+            res += [template.format(conjugation(jobs), ', '.join(jobs))]
+
+    return ' and '.join(res)
+
 class MergeHandler(object):
     def __init__(self, id, dataset, chirp, jobdir, outname, num_outputs, outname_index, sdir):
         self.__id = id
@@ -91,6 +104,12 @@ class MergeHandler(object):
 
         return args, files
 
+    def validate(self, report, input):
+        logging.warning(report)
+        logging.warning(input)
+        logging.warning(os.path.isfile(report) and os.path.isfile(input))
+        return os.path.isfile(report) and os.path.isfile(input)
+
     def merge_reports(self):
         merged = FwkJobReport()
         for r in self.__reports:
@@ -132,6 +151,7 @@ class MergeProvider(job.JobProvider):
         self.__chirp = self.config.get('stageout server', None)
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
         self.__dash = dash.DummyMonitor(self.taskid)
+        self.__missing = []
         self.__mergehandlers = {}
 
         self.__store = jobit.JobitStore(self.config)
@@ -177,6 +197,7 @@ class MergeProvider(job.JobProvider):
             return None
 
         tasks = []
+        missing = []
         for merging_job, dset, jobs in unmerged_jobs:
             out_tag = 'merged_{0}'.format(merging_job)
 
@@ -196,8 +217,7 @@ class MergeProvider(job.JobProvider):
                                        local_outname,
                                        len(self.outputs[dset]),
                                        outname_index,
-                                       sdir,
-                                       [job for job, merged_job in jobs])
+                                       sdir)
 
                 stageout = [(local_outname, os.path.join(dset, remote_outname))]
                 outputs = [(os.path.join(jdir, '{0}{1}'.format(handler.base, f)), f) for f in ['cmssw.log.gz', 'report.pkl']]
@@ -209,10 +229,13 @@ class MergeProvider(job.JobProvider):
                     inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
                 for job, merged_job in jobs:
-                    handler.reports.add(self.get_report(dset, job, merged_job))
-
+                    report = self.get_report(dset, job, merged_job)
                     input = resolve_name(job, merged_job, local_outname, self.outputformats[dset])
-                    handler.inputs.add(os.path.join(os.path.basename(sdir), input))
+                    if handler.validate(report, os.path.join(sdir, input)):
+                        handler.reports.add(report)
+                        handler.inputs.add(os.path.join(os.path.basename(sdir), input))
+                    else:
+                        missing += [(job, merged_job)]
 
                     if not self.__chirp:
                         inputs.append((os.path.join(sdir, input), input))
@@ -227,6 +250,12 @@ class MergeProvider(job.JobProvider):
                 tasks.append((handler.tag, cmd, inputs, outputs))
 
                 self.__mergehandlers[handler.tag] = handler
+
+                if len(missing) > 0:
+                    self.retry(self.__store.update_missing, (missing,), {})
+                    self.__missing += missing
+                    template = "the following have been marked as failed because their output could not be found: {0}"
+                    logging.warning(template.format(resolve_joblist(missing)))
 
                 originals = [str(job) for job, merged_job in jobs]
                 logging.info("creating task {0} to merge jobs {1}".format(handler.tag, ", ".join(originals)))
@@ -283,7 +312,12 @@ class MergeProvider(job.JobProvider):
             self.retry(self.__store.update_merged, (jobs,), {})
 
     def done(self):
-        return self.__store.unfinished_merging() == 0
+        done = self.__store.unfinished_merging() == 0
+        if done and len(self.__missing) > 0:
+            template = "the following have been marked as failed because their output could not be found: {0}"
+            logging.warning(template.format(resolve_joblist(self.__missing)))
+
+        return done
 
     def work_left(self):
         return self.__store.unfinished_merging()

@@ -486,9 +486,9 @@ class JobitStore:
                         merge_id = self.db.execute("insert into merge_jobs(status) values (?)", (ASSIGNED,)).lastrowid
                         merge_updates += [(merge_id, x, y, z) for (x, y, z) in chunk]
 
-                        # if this is the last row, len(chunk) == 1, and we don't merge
-                        chunk = [(ASSIGNED, job, merged_job)]
-                        size = bytes
+                    # if this is the last row, len(chunk) == 1, and we don't merge
+                    chunk = [(ASSIGNED, job, merged_job)]
+                    size = bytes
 
         initial_merges = [(id, status, job) for (id, status, job, merged_job) in merge_updates if not merged_job]
         remerges = [(id, status, merged_job) for (id, status, job, merged_job) in merge_updates if merged_job]

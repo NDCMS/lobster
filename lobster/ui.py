@@ -3,7 +3,8 @@ import os
 
 from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
-from lobster.core import kill, cleanup, run
+from lobster.core import kill, run
+from lobster.validate import validate
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
@@ -28,10 +29,12 @@ def boil():
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
 
-    parser_cleanup = subparsers.add_parser('cleanup', help='remove output files for failed jobs')
-    parser_cleanup.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
+    parser_validate = subparsers.add_parser('validate', help='validate job output')
+    parser_validate.add_argument('--cleanup', action='store_true', default=False,
+            help='remove output files for failed jobs')
+    parser_validate.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
             help='only print (do not remove) files to be cleaned')
-    parser_cleanup.set_defaults(func=cleanup)
+    parser_validate.set_defaults(func=validate)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
     parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')

@@ -11,7 +11,7 @@ import re
 
 from functools import partial
 from lobster import util, cmssw
-from lobster.job import apply_matching
+
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
@@ -35,53 +35,6 @@ def kill(args):
 
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
-
-def cleanup(args):
-    with open(args.configfile) as configfile:
-        config = yaml.load(configfile)
-
-    store = cmssw.jobit.JobitStore(config)
-    config = apply_matching(config)
-    deleted_files = dict((cfg['label'], 0) for cfg in config['tasks'])
-    deleted_sizes = dict((cfg['label'], 0) for cfg in config['tasks'])
-    for cfg in config['tasks']:
-        good_files = set()
-        label = cfg['label']
-        for job, merged_job in store.finished_jobs(label):
-            for output in cfg['outputs']:
-                output_format = cfg.get("output format", "{base}_{id}.{ext}")
-                name = cmssw.merge.resolve_name(job, merged_job, output, output_format)
-                good_files.add(name)
-
-        for dirpath, dirnames, filenames in os.walk(os.path.join(config['stageout location'], label)):
-            print 'Looking for output files to cleanup in {0}...'.format(label)
-            missing_ids = []
-            files = set(filenames)
-            missing = good_files - files
-            extra = files - good_files
-
-            for file in missing:
-                missing_ids += [re.match('.*_(\d*)\.root', file).group(1)]
-                print 'Warning!  Expected to find {0}, but it is missing!'.format(os.path.join(dirpath, file))
-                if not args.dry_run:
-                    store.update_missing(missing_ids)
-            for file in extra:
-                deleted_files[label] += 1
-                deleted_sizes[label] += os.path.getsize(os.path.join(dirpath, file))
-                if not args.dry_run:
-                    os.remove(os.path.join(dirpath, file))
-
-
-    print 'Finished cleaning.\n'
-    if sum(deleted_files.values()) < 0:
-        print 'No files found to cleanup.'
-    else:
-        print '%-20s %-20s %-20s' % ('label', 'number of bad files', 'total size [MB]')
-        for (label, files), size in zip(deleted_files.items(), deleted_sizes.values()):
-            if files > 0:
-                print '%-20s %-20i %-20i' % (label, files, size / 1000000)
-
-        print '%-20s %-20i %-20i' % ('total', sum(deleted_files.values()), sum(deleted_sizes.values()) / 1000000)
 
 def run(args):
     with open(args.configfile) as configfile:

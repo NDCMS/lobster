@@ -105,9 +105,6 @@ class MergeHandler(object):
         return args, files
 
     def validate(self, report, input):
-        logging.warning(report)
-        logging.warning(input)
-        logging.warning(os.path.isfile(report) and os.path.isfile(input))
         return os.path.isfile(report) and os.path.isfile(input)
 
     def merge_reports(self):

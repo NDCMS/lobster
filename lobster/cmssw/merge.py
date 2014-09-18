@@ -45,6 +45,7 @@ class MergeHandler(object):
 
         self.__reports = set()
         self.__inputs = set()
+        self.__jobs = set()
 
         if num_outputs == 1:
             self.__tag = str(id)
@@ -69,6 +70,10 @@ class MergeHandler(object):
     @property
     def inputs(self):
         return self.__inputs
+
+    @property
+    def jobs(self):
+        return self.__jobs
 
     @property
     def jobdir(self):
@@ -194,7 +199,6 @@ class MergeProvider(job.JobProvider):
             return None
 
         tasks = []
-        missing = []
         for merging_job, dset, jobs in unmerged_jobs:
             out_tag = 'merged_{0}'.format(merging_job)
 
@@ -203,6 +207,7 @@ class MergeProvider(job.JobProvider):
             sdir = os.path.join(self.stageout, dset)
             jdir = self.create_jobdir(merging_job, dset, 'merging')
 
+            missing = []
             for outname_index, local_outname in enumerate(self.outputs[dset]):
                 base, ext = os.path.splitext(local_outname)
                 remote_outname = self.outputformats[dset].format(base=base, ext=ext[1:], id=out_tag)
@@ -231,31 +236,31 @@ class MergeProvider(job.JobProvider):
                     if handler.validate(report, os.path.join(sdir, input)):
                         handler.reports.add(report)
                         handler.inputs.add(os.path.join(os.path.basename(sdir), input))
+                        handler.jobs.add((job, merged_job))
                         if not self.__chirp:
                             inputs.append((os.path.join(sdir, input), input))
                     else:
                         missing += [(job, merged_job)]
 
-                args, files = handler.get_job_info()
-                with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                    pickle.dump((args, files, None, stageout, self.__chirp, self.taskid, monitorid, syncid, True), f, pickle.HIGHEST_PROTOCOL)
-                inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+                if len(handler.jobs) > 1:
+                    args, files = handler.get_job_info()
+                    with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
+                        pickle.dump((args, files, None, stageout, self.__chirp, self.taskid, monitorid, syncid, True), f, pickle.HIGHEST_PROTOCOL)
+                    inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
 
-                cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.pkl'
+                    cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.pkl'
 
-                tasks.append((handler.tag, cmd, inputs, outputs))
+                    tasks.append((handler.tag, cmd, inputs, outputs))
 
-                self.__mergehandlers[handler.tag] = handler
+                    self.__mergehandlers[handler.tag] = handler
+
+                    logging.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(handler.jobs)))
 
                 if len(missing) > 0:
                     self.retry(self.__store.update_missing, (missing,), {})
                     self.__missing += missing
                     template = "the following have been marked as failed because their output could not be found: {0}"
                     logging.warning(template.format(resolve_joblist(missing)))
-
-                validated = list(set(jobs) - set(missing))
-                originals = [str(job) for job, merged_job in validated]
-                logging.info("creating task {0} to merge jobs {1}".format(handler.tag, ", ".join(originals)))
 
         return tasks
 

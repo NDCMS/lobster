@@ -576,8 +576,7 @@ class JobitStore:
             from jobs, datasets
             where (jobs.id in ({0}) or jobs.merged_job in ({1}))
             and jobs.dataset=datasets.id""".format(", ".join(unmerged), ", ".join(merged))):
-            self.db.execute("update jobs set status=3 where id=?", (job,))
+            self.db.execute("update jobs set status=3, merging_job=null where id=?", (job,))
             self.db.execute("update jobits_{0} set status=3 where job=?".format(dataset), (job,))
-            self.update_dataset_stats(dataset)
 
         self.db.commit()

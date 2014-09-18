@@ -231,11 +231,10 @@ class MergeProvider(job.JobProvider):
                     if handler.validate(report, os.path.join(sdir, input)):
                         handler.reports.add(report)
                         handler.inputs.add(os.path.join(os.path.basename(sdir), input))
+                        if not self.__chirp:
+                            inputs.append((os.path.join(sdir, input), input))
                     else:
                         missing += [(job, merged_job)]
-
-                    if not self.__chirp:
-                        inputs.append((os.path.join(sdir, input), input))
 
                 args, files = handler.get_job_info()
                 with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
@@ -254,7 +253,8 @@ class MergeProvider(job.JobProvider):
                     template = "the following have been marked as failed because their output could not be found: {0}"
                     logging.warning(template.format(resolve_joblist(missing)))
 
-                originals = [str(job) for job, merged_job in jobs]
+                validated = list(set(jobs) - set(missing))
+                originals = [str(job) for job, merged_job in validated]
                 logging.info("creating task {0} to merge jobs {1}".format(handler.tag, ", ".join(originals)))
 
         return tasks

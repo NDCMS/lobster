@@ -166,7 +166,7 @@ for localname, remotename in stageout:
 
         if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
-                                      "-a=globus",
+                                     # "-a=globus",
                                       localname,
                                       server,
                                       remotename])

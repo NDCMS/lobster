@@ -6,6 +6,7 @@ from datetime import datetime
 import glob
 import gzip
 import jinja2
+import logging
 import math
 import multiprocessing
 import os
@@ -30,6 +31,8 @@ matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
 matplotlib.rc('font', **{'sans-serif' : 'DejaVu LGC Sans', 'family' : 'sans-serif'})
+
+logger = multiprocessing.get_logger()
 
 def reduce(a, idx, interval):
     quant = a[:,idx]
@@ -64,14 +67,14 @@ def split_by_column(a, col, key=lambda x: x, threshold=None):
 
 def unpack(source, target):
     try:
-        print "unpacking", source
+        logger.info("unpacking {0}".format(source))
         with open(target, 'w') as output:
             input = gzip.open(source, 'rb')
             output.writelines(input)
             input.close()
-        print "unpacked into", target
+        logger.info("unpacked into {0}".format(target))
     except IOError:
-        print "cannot unpack", source
+        logger.error("cannot unpack {0}".format(source))
         return False
     return True
 
@@ -348,7 +351,7 @@ class Plotter(object):
         for exit_code, jobs in zip(*split_by_column(failed_jobs[['id', 'exit_code']], 'exit_code')):
             codes[exit_code] = [len(jobs), {}]
 
-            print 'Copying sample logs for exit code ', exit_code
+            logger.info("Copying sample logs for exit code {0}".format(exit_code))
             for id, e in list(jobs[-samples:]):
                 codes[exit_code][1][id] = []
 
@@ -484,7 +487,7 @@ class Plotter(object):
         return self.save_and_close(name)
 
     def save_and_close(self, name):
-        print "Saving", name
+        logger.info("Saving {0}".format(name))
         # plt.gcf().set_size_inches(6, 1.5)
 
         plt.savefig(os.path.join(self.__plotdir, '%s.png' % name))
@@ -743,7 +746,7 @@ class Plotter(object):
                         cputime[i] += (edges[i + 1] - start) * ratio
                         time += (edges[i + 1] - start) * ratio
                 if abs(time - cpu)/cpu > 0.1:
-                    print time, cpu, start, end
+                    logger.debug("time {0}: CPU {1}, {2} - {3}").format(time, cpu, start, end)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
 
@@ -946,5 +949,10 @@ class Plotter(object):
             ).encode('utf-8'))
 
 def plot(args):
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+    logger.setLevel(logging.INFO)
+    logger.addHandler(console)
+
     p = Plotter(args.configfile, args.outdir)
     p.make_plots(args.xmin, args.xmax, args.foreman_list)

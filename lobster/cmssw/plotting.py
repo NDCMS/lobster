@@ -81,26 +81,22 @@ class Plotter(object):
     PLOT = 4
     PROF = 8
 
-    def __init__(self, args):
-        with open(args.configfile) as configfile:
-            config = yaml.load(configfile)
+    def __init__(self, configfile, outdir=None):
+        with open(configfile) as f:
+            config = yaml.load(f)
 
         self.__workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
         util.verify(self.__workdir)
         self.__id = config['id']
 
-        if args.outdir:
-            self.__plotdir = args.outdir
+        if outdir:
+            self.__plotdir = outdir
         else:
             self.__plotdir = config.get("plotdir", self.__id)
         self.__plotdir = os.path.expandvars(os.path.expanduser(self.__plotdir))
 
         if not os.path.isdir(self.__plotdir):
             os.makedirs(self.__plotdir)
-
-        self.__xmin = self.parsetime(args.xmin)
-        self.__xmax = self.parsetime(args.xmax)
-        #self.__foremanlist = args.foreman_list
 
     def parsetime(self, time):
         if not time:
@@ -496,14 +492,14 @@ class Plotter(object):
 
         plt.close()
 
-    def make_foreman_plots(self, logfiles):
+    def make_foreman_plots(self):
         tasks = []
         idleness = []
         efficiencies = []
 
         names = []
 
-        for filename in logfiles:
+        for filename in self.__foremen:
             headers, stats = self.readlog(filename)
 
             foreman = os.path.basename(filename)
@@ -571,14 +567,16 @@ class Plotter(object):
 
         return names
 
-    def make_plots(self, foremen=None):
+    def make_plots(self, xmin=None, xmax=None, foremen=None):
+        self.__xmin = self.parsetime(xmin)
+        self.__xmax = self.parsetime(xmax)
+
+        self.__foremen = foremen if foremen else []
+
         headers, stats = self.readlog()
         success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
 
-        foremen_names = []
-
-        if foremen:
-            foremen_names = self.make_foreman_plots(foremen)
+        foremen_names = self.make_foreman_plots()
 
         self.plot(
                 [
@@ -948,5 +946,5 @@ class Plotter(object):
             ).encode('utf-8'))
 
 def plot(args):
-    p = Plotter(args)
-    p.make_plots(args.foreman_list)
+    p = Plotter(args.configfile, args.outdir)
+    p.make_plots(args.xmin, args.xmax, args.foreman_list)

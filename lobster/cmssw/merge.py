@@ -15,6 +15,8 @@ from lobster import job, util
 import jobit
 import dash
 
+logger = multiprocessing.get_logger()
+
 def resolve_name(job, merged_job, name, name_format):
     base, ext = os.path.splitext(name)
     id = str(job) if not merged_job else 'merged_{0}'.format(merged_job)
@@ -158,7 +160,7 @@ class MergeProvider(job.JobProvider):
 
         self.__store = jobit.JobitStore(self.config)
         self.__store.reset_merging()
-        logging.info("registering unmerged jobs")
+        logger.info("registering unmerged jobs")
         self.__store.register_unmerged(config.get('datasets to merge'), config.get('max megabytes', 3500))
 
         self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x)) for x in
@@ -254,13 +256,13 @@ class MergeProvider(job.JobProvider):
 
                     self.__mergehandlers[handler.tag] = handler
 
-                    logging.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(handler.jobs)))
+                    logger.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(handler.jobs)))
 
                 if len(missing) > 0:
                     self.retry(self.__store.update_missing, (missing,), {})
                     self.__missing += missing
                     template = "the following have been marked as failed because their output could not be found: {0}"
-                    logging.warning(template.format(resolve_joblist(missing)))
+                    logger.warning(template.format(resolve_joblist(missing)))
 
         return tasks
 
@@ -289,7 +291,7 @@ class MergeProvider(job.JobProvider):
                     files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime, outsize = pickle.load(f)
             except (EOFError, IOError) as e:
                 failed = True
-                logging.error("error processing {0}:\n{1}".format(task.tag, e))
+                logger.error("error processing {0}:\n{1}".format(task.tag, e))
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
@@ -306,7 +308,7 @@ class MergeProvider(job.JobProvider):
                 handler.cleanup()
                 self.move_jobdir(handler.id, handler.dataset, 'merged', 'merging')
 
-            logging.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
+            logger.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 
             del self.__mergehandlers[task.tag]
 
@@ -317,7 +319,7 @@ class MergeProvider(job.JobProvider):
         done = self.__store.unfinished_merging() == 0
         if done and len(self.__missing) > 0:
             template = "the following have been marked as failed because their output could not be found: {0}"
-            logging.warning(template.format(resolve_joblist(self.__missing)))
+            logger.warning(template.format(resolve_joblist(self.__missing)))
 
         return done
 

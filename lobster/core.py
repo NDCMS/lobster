@@ -1,5 +1,6 @@
 import daemon
 import logging
+import multiprocessing
 import os
 import datetime
 import signal
@@ -16,8 +17,10 @@ from pkg_resources import get_distribution
 
 import work_queue as wq
 
+logger = multiprocessing.get_logger()
+
 def kill(args):
-    logging.info("setting flag to quit at the next checkpoint")
+    logger.info("setting flag to quit at the next checkpoint")
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
 
@@ -49,10 +52,10 @@ def run(args):
                 try:
                     cred.ManualRenewCredential()
                 except Exception as e:
-                    logging.critical("could not renew proxy")
+                    logger.critical("could not renew proxy")
                     sys.exit(1)
             else:
-                logging.critical("please renew your proxy")
+                logger.critical("please renew your proxy")
                 sys.exit(1)
 
     mode = 'merge' if args.merge else 'process'
@@ -72,17 +75,19 @@ def run(args):
             working_directory=workdir,
             pidfile=util.get_lock(workdir),
             signal_map=signals):
-        logging.basicConfig(
-                datefmt="%Y-%m-%d %H:%M:%S",
-                format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
-                level=config.get('log level', 2) * 10,
-                filename=os.path.join(workdir, mode + '.log'))
+
+        fileh = logging.FileHandler(os.path.join(workdir, mode + '.log'))
+        fileh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+        fileh.setLevel(config.get('log level', 2) * 10)
+
+        logger.addHandler(fileh)
+        logger.setLevel(config.get('log level', 2) * 10)
 
         if args.foreground:
             console = logging.StreamHandler()
             console.setLevel(config.get('log level', 2) * 10)
-            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
-            logging.getLogger('').addHandler(console)
+            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+            logger.addHandler(console)
 
         config['configdir'] = args.configdir
         config['filename'] = args.configfile
@@ -101,7 +106,7 @@ def run(args):
             job_src = job.SimpleJobProvider(config)
             actions = None
 
-        logging.info("using wq from {0}".format(wq.__file__))
+        logger.info("using wq from {0}".format(wq.__file__))
 
         wq.cctools_debug_flags_set("all")
         wq.cctools_debug_config_file(os.path.join(workdir, mode + "_work_queue_debug.log"))
@@ -115,8 +120,8 @@ def run(args):
         queue.tune("transfer-outlier-factor", 4)
         queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
 
-        logging.info("starting queue as {0}".format(queue.name))
-        logging.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
+        logger.info("starting queue as {0}".format(queue.name))
+        logger.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
 
         payload = config.get('tune', {}).get('payload', 400)
         abort_active = False
@@ -174,10 +179,10 @@ def run(args):
 
             if util.checkpoint(workdir, 'KILLED') == 'PENDING':
                 util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
-                logging.info("terminating gracefully")
+                logger.info("terminating gracefully")
                 break
 
-            logging.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
+            logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
                     stats.workers_busy,
                     stats.workers_busy + stats.workers_ready,
                     jobits_left,
@@ -211,7 +216,7 @@ def run(args):
                             task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
                                     wq.WORK_QUEUE_CACHE, recursive=True)
                         else:
-                            logging.critical("cannot send file to worker: {0}".format(local))
+                            logger.critical("cannot send file to worker: {0}".format(local))
                             raise NotImplementedError
 
                     for (local, remote) in outputs:
@@ -237,12 +242,12 @@ def run(args):
                     destruction_time += int((time.time() - t) * 1e6)
                 except:
                     tb = traceback.format_exc()
-                    logging.critical("cannot recover from the following exception:\n" + tb)
+                    logger.critical("cannot recover from the following exception:\n" + tb)
                     for task in tasks:
-                        logging.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
+                        logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
             if successful_jobs >= abort_threshold and not abort_active:
-                logging.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
+                logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
                 abort_active = True
                 queue.activate_fast_abort(abort_multiplier)
 
@@ -250,6 +255,6 @@ def run(args):
             if actions:
                 actions.take()
         if jobits_left == 0:
-            logging.info("no more work left to do")
+            logger.info("no more work left to do")
         if actions:
             actions.cleanup()

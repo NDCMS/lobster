@@ -1,9 +1,12 @@
 from collections import defaultdict
 import logging
+import multiprocessing
 import os
 import random
 import sqlite3
 import uuid
+
+logger = multiprocessing.get_logger()
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
@@ -453,7 +456,7 @@ class JobitStore:
 
         merge_updates = []
         for label, dataset in self.db.execute(select):
-            logging.info('registering unmerged jobs for {0}'.format(label))
+            logger.info('registering unmerged jobs for {0}'.format(label))
 
             rows = self.db.execute("""
                 select
@@ -492,7 +495,7 @@ class JobitStore:
 
         initial_merges = [(id, status, job) for (id, status, job, merged_job) in merge_updates if not merged_job]
         remerges = [(id, status, merged_job) for (id, status, job, merged_job) in merge_updates if merged_job]
-        logging.info("updating {0} jobs to be merged".format(len(merge_updates)))
+        logger.info("updating {0} jobs to be merged".format(len(merge_updates)))
         self.db.executemany("""
             update
                 jobs

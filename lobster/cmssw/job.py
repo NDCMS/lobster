@@ -3,6 +3,7 @@ from functools import partial
 import gzip
 import imp
 import logging
+import multiprocessing
 import os
 import pickle
 import re
@@ -19,6 +20,8 @@ from dataset import MetaInterface
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
+
+logger = multiprocessing.get_logger()
 
 class JobHandler(object):
     """
@@ -174,7 +177,7 @@ class JobProvider(job.JobProvider):
                              ]
 
         if self.config.get('use dashboard', False):
-            logging.info("using dashboard with task id {0}".format(self.taskid))
+            logger.info("using dashboard with task id {0}".format(self.taskid))
             self.__dash = dash.Monitor(self.taskid)
         else:
             self.__dash = dash.DummyMonitor(self.taskid)
@@ -214,10 +217,10 @@ class JobProvider(job.JobProvider):
                 if cms_config:
                     shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
 
-                logging.info("querying backend for {0}".format(label))
+                logger.info("querying backend for {0}".format(label))
                 dataset_info = self.__interface.get_info(cfg)
 
-                logging.info("registering {0} in database".format(label))
+                logger.info("registering {0} in database".format(label))
                 self.__store.register(cfg, dataset_info)
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
 
@@ -300,7 +303,7 @@ class JobProvider(job.JobProvider):
 
             self.__jobhandlers[id] = handler
 
-        logging.info("creating job(s) {0}".format(", ".join(ids)))
+        logger.info("creating job(s) {0}".format(", ".join(ids)))
 
         self.__dash.free()
 
@@ -334,7 +337,7 @@ class JobProvider(job.JobProvider):
                         files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime, outsize = pickle.load(f)
                 except (EOFError, IOError) as e:
                     failed = True
-                    logging.error("error processing {0}:\n{1}".format(task.tag, e))
+                    logger.error("error processing {0}:\n{1}".format(task.tag, e))
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
@@ -343,7 +346,7 @@ class JobProvider(job.JobProvider):
             else:
                 exit_code = task.return_status
 
-            logging.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
+            logger.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 
             times = [
                     task.submit_time / 1000000,

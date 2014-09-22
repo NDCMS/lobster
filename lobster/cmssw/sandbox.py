@@ -1,9 +1,12 @@
 import fnmatch
 import logging
+import multiprocessing
 import os
 import re
 import shutil
 import tarfile
+
+logger = multiprocessing.get_logger()
 
 def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn
@@ -24,7 +27,7 @@ def package(indir, outdir, blacklist=[], recycle=None):
         shutil.copy2(recycle, os.path.split(outdir)[0])
     else:
         outfile = (outdir if not outdir.endswith("/") else outdir[:-1]) + ".tar.bz2"
-        logging.info("packing sandbox into {0}".format(outfile))
+        logger.info("packing sandbox into {0}".format(outfile))
         tarball = tarfile.open(outfile, "w|bz2")
 
         # package bin, etc
@@ -49,7 +52,7 @@ def package(indir, outdir, blacklist=[], recycle=None):
                 continue
 
             outname = os.path.join(rtname, sandboxname)
-            logging.debug("packing {0}".format(subdir))
+            logger.debug("packing {0}".format(subdir))
 
             tarball.add(inname, outname, exclude=ignore_file)
 

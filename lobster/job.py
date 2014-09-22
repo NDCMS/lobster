@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import re
 import os
 import datetime
@@ -15,6 +16,8 @@ import time
 from functools import partial
 from hashlib import sha1
 from lobster import util
+
+logger = multiprocessing.get_logger()
 
 def apply_matching(config):
     defaults = config.get('task defaults', {})
@@ -154,7 +157,7 @@ class JobProvider(object):
             try:
                 return fct(*args, **kwargs)
             except sqlite3.OperationalError:
-                logging.critical("failed to perform SQL operation.  {0} attempts remaining.".format(attempts))
+                logger.critical("failed to perform SQL operation.  {0} attempts remaining.".format(attempts))
                 if attempts <= 0:
                     raise
                 time.sleep(1)
@@ -190,7 +193,7 @@ class SimpleJobProvider(JobProvider):
                     outname = self.outputformats[label].format(base=base, ext=ext[1:], id=self.__id)
                     outputs.append((os.path.join(sdir, outname), filename))
 
-                logging.info("creating {0}".format(self.__id))
+                logger.info("creating {0}".format(self.__id))
 
                 cmd = '{0} {1}'.format(self.cmds[label], ' '.join(self.args[label]))
                 tasks.append(('{0}_{1}'.format(label, self.__id), cmd, inputs, outputs))
@@ -204,7 +207,7 @@ class SimpleJobProvider(JobProvider):
             self.__running -= 1
             if task.return_status == 0:
                 self.__done += 1
-            logging.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(task.tag, task.return_status, self.__done, self.__max))
+            logger.info("job {0} returned with return code {1} [{2} jobs finished / {3} total ]".format(task.tag, task.return_status, self.__done, self.__max))
 
             if task.output:
                 label = task.tag[:task.tag.rfind('_')]

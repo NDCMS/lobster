@@ -93,10 +93,13 @@ def run(args):
             config['max megabytes'] = args.max_megabytes
             config['datasets to merge'] = args.datasets
             job_src = cmssw.MergeProvider(config)
+            actions = cmssw.Actions(config)
         elif cmsjob:
             job_src = cmssw.JobProvider(config)
+            actions = cmssw.Actions(config)
         else:
             job_src = job.SimpleJobProvider(config)
+            actions = None
 
         logging.info("using wq from {0}".format(wq.__file__))
 
@@ -242,5 +245,11 @@ def run(args):
                 logging.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
                 abort_active = True
                 queue.activate_fast_abort(abort_multiplier)
+
+            # recurring actions are triggered here
+            if actions:
+                actions.take()
         if jobits_left == 0:
             logging.info("no more work left to do")
+        if actions:
+            actions.cleanup()

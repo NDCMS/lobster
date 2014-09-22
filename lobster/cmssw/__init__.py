@@ -1,3 +1,4 @@
+from actions import Actions
 from job import JobProvider
 from jobit import JobitStore
 from merge import MergeProvider

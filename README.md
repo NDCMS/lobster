@@ -73,6 +73,9 @@ CMS):
 
         lobster plot --outdir <your output directory> <your config/working directory>
 
+   If you have set a `plotdir` in your configuration (at the top level),
+   lobster will update plots every 15 minutes by default.
+
 8. Publishing
 
         lobster publish <labels> <your config/working directory>

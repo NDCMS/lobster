@@ -1,5 +1,6 @@
 id: <your id here>
 workdir: <your working directory here>
+plotdir: <your plotting directory here>
 stageout location: <your stageout directory here>
 
 use dashboard: true

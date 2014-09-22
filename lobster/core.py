@@ -85,7 +85,7 @@ def run(args):
             logging.getLogger('').addHandler(console)
 
         config['configdir'] = args.configdir
-        config['filepath'] = args.configfile
+        config['filename'] = args.configfile
         config['startdir'] = args.startdir
         if args.merge:
             if args.server:

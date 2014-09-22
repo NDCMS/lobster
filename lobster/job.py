@@ -91,7 +91,7 @@ class JobProvider(object):
                         # TODO warn about non-empty stageout directories
                         pass
 
-                shutil.copy(self.config['filepath'], os.path.join(self.workdir, 'lobster_config.yaml'))
+                shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):

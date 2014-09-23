@@ -423,12 +423,20 @@ class JobitStore:
         return cur.fetchone()
 
     def reset_merging(self):
+        """Set the merging job settings back to their defaults.
+
+        Called by the MergeProvider constructor.
+        """
         self.db.execute("update merge_jobs set status=? where status=?", (FAILED, MERGING))
         self.db.execute("update jobs set merge_status=?, merging_job=?", (INITIALIZED, None))
 
         self.db.commit()
 
     def update_merged(self, jobs):
+        """Update the database for merge jobs.
+
+        Creates new merging jobs for failed ones.
+        """
         success_update = [(merging_job, status, None, merging_job) for (merging_job, status, size) in jobs if status == SUCCESSFUL]
         merge_jobs_update = [(status, size, merging_job) for (merging_job, status, size) in jobs]
         fail_update = [merging_job for (merging_job, status, size) in jobs if status == FAILED]
@@ -448,6 +456,17 @@ class JobitStore:
         return cur.fetchone()[0]
 
     def register_unmerged(self, datasets, max_megabytes):
+        """Collect and prepare information about unmerged jobs.
+
+        Adds up job output sizes up to the size specified by max_megabytes.
+        For each set of jobs added up, creates an entry in merge_jobs,
+        whose id is used for merging_job for these jobs.
+
+        Merging jobs never show up in the jobs table, they are always
+        queried in some form of join.
+
+        Called by the MergeProvider constructor.
+        """
         max_bytes = max_megabytes * 1000000
 
         select = "select label, id from datasets"
@@ -512,6 +531,12 @@ class JobitStore:
         self.db.commit()
 
     def pop_unmerged_jobs(self, max=1):
+        """Create merging jobs.
+
+        Selects id and merged_job id from the jobs table for each
+        merging_job id selected (limited to max entries), and updates their
+        status accordingly.
+        """
         res = []
         for id, dataset in self.db.execute("""select distinct merging_job,
             label

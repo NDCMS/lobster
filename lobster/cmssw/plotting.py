@@ -13,6 +13,7 @@ import os
 import pytz
 import shutil
 import sqlite3
+import time
 import yaml
 import re
 import string
@@ -731,22 +732,22 @@ class Plotter(object):
                     continue
 
                 ratio = cpu * 1. / (end - start)
-                time = 0
+                wall = 0
                 for i in range(len(edges) - 1):
                     if start >= edges[i] and end < edges[i + 1]:
                         cputime[i] += (end - start) * ratio
-                        time += (end - start) * ratio
+                        wall += (end - start) * ratio
                     elif start < edges[i] and end >= edges[i + 1]:
                         cputime[i] += (edges[i + 1] - edges[i]) * ratio
-                        time += (edges[i + 1] - edges[i]) * ratio
+                        wall += (edges[i + 1] - edges[i]) * ratio
                     elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
                         cputime[i] += (end - edges[i]) * ratio
-                        time += (end - edges[i]) * ratio
+                        wall += (end - edges[i]) * ratio
                     elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
                         cputime[i] += (edges[i + 1] - start) * ratio
-                        time += (edges[i + 1] - start) * ratio
-                if abs(time - cpu)/cpu > 0.1:
-                    logger.debug("time {0}: CPU {1}, {2} - {3}").format(time, cpu, start, end)
+                        wall += (edges[i + 1] - start) * ratio
+                if abs(wall - cpu)/cpu > 0.1:
+                    logger.debug("time {0}: CPU {1}, {2} - {3}").format(wall, cpu, start, end)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
 
@@ -936,6 +937,7 @@ class Plotter(object):
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
             f.write(template.render(
                 id=self.__id,
+                plot_time=time.time(),
                 plot_starttime=self.__xmin,
                 plot_endtime=self.__xmax,
                 run_starttime=self.__total_xmin,

@@ -597,7 +597,7 @@ class JobitStore:
 
     def update_missing(self, jobs):
         unmerged = [str(job) for job, merged_job in jobs if not merged_job]
-        merged = [str(merge_job) for job, merged_job in jobs if merged_job]
+        merged = [str(merged_job) for job, merged_job in jobs if merged_job]
 
         for job, dataset in self.db.execute("""select jobs.id,
             datasets.label

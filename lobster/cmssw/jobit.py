@@ -544,8 +544,7 @@ class JobitStore:
             join datasets
             on datasets.id=jobs.dataset
             where merge_status=?
-            or merge_status=?
-            limit ?""", (ASSIGNED, FAILED, max)).fetchall():
+            limit ?""", (ASSIGNED, max)).fetchall():
 
             cur = self.db.execute("select id, merged_job from jobs where merging_job=?", (id,))
             res += [(id, dataset, cur.fetchall())]

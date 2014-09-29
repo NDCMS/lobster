@@ -31,7 +31,7 @@ class JobHandler(object):
     def __init__(self, id, dataset, files, jobits, jdir, cmssw_job, empty_source):
         self.__id = id
         self.__dataset = dataset
-        self.__files = [file for id, file in files if file]
+        self.__files = [id, file for id, file in files if file]
         self.__use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
         self.__file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in jobits]) or self.__use_local
         self.__jobits = jobits

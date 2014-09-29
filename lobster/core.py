@@ -11,7 +11,7 @@ import yaml
 import re
 
 from functools import partial
-from lobster import util, cmssw
+from lobster import util, cmssw, job
 
 from pkg_resources import get_distribution
 

@@ -23,7 +23,9 @@ setup(
         'jinja2',
         'nose',
         'pyyaml',
-        'python-daemon'
+        'python-daemon',
+        'python-dateutil',
+        'pytz'
     ],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']

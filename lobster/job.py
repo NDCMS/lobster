@@ -103,8 +103,6 @@ class JobProvider(object):
         for exe in ('parrot_run', 'chirp_put', 'chirp_get'):
             shutil.copy(util.which(exe), self.parrot_bin)
             subprocess.check_call(["strip", os.path.join(self.parrot_bin, exe)])
-            for lib in util.ldd(exe):
-                shutil.copy(lib, self.parrot_lib)
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)

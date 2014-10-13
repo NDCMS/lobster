@@ -66,6 +66,14 @@ def verify_string(s):
     return s
 
 def ldd(name):
+    """Find libcrypto and libssl that `name` is linked to.
+
+    CMS and grid directories are excluded from the `LD_LIBRARY_PATH` while
+    looking for libraries.  This is not guaranteed to work with ldd.
+
+    Was used to ship compatibility libcrypto and libssl from RH5 to RH6
+    systems, which don't install these versions by default.
+    """
     libs = []
 
     env = dict(os.environ)

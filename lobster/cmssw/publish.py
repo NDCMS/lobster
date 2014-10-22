@@ -233,8 +233,6 @@ class BlockDump(object):
                      'logical_file_name': LFN,
                      'file_size': int(size),
                      'last_modification_date': int(os.path.getmtime(PFN))}
-#                     'md5': 'NOTSET', #TODO EVENTUALLY
-#                     'auto_cross_section':  0.0 #TODO EVENTUALLY
 
         self.data['files'].append(file_dict)
 
@@ -251,14 +249,21 @@ class BlockDump(object):
                            self.publish_label+'_'+self.publish_hash,
                            os.path.basename(PFN))
 
+        return LFN
+
+    def get_matched_PFN(self, PFN, LFN):
         matched = self.catalog.matchLFN('direct', LFN)
         matched_dir = os.path.dirname(matched)
-        if PFN != matched and not os.path.isfile(matched):
-            if not os.path.isdir(matched_dir):
-                os.makedirs(matched_dir)
-            shutil.move(PFN, matched_dir)
+        if os.path.isfile(PFN):
+            if not os.path.isfile(matched):
+                if not os.path.isdir(matched_dir):
+                    os.makedirs(matched_dir)
+                shutil.move(PFN, matched_dir)
+        else:
+            if not os.path.isfile(matched):
+                return None
 
-        return LFN
+        return matched
 
     def get_publish_update(self):
         update = [(self.data['block']['block_name'], job, merge_job) for job, merge_job in self.jobs]
@@ -380,16 +385,18 @@ def publish(args):
                     f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
                     report = readJobReport(f)[0]
                     PFN = os.path.join(stageout_path, report.files[0]['PFN'].replace('.root', '_%s.root' % tag))
-                    if not os.path.isfile(PFN):
-                        logging.warn('could not find expected output for %s: it will be marked as failed' % resolve_joblist([(job, merged_job)]))
+                    LFN = block.get_LFN(PFN)
+                    matched_PFN = block.get_matched_PFN(PFN, LFN)
+                    if not matched_PFN:
+                        logging.warn('could not find expected output for %s' % resolve_joblist([(job, merged_job)]))
                         missing += [(job, merged_job)]
                     else:
-                        LFN = block.get_LFN(PFN)
                         logging.info('adding %s to block' % LFN)
-                        block.add_file_parents(LFN, report)
                         block.add_file_config(LFN)
                         block.add_file(LFN, report.files[0], job, merged_job)
                         block.add_dataset_config()
+                        if args.migrate_parents:
+                            block.add_file_parents(LFN, report)
 
                 if args.migrate_parents:
                     parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
@@ -417,6 +424,6 @@ def publish(args):
                 logging.info('json file of published runs and lumis saved to %s' % json)
 
             if len(missing) > 0:
-                template = "the following have been marked as failed because their output could not be found: {0}"
+                template = "the following have not been published because their output could not be found: {0}"
                 logging.warning(template.format(resolve_joblist(missing)))
 

@@ -94,12 +94,27 @@ class MergeHandler(object):
         return self.__tag
 
     def get_job_update(self, failed, outsize):
-        if failed:
-            status = jobit.FAILED
-        else:
-            status = jobit.SUCCESSFUL
+        """Get update for database.
 
-        return [(self.__id, status, outsize)]
+        Jobs are chosen for merging if their status is successful.
+        If the job created to merge a group of successful jobs fails,
+        its status is set to failed, while the status of the jobs it
+        was trying to merge are returned to successful, so that another merging
+        attempt can be made.  Otherwise, the status of both are set to merged.
+
+        """
+        if failed:
+            merge_job_update = [(jobit.FAILED, outsize, self.__id)]
+            process_job_success_update = []
+            process_job_fail_update = [(jobit.SUCCESSFUL, self.__id, job) for job, merge_job in self.__jobs]
+            jobit_update = [(jobit.SUCCESSFUL, job) for job, merge_job in self.__jobs]
+        else:
+            merge_job_update = [(jobit.MERGED, outsize, self.__id)]
+            process_job_success_update = [(jobit.MERGED, self.__id, job) for job, merge_job in self.__jobs]
+            process_job_fail_update = []
+            jobit_update = [(jobit.MERGED, job) for job, merge_job in self.__jobs]
+
+        return [(merge_job_update, process_job_success_update, process_job_fail_update, jobit_update)]
 
     def get_job_info(self):
         args = ['output=' + self.__outname]
@@ -159,9 +174,7 @@ class MergeProvider(job.JobProvider):
         self.__mergehandlers = {}
 
         self.__store = jobit.JobitStore(self.config)
-        self.__store.reset_merging()
-        logger.info("registering unmerged jobs")
-        self.__store.register_unmerged(config.get('datasets to merge'), config.get('max megabytes', 3500))
+        self.__store.reset_jobits()
 
         self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x)) for x in
                                  ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',
@@ -194,9 +207,10 @@ class MergeProvider(job.JobProvider):
         else:
             jobdir = self.get_jobdir(merged_job, label, 'merged')
         return os.path.join(jobdir, 'report.xml.gz')
+        self.__store.register_unmerged(config.get('datasets to merge'), config.get('max megabytes', 3500))
 
     def obtain(self, num=1):
-        unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (num,), {})
+        unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('max megabytes', 3500), num), {})
         if not unmerged_jobs or len(unmerged_jobs) == 0:
             return None
 
@@ -256,18 +270,18 @@ class MergeProvider(job.JobProvider):
 
                     self.__mergehandlers[handler.tag] = handler
 
-                    logger.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(handler.jobs)))
+                    logger.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(sorted(handler.jobs))))
 
                 if len(missing) > 0:
-                    self.retry(self.__store.update_missing, (missing,), {})
-                    self.__missing += missing
                     template = "the following have been marked as failed because their output could not be found: {0}"
                     logger.warning(template.format(resolve_joblist(missing)))
+                    self.retry(self.__store.update_missing, (missing,), {})
+                    self.__missing += missing
 
         return tasks
 
     def release(self, tasks):
-        jobs = []
+        jobs = defaultdict(list)
         for task in tasks:
             failed = task.return_status != 0
 
@@ -300,7 +314,7 @@ class MergeProvider(job.JobProvider):
             else:
                 exit_code = task.return_status
 
-            jobs += handler.get_job_update(failed, outsize)
+            jobs[handler.dataset] += handler.get_job_update(failed, outsize)
             if failed:
                 self.move_jobdir(handler.id, handler.dataset, 'merge_failed', 'merging')
             else:

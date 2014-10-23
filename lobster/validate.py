@@ -1,6 +1,7 @@
 import os
 import logging
 import yaml
+import multiprocessing
 
 from lobster import cmssw
 from lobster.job import apply_matching
@@ -9,16 +10,12 @@ def validate(args):
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
 
-    logging.basicConfig(
-            datefmt="%Y-%m-%d %H:%M:%S",
-            format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
-            level=config.get('log level', 2) * 10,
-            filename=os.path.join(config['workdir'], 'validate.log'))
+    logger = multiprocessing.get_logger()
 
     console = logging.StreamHandler()
-    console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
-    console.setLevel(logging.INFO)
-    logging.getLogger('').addHandler(console)
+    console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+    logger.addHandler(console)
+    logger.setLevel(logging.INFO)
 
     store = cmssw.jobit.JobitStore(config)
     config = apply_matching(config)

@@ -569,24 +569,41 @@ class JobitStore:
 
         self.db.commit()
 
-    def finished_jobs(self, label):
+    def success_jobs(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
-        cur = self.db.execute("""select id, merge_job
+        cur = self.db.execute("""select id, type
             from jobs
-            where status=2
+            where status in (2, 8)
             and dataset=?
             and type=?
             and merge_job is null
             union
-            select id, merge_job
+            select id, type
             from jobs
-            where status=2
+            where status in (2, 8)
+            and dataset=?
+            and type=?""", (dset_id, PROCESS, dset_id, MERGE))
+
+        return cur
+
+    def fail_jobs(self, label):
+        dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
+
+        cur = self.db.execute("""select id, type
+            from jobs
+            where status in (3, 4, 5)
             and dataset=?
             and type=?
-            group by merge_job""", (dset_id, PROCESS, dset_id, PROCESS))
+            and merge_job is null
+            union
+            select id, type
+            from jobs
+            where status in (3, 4, 5)
+            and dataset=?
+            and type=?""", (dset_id, PROCESS, dset_id, MERGE))
 
-        return cur.fetchall()
+        return cur
 
     def update_pset_hash(self, pset_hash, dataset):
         self.db.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))

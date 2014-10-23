@@ -29,9 +29,7 @@ def boil():
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
 
-    parser_validate = subparsers.add_parser('validate', help='validate job output')
-    parser_validate.add_argument('--cleanup', action='store_true', default=False,
-            help='remove output files for failed jobs')
+    parser_validate = subparsers.add_parser('validate', help='validate job output and remove output files for failed jobs')
     parser_validate.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
             help='only print (do not remove) files to be cleaned')
     parser_validate.set_defaults(func=validate)

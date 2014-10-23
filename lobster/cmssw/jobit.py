@@ -52,8 +52,8 @@ class JobitStore:
             masked_lumis int default 0,
             jobits_running int default 0,
             jobits_done int default 0,
-            jobits_unmerged int default 0,
             jobits_left int default 0,
+            unmerged int default 0,
             events int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
@@ -319,7 +319,9 @@ class JobitStore:
                 db.execute("update files_{0} set jobits_running=0".format(label))
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
                 db.execute("update jobits_{0} set status=2 where status=7".format(label))
+
                 self.update_dataset_stats(label)
+
         return ids
 
     def update_jobits(self, jobinfos):
@@ -402,7 +404,6 @@ class JobitStore:
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
                 jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
-                jobits_unmerged=(select count(*) from jobits_{0} where status=2),
                 jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8))
             where label=?""".format(label), (label,))
 
@@ -449,7 +450,7 @@ class JobitStore:
         self.db.commit()
 
     def unfinished_merging(self):
-        cur = self.db.execute("select sum(jobits_unmerged + jobits_running) from datasets")
+        cur = self.db.execute("select count(*) from jobs where status in (2, 7)")
 
         return cur.fetchone()[0]
 
@@ -462,9 +463,16 @@ class JobitStore:
         creates a new entry of type MERGE in the job table.
 
         """
+
         max_bytes = max_megabytes * 1000000
 
-        rows = self.db.execute("select label, id from datasets where jobits_unmerged > 0").fetchall()
+        rows = self.db.execute("""select distinct
+            datasets.label,
+            datasets.id
+            from jobs, datasets
+            where jobs.status=2
+            and jobs.dataset=datasets.id""").fetchall()
+
         if len(rows) == 0:
             return None
 
@@ -472,18 +480,19 @@ class JobitStore:
 
         merge_groups = []
         rows = self.db.execute("""
-            select id, merge_job, bytes_output
-            from jobs
-            where status=?
-            and dataset=?
-            and merge_job is null
-            union
-            select id, merge_job, bytes_output
+            select id, type, bytes_output
             from jobs
             where status=?
             and dataset=?
             and type=?
-            order by id""", (SUCCESSFUL, dset_id, SUCCESSFUL, dset_id, MERGE))
+            and merge_job is null
+            union
+            select id, type, bytes_output
+            from jobs
+            where status=?
+            and dataset=?
+            and type=?
+            order by id""", (SUCCESSFUL, dset_id, PROCESS, SUCCESSFUL, dset_id, MERGE))
 
         # FIXME this approach does not make any attempt to reduce mixing
         # of input files-- do we need to map input to output better?
@@ -498,17 +507,18 @@ class JobitStore:
 
             tails = []
             size = 0
-            for job, merge_job, bytes_output in rows:
+
+            for job, job_type, bytes_output in rows:
                 if (size + bytes_output) < max_bytes:
-                    chunk += [(job, merge_job)]
+                    chunk += [(job, job_type)]
                     size += bytes_output
                 else:
                     if len(chunk) > 1:
                         merge_groups += [chunk]
-                        chunk = [(job, merge_job)]
+                        chunk = [(job, job_type)]
                         size = bytes_output
                     else:
-                        tails += [(job, merge_job)]
+                        tails += [(job, job_type, bytes_output)]
 
             random.shuffle(tails)
             rows = tails
@@ -516,25 +526,22 @@ class JobitStore:
         if len(chunk) > 1:
             merge_groups += [chunk]
         elif len(chunk) == 1:
-            tails += [(job, merge_job, 0) for job, merge_job in chunk]
+            tails += [(job, job_type, 0) for job, job_type in chunk]
 
         res = []
         merge_update = []
-        remerge_update = []
         jobit_update = []
-        tail_update = [(job,) for job, merge_job, bytes_output in tails]
+        tail_update = [(job,) for job, job_type, bytes_output in tails]
         for chunk in merge_groups:
             merge_id = self.db.execute("""
                 insert into
                 jobs(dataset, status, type)
                 values (?, ?, ?)""", (dset_id, MERGING, MERGE)).lastrowid
             res += [(merge_id, dataset, chunk)]
-            merge_update += [(job,) for job, merge_job in chunk if not merge_job]
-            remerge_update += [(merge_job,) for job, merge_job in chunk if merge_job]
-            jobit_update += [(job,) for job, merge_job in chunk]
+            merge_update += [(job,) for job, job_type in chunk]
+            jobit_update += [(job,) for job, job_type in chunk]
 
         self.db.executemany("update jobs set status=7 where id=?", merge_update)
-        self.db.executemany("update jobs set status=7 where merge_job=?", remerge_update)
         self.db.executemany("update jobs set status=8 where id=?", tail_update)
 
         self.db.executemany("update jobits_{0} set status=7 where job=?".format(dataset), jobit_update)
@@ -615,7 +622,7 @@ class JobitStore:
             datasets.label
             from jobs, datasets
             where jobs.id in ({0})
-            and jobs.dataset=datasets.id""".format(", ".join(jobs))):
+            and jobs.dataset=datasets.id""".format(", ".join([str(j) for j, t in jobs]))):
             self.db.execute("update jobs set status=3 where id=?", (job,))
             self.db.execute("update jobits_{0} set status=3 where job=?".format(dataset), (job,))
 

@@ -100,13 +100,15 @@ class MergeHandler(object):
             success_update = []
             fail_update = [(jobit.SUCCESSFUL, self.__id, job) for job, job_type in self.__jobs]
             jobit_update = [(jobit.SUCCESSFUL, job) for job, job_type in self.__jobs]
+            datasets_update = 0
         else:
             merge_job_update = [(jobit.MERGED, outsize, self.__id)]
             success_update = [(jobit.MERGED, self.__id, job) for job, job_type in self.__jobs]
             fail_update = []
             jobit_update = [(jobit.MERGED, job) for job, job_type in self.__jobs]
+            datasets_update = len(self.__jobs) + 1
 
-        return [(merge_job_update, success_update, fail_update, jobit_update)]
+        return [(merge_job_update, success_update, fail_update, jobit_update, datasets_update)]
 
     def get_job_info(self):
         args = ['output=' + self.__outname]

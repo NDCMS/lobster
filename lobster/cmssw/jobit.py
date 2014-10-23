@@ -315,12 +315,20 @@ class JobitStore:
             db.execute("update jobs set status=2 where status=7 and type=0")
             db.execute("update jobs set status=4 where status=7 and type=1")
             db.execute("update jobs set status=2 where status=8 and type=1")
-            for (label,) in db.execute("select label from datasets"):
+            for (label, dset_id) in db.execute("select label, id from datasets"):
                 db.execute("update files_{0} set jobits_running=0".format(label))
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
                 db.execute("update jobits_{0} set status=2 where status=7".format(label))
-
+                db.execute("""
+                    update datasets set unmerged=(
+                        select count(*)
+                        from jobs
+                        where status=2
+                        and dataset=?)
+                    where label=?""", (dset_id, label))
                 self.update_dataset_stats(label)
+
+        db.commit()
 
         return ids
 
@@ -439,8 +447,10 @@ class JobitStore:
             process_job_success_update += sum([x[1] for x in updates], [])
             process_job_fail_update += sum([x[2] for x in updates], [])
             jobit_update = sum([x[3] for x in updates], [])
+            dataset_update = sum([x[4] for x in updates])
 
             self.db.executemany("update jobits_{0} set status=? where job=?".format(dset), jobit_update)
+            self.db.execute("update datasets set unmerged=(unmerged + ?) where label=?", (dataset_update, dset))
             self.update_dataset_stats(dset)
 
         self.db.executemany("update jobs set status=?, bytes_output=? where id=?", merge_job_update)
@@ -466,12 +476,7 @@ class JobitStore:
 
         max_bytes = max_megabytes * 1000000
 
-        rows = self.db.execute("""select distinct
-            datasets.label,
-            datasets.id
-            from jobs, datasets
-            where jobs.status=2
-            and jobs.dataset=datasets.id""").fetchall()
+        rows = self.db.execute("select label, id from datasets where unmerged > 0").fetchall()
 
         if len(rows) == 0:
             return None
@@ -509,6 +514,7 @@ class JobitStore:
             size = 0
 
             for job, job_type, bytes_output in rows:
+                print 'job type bytes ', job, job_type, bytes_output
                 if (size + bytes_output) < max_bytes:
                     chunk += [(job, job_type)]
                     size += bytes_output
@@ -546,6 +552,8 @@ class JobitStore:
 
         self.db.executemany("update jobits_{0} set status=7 where job=?".format(dataset), jobit_update)
         self.db.executemany("update jobits_{0} set status=8 where job=?".format(dataset), tail_update)
+        self.db.execute("update datasets set unmerged=(unmerged - ?) where label=?", (len(tail_update), dataset))
+        self.db.execute("update datasets set unmerged=(unmerged + ?) where label=?", (len(res), dataset))
         self.update_dataset_stats(dataset)
 
         self.db.commit()

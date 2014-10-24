@@ -6,6 +6,8 @@
     <calib-data>
      <frontier-connect>
        <proxy url="http://ndcms.crc.nd.edu:3128"/>
+       <backupproxy url="http://cmsbproxy.fnal.gov:3128"/>
+       <backupproxy url="http://cmsbpfrontier.cern.ch:3128"/>
        <server url="http://cmsfrontier.cern.ch:8000/FrontierInt"/>
        <server url="http://cmsfrontier1.cern.ch:8000/FrontierInt"/>
        <server url="http://cmsfrontier2.cern.ch:8000/FrontierInt"/>

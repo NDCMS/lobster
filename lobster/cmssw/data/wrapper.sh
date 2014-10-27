@@ -75,6 +75,7 @@ else
 		# passed to the job (e.g. via condor)
 		export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
 		export PARROT_PATH=${PARROT_PATH:-./bin}
+                export PARROT_CVMFS_REPO='*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*'
 
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_CACHE=$TMPDIR

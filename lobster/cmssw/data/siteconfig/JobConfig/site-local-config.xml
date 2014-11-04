@@ -12,6 +12,7 @@
        <server url="http://cmsfrontier1.cern.ch:8000/FrontierInt"/>
        <server url="http://cmsfrontier2.cern.ch:8000/FrontierInt"/>
        <server url="http://cmsfrontier3.cern.ch:8000/FrontierInt"/>
+       <clientcachemaxresult size="4096"/>
      </frontier-connect>
     </calib-data>
  </site>

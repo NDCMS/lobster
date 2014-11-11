@@ -17,24 +17,16 @@ import dash
 
 logger = multiprocessing.get_logger()
 
-def resolve_name(job, merged_job, name, name_format):
+def resolve_name(job, job_type, name, name_format):
     base, ext = os.path.splitext(name)
-    id = str(job) if not merged_job else 'merged_{0}'.format(merged_job)
+    id = str(job) if job_type == jobit.PROCESS else 'merged_{0}'.format(job)
 
     return name_format.format(base=base, ext=ext[1:], id=id)
 
 def resolve_joblist(jobs):
     conjugation = lambda x: 's' if len(x) > 1 else ''
 
-    unmerged = [str(job) for job, merged_job in jobs if not merged_job]
-    merged = [str(merged_job) for job, merged_job in jobs if merged_job]
-
-    res = []
-    for template, jobs in [('job{0} {1}', unmerged), ('merged job{0} {1}', merged)]:
-        if len(jobs) > 0:
-            res += [template.format(conjugation(jobs), ', '.join(jobs))]
-
-    return ' and '.join(res)
+    return 'job{0} {1}'.format(conjugation(jobs), ', '.join([str(j) for j, t in jobs]))
 
 class MergeHandler(object):
     def __init__(self, id, dataset, chirp, jobdir, outname, num_outputs, outname_index, sdir):
@@ -94,12 +86,29 @@ class MergeHandler(object):
         return self.__tag
 
     def get_job_update(self, failed, outsize):
-        if failed:
-            status = jobit.FAILED
-        else:
-            status = jobit.SUCCESSFUL
+        """Get update for database.
 
-        return [(self.__id, status, outsize)]
+        Jobs are chosen for merging if their status is successful.
+        If the job created to merge a group of successful jobs fails,
+        its status is set to failed, while the status of the jobs it
+        was trying to merge are returned to successful, so that another merging
+        attempt can be made.  Otherwise, the status of both are set to merged.
+
+        """
+        if failed:
+            merge_job_update = [(jobit.FAILED, outsize, self.__id)]
+            success_update = []
+            fail_update = [(jobit.SUCCESSFUL, self.__id, job) for job, job_type in self.__jobs]
+            jobit_update = [(jobit.SUCCESSFUL, job) for job, job_type in self.__jobs]
+            datasets_update = 0
+        else:
+            merge_job_update = [(jobit.MERGED, outsize, self.__id)]
+            success_update = [(jobit.MERGED, self.__id, job) for job, job_type in self.__jobs]
+            fail_update = []
+            jobit_update = [(jobit.MERGED, job) for job, job_type in self.__jobs]
+            datasets_update = len(self.__jobs) + 1
+
+        return [(merge_job_update, success_update, fail_update, jobit_update, datasets_update)]
 
     def get_job_info(self):
         args = ['output=' + self.__outname]
@@ -159,9 +168,7 @@ class MergeProvider(job.JobProvider):
         self.__mergehandlers = {}
 
         self.__store = jobit.JobitStore(self.config)
-        self.__store.reset_merging()
-        logger.info("registering unmerged jobs")
-        self.__store.register_unmerged(config.get('datasets to merge'), config.get('max megabytes', 3500))
+        self.__store.reset_jobits()
 
         self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x)) for x in
                                  ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',
@@ -188,15 +195,13 @@ class MergeProvider(job.JobProvider):
         if not util.checkpoint(self.workdir, 'sandbox'):
             raise NotImplementedError
 
-    def get_report(self, label, job, merged_job):
-        if not merged_job:
-            jobdir = self.get_jobdir(job, label, 'successful')
-        else:
-            jobdir = self.get_jobdir(merged_job, label, 'merged')
+    def get_report(self, label, job):
+        jobdir = self.get_jobdir(job, label, 'successful')
+
         return os.path.join(jobdir, 'report.xml.gz')
 
     def obtain(self, num=1):
-        unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (num,), {})
+        unmerged_jobs = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('max megabytes', 3500), num), {})
         if not unmerged_jobs or len(unmerged_jobs) == 0:
             return None
 
@@ -232,17 +237,17 @@ class MergeProvider(job.JobProvider):
                 if 'X509_USER_PROXY' in os.environ:
                     inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
 
-                for job, merged_job in jobs:
-                    report = self.get_report(dset, job, merged_job)
-                    input = resolve_name(job, merged_job, local_outname, self.outputformats[dset])
+                for job, job_type in jobs:
+                    report = self.get_report(dset, job)
+                    input = resolve_name(job, job_type, local_outname, self.outputformats[dset])
                     if handler.validate(report, os.path.join(sdir, input)):
                         handler.reports.add(report)
                         handler.inputs.add(os.path.join(os.path.basename(sdir), input))
-                        handler.jobs.add((job, merged_job))
+                        handler.jobs.add((job, job_type))
                         if not self.__chirp:
                             inputs.append((os.path.join(sdir, input), input))
                     else:
-                        missing += [(job, merged_job)]
+                        missing += [(job, job_type)]
 
                 if len(handler.jobs) > 1:
                     args, files = handler.get_job_info()
@@ -256,18 +261,18 @@ class MergeProvider(job.JobProvider):
 
                     self.__mergehandlers[handler.tag] = handler
 
-                    logger.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(handler.jobs)))
+                    logger.info("creating task {0} to merge {1}".format(handler.tag, resolve_joblist(sorted(jobs))))
 
                 if len(missing) > 0:
-                    self.retry(self.__store.update_missing, (missing,), {})
-                    self.__missing += missing
                     template = "the following have been marked as failed because their output could not be found: {0}"
                     logger.warning(template.format(resolve_joblist(missing)))
+                    self.retry(self.__store.update_missing, (missing,), {})
+                    self.__missing += missing
 
         return tasks
 
     def release(self, tasks):
-        jobs = []
+        jobs = defaultdict(list)
         for task in tasks:
             failed = task.return_status != 0
 
@@ -300,13 +305,18 @@ class MergeProvider(job.JobProvider):
             else:
                 exit_code = task.return_status
 
-            jobs += handler.get_job_update(failed, outsize)
+            jobs[handler.dataset] += handler.get_job_update(failed, outsize)
+            if not failed:
+                try:
+                    handler.merge_reports()
+                    handler.cleanup()
+                    self.move_jobdir(handler.id, handler.dataset, 'successful', 'merging')
+                except Exception as e:
+                    logger.critical('error processing {0}:\n{1}'.format(handler.id, e))
+                    failed = True
+
             if failed:
-                self.move_jobdir(handler.id, handler.dataset, 'merge_failed', 'merging')
-            else:
-                handler.merge_reports()
-                handler.cleanup()
-                self.move_jobdir(handler.id, handler.dataset, 'merged', 'merging')
+                self.move_jobdir(handler.id, handler.dataset, 'failed', 'merging')
 
             logger.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 

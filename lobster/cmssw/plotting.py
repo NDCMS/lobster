@@ -1,16 +1,12 @@
 # vim: fileencoding=utf-8
 
-from os.path import expanduser
-from collections import defaultdict
 from datetime import datetime
 import glob
 import gzip
 import jinja2
 import logging
-import math
 import multiprocessing
 import os
-import pytz
 import shutil
 import sqlite3
 import time

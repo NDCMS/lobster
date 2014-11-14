@@ -9,7 +9,6 @@ import yaml
 import shutil
 import daemon
 import logging
-import signal
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError

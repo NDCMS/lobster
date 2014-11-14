@@ -2,7 +2,6 @@
 
 from datetime import datetime
 import gzip
-import json
 import os
 import pickle
 import shutil
@@ -12,7 +11,6 @@ import sys
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
 from DashboardAPI import apmonSend, apmonFree
-from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 fragment = """import FWCore.ParameterSet.Config as cms
@@ -168,6 +166,8 @@ for localname, remotename in stageout:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
                                       "-a",
                                       "globus",
+                                      "-d",
+                                      "all",
                                       localname,
                                       server,
                                       remotename])

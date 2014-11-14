@@ -1,14 +1,10 @@
 from collections import defaultdict
-from functools import partial
 import gzip
 import imp
-import logging
 import multiprocessing
 import os
 import pickle
-import re
 import shutil
-import time
 import sys
 
 from lobster import job, util

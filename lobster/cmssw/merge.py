@@ -1,12 +1,9 @@
 from collections import defaultdict
-import os
-import subprocess
-import yaml
-import multiprocessing
 import gzip
 import jobit
+import multiprocessing
+import os
 import pickle
-import logging
 
 from IMProv.IMProvDoc import IMProvDoc
 from ProdCommon.FwkJobRep.ReportParser import readJobReport

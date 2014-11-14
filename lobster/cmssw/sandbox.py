@@ -1,8 +1,6 @@
 import fnmatch
-import logging
 import multiprocessing
 import os
-import re
 import shutil
 import tarfile
 

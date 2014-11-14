@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 import re
 import os
@@ -7,8 +6,6 @@ import itertools
 import shutil
 import glob
 import gzip
-import pickle
-import yaml
 import sqlite3
 import subprocess
 import time

@@ -50,10 +50,10 @@ def run(args):
                 try:
                     cred.ManualRenewCredential()
                 except Exception as e:
-                    logger.critical("could not renew proxy")
+                    print("could not renew proxy")
                     sys.exit(1)
             else:
-                logger.critical("please renew your proxy")
+                print("please renew your proxy")
                 sys.exit(1)
 
     mode = 'merge' if args.merge else 'process'

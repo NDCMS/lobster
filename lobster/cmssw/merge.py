@@ -1,9 +1,9 @@
 from collections import defaultdict
 import gzip
 import jobit
+import json
 import multiprocessing
 import os
-import pickle
 
 from IMProv.IMProvDoc import IMProvDoc
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
@@ -226,7 +226,7 @@ class MergeProvider(job.JobProvider):
                                        sdir)
 
                 stageout = [(local_outname, os.path.join(dset, remote_outname))]
-                outputs = [(os.path.join(jdir, '{0}{1}'.format(handler.base, f)), f) for f in ['cmssw.log.gz', 'report.pkl']]
+                outputs = [(os.path.join(jdir, '{0}{1}'.format(handler.base, f)), f) for f in ['cmssw.log.gz', 'report.json']]
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, remote_outname), local_outname))
 
@@ -248,11 +248,25 @@ class MergeProvider(job.JobProvider):
 
                 if len(handler.jobs) > 1:
                     args, files = handler.get_job_info()
-                    with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                        pickle.dump((args, files, None, stageout, self.__chirp, self.taskid, monitorid, syncid, True), f, pickle.HIGHEST_PROTOCOL)
-                    inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+                    with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
+                        json.dump({
+                            'mask': {
+                                'files': files,
+                                'lumis': None
+                            },
+                            'monitoring': {
+                                'monitorid': monitorid,
+                                'syncid': syncid,
+                                'taskid': taskid
+                            },
+                            'arguments': args,
+                            'chirp server': server,
+                            'output files': stageout,
+                            'want summary': want_summary
+                        }, f)
+                    inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
-                    cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.pkl'
+                    cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.json'
 
                     tasks.append((handler.tag, cmd, inputs, outputs))
 
@@ -289,8 +303,15 @@ class MergeProvider(job.JobProvider):
             outsize = 0
 
             try:
-                with open(os.path.join(handler.jobdir, '{0}report.pkl'.format(handler.base)), 'rb') as f:
-                    files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime, outsize = pickle.load(f)
+                with open(os.path.join(handler.jobdir, '{0}report.json'.format(handler.base)), 'r') as f:
+                    data = json.load(f)
+                    files_info = data['files']['info']
+                    files_skipped = data['files']['skipped']
+                    events_written = data['events written']
+                    task_times = data['task timing info']
+                    cmssw_exit_code = data['cmssw exit code']
+                    cputime = data['cpu time']
+                    outsize = data['output size']
             except (EOFError, IOError) as e:
                 failed = True
                 logger.error("error processing {0}:\n{1}".format(task.tag, e))

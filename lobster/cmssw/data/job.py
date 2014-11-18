@@ -2,8 +2,8 @@
 
 from datetime import datetime
 import gzip
+import json
 import os
-import pickle
 import shutil
 import subprocess
 import sys
@@ -30,7 +30,7 @@ def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1
         if any([f for f in files]):
             frag += "\nprocess.source.fileNames = cms.untracked.vstring({input_files})".format(input_files=repr([str(f) for f in files]))
         if lumis:
-            frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis.getVLuminosityBlockRange()])
+            frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis])
         if want_summary:
             frag += sum_frag
 
@@ -92,8 +92,20 @@ def extract_cmssw_times(log_filename, default=None):
     return (finit, fopen, first)
 
 (pset, configfile) = sys.argv[1:]
-with open(configfile, 'rb') as f:
-    (args, files, lumis, stageout, server, taskid, monitorid, syncid, want_summary) = pickle.load(f)
+with open(configfile) as f:
+    config = json.load(f)
+
+files = config['mask']['files']
+lumis = config['mask']['lumis']
+
+monitorid = config['monitoring']['monitorid']
+syncid = config['monitoring']['syncid']
+taskid = config['monitoring']['taskid']
+
+args = config['arguments']
+server = config.get('chirp server', None)
+stageout = config['output files']
+want_summary = config['want summary']
 
 apmonSend(taskid, monitorid, {
             'ExeStart': 'cmsRun',
@@ -179,8 +191,18 @@ if stageout_exit_code != 0:
 times.append(int(datetime.now().strftime('%s')))
 
 try:
-    f = open('report.pkl', 'wb')
-    pickle.dump((files_info, files_skipped, events_written, times, cmssw_exit_code, eventtime, outsize), f, pickle.HIGHEST_PROTOCOL)
+    f = open('report.json', 'w')
+    json.dump({
+        'files': {
+            'info': files_info,
+            'skipped': files_skipped,
+        },
+        'cmssw exit code': cmssw_exit_code,
+        'task timing info': times,
+        'cpu time': eventtime,
+        'events written': events_written,
+        'output size': outsize
+    }, f)
 except Exception as e:
     print e
     if exit_code == 0:

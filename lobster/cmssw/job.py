@@ -1,9 +1,9 @@
 from collections import defaultdict
 import gzip
 import imp
+import json
 import multiprocessing
 import os
-import pickle
 import shutil
 import sys
 
@@ -124,8 +124,9 @@ class JobHandler(object):
                         jobit_update.append((jobit.FAILED, lumi_id))
                         jobits_missed += 1
                 elif not self.__file_based:
+                    file_lumis = set(map(tuple, files_info[file][1]))
                     for (lumi_id, lumi_file, r, l) in file_jobits:
-                        if (r, l) not in files_info[file][1]:
+                        if (r, l) not in file_lumis:
                             jobit_update.append((jobit.FAILED, lumi_id))
                             jobits_missed += 1
 
@@ -286,14 +287,28 @@ class JobProvider(job.JobProvider):
                     args += [','.join(localfiles)]
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:
-                outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.pkl']])
+                outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.json']])
 
                 sum = self.config.get('cmssw summary', True)
-                with open(os.path.join(jdir, 'parameters.pkl'), 'wb') as f:
-                    pickle.dump((args, localfiles, lumis, stageout, self.__chirp, self.taskid, monitorid, syncid, sum), f, pickle.HIGHEST_PROTOCOL)
-                inputs.append((os.path.join(jdir, 'parameters.pkl'), 'parameters.pkl'))
+                with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
+                    json.dump({
+                        'mask': {
+                            'files': list(localfiles),
+                            'lumis': lumis.getVLuminosityBlockRange()
+                        },
+                        'monitoring': {
+                            'monitorid': monitorid,
+                            'syncid': syncid,
+                            'taskid': self.taskid
+                        },
+                        'arguments': args,
+                        'chirp server': self.__chirp,
+                        'output files': stageout,
+                        'want summary': sum
+                    }, f)
+                inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
-                cmd = 'sh wrapper.sh python job.py {0} parameters.pkl'.format(cms_config)
+                cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(cms_config)
 
             tasks.append((id, cmd, inputs, outputs))
 
@@ -329,8 +344,15 @@ class JobProvider(job.JobProvider):
 
             if handler.cmssw_job:
                 try:
-                    with open(os.path.join(handler.jobdir, 'report.pkl'), 'rb') as f:
-                        files_info, files_skipped, events_written, task_times, cmssw_exit_code, cputime, outsize = pickle.load(f)
+                    with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
+                        data = json.load(f)
+                        files_info = data['files']['info']
+                        files_skipped = data['files']['skipped']
+                        events_written = data['events written']
+                        task_times = data['task timing info']
+                        cmssw_exit_code = data['cmssw exit code']
+                        cputime = data['cpu time']
+                        outsize = data['output size']
                 except (EOFError, IOError) as e:
                     failed = True
                     logger.error("error processing {0}:\n{1}".format(task.tag, e))

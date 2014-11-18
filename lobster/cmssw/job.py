@@ -391,7 +391,8 @@ class JobProvider(job.JobProvider):
                     + times + data + job_update + [task.tag]
 
             if failed:
-                self.move_jobdir(handler.id, handler.dataset, 'failed')
+                faildir = self.move_jobdir(handler.id, handler.dataset, 'failed')
+                logger.info("parameters and logs can be found in {0}".format(faildir))
             else:
                 self.move_jobdir(handler.id, handler.dataset, 'successful')
 

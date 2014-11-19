@@ -24,6 +24,29 @@ sum_frag = """\nif hasattr(process, 'options'):
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))"""
 
+def check_outputs(config):
+    chirp_server = config.get('chirp server', None)
+
+    if not chirp_server:
+        return True
+
+    for local, remote in stageout:
+        size = os.path.getsize(local)
+        p = subprocess.Popen([
+            os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+            chirp_server, "stat", remote], stdout=subprocess.PIPE)
+        stdout = p.communicate()[0]
+        for l in stdout.splitlines():
+            if l.startswith('size:'):
+                if int(l.split()[1]) != size:
+                    print "> size mismatch after transfer for " + local
+                    return False
+                break
+        else:
+            # size: is not in stdout
+            return False
+    return True
+
 def copy_inputs(config):
     if not config.get('transfer inputs', False):
         return
@@ -244,6 +267,8 @@ for localname, remotename in stageout:
                 stageout_exit_code = status
 if stageout_exit_code != 0:
     exit_code = 210
+elif not check_outputs(config):
+    exit_code = 211
 
 times.append(int(datetime.now().strftime('%s')))
 

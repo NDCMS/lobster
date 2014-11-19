@@ -97,7 +97,7 @@ class JobProvider(object):
             if not os.path.exists(p):
                 os.makedirs(p)
 
-        for exe in ('parrot_run', 'chirp_put', 'chirp_get'):
+        for exe in ('parrot_run', 'chirp', 'chirp_put', 'chirp_get'):
             shutil.copy(util.which(exe), self.parrot_bin)
             subprocess.check_call(["strip", os.path.join(self.parrot_bin, exe)])
 

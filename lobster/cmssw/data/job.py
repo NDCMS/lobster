@@ -176,7 +176,12 @@ env['X509_USER_PROXY'] = 'proxy'
 edit_process_source(pset_mod, files, lumis, want_summary)
 
 # exit_code = subprocess.call('python "{0}" {1}'.format(pset_mod, ' '.join(map(repr, args))), shell=True, env=env)
-exit_code = subprocess.call('cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join(map(repr, args))), shell=True, env=env)
+print "--- Running cmsRun"
+print 'cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args]))
+print "---"
+exit_code = subprocess.call(
+        'cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args])),
+        shell=True, env=env)
 
 apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 

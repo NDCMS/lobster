@@ -115,6 +115,11 @@ class JobProvider(object):
         return jdir
 
     def move_jobdir(self, jobid, label, status, oldstatus='running'):
+        """Moves a job parameter/log directory from one status directory to
+        another.
+
+        Returns the new directory.
+        """
         # See above for job id splitting.  Moves directories and removes
         # old empty directories.
         old = self.get_jobdir(jobid, label, oldstatus)
@@ -125,6 +130,7 @@ class JobProvider(object):
         shutil.move(old, parent)
         if len(os.listdir(os.path.dirname(old))) == 0:
             os.removedirs(os.path.dirname(old))
+        return new
 
     def get_jobids(self, label, status='running'):
         # Iterates over the job directories and returns all jobids found

@@ -257,12 +257,12 @@ class MergeProvider(job.JobProvider):
                             'monitoring': {
                                 'monitorid': monitorid,
                                 'syncid': syncid,
-                                'taskid': taskid
+                                'taskid': self.taskid
                             },
                             'arguments': args,
-                            'chirp server': server,
+                            'chirp server': self.__chirp,
                             'output files': stageout,
-                            'want summary': want_summary
+                            'want summary': True
                         }, f, indent=2)
                     inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 

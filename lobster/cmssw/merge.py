@@ -263,7 +263,7 @@ class MergeProvider(job.JobProvider):
                             'chirp server': server,
                             'output files': stageout,
                             'want summary': want_summary
-                        }, f)
+                        }, f, indent=2)
                     inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
                     cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.json'

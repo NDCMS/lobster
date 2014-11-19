@@ -305,7 +305,7 @@ class JobProvider(job.JobProvider):
                         'chirp server': self.__chirp,
                         'output files': stageout,
                         'want summary': sum
-                    }, f)
+                    }, f, indent=2)
                 inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(cms_config)

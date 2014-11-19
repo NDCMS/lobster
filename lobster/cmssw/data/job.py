@@ -202,7 +202,7 @@ try:
         'cpu time': eventtime,
         'events written': events_written,
         'output size': outsize
-    }, f)
+    }, f, indent=2)
 except Exception as e:
     print e
     if exit_code == 0:

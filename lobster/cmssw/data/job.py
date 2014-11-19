@@ -24,6 +24,56 @@ sum_frag = """\nif hasattr(process, 'options'):
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))"""
 
+def copy_inputs(config):
+    if not config.get('transfer inputs', False):
+        return
+
+    chirp_server = config.get('chirp server', None)
+    chirp_prefix = config.get('chirp prefix', None)
+    lfn_prefix = config.get('lfn prefix')
+
+    files = list(config['mask']['files'])
+    config['mask']['files'] = []
+
+    for file in [f.replace("file:", "") for f in files]:
+        # pfile = lfn_prefix + file
+        pfile = file
+        if os.path.exists(pfile) and os.access(pfile, os.R_OK) and not os.path.isdir(pfile):
+            config['mask']['files'].append('file:' + pfile)
+            continue
+
+        # TODO xrootd test
+
+        if chirp_server and chirp_prefix:
+            if file.startswith(chirp_prefix):
+                cfile = file.replace(chirp_prefix, '', 1)
+            else:
+                cfile = file
+
+            lfile = os.path.basename(lfile)
+
+            status = subprocess.call([
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
+                "-a",
+                "globus",
+                options.chirp,
+                cfile,
+                lfile])
+
+            if status == 0:
+                config['mask']['files'].append('file:' + lfile)
+            continue
+
+        # FIXME remove with xrootd test?
+        # add file if not local or in chirp and then hope that CMSSW can
+        # access it
+        config['mask']['files'].append(file)
+
+    print "--- modified input files:"
+    for fn in config['mask']['files']:
+        print fn
+    print "---"
+
 def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1):
     with open(cmssw_config_file, 'a') as config:
         frag = fragment.format(events=events)
@@ -94,6 +144,8 @@ def extract_cmssw_times(log_filename, default=None):
 (pset, configfile) = sys.argv[1:]
 with open(configfile) as f:
     config = json.load(f)
+
+copy_inputs(config)
 
 files = config['mask']['files']
 lumis = config['mask']['lumis']

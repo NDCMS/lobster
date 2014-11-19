@@ -107,13 +107,9 @@ class MergeHandler(object):
 
         return [(merge_job_update, success_update, fail_update, jobit_update, datasets_update)]
 
-    def get_job_info(self):
+    def get_job_info(self, stageout_dir):
         args = ['output=' + self.__outname]
-        if self.__chirp:
-            args += ['chirp={0}'.format(self.__chirp)]
-            args += [str('inputs=' + ','.join(self.__inputs))]
-
-        files = ['file:' + os.path.basename(x) for x in self.__inputs]
+        files = ['file:' + os.path.join(stageout_dir, x) for x in self.__inputs]
 
         return args, files
 
@@ -247,7 +243,7 @@ class MergeProvider(job.JobProvider):
                         missing += [(job, job_type)]
 
                 if len(handler.jobs) > 1:
-                    args, files = handler.get_job_info()
+                    args, files = handler.get_job_info(self.stageout)
                     with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                         json.dump({
                             'mask': {
@@ -261,6 +257,8 @@ class MergeProvider(job.JobProvider):
                             },
                             'arguments': args,
                             'chirp server': self.__chirp,
+                            'chirp prefix': self.stageout,
+                            'transfer inputs': True,
                             'output files': stageout,
                             'want summary': True
                         }, f, indent=2)

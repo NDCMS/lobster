@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from contextlib import contextmanager
 from datetime import datetime
 import gzip
 import json
@@ -7,30 +8,51 @@ import os
 import shutil
 import subprocess
 import sys
+import traceback
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
 from DashboardAPI import apmonSend, apmonFree
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
-fragment = """import FWCore.ParameterSet.Config as cms
+fragment = """
+import FWCore.ParameterSet.Config as cms
 process.Timing = cms.Service("Timing",
     useJobReport = cms.untracked.bool(True),
     summaryOnly = cms.untracked.bool(True))
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))"""
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
+"""
 
-sum_frag = """\nif hasattr(process, 'options'):
+sum_frag = """
+if hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
 else:
-    process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))"""
+    process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
+"""
+
+@contextmanager
+def check_execution(data, code):
+    """Check execution within context.
+
+    Updates 'job exit code' in `data`, if not already set, and prints a
+    stack trace if the yield fails with an exception.
+    """
+    try:
+        yield
+    except:
+        print traceback.format_exc()
+        if data['job exit code'] == 0:
+            data['job exit code'] = code
 
 def check_outputs(config):
+    """Check that chirp received the output files.
+    """
     chirp_server = config.get('chirp server', None)
 
     if not chirp_server:
         return True
 
-    for local, remote in stageout:
+    for local, remote in config['output files']:
         size = os.path.getsize(local)
         p = subprocess.Popen([
             os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
@@ -97,22 +119,52 @@ def copy_inputs(config):
         print fn
     print "---"
 
-def edit_process_source(cmssw_config_file, files, lumis, want_summary, events=-1):
-    with open(cmssw_config_file, 'a') as config:
+def copy_outputs(data, config):
+    server = config.get('chirp server', None)
+    outsize = 0
+    for localname, remotename in config['output files']:
+        if os.path.exists(localname):
+            # prevent stageout of data for failed jobs
+            if not data['cmssw exit code'] == 0:
+                os.remove(localname)
+                continue
+
+            outsize += os.path.getsize(localname)
+
+            if server:
+                status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
+                                          "-a",
+                                          "globus",
+                                          "-d",
+                                          "all",
+                                          localname,
+                                          server,
+                                          remotename])
+                if status != 0:
+                    data['stageout exit code'] = status
+                    raise IOError("Failed to transfer output file '{0}'".format(localname))
+    data['output size'] = outsize
+
+def edit_process_source(pset, config, events=-1):
+    files = config['mask']['files']
+    lumis = config['mask']['lumis']
+    want_summary = config['want summary']
+
+    with open(pset, 'a') as fp:
         frag = fragment.format(events=events)
         if any([f for f in files]):
-            frag += "\nprocess.source.fileNames = cms.untracked.vstring({input_files})".format(input_files=repr([str(f) for f in files]))
+            frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files]))
         if lumis:
-            frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({lumis})".format(lumis=[str(l) for l in lumis])
+            frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({0})".format([str(l) for l in lumis])
         if want_summary:
             frag += sum_frag
 
         print "--- config file fragment:"
         print frag
         print "---"
-        config.write(frag)
+        fp.write(frag)
 
-def extract_info(report_filename):
+def extract_info(data, report_filename):
     exit_code = 0
     skipped = []
     infos = {}
@@ -142,7 +194,15 @@ def extract_info(report_filename):
             eventtime = report.performance.summaries['Timing']['TotalEventCPU']
             cputime = report.performance.summaries['Timing']['TotalJobCPU']
 
-    return infos, skipped, written, exit_code, eventtime, cputime
+    data['files']['info'] = infos
+    data['files']['skipped'] = skipped
+    data['events written'] = written
+    data['cmssw exit code'] = exit_code
+    # For efficiency, we care only about the CPU time spent processing
+    # events
+    data['cpu time'] = eventtime
+
+    return cputime
 
 def extract_time(filename):
     with open(filename) as f:
@@ -170,17 +230,25 @@ with open(configfile) as f:
 
 copy_inputs(config)
 
-files = config['mask']['files']
-lumis = config['mask']['lumis']
-
 monitorid = config['monitoring']['monitorid']
 syncid = config['monitoring']['syncid']
 taskid = config['monitoring']['taskid']
 
 args = config['arguments']
-server = config.get('chirp server', None)
-stageout = config['output files']
-want_summary = config['want summary']
+
+data = {
+    'files': {
+        'info': {},
+        'skipped': [],
+    },
+    'job exit code': 0,
+    'cmssw exit code': 0,
+    'stageout exit code': 0,
+    'cpu time': 0,
+    'events written': 0,
+    'output size': 0,
+    'task timing info': [None] * 5
+}
 
 apmonSend(taskid, monitorid, {
             'ExeStart': 'cmsRun',
@@ -196,121 +264,66 @@ shutil.copy2(pset, pset_mod)
 env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 
-edit_process_source(pset_mod, files, lumis, want_summary)
+edit_process_source(pset_mod, config)
 
-# exit_code = subprocess.call('python "{0}" {1}'.format(pset_mod, ' '.join(map(repr, args))), shell=True, env=env)
 print "--- Running cmsRun"
 print 'cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args]))
 print "---"
-exit_code = subprocess.call(
+data['job exit code'] = subprocess.call(
         'cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args])),
         shell=True, env=env)
 
 apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
-try:
-    files_info, files_skipped, events_written, cmssw_exit_code, eventtime, cputime = extract_info('report.xml')
-except Exception as e:
-    print e
+cputime = 0
+with check_execution(data, 190):
+    cputime = extract_info(data, 'report.xml')
 
-    if exit_code == 0:
-        exit_code = 190
-
-    files_info = {}
-    files_skipped = []
-    events_written = 0
-    cmssw_exit_code = 190
-    eventtime = 0
-    cputime = 0
-
-try:
-    times = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
-except Exception as e:
-    print e
-    times = [None, None]
-    if exit_code == 0:
-        exit_code = 191
+with check_execution(data, 191):
+    data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
 
 now = int(datetime.now().strftime('%s'))
 
-try:
-    times += extract_cmssw_times('cmssw.log', now)
-except Exception as e:
-    print e
-    times += [None * 3]
-    if exit_code == 0:
-        exit_code = 192
+with check_execution(data, 192):
+    data['task timing info'][2:] = extract_cmssw_times('cmssw.log', now)
 
-times.append(now)
+data['task timing info'].append(now)
 
-stageout_exit_code = 0
-outsize = 0
+with check_execution(data, 210):
+    copy_outputs(data, config)
 
-for localname, remotename in stageout:
-    if os.path.exists(localname):
-        if not cmssw_exit_code == 0:
-            os.remove(localname)
-            continue
+if data['job exit code'] == 0 and not check_outputs(config):
+    data['job exit code'] = 211
+    data['outsize'] = 0
 
-        outsize += os.path.getsize(localname)
+data['task timing info'].append(int(datetime.now().strftime('%s')))
 
-        if server:
-            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
-                                      "-a",
-                                      "globus",
-                                      "-d",
-                                      "all",
-                                      localname,
-                                      server,
-                                      remotename])
-            if status != 0 and stageout_exit_code == 0:
-                stageout_exit_code = status
-if stageout_exit_code != 0:
-    exit_code = 210
-elif not check_outputs(config):
-    exit_code = 211
-
-times.append(int(datetime.now().strftime('%s')))
-
-try:
-    f = open('report.json', 'w')
-    json.dump({
-        'files': {
-            'info': files_info,
-            'skipped': files_skipped,
-        },
-        'cmssw exit code': cmssw_exit_code,
-        'task timing info': times,
-        'cpu time': eventtime,
-        'events written': events_written,
-        'output size': outsize
-    }, f, indent=2)
-except Exception as e:
-    print e
-    if exit_code == 0:
-        exit_code = 193
-finally:
-    f.close()
+with check_execution(data, 193):
+    with open('report.json', 'w') as f:
+        json.dump(data, f, indent=2)
 
 for filename in 'cmssw.log report.xml'.split():
     if os.path.isfile(filename):
-        try:
+        with check_execution(data, 194):
             with open(filename) as f:
                 zipf = gzip.open(filename + ".gz", "wb")
                 zipf.writelines(f)
                 zipf.close()
-        except Exception as e:
-            print e
-            if exit_code == 0:
-                exit_code = 194
 
-print "Execution time", str(times[-1] - times[0])
+total_time = data['task timing info'][-1] - data['task timing info'][0]
+
+exit_code = data['job exit code']
+cmssw_exit_code = data['cmssw exit code']
+stageout_exit_code = data['stageout exit code']
+
+print "Execution time", str(total_time)
+
 print "Exiting with code", str(exit_code)
 print "Reporting ExeExitCode", str(cmssw_exit_code)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
 
 apmonSend(taskid, monitorid, {
-            'ExeTime': str(times[-1] - times[0]),
+            'ExeTime': str(total_time),
             'ExeExitCode': str(cmssw_exit_code),
             'JobExitCode': str(exit_code),
             'JobExitReason': '',
@@ -320,7 +333,7 @@ apmonSend(taskid, monitorid, {
             'CrabUserCpuTime': str(cputime),
             # 'CrabSysCpuTime': '5.91',
             # 'CrabCpuPercentage': '18%',
-            'CrabWrapperTime': str(times[-1] - times[0]),
+            'CrabWrapperTime': str(total_time),
             # 'CrabStageoutTime': '50',
             })
 apmonFree()

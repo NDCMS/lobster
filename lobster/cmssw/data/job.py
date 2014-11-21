@@ -283,14 +283,6 @@ data = {
     'task timing info': [None] * 5
 }
 
-apmonSend(taskid, monitorid, {
-            'ExeStart': 'cmsRun',
-            'SyncCE': 'ndcms.crc.nd.edu',
-            'SyncGridJobId': syncid,
-            'WNHostName': os.environ.get('HOSTNAME', '')
-            })
-apmonFree()
-
 pset_mod = pset.replace(".py", "_mod.py")
 shutil.copy2(pset, pset_mod)
 
@@ -298,6 +290,27 @@ env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 
 edit_process_source(pset_mod, config)
+
+prologue = config.get('prologue', [])
+epilogue = config.get('epilogue', [])
+
+if len(prologue) > 0:
+    print "--- prologue:"
+    with check_execution(data, 180):
+        subprocess.check_call(prologue, env=env)
+    print "---"
+
+#
+# Start proper CMSSW job
+#
+
+apmonSend(taskid, monitorid, {
+            'ExeStart': 'cmsRun',
+            'SyncCE': 'ndcms.crc.nd.edu',
+            'SyncGridJobId': syncid,
+            'WNHostName': os.environ.get('HOSTNAME', '')
+            })
+apmonFree()
 
 print "--- Running cmsRun"
 print 'cmsRun -j report.xml "{0}" {1} > cmssw.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args]))
@@ -321,6 +334,16 @@ with check_execution(data, 192):
     data['task timing info'][2:] = extract_cmssw_times('cmssw.log', now)
 
 data['task timing info'].append(now)
+
+#
+# End proper CMSSW job
+#
+
+if len(epilogue) > 0:
+    print "--- epilogue:"
+    with check_execution(data, 199):
+        subprocess.check_call(epilogue, env=env)
+    print "---"
 
 with check_execution(data, 210):
     copy_outputs(data, config)

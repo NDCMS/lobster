@@ -116,39 +116,24 @@ class MergeHandler(object):
     def validate(self, report, input):
         return os.path.isfile(report) and os.path.isfile(input)
 
-    def merge_reports(self):
-        merged = FwkJobReport()
-        for r in self.__reports:
-            f = gzip.open(r)
-            for report in readJobReport(f):
-                merged.inputFiles += report.inputFiles
-                if len(merged.files) == 0:
-                    merged.files = report.files
-                else:
-                    for run, lumis in report.files[0]['Runs'].items():
-                        if merged.files[0]['Runs'].has_key(run):
-                            merged.files[0]['Runs'][run] += lumis
-                        else:
-                            merged.files[0]['Runs'][run] = lumis
-                    merged.files[0]['Runs'].update(report.files[0]['Runs'])
-                    events = int(merged.files[0]['TotalEvents']) + int(report.files[0]['TotalEvents'])
-                    merged.files[0]['TotalEvents'] = str(events)
-            f.close()
-
-        output = IMProvDoc("JobReports")
-        output.addNode(merged.save())
-
-        outfile = gzip.open(os.path.join(self.__jobdir, 'report.xml.gz'), 'wb')
-        outfile.write(output.makeDOMDocument().toprettyxml())
-        outfile.close()
-
     def cleanup(self):
+        pass
 #         tdir = os.path.dirname(self.__jobdir) # FIXME Do we want to delete old report.xmls?
 #         for r in self.__reports:
 #             os.remove(r)
-        for file in self.__inputs:
-            fullpath = os.path.join(self.__sdir, os.path.basename(file))
-            os.remove(fullpath)
+        # for file in self.__inputs:
+        #     fullpath = os.path.join(self.__sdir, os.path.basename(file))
+        #     logger.info('unlinking ' + fullpath)
+        #     os.remove(fullpath)
+
+    def update_inputs(self, inputs):
+        inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py'))
+        for r in self.__reports:
+            inputs.append((r, "_".join(os.path.normpath(r).split(os.sep)[-3:])))
+
+    def update_config(self, config):
+        config['epilogue'] = ['python', 'merge_reports.py', 'report.xml.gz'] \
+                + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in self.__reports]
 
 class MergeProvider(job.JobProvider):
     def __init__(self, config):
@@ -222,7 +207,7 @@ class MergeProvider(job.JobProvider):
                                        sdir)
 
                 stageout = [(local_outname, os.path.join(dset, remote_outname))]
-                outputs = [(os.path.join(jdir, '{0}{1}'.format(handler.base, f)), f) for f in ['cmssw.log.gz', 'report.json']]
+                outputs = [(os.path.join(jdir, '{0}{1}'.format(handler.base, f)), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.json']]
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, remote_outname), local_outname))
 
@@ -244,24 +229,30 @@ class MergeProvider(job.JobProvider):
 
                 if len(handler.jobs) > 1:
                     args, files = handler.get_job_info(self.stageout)
+
+                    config = {
+                        'mask': {
+                            'files': files,
+                            'lumis': None
+                        },
+                        'monitoring': {
+                            'monitorid': monitorid,
+                            'syncid': syncid,
+                            'taskid': self.taskid
+                        },
+                        'arguments': args,
+                        'chirp server': self.__chirp,
+                        'chirp prefix': self.stageout,
+                        'transfer inputs': True,
+                        'output files': stageout,
+                        'want summary': True
+                    }
+
+                    handler.update_config(config)
+                    handler.update_inputs(inputs)
+
                     with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
-                        json.dump({
-                            'mask': {
-                                'files': files,
-                                'lumis': None
-                            },
-                            'monitoring': {
-                                'monitorid': monitorid,
-                                'syncid': syncid,
-                                'taskid': self.taskid
-                            },
-                            'arguments': args,
-                            'chirp server': self.__chirp,
-                            'chirp prefix': self.stageout,
-                            'transfer inputs': True,
-                            'output files': stageout,
-                            'want summary': True
-                        }, f, indent=2)
+                        json.dump(config, f, indent=2)
                     inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
                     cmd = 'sh wrapper.sh python job.py merge_cfg.py parameters.json'
@@ -324,7 +315,6 @@ class MergeProvider(job.JobProvider):
             jobs[handler.dataset] += handler.get_job_update(failed, outsize)
             if not failed:
                 try:
-                    handler.merge_reports()
                     handler.cleanup()
                     self.move_jobdir(handler.id, handler.dataset, 'successful', 'merging')
                 except Exception as e:

@@ -148,6 +148,12 @@ class JobHandler(object):
         return [jobits_missed, events_read, events_written, status], \
                 file_update, jobit_update
 
+    def update_inputs(self, inputs):
+        pass
+
+    def update_config(self, config):
+        pass
+
 class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
@@ -290,22 +296,28 @@ class JobProvider(job.JobProvider):
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.json']])
 
                 sum = self.config.get('cmssw summary', True)
+
+                config = {
+                    'mask': {
+                        'files': list(localfiles),
+                        'lumis': lumis.getVLuminosityBlockRange()
+                    },
+                    'monitoring': {
+                        'monitorid': monitorid,
+                        'syncid': syncid,
+                        'taskid': self.taskid
+                    },
+                    'arguments': args,
+                    'chirp server': self.__chirp,
+                    'output files': stageout,
+                    'want summary': sum
+                }
+
+                handler.update_config(config)
+                handler.update_inputs(inputs)
+
                 with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
-                    json.dump({
-                        'mask': {
-                            'files': list(localfiles),
-                            'lumis': lumis.getVLuminosityBlockRange()
-                        },
-                        'monitoring': {
-                            'monitorid': monitorid,
-                            'syncid': syncid,
-                            'taskid': self.taskid
-                        },
-                        'arguments': args,
-                        'chirp server': self.__chirp,
-                        'output files': stageout,
-                        'want summary': sum
-                    }, f, indent=2)
+                    json.dump(config, f, indent=2)
                 inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(cms_config)

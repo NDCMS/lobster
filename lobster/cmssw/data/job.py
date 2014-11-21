@@ -123,26 +123,27 @@ def copy_outputs(data, config):
     server = config.get('chirp server', None)
     outsize = 0
     for localname, remotename in config['output files']:
-        if os.path.exists(localname):
-            # prevent stageout of data for failed jobs
-            if not data['cmssw exit code'] == 0:
-                os.remove(localname)
-                continue
+        # prevent stageout of data for failed jobs
+        if os.path.exists(localname) and data['cmssw exit code'] != 0:
+            os.remove(localname)
+            continue
+        elif data['cmssw exit code'] != 0:
+            continue
 
-            outsize += os.path.getsize(localname)
+        outsize += os.path.getsize(localname)
 
-            if server:
-                status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
-                                          "-a",
-                                          "globus",
-                                          "-d",
-                                          "all",
-                                          localname,
-                                          server,
-                                          remotename])
-                if status != 0:
-                    data['stageout exit code'] = status
-                    raise IOError("Failed to transfer output file '{0}'".format(localname))
+        if server:
+            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
+                                      "-a",
+                                      "globus",
+                                      "-d",
+                                      "all",
+                                      localname,
+                                      server,
+                                      remotename])
+            if status != 0:
+                data['stageout exit code'] = status
+                raise IOError("Failed to transfer output file '{0}'".format(localname))
     data['output size'] = outsize
 
 def edit_process_source(pset, config, events=-1):

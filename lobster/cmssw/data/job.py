@@ -70,6 +70,13 @@ def check_outputs(config):
     return True
 
 def copy_inputs(config):
+    """Copies input files if desired.
+
+    Checks the passed configuration for transfer settings and modifies the
+    input file mask to point to transferred files, where appropriate.
+    Local access is checked first, followed by (not yet implemented) xrootd
+    access, and finally, attempting to transfer files via chirp.
+    """
     if not config.get('transfer inputs', False):
         return
 
@@ -120,6 +127,13 @@ def copy_inputs(config):
     print "---"
 
 def copy_outputs(data, config):
+    """Copy output files.
+
+    If the job failed, delete output files, to avoid work_queue
+    transferring them.  Otherwise, if a chirp server is specified, transfer
+    output files out via chirp.  In any case, file sizes are added up and
+    inserted into the job data.
+    """
     server = config.get('chirp server', None)
     outsize = 0
     for localname, remotename in config['output files']:
@@ -147,6 +161,11 @@ def copy_outputs(data, config):
     data['output size'] = outsize
 
 def edit_process_source(pset, config, events=-1):
+    """Edit parameter set for job.
+
+    Adjust input files and lumi mask, as well as adding a process summary
+    for performance analysis.
+    """
     files = config['mask']['files']
     lumis = config['mask']['lumis']
     want_summary = config['want summary']
@@ -166,6 +185,12 @@ def edit_process_source(pset, config, events=-1):
         fp.write(frag)
 
 def extract_info(data, report_filename):
+    """Extract job data from a framework report.
+
+    Analyze the CMSSW job framework report to get the CMSSW exit code,
+    skipped files, runs and lumis processed on a file basis, total events
+    written, and CPU time overall and per event.
+    """
     exit_code = 0
     skipped = []
     infos = {}
@@ -206,10 +231,17 @@ def extract_info(data, report_filename):
     return cputime
 
 def extract_time(filename):
+    """Load file contents as integer timestamp.
+    """
     with open(filename) as f:
         return int(f.readline())
 
 def extract_cmssw_times(log_filename, default=None):
+    """Get time information from a CMSSW stdout.
+
+    Extracts the first time a file opening is initialized and performed,
+    and the time the first event is processed.
+    """
     finit = default
     fopen = default
     first = default

@@ -129,6 +129,8 @@ def copy_inputs(config):
 
             if status == 0:
                 config['mask']['files'].append('file:' + lfile)
+            else:
+                raise IOError("Could not transfer file {0}".format(cfile))
             continue
 
         # FIXME remove with xrootd test?
@@ -272,18 +274,6 @@ def extract_cmssw_times(log_filename, default=None):
 
     return (finit, fopen, first)
 
-(pset, configfile) = sys.argv[1:]
-with open(configfile) as f:
-    config = json.load(f)
-
-copy_inputs(config)
-
-monitorid = config['monitoring']['monitorid']
-syncid = config['monitoring']['syncid']
-taskid = config['monitoring']['taskid']
-
-args = config['arguments']
-
 data = {
     'files': {
         'adler32': {},
@@ -298,6 +288,19 @@ data = {
     'output size': 0,
     'task timing info': [None] * 5
 }
+
+(pset, configfile) = sys.argv[1:]
+with open(configfile) as f:
+    config = json.load(f)
+
+with check_execution(data, 179):
+    copy_inputs(config)
+
+monitorid = config['monitoring']['monitorid']
+syncid = config['monitoring']['syncid']
+taskid = config['monitoring']['taskid']
+
+args = config['arguments']
 
 pset_mod = pset.replace(".py", "_mod.py")
 shutil.copy2(pset, pset_mod)

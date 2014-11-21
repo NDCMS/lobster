@@ -30,6 +30,21 @@ else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
 
+def calculate_alder32(data, config):
+    """Try to calculate checksums for output files.
+    """
+    res = {}
+    for local, remote in config['output files']:
+        try:
+            p = subprocess.Popen(['edmFileUtil', '-a', local], stdout=subprocess.PIPE)
+            stdout = p.communicate()[0]
+
+            if p.returncode == 0:
+                res[os.path.basename(remote)] = stdout.split()[-2]
+        except:
+            pass
+    return res
+
 @contextmanager
 def check_execution(data, code):
     """Check execution within context.
@@ -271,6 +286,7 @@ args = config['arguments']
 
 data = {
     'files': {
+        'adler32': {},
         'info': {},
         'skipped': [],
     },
@@ -327,6 +343,8 @@ with check_execution(data, 190):
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
+
+data['files']['adler32'] = calculate_alder32(data, config)
 
 now = int(datetime.now().strftime('%s'))
 

@@ -411,7 +411,8 @@ class JobitStore:
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
                 jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
-                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8))
+                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8)),
+                unmerged=(select count(*) from jobs where status=2 and dataset=id)
             where label=?""".format(label), (label,))
 
     def unfinished_jobits(self):
@@ -445,11 +446,7 @@ class JobitStore:
             merge_job_update += sum([x[0] for x in updates], [])
             process_job_success_update += sum([x[1] for x in updates], [])
             process_job_fail_update += sum([x[2] for x in updates], [])
-            jobit_update = sum([x[3] for x in updates], [])
-            dataset_update = sum([x[4] for x in updates])
 
-            self.db.executemany("update jobits_{0} set status=? where job=?".format(dset), jobit_update)
-            self.db.execute("update datasets set unmerged=(unmerged + ?) where label=?", (dataset_update, dset))
             self.update_dataset_stats(dset)
 
         self.db.executemany("update jobs set status=?, bytes_output=? where id=?", merge_job_update)
@@ -486,17 +483,8 @@ class JobitStore:
         rows = self.db.execute("""
             select id, type, bytes_output
             from jobs
-            where status=?
-            and dataset=?
-            and type=?
-            and merge_job is null
-            union
-            select id, type, bytes_output
-            from jobs
-            where status=?
-            and dataset=?
-            and type=?
-            order by id""", (SUCCESSFUL, dset_id, PROCESS, SUCCESSFUL, dset_id, MERGE))
+            where status=? and dataset=?
+            order by bytes_output desc""", (SUCCESSFUL, dset_id))
 
         # FIXME this approach does not make any attempt to reduce mixing
         # of input files-- do we need to map input to output better?
@@ -535,22 +523,18 @@ class JobitStore:
 
         res = []
         merge_update = []
-        jobit_update = []
         tail_update = [(job,) for job, job_type, bytes_output in tails]
         for chunk in merge_groups:
             merge_id = self.db.execute("""
                 insert into
                 jobs(dataset, status, type)
-                values (?, ?, ?)""", (dset_id, MERGING, MERGE)).lastrowid
+                values (?, ?, ?)""", (dset_id, ASSIGNED, MERGE)).lastrowid
             res += [(merge_id, dataset, chunk)]
             merge_update += [(job,) for job, job_type in chunk]
-            jobit_update += [(job,) for job, job_type in chunk]
 
         self.db.executemany("update jobs set status=7 where id=?", merge_update)
         self.db.executemany("update jobs set status=8 where id=?", tail_update)
 
-        self.db.executemany("update jobits_{0} set status=7 where job=?".format(dataset), jobit_update)
-        self.db.executemany("update jobits_{0} set status=8 where job=?".format(dataset), tail_update)
         self.db.execute("update datasets set unmerged=(unmerged - ?) where label=?", (len(tail_update), dataset))
         self.db.execute("update datasets set unmerged=(unmerged + ?) where label=?", (len(res), dataset))
         self.update_dataset_stats(dataset)
@@ -586,18 +570,11 @@ class JobitStore:
     def success_jobs(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
-        cur = self.db.execute("""select id, type
-            from jobs
-            where status in (2, 8)
-            and dataset=?
-            and type=?
-            and merge_job is null
-            union
+        cur = self.db.execute("""
             select id, type
             from jobs
-            where status in (2, 8)
-            and dataset=?
-            and type=?""", (dset_id, PROCESS, dset_id, MERGE))
+            where status in (2, 8) and dataset=?
+            """, (dset_id,))
 
         return cur
 
@@ -606,16 +583,8 @@ class JobitStore:
 
         cur = self.db.execute("""select id, type
             from jobs
-            where status in (3, 4, 5)
-            and dataset=?
-            and type=?
-            and merge_job is null
-            union
-            select id, type
-            from jobs
-            where status in (3, 4, 5)
-            and dataset=?
-            and type=?""", (dset_id, PROCESS, dset_id, MERGE))
+            where status in (3, 4, 5) and dataset=?
+            """, (dset_id,))
 
         return cur
 

@@ -25,65 +25,65 @@ class JobHandler(object):
     """
 
     def __init__(self, id, dataset, files, jobits, jdir, cmssw_job, empty_source):
-        self.__id = id
-        self.__dataset = dataset
-        self.__files = [(id, file) for id, file in files if file]
-        self.__use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
-        self.__file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in jobits]) or self.__use_local
-        self.__jobits = jobits
-        self.__jobdir = jdir
-        self.__outputs = []
-        self.__cmssw_job = cmssw_job
-        self.__empty_source = empty_source
+        self._id = id
+        self._dataset = dataset
+        self._files = [(id, file) for id, file in files if file]
+        self._use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
+        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in jobits]) or self._use_local
+        self._jobits = jobits
+        self._jobdir = jdir
+        self._outputs = []
+        self._cmssw_job = cmssw_job
+        self._empty_source = empty_source
 
     @property
     def cmssw_job(self):
-        return self.__cmssw_job
+        return self._cmssw_job
 
     @property
     def dataset(self):
-        return self.__dataset
+        return self._dataset
 
     @property
     def id(self):
-        return self.__id
+        return self._id
 
     @property
     def jobdir(self):
-        return self.__jobdir
+        return self._jobdir
 
     @jobdir.setter
     def jobdir(self, dir):
-        self.__jobdir = dir
+        self._jobdir = dir
 
     @property
     def outputs(self):
-        return self.__outputs
+        return self._outputs
 
     @property
     def file_based(self):
-        return self.__file_based
+        return self._file_based
 
     @property
     def use_local(self):
-        return self.__use_local
+        return self._use_local
 
     @outputs.setter
     def outputs(self, files):
-        self.__outputs = files
+        self._outputs = files
 
     def get_job_info(self):
-        lumis = set([(run, lumi) for (id, file, run, lumi) in self.__jobits])
-        files = set([filename for (id, filename) in self.__files])
-        localfiles = set([filename for (id, filename) in self.__files])
+        lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
+        files = set([filename for (id, filename) in self._files])
+        localfiles = set([filename for (id, filename) in self._files])
 
-        if self.__use_local:
-            if self.__cmssw_job:
+        if self._use_local:
+            if self._cmssw_job:
                 localfiles = ['file:' + os.path.basename(f) for f in localfiles]
             else:
                 localfiles = [os.path.basename(f) for f in localfiles]
 
-        if self.__file_based:
+        if self._file_based:
             lumis = None
         else:
             lumis = LumiList(lumis=lumis)
@@ -97,19 +97,19 @@ class JobHandler(object):
 
         jobits_processed = 0
         jobits_missed = 0
-        for (id, file) in self.__files:
-            file_jobits = [tpl for tpl in self.__jobits if tpl[1] == id]
+        for (id, file) in self._files:
+            file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
 
             skipped = False
             read = 0
-            if self.__cmssw_job:
-                if self.__use_local:
+            if self._cmssw_job:
+                if self._use_local:
                     file = 'file:' + os.path.basename(file)
-                if not self.__empty_source:
+                if not self._empty_source:
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
 
-            if not self.__file_based:
+            if not self._file_based:
                 jobits_finished = len(file_jobits)
                 jobits_done = 0 if failed or skipped else len(files_info[file][1])
             else:
@@ -123,7 +123,7 @@ class JobHandler(object):
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         jobit_update.append((jobit.FAILED, lumi_id))
                         jobits_missed += 1
-                elif not self.__file_based:
+                elif not self._file_based:
                     file_lumis = set(map(tuple, files_info[file][1]))
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         if (r, l) not in file_lumis:
@@ -132,10 +132,10 @@ class JobHandler(object):
 
             file_update.append((read, 1 if skipped else 0, id))
 
-        if not self.__file_based:
-            jobits_missed = len(self.__jobits) if failed else jobits_missed
+        if not self._file_based:
+            jobits_missed = len(self._jobits) if failed else jobits_missed
         else:
-            jobits_missed = len(self.__files) - len(files_info.keys())
+            jobits_missed = len(self._files) - len(files_info.keys())
 
         if failed:
             events_written = 0

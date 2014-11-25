@@ -52,11 +52,11 @@ class JobitStore:
             jobits_running int default 0,
             jobits_done int default 0,
             jobits_left int default 0,
-            unmerged int default 0,
-            events int default 0)""")
+            events int default 0,
+            merged int default 0)""")
         self.db.execute("""create table if not exists jobs(
             id integer primary key autoincrement,
-            merge_job int,
+            job int,
             type int,
             host text,
             dataset int,
@@ -198,7 +198,7 @@ class JobitStore:
             from datasets
             where jobits_done + jobits_running < jobits""")]
         if len(rows) == 0:
-            return None
+            return []
 
         dataset, dataset_id, remaining, jobsize, empty_source = random.choice(rows)
         size = [int(jobsize)] * num
@@ -262,7 +262,8 @@ class JobitStore:
                     [(id, fileinfo[id]) for id in files],
                     jobits,
                     arg,
-                    empty_source))
+                    empty_source,
+                    False))
 
                 files = set()
                 jobits = []
@@ -277,14 +278,15 @@ class JobitStore:
                 [(id, fileinfo[id]) for id in files],
                 jobits,
                 arg,
-                empty_source))
+                empty_source,
+                False))
 
         dataset_update = []
         file_update = defaultdict(int)
         job_update = defaultdict(int)
         jobit_update = []
 
-        for (job, label, files, jobits, arg, empty_source) in jobs:
+        for (job, label, files, jobits, arg, empty_source, merge) in jobs:
             dataset_update += jobits
             job_update[job] = len(jobits)
             jobit_update += [(job, id) for (id, file, run, lumi) in jobits]
@@ -309,7 +311,7 @@ class JobitStore:
     def reset_jobits(self):
         with self.db as db:
             ids = [id for (id,) in db.execute("select id from jobs where status=1")]
-            db.execute("update datasets set jobits_running=0")
+            db.execute("update datasets set jobits_running=0, merged=0")
             db.execute("update jobs set status=4 where status=1")
             db.execute("update jobs set status=2 where status=7 and type=0")
             db.execute("update jobs set status=4 where status=7 and type=1")
@@ -318,13 +320,6 @@ class JobitStore:
                 db.execute("update files_{0} set jobits_running=0".format(label))
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
                 db.execute("update jobits_{0} set status=2 where status=7".format(label))
-                db.execute("""
-                    update datasets set unmerged=(
-                        select count(*)
-                        from jobs
-                        where status=2
-                        and dataset=?)
-                    where label=?""", (dset_id, label))
                 self.update_dataset_stats(label)
 
         db.commit()
@@ -334,7 +329,7 @@ class JobitStore:
     def update_jobits(self, jobinfos):
         job_updates = []
 
-        for (dset, updates) in jobinfos.items():
+        for ((dset, jobit_source), updates) in jobinfos.items():
             file_updates = []
             jobit_updates = []
             jobit_generic_updates = []
@@ -344,32 +339,37 @@ class JobitStore:
                 file_updates += file_update
 
                 # jobits either fail or are successful
-                jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
+                # FIXME this should really go into the job handler
+                if jobit_source == 'jobs':
+                    jobit_status = SUCCESSFUL if job_update[-2] == FAILED else MERGED
+                else:
+                    jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
 
                 jobit_updates += jobit_update
                 # the last entry in the job_update is the id
                 jobit_generic_updates.append((jobit_status, job_update[-1]))
 
             # update all jobits of the jobs
-            self.db.executemany("""update jobits_{0} set
+            self.db.executemany("""update {0} set
                 status=?
-                where job=?""".format(dset),
+                where job=?""".format(jobit_source),
                 jobit_generic_updates)
 
             # update selected, missed jobits
-            self.db.executemany("""update jobits_{0} set
+            self.db.executemany("""update {0} set
                 status=?
-                where id=?""".format(dset),
+                where id=?""".format(jobit_source),
                 jobit_updates)
 
             # update files in the dataset
-            self.db.executemany("""update files_{0} set
-                jobits_running=(select count(*) from jobits_{0} where status==1 and file=files_{0}.id),
-                jobits_done=(select count(*) from jobits_{0} where status==2 and file=files_{0}.id),
-                events_read=(events_read + ?),
-                skipped=(skipped + ?)
-                where id=?""".format(dset),
-                file_updates)
+            if len(file_updates) > 0:
+                self.db.executemany("""update files_{0} set
+                    jobits_running=(select count(*) from jobits_{0} where status==1 and file=files_{0}.id),
+                    jobits_done=(select count(*) from jobits_{0} where status==2 and file=files_{0}.id),
+                    events_read=(events_read + ?),
+                    skipped=(skipped + ?)
+                    where id=?""".format(dset),
+                    file_updates)
 
         self.db.executemany("""update jobs set
             host=?,
@@ -401,7 +401,7 @@ class JobitStore:
             where id=?""",
             job_updates)
 
-        for label in jobinfos.keys():
+        for label, _ in jobinfos.keys():
             self.update_dataset_stats(label)
 
         self.db.commit()
@@ -411,9 +411,12 @@ class JobitStore:
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
                 jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
-                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8)),
-                unmerged=(select count(*) from jobs where status=2 and dataset=id)
+                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8))
             where label=?""".format(label), (label,))
+
+    def merged(self):
+        unmerged = self.db.execute("select count(*) from datasets where merged <> 1").fetchone()[0]
+        return unmerged == 0
 
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done) from datasets")
@@ -438,28 +441,6 @@ class JobitStore:
 
         return cur.fetchone()
 
-    def update_merged(self, jobinfos):
-        merge_job_update = []
-        process_job_success_update = []
-        process_job_fail_update = []
-        for (dset, updates) in jobinfos.items():
-            merge_job_update += sum([x[0] for x in updates], [])
-            process_job_success_update += sum([x[1] for x in updates], [])
-            process_job_fail_update += sum([x[2] for x in updates], [])
-
-            self.update_dataset_stats(dset)
-
-        self.db.executemany("update jobs set status=?, bytes_output=? where id=?", merge_job_update)
-        self.db.executemany("update jobs set status=?, merge_job=? where id=?", process_job_success_update)
-        self.db.executemany("update jobs set status=? where id=?", process_job_fail_update)
-
-        self.db.commit()
-
-    def unfinished_merging(self):
-        cur = self.db.execute("select count(*) from jobs where status in (2, 7)")
-
-        return cur.fetchone()[0]
-
     def pop_unmerged_jobs(self, max_megabytes, num=1):
         """Create merging jobs.
 
@@ -467,76 +448,95 @@ class JobitStore:
         output sizes until the next file would exceed the
         size specified by max_megabytes. For each set of jobs to be merged,
         creates a new entry of type MERGE in the job table.
-
         """
 
         max_bytes = max_megabytes * 1000000
 
-        rows = self.db.execute("select label, id from datasets where unmerged > 0").fetchall()
+        rows = self.db.execute("""
+            select label, id, jobits_done == jobits
+            from datasets
+            where
+                merged <> 1 and
+                jobits_done * 10 > jobits
+                and (select count(*) from jobs where dataset=datasets.id and status=2) > 1
+        """).fetchall()
 
         if len(rows) == 0:
-            return None
+            logger.debug("no merge possibility found")
+            return []
 
-        dataset, dset_id = random.choice(rows)
+        dataset, dset_id, jobits_complete = random.choice(rows)
 
-        merge_groups = []
+        logger.debug("trying to merge jobs from {0}".format(dataset))
+
         rows = self.db.execute("""
-            select id, type, bytes_output
+            select id, bytes_output
             from jobs
             where status=? and dataset=?
-            order by bytes_output desc""", (SUCCESSFUL, dset_id))
+            order by bytes_output desc""", (SUCCESSFUL, dset_id)).fetchall()
 
-        # FIXME this approach does not make any attempt to reduce mixing
-        # of input files-- do we need to map input to output better?
-        # FIXME all of this gymnastics is in an attempt to reduce the number
-        # of queries-- we could better match the requested output size by adding
-        # a repeated query for "max(size) < max_bytes - size"...
-        # is it worth the processing expense?
-        chunk = []
-        for attempts in range(3):
-            if len(merge_groups) > num:
-                break
+        # If we don't have enough rows, or the smallest two jobs can't be
+        # merge, set this up so that the loop below is not evaluted and we
+        # skip to the check if the merge for this dataset is complete for
+        # the given maximum size.
+        if len(rows) < 2 or rows[-2][1] + rows[-1][1] > max_bytes:
+            rows = []
+        else:
+            minsize = rows[-1][1]
 
-            tails = []
-            size = 0
+        class Merge(object):
+            def __init__(self, job, size, maxsize):
+                self.jobs = [job]
+                self.size = size
+                self.maxsize = maxsize
+            def __cmp__(self, other):
+                return cmp(self.size, other.size)
+            def add(self, job, size):
+                if self.size + size > self.maxsize:
+                    return False
+                self.size += size
+                self.jobs.append(job)
+                return True
+            def left(self):
+                return self.maxsize - self.size
 
-            for job, job_type, bytes_output in rows:
-                print 'job type bytes ', job, job_type, bytes_output
-                if (size + bytes_output) < max_bytes:
-                    chunk += [(job, job_type)]
-                    size += bytes_output
-                else:
-                    if len(chunk) > 1:
-                        merge_groups += [chunk]
-                        chunk = [(job, job_type)]
-                        size = bytes_output
-                    else:
-                        tails += [(job, job_type, bytes_output)]
+        merges = []
+        for job, size in rows:
+            # Try to add the current job to a merge, in increasing order of
+            # size left
+            for merge in reversed(sorted(merges)):
+                if merge.add(job, size):
+                    break
+            else:
+                # If we're too large to merge, we're skipped.  Also skip if
+                # we have enough merges going on already
+                if size + minsize <= max_bytes:
+                    merges.append(Merge(job, size, max_bytes))
 
-            random.shuffle(tails)
-            rows = tails
+        merges = [m for m in reversed(sorted(merges)) if len(m.jobs) > 1][:num]
 
-        if len(chunk) > 1:
-            merge_groups += [chunk]
-        elif len(chunk) == 1:
-            tails += [(job, job_type, 0) for job, job_type in chunk]
+        logger.debug("created {0} merge jobs".format(len(merges)))
+
+        if len(merges) == 0 and jobits_complete:
+            rows = self.db.execute("""select count(*) from jobs where status=1 and dataset=?""", (dset_id,)).fetchall()
+            if rows[0][0] == 0:
+                logger.debug("fully merged {0}".format(dataset))
+                self.db.execute("""update datasets set merged=1 where id=?""", (dset_id,))
+                self.db.commit()
+                return []
 
         res = []
         merge_update = []
-        tail_update = [(job,) for job, job_type, bytes_output in tails]
-        for chunk in merge_groups:
+        for merge in merges:
             merge_id = self.db.execute("""
                 insert into
                 jobs(dataset, status, type)
                 values (?, ?, ?)""", (dset_id, ASSIGNED, MERGE)).lastrowid
-            res += [(merge_id, dataset, chunk)]
-            merge_update += [(job,) for job, job_type in chunk]
+            logger.debug("inserted merge job {0} with jobs {1}".format(merge_id, ", ".join(map(str, merge.jobs))))
+            res += [(str(merge_id), dataset, [], [(id, None, -1, -1) for id in merge.jobs], "", False, True)]
+            merge_update += [(merge_id, id) for id in merge.jobs]
 
-        self.db.executemany("update jobs set status=7 where id=?", merge_update)
-        self.db.executemany("update jobs set status=8 where id=?", tail_update)
-
-        self.db.execute("update datasets set unmerged=(unmerged - ?) where label=?", (len(tail_update), dataset))
-        self.db.execute("update datasets set unmerged=(unmerged + ?) where label=?", (len(res), dataset))
+        self.db.executemany("update jobs set status=7, job=? where id=?", merge_update)
         self.update_dataset_stats(dataset)
 
         self.db.commit()
@@ -556,7 +556,7 @@ class JobitStore:
         self.db.executemany("""update jobs
             set status=6,
             published_file_block=?
-            where merge_job=?""", unmerged)
+            where job=?""", unmerged)
 
         for job, dataset in self.db.execute("""select jobs.id,
             datasets.label

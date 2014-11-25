@@ -56,7 +56,7 @@ def run(args):
                 print("please renew your proxy")
                 sys.exit(1)
 
-    mode = 'merge' if args.merge else 'process'
+    mode = 'process'
     print "Saving log to {0}".format(os.path.join(workdir, mode + '.log'))
 
     if not args.foreground:
@@ -90,14 +90,7 @@ def run(args):
         config['configdir'] = args.configdir
         config['filename'] = args.configfile
         config['startdir'] = args.startdir
-        if args.merge:
-            if args.server:
-                config['stageout server'] = args.server
-            config['max megabytes'] = args.max_megabytes
-            config['datasets to merge'] = args.datasets
-            job_src = cmssw.MergeProvider(config)
-            actions = cmssw.Actions(config)
-        elif cmsjob:
+        if cmsjob:
             job_src = cmssw.JobProvider(config)
             actions = cmssw.Actions(config)
         else:

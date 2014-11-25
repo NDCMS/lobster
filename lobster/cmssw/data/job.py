@@ -13,6 +13,7 @@ import traceback
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
 from DashboardAPI import apmonSend, apmonFree
+from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 fragment = """
@@ -184,7 +185,7 @@ def edit_process_source(pset, config, events=-1):
     for performance analysis.
     """
     files = config['mask']['files']
-    lumis = config['mask']['lumis']
+    lumis = LumiList(compactList=config['mask']['lumis']).getVLuminosityBlockRange()
     want_summary = config['want summary']
 
     with open(pset, 'a') as fp:
@@ -216,7 +217,9 @@ def extract_info(data, report_filename):
     with open(report_filename) as f:
         for report in readJobReport(f):
             for error in report.errors:
-                exit_code = error.get('ExitStatus', exit_code)
+                code = error.get('ExitStatus', exit_code)
+                if exit_code == 0:
+                    exit_code = code
 
             for file in report.skippedFiles:
                 skipped.append(file['Lfn'])

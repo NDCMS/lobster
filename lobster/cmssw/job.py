@@ -24,17 +24,19 @@ class JobHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, jobits, jdir, cmssw_job, empty_source):
+    def __init__(self, id, dataset, files, lumis, jobdir, cmssw_job=True, empty_source=False, chirp=None, merge=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
-        self._use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in jobits])
-        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in jobits]) or self._use_local
-        self._jobits = jobits
-        self._jobdir = jdir
+        self._use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in lumis])
+        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in lumis]) or self._use_local
+        self._jobits = lumis
+        self._jobdir = jobdir
         self._outputs = []
+        self._merge = merge
         self._cmssw_job = cmssw_job
         self._empty_source = empty_source
+        self._chirp = chirp
 
     @property
     def cmssw_job(self):
@@ -65,8 +67,8 @@ class JobHandler(object):
         return self._file_based
 
     @property
-    def use_local(self):
-        return self._use_local
+    def jobit_source(self):
+        return 'jobs' if self._merge else 'jobits_' + self._dataset
 
     @outputs.setter
     def outputs(self, files):
@@ -75,20 +77,13 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
         files = set([filename for (id, filename) in self._files])
-        localfiles = set([filename for (id, filename) in self._files])
-
-        if self._use_local:
-            if self._cmssw_job:
-                localfiles = ['file:' + os.path.basename(f) for f in localfiles]
-            else:
-                localfiles = [os.path.basename(f) for f in localfiles]
 
         if self._file_based:
             lumis = None
         else:
             lumis = LumiList(lumis=lumis)
 
-        return files, localfiles, lumis
+        return files, lumis
 
     def get_jobit_info(self, failed, files_info, files_skipped, events_written):
         events_read = 0
@@ -140,19 +135,24 @@ class JobHandler(object):
         if failed:
             events_written = 0
             status = jobit.FAILED
-        elif jobits_missed > 0:
-            status = jobit.INCOMPLETE
         else:
             status = jobit.SUCCESSFUL
+
+        if self._merge:
+            file_update = []
+            # FIXME not correct
+            jobits_missed = 0
 
         return [jobits_missed, events_read, events_written, status], \
                 file_update, jobit_update
 
     def update_inputs(self, inputs):
-        pass
+        if self._use_local and not self._chirp:
+            inputs += [(f, os.path.basename(f)) for id, f in self._files if f]
 
     def update_config(self, config):
-        pass
+        if self._merge:
+            config['transfer inputs'] = True
 
 class JobProvider(job.JobProvider):
     def __init__(self, config):
@@ -231,20 +231,25 @@ class JobProvider(job.JobProvider):
                 for id in self.get_jobids(label):
                     self.move_jobdir(id, label, 'failed')
 
+    def get_report(self, label, job):
+        jobdir = self.get_jobdir(job, label, 'successful')
+
+        return os.path.join(jobdir, 'report.xml.gz')
+
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
-        jobinfos = self.retry(self.__store.pop_jobits, (num,), {})
+
+        jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('max megabytes', -1), 10), {}) \
+                + self.retry(self.__store.pop_jobits, (num,), {})
         if not jobinfos or len(jobinfos) == 0:
             return None
 
         tasks = []
         ids = []
 
-        for (id, label, files, lumis, unique_arg, empty_source) in jobinfos:
+        for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
+            sdir = os.path.join(self.stageout, label)
             ids.append(id)
-
-            cmssw_job = self.__configs.has_key(label)
-            cms_config = self.__configs.get(label)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
                       (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
@@ -254,9 +259,58 @@ class JobProvider(job.JobProvider):
                       (self.parrot_lib, 'lib')
                       ] + self.__grid_files
 
+            if merge:
+                args = ['output=' + self.outputs[label][0]]
+                cmssw_job = True
+                cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
+                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py'))
+
+                missing = []
+                infiles = []
+                inreports = []
+
+                for job, _, _, _ in lumis:
+                    report = self.get_report(label, job)
+                    base, ext = os.path.splitext(self.outputs[label][0])
+                    input = os.path.join(sdir, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
+
+                    # FIXME this is not chirp-proof!!!!111!1111!!!!!elf
+                    if os.path.isfile(report) and os.path.isfile(input):
+                        inreports.append(report)
+                        infiles.append((job, input))
+                        # FIXME we can also read files locally, or via
+                        # xrootd...
+                        if not self.__chirp:
+                            inputs.append((input, os.path.basename(input)))
+                    else:
+                        missing += [(job,)]
+
+                if len(missing) > 0:
+                    template = "the following have been marked as failed because their output could not be found: {0}"
+                    logger.warning(template.format(resolve_joblist(missing)))
+                    self.retry(self.__store.update_missing, (missing,), {})
+                    self.__missing += missing
+
+                if len(infiles) <= 1:
+                    # FIXME report these back to the database and then skip
+                    # them.  Without failing these job ids, accounting of
+                    # running jobs is going to be messed up.
+                    logger.debug("skipping job {0} with only one input file!".format(id))
+
+                inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:])) for r in inreports]
+                epilogue = ['python', 'merge_reports.py', 'report.xml.gz'] \
+                        + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in inreports]
+
+                files = infiles
+            else:
+                args = [x for x in self.args[label] + [unique_arg] if x]
+                cmssw_job = self.__configs.has_key(label)
+                cms_config = os.path.join(self.workdir, label, self.__configs.get(label))
+                epilogue = None
+
             if cmssw_job:
                 inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
-                               (os.path.join(self.workdir, label, cms_config), cms_config)
+                               (cms_config, os.path.basename(cms_config))
                                ])
 
             if 'X509_USER_PROXY' in os.environ:
@@ -264,13 +318,12 @@ class JobProvider(job.JobProvider):
 
             inputs += [(i, os.path.basename(i)) for i in self.extra_inputs[label]]
 
-            sdir = os.path.join(self.stageout, label)
             jdir = self.create_jobdir(id, label, 'running')
 
             monitorid, syncid = self.__dash.register_job(id)
 
-            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job, empty_source)
-            files, localfiles, lumis = handler.get_job_info()
+            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job, empty_source, merge=merge, chirp=self.__chirp)
+            files, lumis = handler.get_job_info()
 
             stageout = []
             stagein = []
@@ -284,13 +337,9 @@ class JobProvider(job.JobProvider):
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 
-            if handler.use_local:
-                inputs += [(f, os.path.basename(f)) for f in files]
-
-            args = [x for x in self.args[label] + [unique_arg] if x]
             if not cmssw_job:
                 if handler.file_based:
-                    args += [','.join(localfiles)]
+                    args += [','.join([os.path.basename(f) for f in files])]
                 cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
             else:
                 outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.json']])
@@ -299,8 +348,8 @@ class JobProvider(job.JobProvider):
 
                 config = {
                     'mask': {
-                        'files': list(localfiles),
-                        'lumis': lumis.getVLuminosityBlockRange()
+                        'files': list(files),
+                        'lumis': lumis.getCompactList() if lumis else None
                     },
                     'monitoring': {
                         'monitorid': monitorid,
@@ -308,10 +357,14 @@ class JobProvider(job.JobProvider):
                         'taskid': self.taskid
                     },
                     'arguments': args,
+                    'chirp prefix': self.stageout,
                     'chirp server': self.__chirp,
                     'output files': stageout,
                     'want summary': sum
                 }
+
+                if epilogue:
+                    config['epilogue'] = epilogue
 
                 handler.update_config(config)
                 handler.update_inputs(inputs)
@@ -320,13 +373,13 @@ class JobProvider(job.JobProvider):
                     json.dump(config, f, indent=2)
                 inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
 
-                cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(cms_config)
+                cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(os.path.basename(cms_config))
 
             tasks.append((id, cmd, inputs, outputs))
 
             self.__jobhandlers[id] = handler
 
-        logger.info("creating job(s) {0}".format(", ".join(ids)))
+        logger.info("creating job(s) {0}".format(", ".join(map(str, ids))))
 
         self.__dash.free()
 
@@ -410,7 +463,7 @@ class JobProvider(job.JobProvider):
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 
-            jobs[handler.dataset].append((job_update, file_update, jobit_update))
+            jobs[(handler.dataset, handler.jobit_source)].append((job_update, file_update, jobit_update))
 
             del self.__jobhandlers[task.tag]
 
@@ -420,7 +473,10 @@ class JobProvider(job.JobProvider):
             self.retry(self.__store.update_jobits, (jobs,), {})
 
     def done(self):
-        return self.__store.unfinished_jobits() == 0
+        left = self.__store.unfinished_jobits()
+        if self.config.get('max megabytes', -1) > 0:
+            return self.__store.merged() and left == 0
+        return left == 0
 
     def work_left(self):
         return self.__store.unfinished_jobits()

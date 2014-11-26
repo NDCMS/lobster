@@ -518,8 +518,8 @@ class JobitStore:
         logger.debug("created {0} merge jobs".format(len(merges)))
 
         if len(merges) == 0 and jobits_complete:
-            rows = self.db.execute("""select count(*) from jobs where status=1 and dataset=?""", (dset_id,)).fetchall()
-            if rows[0][0] == 0:
+            rows = self.db.execute("""select count(*) from jobs where status=1 and dataset=?""", (dset_id,)).fetchone()
+            if rows[0] == 0:
                 logger.debug("fully merged {0}".format(dataset))
                 self.db.execute("""update datasets set merged=1 where id=?""", (dset_id,))
                 self.db.commit()

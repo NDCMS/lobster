@@ -418,7 +418,7 @@ class JobProvider(job.JobProvider):
                         cmssw_exit_code = data['cmssw exit code']
                         cputime = data['cpu time']
                         outsize = data['output size']
-                except (EOFError, IOError) as e:
+                except (ValueError, EOFError, IOError) as e:
                     failed = True
                     logger.error("error processing {0}:\n{1}".format(task.tag, e))
 

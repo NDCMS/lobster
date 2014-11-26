@@ -6,9 +6,14 @@ import sys
 
 options = VarParsing('analysis')
 options.register('output', mytype=VarParsing.varType.string)
+options.register('loginterval', 1000, mytype=VarParsing.varType.int)
 options.parseArguments()
 
 process = cms.Process("PickEvent")
+
+process.load('FWCore.MessageService.MessageLogger_cfi')
+process.MessageLogger.cerr.FwkReport.reportEvery = options.loginterval
+
 process.source = cms.Source ("PoolSource",
         fileNames = cms.untracked.vstring(''),
         duplicateCheckMode = cms.untracked.string('noDuplicateCheck')

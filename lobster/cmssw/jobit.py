@@ -455,7 +455,7 @@ class JobitStore:
             where
                 merged <> 1 and
                 jobits_done * 10 > jobits
-                and (select count(*) from jobs where dataset=datasets.id and status=2) > 1
+                and (select count(*) from jobs where dataset=datasets.id and status=2) > 0
         """).fetchall()
 
         if len(rows) == 0:

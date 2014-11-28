@@ -313,9 +313,7 @@ class JobitStore:
             ids = [id for (id,) in db.execute("select id from jobs where status=1")]
             db.execute("update datasets set jobits_running=0, merged=0")
             db.execute("update jobs set status=4 where status=1")
-            db.execute("update jobs set status=2 where status=7 and type=0")
-            db.execute("update jobs set status=4 where status=7 and type=1")
-            db.execute("update jobs set status=2 where status=8 and type=1")
+            db.execute("update jobs set status=2 where status=7")
             for (label, dset_id) in db.execute("select label, id from datasets"):
                 db.execute("update files_{0} set jobits_running=0".format(label))
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))

@@ -1,6 +1,8 @@
 import gzip
 import sys
 
+sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
+
 from IMProv.IMProvDoc import IMProvDoc
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport

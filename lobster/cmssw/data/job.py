@@ -85,7 +85,7 @@ def check_outputs(config):
             return False
     return True
 
-def copy_inputs(config):
+def copy_inputs(config, env):
     """Copies input files if desired.
 
     Checks the passed configuration for transfer settings and modifies the
@@ -118,15 +118,17 @@ def copy_inputs(config):
             else:
                 cfile = file
 
-            lfile = os.path.basename(lfile)
+            lfile = os.path.basename(file)
 
             status = subprocess.call([
                 os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
                 "-a",
                 "globus",
-                options.chirp,
+                "-d",
+                "all",
+                chirp_server,
                 cfile,
-                lfile])
+                lfile], env=env)
 
             if status == 0:
                 config['mask']['files'].append('file:' + lfile)
@@ -144,7 +146,7 @@ def copy_inputs(config):
         print fn
     print "---"
 
-def copy_outputs(data, config):
+def copy_outputs(data, config, env):
     """Copy output files.
 
     If the job failed, delete output files, to avoid work_queue
@@ -172,7 +174,7 @@ def copy_outputs(data, config):
                                       "all",
                                       localname,
                                       server,
-                                      remotename])
+                                      remotename], env=env)
             if status != 0:
                 data['stageout exit code'] = status
                 raise IOError("Failed to transfer output file '{0}'".format(localname))
@@ -292,12 +294,15 @@ data = {
     'task timing info': [None] * 5
 }
 
+env = os.environ
+env['X509_USER_PROXY'] = 'proxy'
+
 (pset, configfile) = sys.argv[1:]
 with open(configfile) as f:
     config = json.load(f)
 
 with check_execution(data, 179):
-    copy_inputs(config)
+    copy_inputs(config, env)
 
 monitorid = config['monitoring']['monitorid']
 syncid = config['monitoring']['syncid']
@@ -307,9 +312,6 @@ args = config['arguments']
 
 pset_mod = pset.replace(".py", "_mod.py")
 shutil.copy2(pset, pset_mod)
-
-env = os.environ
-env['X509_USER_PROXY'] = 'proxy'
 
 edit_process_source(pset_mod, config)
 
@@ -345,7 +347,7 @@ apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
 cputime = 0
 with check_execution(data, 190):
-    cputime = extract_info(data, 'report.xml')
+    cputime = extract_info(config, data, 'report.xml')
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
@@ -370,7 +372,7 @@ if len(epilogue) > 0:
     print "---"
 
 with check_execution(data, 210):
-    copy_outputs(data, config)
+    copy_outputs(data, config, env)
 
 if data['job exit code'] == 0 and not check_outputs(config):
     data['job exit code'] = 211

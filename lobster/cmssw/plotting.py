@@ -254,13 +254,13 @@ class Plotter(object):
                 select count(*)
                 from jobits_{0}, jobs
                 where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
+                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
                     and time_retrieved<=?""".format(label), (self.__xmin,)).fetchone()[0]
             completed_jobits.append(np.array(db.execute("""
                 select jobits_{0}.id, jobs.time_retrieved
                 from jobits_{0}, jobs
                 where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=5 or jobits_{0}.status=6)
+                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
                     and time_retrieved>=? and time_retrieved<=?""".format(label),
                 (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
@@ -269,7 +269,7 @@ class Plotter(object):
                 jobits_{0}.lumi
                 from jobits_{0}, jobs
                 where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status in (2, 5, 6))""".format(label)).fetchall()
+                    and (jobits_{0}.status in (2, 6))""".format(label)).fetchall()
 
         return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits, processed_lumis
 

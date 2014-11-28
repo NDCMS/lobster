@@ -181,7 +181,7 @@ class Plotter(object):
             bytes_sent,
             bytes_output
             from jobs
-            where (status=2 or status=5 or status=6) and time_retrieved>=? and time_retrieved<=?""",
+            where (status=2 or status=6) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[
                     ('id', 'i4'),

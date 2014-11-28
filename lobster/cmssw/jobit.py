@@ -16,7 +16,6 @@ ASSIGNED = 1
 SUCCESSFUL = 2
 FAILED = 3
 ABORTED = 4
-INCOMPLETE = 5
 PUBLISHED = 6
 MERGING = 7
 MERGED = 8
@@ -581,7 +580,7 @@ class JobitStore:
 
         cur = self.db.execute("""select id, type
             from jobs
-            where status in (3, 4, 5) and dataset=?
+            where status in (3, 4) and dataset=?
             """, (dset_id,))
 
         return cur

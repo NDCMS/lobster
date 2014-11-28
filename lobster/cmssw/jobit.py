@@ -467,7 +467,7 @@ class JobitStore:
         logger.debug("trying to merge jobs from {0}".format(dataset))
 
         rows = self.db.execute("""
-            select id, bytes_output
+            select id, jobits, bytes_output
             from jobs
             where status=? and dataset=?
             order by bytes_output desc""", (SUCCESSFUL, dset_id)).fetchall()
@@ -482,33 +482,35 @@ class JobitStore:
             minsize = rows[-1][1]
 
         class Merge(object):
-            def __init__(self, job, size, maxsize):
+            def __init__(self, job, jobits, size, maxsize):
                 self.jobs = [job]
+                self.jobits = jobits
                 self.size = size
                 self.maxsize = maxsize
             def __cmp__(self, other):
                 return cmp(self.size, other.size)
-            def add(self, job, size):
+            def add(self, job, jobits, size):
                 if self.size + size > self.maxsize:
                     return False
                 self.size += size
+                self.jobits += jobits
                 self.jobs.append(job)
                 return True
             def left(self):
                 return self.maxsize - self.size
 
         merges = []
-        for job, size in rows:
+        for job, jobits, size in rows:
             # Try to add the current job to a merge, in increasing order of
             # size left
             for merge in reversed(sorted(merges)):
-                if merge.add(job, size):
+                if merge.add(job, jobits, size):
                     break
             else:
                 # If we're too large to merge, we're skipped.  Also skip if
                 # we have enough merges going on already
                 if size + minsize <= max_bytes:
-                    merges.append(Merge(job, size, max_bytes))
+                    merges.append(Merge(job, jobits, size, max_bytes))
 
         merges = [m for m in reversed(sorted(merges)) if len(m.jobs) > 1][:num]
 
@@ -527,8 +529,8 @@ class JobitStore:
         for merge in merges:
             merge_id = self.db.execute("""
                 insert into
-                jobs(dataset, status, type)
-                values (?, ?, ?)""", (dset_id, ASSIGNED, MERGE)).lastrowid
+                jobs(dataset, jobits, status, type)
+                values (?, ?, ?, ?)""", (dset_id, merge.jobits, ASSIGNED, MERGE)).lastrowid
             logger.debug("inserted merge job {0} with jobs {1}".format(merge_id, ", ".join(map(str, merge.jobs))))
             res += [(str(merge_id), dataset, [], [(id, None, -1, -1) for id in merge.jobs], "", False, True)]
             merge_update += [(merge_id, id) for id in merge.jobs]

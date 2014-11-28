@@ -277,7 +277,7 @@ class Plotter(object):
         if filename:
             fn = filename
         else:
-            fn = os.path.join(self.__workdir, 'process_stats.log')
+            fn = os.path.join(self.__workdir, 'lobster_stats.log')
 
         with open(fn) as f:
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))

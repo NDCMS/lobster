@@ -66,12 +66,11 @@ def run(args):
                 print("please renew your proxy")
                 sys.exit(1)
 
-    mode = 'process'
-    print "Saving log to {0}".format(os.path.join(workdir, mode + '.log'))
+    print "Saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
 
     if not args.foreground:
-        ttyfile = open(os.path.join(workdir, mode + '.err'), 'a')
-        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, mode + '.err'))
+        ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
+        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
 
     signals = daemon.daemon.make_default_signal_map()
     signals[signal.SIGTERM] = lambda num, frame: kill(args)
@@ -84,7 +83,7 @@ def run(args):
             pidfile=util.get_lock(workdir),
             signal_map=signals):
 
-        fileh = logging.FileHandler(os.path.join(workdir, mode + '.log'))
+        fileh = logging.FileHandler(os.path.join(workdir, 'lobster.log'))
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
         fileh.setLevel(config.get('log level', 2) * 10)
 
@@ -110,12 +109,12 @@ def run(args):
         logger.info("using wq from {0}".format(wq.__file__))
 
         wq.cctools_debug_flags_set("all")
-        wq.cctools_debug_config_file(os.path.join(workdir, mode + "_work_queue_debug.log"))
+        wq.cctools_debug_config_file(os.path.join(workdir, "work_queue_debug.log"))
         wq.cctools_debug_config_file_size(1 << 29)
 
         queue = wq.WorkQueue(-1)
-        queue.specify_log(os.path.join(workdir, mode + "_work_queue.log"))
-        queue.specify_name("lobster_" + mode + "_" + config["id"])
+        queue.specify_log(os.path.join(workdir, "work_queue.log"))
+        queue.specify_name("lobster_" + config["id"])
         queue.specify_keepalive_timeout(300)
         # queue.tune("short-timeout", 600)
         queue.tune("transfer-outlier-factor", 4)
@@ -138,7 +137,7 @@ def run(args):
         creation_time = 0
         destruction_time = 0
 
-        with open(os.path.join(workdir, mode + "_stats.log"), "a") as statsfile:
+        with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
             statsfile.write(
                     "#timestamp " +
                     "total_workers_connected total_workers_joined total_workers_removed " +
@@ -155,7 +154,7 @@ def run(args):
             jobits_left = job_src.work_left()
             stats = queue.stats
 
-            with open(os.path.join(workdir, mode + "_stats.log"), "a") as statsfile:
+            with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
                 now = datetime.datetime.now()
                 statsfile.write(" ".join(map(str,
                     [

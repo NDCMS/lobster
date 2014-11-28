@@ -17,6 +17,16 @@ import work_queue as wq
 
 logger = multiprocessing.get_logger()
 
+class ShortPathFormatter(logging.Formatter):
+    def format(self, record):
+        if len(record.pathname) > 40:
+            record.pathname = '...' + record.pathname[-37:]
+        # FIXME at some point, Formatter is a new-style class and we can
+        # use super
+        # return super(ShortPathFormatter, self).format(record)
+        return logging.Formatter.format(self, record)
+
+
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
     with open(args.configfile) as configfile:
@@ -75,7 +85,7 @@ def run(args):
             signal_map=signals):
 
         fileh = logging.FileHandler(os.path.join(workdir, mode + '.log'))
-        fileh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+        fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
         fileh.setLevel(config.get('log level', 2) * 10)
 
         logger.addHandler(fileh)
@@ -84,7 +94,7 @@ def run(args):
         if args.foreground:
             console = logging.StreamHandler()
             console.setLevel(config.get('log level', 2) * 10)
-            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
+            console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
 
         config['configdir'] = args.configdir

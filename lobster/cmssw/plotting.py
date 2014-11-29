@@ -466,7 +466,7 @@ class Plotter(object):
             if 'label' in kwargs:
                 ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
 
-            self.save_and_close(filename)
+            self.saveimg(filename)
 
     def make_pie(self, vals, labels, name, **kwargs):
         vals = [max(0, val) for val in vals]
@@ -481,9 +481,9 @@ class Plotter(object):
         else:
             ax.pie([max(0, val) for val in vals], labels=labels, **kwargs)
 
-        return self.save_and_close(name)
+        return self.saveimg(name)
 
-    def save_and_close(self, name):
+    def saveimg(self, name):
         logger.info("Saving {0}".format(name))
         # plt.gcf().set_size_inches(6, 1.5)
 

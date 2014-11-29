@@ -7,6 +7,7 @@ import jinja2
 import logging
 import multiprocessing
 import os
+import pickle
 import shutil
 import sqlite3
 import time
@@ -380,6 +381,62 @@ class Plotter(object):
     def unix2matplotlib(self, time):
         return dates.date2num(datetime.fromtimestamp(time))
 
+    def updatecpu(self, jobs, reshape):
+        cache = os.path.join(self.__workdir, 'cputime.pkl')
+        edges = np.arange(self.__xmin, self.__xmax + 60, 60)
+
+        try:
+            with open(cache, 'rb') as f:
+                cputime, ids = pickle.load(f)
+                cputime.resize(len(edges) - 1)
+            logger.info("reusing previously calculated cpu time stats.")
+        except:
+            logger.warning("calculating cpu time split up from scratch.")
+            cputime = np.zeros(len(edges) - 1)
+            ids = set()
+
+        for (id, cpu, start, end) in zip(jobs['id'], jobs['t_cpu'], jobs['t_first_ev'], jobs['t_processing_end']):
+            if end == start or cpu == 0 or id in ids:
+                continue
+
+            ids.add(id)
+            ratio = cpu * 1. / (end - start)
+            wall = 0
+            for i in range(len(edges) - 1):
+                if start >= edges[i] and end < edges[i + 1]:
+                    cputime[i] += (end - start) * ratio
+                    wall += (end - start) * ratio
+                elif start < edges[i] and end >= edges[i + 1]:
+                    cputime[i] += (edges[i + 1] - edges[i]) * ratio
+                    wall += (edges[i + 1] - edges[i]) * ratio
+                elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
+                    cputime[i] += (end - edges[i]) * ratio
+                    wall += (end - edges[i]) * ratio
+                elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
+                    cputime[i] += (edges[i + 1] - start) * ratio
+                    wall += (edges[i + 1] - start) * ratio
+            if abs(wall - cpu)/cpu > 0.1:
+                logger.debug("time {0}: CPU {1}, {2} - {3}").format(wall, cpu, start, end)
+        with open(cache, 'wb') as f:
+            pickle.dump((cputime, ids), f)
+
+        cpu = np.zeros(len(reshape) - 1)
+
+        if len(cputime) < len(cpu):
+            logger.error("not enough data to produce cpu time plots.")
+            return cpu
+
+        for bin, low, high in zip(cputime, edges[:-1], edges[1:]):
+            bins = np.digitize([low, high], reshape)
+            if bins[0] == bins[1]:
+                cpu[bins[0] - 1] += bin
+            else:
+                if bins[0] > 0:
+                    cpu[bins[0] - 1] += bin * (reshape[bins[0]] - low) / 60.
+                if bins[1] < len(cpu):
+                    cpu[bins[1] - 1] += bin * (high - reshape[bins[1] - 1]) / 60.
+        return cpu
+
     def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs_raw):
         kwargs = dict(kwargs_raw)
         if 'ymax' in kwargs:
@@ -718,32 +775,8 @@ class Plotter(object):
                 return 0
 
             walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
-            cputime = np.zeros(len(edges) - 1)
-
-            for (cpu, start, end) in zip(
-                    success_jobs['t_cpu'],
-                    success_jobs['t_first_ev'],
-                    success_jobs['t_processing_end']):
-                if end == start or cpu == 0:
-                    continue
-
-                ratio = cpu * 1. / (end - start)
-                wall = 0
-                for i in range(len(edges) - 1):
-                    if start >= edges[i] and end < edges[i + 1]:
-                        cputime[i] += (end - start) * ratio
-                        wall += (end - start) * ratio
-                    elif start < edges[i] and end >= edges[i + 1]:
-                        cputime[i] += (edges[i + 1] - edges[i]) * ratio
-                        wall += (edges[i + 1] - edges[i]) * ratio
-                    elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
-                        cputime[i] += (end - edges[i]) * ratio
-                        wall += (end - edges[i]) * ratio
-                    elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
-                        cputime[i] += (edges[i + 1] - start) * ratio
-                        wall += (edges[i + 1] - start) * ratio
-                if abs(wall - cpu)/cpu > 0.1:
-                    logger.debug("time {0}: CPU {1}, {2} - {3}").format(wall, cpu, start, end)
+            cputime = self.updatecpu(success_jobs, edges)
+            print len(cputime)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
 

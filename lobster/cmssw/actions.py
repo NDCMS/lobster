@@ -1,8 +1,9 @@
 import datetime
-import logging
 import multiprocessing
 
 from lobster.cmssw.plotting import Plotter
+
+logger = multiprocessing.get_logger()
 
 class DummyPlotter(object):
     def make_plots(*args, **kwargs):
@@ -11,7 +12,7 @@ class DummyPlotter(object):
 class Actions(object):
     def __init__(self, config):
         if 'plotdir' in config:
-            logging.info('plots in {0} will be updated automatically'.format(config['plotdir']))
+            logger.info('plots in {0} will be updated automatically'.format(config['plotdir']))
             plotter = Plotter(config['filename'], config['plotdir'])
         else:
             plotter = DummyPlotter()

@@ -256,5 +256,3 @@ def run(args):
                 actions.take()
         if jobits_left == 0:
             logger.info("no more work left to do")
-        if actions:
-            actions.cleanup()

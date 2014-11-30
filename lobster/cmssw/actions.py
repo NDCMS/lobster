@@ -27,7 +27,7 @@ class Actions(object):
 
         self.__last = datetime.datetime.now()
 
-    def cleanup(self):
+    def __del__(self):
         self.plotq.put('stop')
 
     def take(self):

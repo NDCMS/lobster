@@ -7,7 +7,7 @@ import os
 import shutil
 import sys
 
-from lobster import job, util
+from lobster import chirp, job, util
 import dash
 import sandbox
 
@@ -160,6 +160,8 @@ class JobProvider(job.JobProvider):
 
         self.__chirp = self.config.get('stageout server', None)
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
+
+        self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
 
         self.__datasets = {}
         self.__configs = {}
@@ -332,7 +334,7 @@ class JobProvider(job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append(os.path.join(sdir, outname))
+                handler.outputs.append(os.path.join(label, outname))
                 stageout.append((filename, os.path.join(label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
@@ -386,6 +388,7 @@ class JobProvider(job.JobProvider):
         return tasks
 
     def release(self, tasks):
+        cleanup = []
         jobs = defaultdict(list)
         for task in tasks:
             failed = (task.return_status != 0)
@@ -458,6 +461,7 @@ class JobProvider(job.JobProvider):
             if failed:
                 faildir = self.move_jobdir(handler.id, handler.dataset, 'failed')
                 logger.info("parameters and logs can be found in {0}".format(faildir))
+                cleanup += handler.outputs
             else:
                 self.move_jobdir(handler.id, handler.dataset, 'successful')
 
@@ -469,6 +473,8 @@ class JobProvider(job.JobProvider):
 
         self.__dash.free()
 
+        if len(cleanup) > 0:
+            self.__unlinker.remove(cleanup)
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 

@@ -347,7 +347,7 @@ apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
 cputime = 0
 with check_execution(data, 190):
-    cputime = extract_info(config, data, 'report.xml')
+    cputime = extract_info(data, 'report.xml')
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]

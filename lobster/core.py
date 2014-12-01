@@ -1,5 +1,6 @@
 import daemon
 import logging
+import logging.handlers
 import multiprocessing
 import os
 import datetime
@@ -83,7 +84,7 @@ def run(args):
             pidfile=util.get_lock(workdir),
             signal_map=signals):
 
-        fileh = logging.FileHandler(os.path.join(workdir, 'lobster.log'))
+        fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
         fileh.setLevel(config.get('log level', 2) * 10)
 

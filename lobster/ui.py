@@ -31,6 +31,8 @@ def boil():
     parser_validate = subparsers.add_parser('validate', help='validate job output and remove output files for failed jobs')
     parser_validate.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
             help='only print (do not remove) files to be cleaned')
+    parser_validate.add_argument('--delete-merged', action='store_true', dest='delete_merged', default=False,
+            help='remove intermediate files that have been merged')
     parser_validate.set_defaults(func=validate)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')

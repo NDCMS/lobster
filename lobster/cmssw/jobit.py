@@ -566,18 +566,28 @@ class JobitStore:
 
         self.db.commit()
 
-    def success_jobs(self, label):
+    def successful_jobs(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
         cur = self.db.execute("""
             select id, type
             from jobs
-            where status in (2, 8) and dataset=?
+            where status=2 and dataset=?
             """, (dset_id,))
 
         return cur
 
-    def fail_jobs(self, label):
+    def merged_jobs(self, label):
+        dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
+
+        cur = self.db.execute("""select id, type
+            from jobs
+            where status=8 and dataset=?
+            """, (dset_id,))
+
+        return cur
+
+    def failed_jobs(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
         cur = self.db.execute("""select id, type

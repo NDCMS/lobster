@@ -55,6 +55,7 @@ class Unlinker(object):
 
         self.__queue = multiprocessing.Queue()
         self.__process = multiprocessing.Process(target=unlinkf, args=(self.__queue,))
+        self.__process.start()
 
     def __del__(self):
         self.__queue.put('stop')

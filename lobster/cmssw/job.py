@@ -158,6 +158,30 @@ class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
 
+        if 'merge size' in self.config:
+            bytes = self.config['merge size']
+            orig = bytes
+            if isinstance(bytes, basestring):
+                unit = bytes[-1].lower()
+                try:
+                    bytes = float(bytes[:-1])
+                    if unit == 'k':
+                        bytes *= 1000
+                    elif unit == 'm':
+                        bytes *= 1e6
+                    elif unit == 'g':
+                        bytes *= 1e9
+                    else:
+                        bytes = -1
+                except ValueError:
+                    bytes = -1
+                self.config['merge size'] = bytes
+
+            if bytes > 0:
+                logger.info('merging outputs up to {0} bytes'.format(bytes))
+            else:
+                logger.error('merging disabled due to malformed size {0}'.format(orig))
+
         self.__chirp = self.config.get('stageout server', None)
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
@@ -241,7 +265,7 @@ class JobProvider(job.JobProvider):
     def obtain(self, num=1, bijective=False):
         # FIXME allow for adjusting the number of LS per job
 
-        jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('max megabytes', -1), 10), {}) \
+        jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('merge size', -1), 10), {}) \
                 + self.retry(self.__store.pop_jobits, (num,), {})
         if not jobinfos or len(jobinfos) == 0:
             return None
@@ -480,7 +504,7 @@ class JobProvider(job.JobProvider):
 
     def done(self):
         left = self.__store.unfinished_jobits()
-        if self.config.get('max megabytes', -1) > 0:
+        if self.config.get('merge size', -1) > 0:
             return self.__store.merged() and left == 0
         return left == 0
 

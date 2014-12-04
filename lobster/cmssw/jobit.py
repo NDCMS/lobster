@@ -438,16 +438,17 @@ class JobitStore:
 
         return cur.fetchone()
 
-    def pop_unmerged_jobs(self, max_megabytes, num=1):
+    def pop_unmerged_jobs(self, bytes, num=1):
         """Create merging jobs.
 
         Adds jobs to the set to be merged, keeping a running total of
         output sizes until the next file would exceed the
-        size specified by max_megabytes. For each set of jobs to be merged,
+        size specified by bytes. For each set of jobs to be merged,
         creates a new entry of type MERGE in the job table.
         """
 
-        max_bytes = max_megabytes * 1000000
+        if bytes <= 0:
+            return []
 
         rows = self.db.execute("""
             select label, id, jobits_done == jobits
@@ -476,7 +477,7 @@ class JobitStore:
         # merge, set this up so that the loop below is not evaluted and we
         # skip to the check if the merge for this dataset is complete for
         # the given maximum size.
-        if len(rows) < 2 or rows[-2][1] + rows[-1][1] > max_bytes:
+        if len(rows) < 2 or rows[-2][1] + rows[-1][1] > bytes:
             rows = []
         else:
             minsize = rows[-1][1]
@@ -509,8 +510,8 @@ class JobitStore:
             else:
                 # If we're too large to merge, we're skipped.  Also skip if
                 # we have enough merges going on already
-                if size + minsize <= max_bytes:
-                    merges.append(Merge(job, jobits, size, max_bytes))
+                if size + minsize <= bytes:
+                    merges.append(Merge(job, jobits, size, bytes))
 
         merges = [m for m in reversed(sorted(merges)) if len(m.jobs) > 1][:num]
 

@@ -441,10 +441,7 @@ class JobitStore:
     def pop_unmerged_jobs(self, bytes, num=1):
         """Create merging jobs.
 
-        Adds jobs to the set to be merged, keeping a running total of
-        output sizes until the next file would exceed the
-        size specified by bytes. For each set of jobs to be merged,
-        creates a new entry of type MERGE in the job table.
+        This creates `num` merge jobs with a maximal size of `bytes`.
         """
 
         if bytes <= 0:

@@ -63,20 +63,31 @@ CMS):
    In case of errors, [here](doc/ErrorCodes.md) is an explanation for
    custom exit codes of lobster.
 
-5. Starting workers --- see below.
+5. Merging output files
 
-6. Stopping lobster
+   By default, output files are not merged.  If they are too small and
+   should be merged, consider adding
+
+       merge size: 300M
+
+   to your configuration.  Then output files will get merged as processing
+   jobs finish.  If all processing is already done, only merge jobs will
+   run.  Valid units for this option are `K`, `k`, `M`, `m`, `G`, and `g`.
+
+6. Starting workers --- see below.
+
+7. Stopping lobster
 
         lobster terminate examples/beanprod.yaml
 
-7. Creating summary plots
+8. Creating summary plots
 
         lobster plot --outdir <your output directory> <your config/working directory>
 
    If you have set a `plotdir` in your configuration (at the top level),
    lobster will update plots every 15 minutes by default.
 
-8. Publishing
+9. Publishing
 
         lobster publish <labels> <your config/working directory>
 

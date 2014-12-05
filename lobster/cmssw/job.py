@@ -429,7 +429,7 @@ class JobProvider(job.JobProvider):
             files_info = {}
             files_skipped = []
             events_written = 0
-            task_times = [None] * 7
+            task_times = [None] * 10
             cmssw_exit_code = None
             cputime = 0
             outsize = 0

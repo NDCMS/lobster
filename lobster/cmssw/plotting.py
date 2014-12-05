@@ -154,7 +154,6 @@ class Plotter(object):
             id,
             host,
             dataset,
-            published_file_block,
             status,
             exit_code,
             submissions,
@@ -167,11 +166,14 @@ class Plotter(object):
             time_transfer_in_end,
             time_wrapper_start,
             time_wrapper_ready,
+            time_stage_in_end,
+            time_prologue_end,
             time_file_requested,
             time_file_opened,
             time_file_processing,
             time_processing_end,
-            time_chirp_end,
+            time_epilogue_end,
+            time_stage_out_end,
             time_transfer_out_start,
             time_transfer_out_end,
             time_retrieved,
@@ -180,15 +182,15 @@ class Plotter(object):
             time_cpu,
             bytes_received,
             bytes_sent,
-            bytes_output
+            bytes_output,
+            type
             from jobs
-            where (status=2 or status=6) and time_retrieved>=? and time_retrieved<=?""",
+            where status in (2, 6, 8) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[
                     ('id', 'i4'),
                     ('host', 'a50'),
                     ('dataset', 'i4'),
-                    ('file_block', 'a100'),
                     ('status', 'i4'),
                     ('exit_code', 'i4'),
                     ('retries', 'i4'),
@@ -201,11 +203,14 @@ class Plotter(object):
                     ('t_send_end', 'i4'),
                     ('t_wrapper_start', 'i4'),
                     ('t_wrapper_ready', 'i4'),
+                    ('t_stage_in', 'i4'),
+                    ('t_prologue', 'i4'),
                     ('t_file_req', 'i4'),
                     ('t_file_open', 'i4'),
                     ('t_first_ev', 'i4'),
                     ('t_processing_end', 'i4'),
-                    ('t_chirp_end', 'i4'),
+                    ('t_epilogue', 'i4'),
+                    ('t_stage_out', 'i4'),
                     ('t_recv_start', 'i4'),
                     ('t_recv_end', 'i4'),
                     ('t_retrieved', 'i4'),
@@ -214,7 +219,8 @@ class Plotter(object):
                     ('t_cpu', 'i8'),
                     ('b_recv', 'i4'),
                     ('b_sent', 'i4'),
-                    ('b_output', 'i4')
+                    ('b_output', 'i4'),
+                    ('type', 'i4')
                     ])
 
         summary_data = list(db.execute("""
@@ -631,7 +637,10 @@ class Plotter(object):
         self.__foremen = foremen if foremen else []
 
         headers, stats = self.readlog()
-        success_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
+        good_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
+
+        success_jobs = good_jobs[good_jobs['type'] == 0]
+        merge_jobs = good_jobs[good_jobs['type'] == 1]
 
         foremen_names = self.make_foreman_plots()
 
@@ -693,33 +702,39 @@ class Plotter(object):
                 label=['joined', 'removed']
         )
 
-        if len(success_jobs) > 0 or len(failed_jobs) > 0:
+        if len(good_jobs) > 0 or len(failed_jobs) > 0:
             self.make_pie(
                     [
-                        np.sum(success_jobs['t_allput'] - success_jobs['t_goodput'])
+                        np.sum(good_jobs['t_allput'] - good_jobs['t_goodput'])
                             + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
                         np.sum(failed_jobs['t_allput']),
-                        np.sum(success_jobs['t_first_ev'] - success_jobs['t_send_start']),
-                        np.sum(success_jobs['t_processing_end'] - success_jobs['t_first_ev']),
-                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_processing_end'])
+                        np.sum(good_jobs['t_first_ev'] - good_jobs['t_send_start']),
+                        np.sum(good_jobs['t_processing_end'] - good_jobs['t_first_ev']),
+                        np.sum(good_jobs['t_recv_end'] - good_jobs['t_processing_end'])
                     ],
                     ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
                     "time-pie",
                     colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
             )
 
-            code_map = {
-                    2: ('successful', 'green'),
-                    5: ('incomplete', 'cyan'),
-                    6: ('published', 'blue')
-            }
-            codes, split_jobs = split_by_column(success_jobs, 'status')
+            datasets = []
+            colors = []
+            labels = []
 
-            datasets = [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in split_jobs + [failed_jobs]]
-            colors = [code_map[code][1] for code in codes]
-            labels = [code_map[code][0] for code in codes]
+            for jobs, label, color in [(success_jobs, 'processed', 'green'), (merge_jobs, 'merged', 'magenta')]:
+                code_map = {
+                        2: (label, color),
+                        6: ('published', 'blue'),
+                        8: (label, color)
+                }
+                codes, split_jobs = split_by_column(jobs, 'status')
+
+                datasets += [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in split_jobs]
+                colors += [code_map[code][1] for code in codes]
+                labels += [code_map[code][0] for code in codes]
 
             if len(failed_jobs) > 0:
+                datasets += [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in [failed_jobs]]
                 colors += ['red']
                 labels += ['failed']
 
@@ -776,7 +791,6 @@ class Plotter(object):
 
             walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
             cputime = self.updatecpu(success_jobs, edges)
-            print len(cputime)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
 
@@ -801,139 +815,49 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
-            self.make_pie(
-                    [
-                        np.sum(success_jobs['t_allput'] - success_jobs['t_goodput'])
-                            + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
-                        np.sum(failed_jobs['t_allput']),
-                        np.sum(success_jobs['t_send_end'] - success_jobs['t_send_start']),
-                        np.sum(success_jobs['t_wrapper_start'] - success_jobs['t_send_end']),
-                        np.sum(success_jobs['t_wrapper_ready'] - success_jobs['t_wrapper_start']),
-                        np.sum(success_jobs['t_file_req'] - success_jobs['t_wrapper_ready']),
-                        np.sum(success_jobs['t_file_open'] - success_jobs['t_file_req']),
-                        np.sum(success_jobs['t_first_ev'] - success_jobs['t_file_open']),
-                        np.sum(success_jobs['t_cpu']),
-                        np.sum(success_jobs['t_processing_end'] - success_jobs['t_first_ev'] - success_jobs['t_cpu']),
-                        np.sum(success_jobs['t_chirp_end'] - success_jobs['t_processing_end']),
-                        np.sum(success_jobs['t_recv_start'] - success_jobs['t_chirp_end']),
-                        np.sum(success_jobs['t_recv_end'] - success_jobs['t_recv_start']),
-                    ],
-                    [
-                        "Eviction", "Failed", "Stage-in", "Startup",
-                        "Release setup", "CMSSW setup", "File request",
-                        "CMSSW job setup", "Processing CPU", "Processing",
-                        "Stage-out chirp", "Stage-out wait", "Stage-out"
-                    ],
-                    "time-detail-pie",
-                    colors=[
-                        "crimson", "red", "dodgerblue", "cornflowerblue",
-                        "royalblue", "mediumslateblue", "darkorchid",
-                        "mediumpurple", "forestgreen", "green",
-                        "powderblue", "skyblue", "darkturquoise"
-                    ]
-            )
+            for prefix, jobs in [('good-', success_jobs), ('merge-', merge_jobs)]:
+                starttimes = jobs['t_wrapper_start']
+                endtimes = jobs['t_processing_end']
 
-            starttimes = success_jobs['t_wrapper_start']
-            endtimes = success_jobs['t_processing_end']
+                # plot timeline
+                things_we_are_looking_at = [
+                        # x-times   , y-times                                                         , y-label                      , filestub             , color             , in pie
+                        (endtimes   , (jobs['t_allput'] - jobs['t_goodput'])                          , 'Lost runtime'               , 'eviction'           , "crimson"         , False) ,
+                        (endtimes   , (jobs['t_processing_end'] - jobs['t_wrapper_start'])            , 'Runtime'                    , 'runtime'            , "blue"            , False) ,
+                        (starttimes , (jobs['t_send_end'] - jobs['t_send_start'])                     , 'Input transfer'             , 'transfer-in'        , "dodgerblue"      , True)  ,
+                        (starttimes , (jobs['t_wrapper_start'] - jobs['t_send_end'])                  , 'Startup'                    , 'startup'            , "cornflowerblue"  , True)  ,
+                        (starttimes , (jobs['t_wrapper_ready'] - jobs['t_wrapper_start'])             , 'Release setup'              , 'setup-release'      , "royalblue"       , True)  ,
+                        (starttimes , (jobs['t_stage_in'] - jobs['t_wrapper_ready'])                  , 'Stage-in'                   , 'stage-in'           , "mediumslateblue" , True)  ,
+                        (starttimes , (jobs['t_prologue'] - jobs['t_stage_in'])                       , 'Prologue'                   , 'prologue'           , "mediumslateblue" , True)  ,
+                        (starttimes , (jobs['t_file_req'] - jobs['t_prologue'])                       , 'CMSSW setup'                , 'setup-cms'          , "mediumslateblue" , True)  ,
+                        (starttimes , (jobs['t_file_open'] - jobs['t_file_req'])                      , 'File request'               , 'file-open'          , "darkorchid"      , True)  ,
+                        (starttimes , (jobs['t_first_ev'] - jobs['t_file_open'])                      , 'CMSSW job setup'            , 'setup-job'          , "mediumblue"      , True)  ,
+                        (endtimes   , (jobs['t_first_ev'] - jobs['t_wrapper_start'])                  , 'Overhead'                   , 'overhead'           , "blue"            , False) ,
+                        (endtimes   , jobs['t_cpu']                                                   , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"     , True)  ,
+                        (endtimes   , (jobs['t_processing_end'] - jobs['t_first_ev'] - jobs['t_cpu']) , 'Non-CPU processing'         , 'processing-non-cpu' , "green"           , True)  ,
+                        (endtimes   , (jobs['t_processing_end'] - jobs['t_first_ev'])                 , 'Processing Total'           , 'processing'         , "mediumseagreen"  , False) ,
+                        (endtimes   , (jobs['t_epilogue'] - jobs['t_processing_end'])                 , 'Epilogue'                   , 'epilogue'           , "powderblue"      , True)  ,
+                        (endtimes   , (jobs['t_stage_out'] - jobs['t_epilogue'])                      , 'Stage-out'                  , 'stage-out'          , "powderblue"      , True)  ,
+                        (endtimes   , (jobs['t_recv_start'] - jobs['t_stage_out'])                    , 'Output transfer wait'       , 'transfer-out-wait'  , "skyblue"         , True)  ,
+                        (endtimes   , (jobs['t_recv_end'] - jobs['t_recv_start'])                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "darkturquoise"   , True)
+                ]
 
-            self.plot(
-                    [(endtimes, (success_jobs['t_allput'] - success_jobs['t_goodput']) / 60.)],
-                    'Lost runtime (m)', 'eviction',
-                    color=["crimson"]
-            )
+                for xtimes, ytimes, label, filestub, color, pie in things_we_are_looking_at:
+                    ytimes[np.abs(ytimes) > 1e7] = 0
 
-            self.plot(
-                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_wrapper_start']) / 60.)],
-                    'Runtime (m)', 'runtime'
-            )
+                self.make_pie(
+                        [
+                            np.sum(jobs['t_allput'] - jobs['t_goodput'])
+                                + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
+                            np.sum(failed_jobs['t_allput'])
+                        ] + [np.sum(plot[1]) for plot in things_we_are_looking_at if plot[-1]],
+                        ["Eviction", "Failed"] + [plot[2] for plot in things_we_are_looking_at if plot[-1]],
+                        prefix + "time-detail-pie",
+                        colors=["crimson", "red"] + [plot[-2] for plot in things_we_are_looking_at if plot[-1]]
+                )
 
-            self.plot(
-                    [(starttimes, (success_jobs['t_send_end'] - success_jobs['t_send_start']) / 60.)],
-                    'Stage-in (m)', 'stage-in',
-                    color=["dodgerblue"]
-            )
-
-            self.plot(
-                    [(starttimes, (success_jobs['t_wrapper_start'] - success_jobs['t_send_end']) / 60.)],
-                    'Startup (m)', 'startup',
-                    color=["cornflowerblue"]
-
-            )
-
-            self.plot(
-                    [(starttimes, (success_jobs['t_wrapper_ready'] - success_jobs['t_wrapper_start']) / 60.)],
-                    'Release setup (m)', 'setup-release',
-                    color=["royalblue"]
-
-            )
-
-            self.plot(
-                    [(starttimes, (success_jobs['t_file_req'] - success_jobs['t_wrapper_ready']) / 60.)],
-                    'CMSSW setup (m)', 'setup-cms',
-                    color=["mediumslateblue"]
-
-            )
-
-            self.plot(
-                    [(starttimes, (success_jobs['t_file_open'] - success_jobs['t_file_req']) / 60.)],
-                    'File request (m)', 'file-open',
-                    color=["darkorchid"]
-
-            )
-
-            self.plot(
-                    [(starttimes, (success_jobs['t_first_ev'] - success_jobs['t_file_open']) / 60.)],
-                    'CMSSW job setup (m)', 'setup-job',
-                    color=["mediumblue"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_first_ev'] - success_jobs['t_wrapper_start']) / 60.)],
-                    'Overhead (m)', 'overhead'
-            )
-
-            self.plot(
-                    [(endtimes, success_jobs['t_cpu'] / 60.)],
-                    'Processing CPU (m)', 'processing-cpu',
-                    color=["forestgreen"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev'] - success_jobs['t_cpu']) / 60.)],
-                    'Non-CPU processing (m)', 'processing-non-cpu',
-                    color=["green"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_processing_end'] - success_jobs['t_first_ev']) / 60.)],
-                    'Processing Total (m)', 'processing',
-                    color=["mediumseagreen"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_chirp_end'] - success_jobs['t_processing_end']) / 60.)],
-                    'Stage-out chirp (m)', 'stage-out-chirp',
-                    color=["powderblue"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_recv_start'] - success_jobs['t_chirp_end']) / 60.)],
-                    'Stage-out wait (m)', 'stage-out-wait',
-                    color=["skyblue"]
-
-            )
-
-            self.plot(
-                    [(endtimes, (success_jobs['t_recv_end'] - success_jobs['t_recv_start']) / 60.)],
-                    'Stage-out work_queue (m)', 'stage-out-wq',
-                    color=["darkturquoise"]
-
-            )
+                for xtimes, ytimes, label, filestub, color, pie in things_we_are_looking_at:
+                        self.plot([(xtimes, ytimes / 60.)], label+' (m)', prefix+filestub, color=[color])
 
         if len(failed_jobs) > 0:
             logs = self.savelogs(failed_jobs)
@@ -973,6 +897,7 @@ class Plotter(object):
                 run_endtime=self.__total_xmax,
                 bad_jobs=len(failed_jobs) > 0,
                 good_jobs=len(success_jobs) > 0,
+                merge_jobs=len(merge_jobs) > 0,
                 summary=summary_data,
                 jsons=jsons,
                 bad_logs=logs,

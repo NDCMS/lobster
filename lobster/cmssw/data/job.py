@@ -291,7 +291,7 @@ data = {
     'cpu time': 0,
     'events written': 0,
     'output size': 0,
-    'task timing info': [None] * 5
+    'task timing info': [None] * 7
 }
 
 env = os.environ
@@ -303,6 +303,8 @@ with open(configfile) as f:
 
 with check_execution(data, 179):
     copy_inputs(config, env)
+
+data['task timing info'][2] = int(datetime.now().strftime('%s'))
 
 monitorid = config['monitoring']['monitorid']
 syncid = config['monitoring']['syncid']
@@ -323,6 +325,8 @@ if len(prologue) > 0:
     with check_execution(data, 180):
         subprocess.check_call(prologue, env=env)
     print "---"
+
+data['task timing info'][3] = int(datetime.now().strftime('%s'))
 
 #
 # Start proper CMSSW job
@@ -357,7 +361,7 @@ data['files']['adler32'] = calculate_alder32(data, config)
 now = int(datetime.now().strftime('%s'))
 
 with check_execution(data, 192):
-    data['task timing info'][2:] = extract_cmssw_times('cmssw.log', now)
+    data['task timing info'][4:] = extract_cmssw_times('cmssw.log', now)
 
 data['task timing info'].append(now)
 
@@ -370,6 +374,8 @@ if len(epilogue) > 0:
     with check_execution(data, 199):
         subprocess.check_call(epilogue, env=env)
     print "---"
+
+data['task timing info'].append(int(datetime.now().strftime('%s')))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)

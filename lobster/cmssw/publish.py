@@ -303,12 +303,12 @@ def publish(args):
         logging.basicConfig(
                 datefmt="%Y-%m-%d %H:%M:%S",
                 format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
-                level=config.get('log level', 2) * 10,
+                level=config.get('advanced', {}).get('log level', 2) * 10,
                 filename=os.path.join(workdir, 'publish.log'))
 
         if args.foreground:
             console = logging.StreamHandler()
-            console.setLevel(config.get('log level', 2) * 10)
+            console.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
             console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
             logging.getLogger('').addHandler(console)
 

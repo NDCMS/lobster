@@ -57,7 +57,7 @@ def run(args):
             if not 'X509_USER_PROXY' in os.environ:
                 os.environ['X509_USER_PROXY'] = cred.credObj.getUserProxy()
         else:
-            if config.get('check proxy', True):
+            if config.get('advanced', {}).get('renew proxy', True):
                 try:
                     cred.ManualRenewCredential()
                 except Exception as e:
@@ -86,14 +86,14 @@ def run(args):
 
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
-        fileh.setLevel(config.get('log level', 2) * 10)
+        fileh.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
 
         logger.addHandler(fileh)
-        logger.setLevel(config.get('log level', 2) * 10)
+        logger.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
 
         if args.foreground:
             console = logging.StreamHandler()
-            console.setLevel(config.get('log level', 2) * 10)
+            console.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
             console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
 
@@ -124,10 +124,10 @@ def run(args):
         logger.info("starting queue as {0}".format(queue.name))
         logger.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
 
-        payload = config.get('tune', {}).get('payload', 400)
+        payload = config.get('advanced', {}).get('payload', 400)
         abort_active = False
-        abort_threshold = config.get('tune', {}).get('abort threshold', 400)
-        abort_multiplier = config.get('tune', {}).get('abort multiplier', 4)
+        abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
+        abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
 
         if util.checkpoint(workdir, 'KILLED') == 'PENDING':
             util.register_checkpoint(workdir, 'KILLED', 'RESTART')

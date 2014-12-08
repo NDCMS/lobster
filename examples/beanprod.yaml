@@ -3,18 +3,38 @@ workdir: <your working directory here>
 plotdir: <your plotting directory here>
 stageout location: <your stageout directory here>
 
+## report jobs to the CMS dashboard
 use dashboard: true
-check proxy: true
 
-### optional ###
+## merge output files to this size
+merge size: 3.5G
+
+advanced:
+  ## start killing jobs with excessive runtimes after this many successful
+  ## jobs
+  abort threshold: 10
+  ## define excessive runtime in multiples of the average runtime
+  # abort multiplier: 4
+  ## override automatic proxy renewal
+  # renew proxy: false
+  ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
+  log level: 0
+  ## how many jobs to create and keep in the queue
+  # payload: 400
+
+### optional
+## chirp server to use for stage-in / stage-out
 # stageout server: "earth.crc.nd.edu:9094"
-# sandbox blacklist: ['*DrawPlots*'] # specify directories in CMSSW work area to omit from sandbox
-# dbs instance: phys03 #DBS instance to publish to
-# publish user: username # overwrite the username to use for publishing, in case it is different from the environment var $USER
-# recycle sandbox: path/to/sandbox.tar.bz2 # specify sandbox instead of creating one at startup
-################
+## specify directories in CMSSW work area to omit from sandbox
+# sandbox blacklist: ['*DrawPlots*']
+## DBS instance to publish to
+# dbs instance: phys03
+## overwrite the username to use for publishing, in case it is different from the environment var $USER
+# publish user: username
+## specify sandbox instead of creating one at startup
+# recycle sandbox: path/to/sandbox.tar.bz2
 
-### use configuration below to run non-cmsRun jobs ###
+### use configuration below to run non-cmsRun jobs
 # cmd: 'python make_big_file.py'
 # inputs: ['make_big_file.py']
 # outputs: ['output.txt', 'log.txt']

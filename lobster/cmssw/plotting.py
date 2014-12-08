@@ -229,8 +229,8 @@ class Plotter(object):
                 select
                     label,
                     events,
-                    (select sum(events_read) from jobs where status=2 and dataset = datasets.id),
-                    (select sum(events_written) from jobs where status=2 and dataset = datasets.id),
+                    (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                    (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                     jobits + masked_lumis,
                     jobits,
                     jobits_done,
@@ -242,8 +242,8 @@ class Plotter(object):
                 select
                     'Total',
                     sum(events),
-                    (select sum(events_read) from jobs where status=2),
-                    (select sum(events_written) from jobs where status=2),
+                    (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0),
+                    (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0),
                     sum(jobits + masked_lumis),
                     sum(jobits),
                     sum(jobits_done),

@@ -28,7 +28,7 @@ matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
-matplotlib.rc('font', **{'sans-serif' : 'DejaVu LGC Sans', 'family' : 'sans-serif'})
+matplotlib.rc('font', **{'sans-serif' : 'Liberation Sans', 'family' : 'sans-serif'})
 
 logger = multiprocessing.get_logger()
 
@@ -840,6 +840,8 @@ class Plotter(object):
             )
 
             for prefix, jobs, failures in [('good-', success_jobs, failed_processing), ('merge-', merge_jobs, failed_merging)]:
+                if len(jobs) == 0:
+                    continue
                 starttimes = jobs['t_wrapper_start']
                 endtimes = jobs['t_processing_end']
 

@@ -23,7 +23,6 @@ from lobster import util
 from lobster.job import apply_matching
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw.jobit import JobitStore
-from lobster.cmssw.merge import resolve_joblist
 
 def get_adler32(filename):
     sum = 1L
@@ -387,8 +386,8 @@ def publish(args):
                     LFN = block.get_LFN(PFN)
                     matched_PFN = block.get_matched_PFN(PFN, LFN)
                     if not matched_PFN:
-                        logging.warn('could not find expected output for %s' % resolve_joblist([(job, merged_job)]))
-                        missing += [(job, merged_job)]
+                        logging.warn('could not find expected output for job(s) {0}'.format(job))
+                        missing.append(job)
                     else:
                         logging.info('adding %s to block' % LFN)
                         block.add_file_config(LFN)
@@ -423,6 +422,6 @@ def publish(args):
                 logging.info('json file of published runs and lumis saved to %s' % json)
 
             if len(missing) > 0:
-                template = "the following have not been published because their output could not be found: {0}"
-                logging.warning(template.format(resolve_joblist(missing)))
+                template = "the following job(s) have not been published because their output could not be found: {0}"
+                logging.warning(template.format(", ".join(map(str, missing))))
 

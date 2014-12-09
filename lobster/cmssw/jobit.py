@@ -611,9 +611,13 @@ class JobitStore:
             datasets.label
             from jobs, datasets
             where jobs.id in ({0})
-            and jobs.dataset=datasets.id""".format(", ".join([str(j) for j, t in jobs]))):
-            self.db.execute("update jobs set status=3 where id=?", (job,))
+            and jobs.dataset=datasets.id""".format(", ".join(map(str, jobs)))):
             self.db.execute("update jobits_{0} set status=3 where job=?".format(dataset), (job,))
+
+        # update jobs to be failed
+        self.db.executemany("update jobs set status=3 where id=?", [(job,) for job in jobs])
+        # reset merged jobs from merging
+        self.db.executemany("update jobs set status=2 where job=?", [(job,) for job in jobs])
 
         self.db.commit()
 

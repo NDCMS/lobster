@@ -309,13 +309,12 @@ class JobProvider(job.JobProvider):
                         if not self.__chirp:
                             inputs.append((input, os.path.basename(input)))
                     else:
-                        missing += [(job,)]
+                        missing.append(job)
 
                 if len(missing) > 0:
                     template = "the following have been marked as failed because their output could not be found: {0}"
-                    logger.warning(template.format(resolve_joblist(missing)))
+                    logger.warning(template.format(", ".join(map(str, missing))))
                     self.retry(self.__store.update_missing, (missing,), {})
-                    self.__missing += missing
 
                 if len(infiles) <= 1:
                     # FIXME report these back to the database and then skip

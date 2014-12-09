@@ -71,7 +71,7 @@ def validate(args):
                         cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
 
                 if filename not in files:
-                    missing += [(job, job_type)]
+                    missing.append(job)
                     logger.warning('output file is missing for {0}'.format(job))
 
     logger.info('finished validating')
@@ -93,5 +93,5 @@ def validate(args):
 
         verb = 'would have' if args.dry_run else 'have'
         template = 'the following {0} been marked as failed because their output could not be found: {1}'
-        logger.warning(template.format(verb, cmssw.merge.resolve_joblist(missing)))
+        logger.warning(template.format(verb, ', '.join(map(str, missing))))
 

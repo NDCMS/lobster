@@ -361,7 +361,11 @@ class Plotter(object):
             for id, e in list(jobs[-samples:]):
                 codes[exit_code][1][id] = []
 
-                source = glob.glob(os.path.join(self.__workdir, '*', 'failed', util.id2dir(id)))[0]
+                try:
+                    source = glob.glob(os.path.join(self.__workdir, '*', 'failed', util.id2dir(id)))[0]
+                except IndexError:
+                    continue
+
                 target = os.path.join(os.path.join(self.__plotdir, 'logs'), str(id))
                 if os.path.exists(target):
                     shutil.rmtree(target)

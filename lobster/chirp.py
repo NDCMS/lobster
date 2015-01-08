@@ -33,7 +33,7 @@ def unlink(server, basedir, files):
     elif server:
         cmd = "".join("rm " + file + "\n" for file in files)
         p = subprocess.Popen(
-                ["chirp",server],
+                ["chirp", server],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE)

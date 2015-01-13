@@ -332,9 +332,11 @@ class JobProvider(job.JobProvider):
             else:
                 args = [x for x in self.args[label] + [unique_arg] if x]
                 cmssw_job = self.__configs.has_key(label)
-                cms_config = os.path.join(self.workdir, label, self.__configs.get(label))
+                cms_config = None
                 prologue = self.config.get('prologue')
                 epilogue = None
+                if cmssw_job:
+                    cms_config = os.path.join(self.workdir, label, self.__configs[label])
 
             if cmssw_job:
                 inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True),

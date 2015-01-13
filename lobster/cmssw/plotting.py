@@ -690,6 +690,12 @@ class Plotter(object):
                 label=['running']
         )
 
+        self.plot(
+                [(stats[:,headers['timestamp']], np.divide(stats[:,headers['total_memory']], stats[:,headers['total_cores']]))],
+                'Avg memory / core', 'memory-per-core',
+                modes=[Plotter.PLOT|Plotter.TIME]
+        )
+
         sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
         received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
         created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])

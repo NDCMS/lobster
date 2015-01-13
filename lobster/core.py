@@ -149,6 +149,8 @@ def run(args):
                     "idle_percentage " +
                     "capacity " +
                     "efficiency " +
+                    "total_memory " +
+                    "total_cores " +
                     "jobits_left\n")
 
         while not job_src.done():
@@ -173,6 +175,8 @@ def run(args):
                         stats.idle_percentage,
                         stats.capacity,
                         stats.efficiency,
+                        stats.total_memory,
+                        stats.total_cores,
                         jobits_left
                     ]
                     )) + "\n"

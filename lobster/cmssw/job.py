@@ -205,7 +205,7 @@ class JobProvider(job.JobProvider):
                                   ]
                              ]
 
-        if self.config.get('use dashboard', False):
+        if self.config.get('use dashboard', True):
             logger.info("using dashboard with task id {0}".format(self.taskid))
             self.__dash = dash.Monitor(self.taskid)
         else:

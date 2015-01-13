@@ -324,6 +324,7 @@ class JobProvider(job.JobProvider):
 
                 inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in inreports]
 
+                prologue = None
                 epilogue = ['python', 'merge_reports.py', 'report.xml.gz'] \
                         + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in inreports]
 
@@ -332,6 +333,7 @@ class JobProvider(job.JobProvider):
                 args = [x for x in self.args[label] + [unique_arg] if x]
                 cmssw_job = self.__configs.has_key(label)
                 cms_config = os.path.join(self.workdir, label, self.__configs.get(label))
+                prologue = self.config.get('prologue')
                 epilogue = None
 
             if cmssw_job:
@@ -388,6 +390,8 @@ class JobProvider(job.JobProvider):
                     'output files': stageout,
                     'want summary': sum
                 }
+                if prologue:
+                    config['prologue'] = prologue
 
                 if epilogue:
                     config['epilogue'] = epilogue

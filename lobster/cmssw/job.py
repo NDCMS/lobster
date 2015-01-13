@@ -148,7 +148,7 @@ class JobHandler(object):
 
     def update_inputs(self, inputs):
         if self._use_local and not self._chirp:
-            inputs += [(f, os.path.basename(f)) for id, f in self._files if f]
+            inputs += [(f, os.path.basename(f), False) for id, f in self._files if f]
 
     def update_config(self, config):
         if self._merge:
@@ -193,7 +193,7 @@ class JobProvider(job.JobProvider):
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
 
-        self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x)) for x in
+        self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x), True) for x in
                                  ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',
                                   '3.2.11-1/external/etc/profile.d/grid-env-funcs.sh',
                                   '3.2.11-1/external/etc/profile.d/grid-env.sh',
@@ -277,19 +277,19 @@ class JobProvider(job.JobProvider):
             sdir = os.path.join(self.stageout, label)
             ids.append(id)
 
-            inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2"),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab'),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig'),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh'),
-                      (self.parrot_bin, 'bin'),
-                      (self.parrot_lib, 'lib')
+            inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab', True),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
+                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
+                      (self.parrot_bin, 'bin', None),
+                      (self.parrot_lib, 'lib', None)
                       ] + self.__grid_files
 
             if merge:
                 args = ['output=' + self.outputs[label][0]]
                 cmssw_job = True
                 cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
-                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py'))
+                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
 
                 missing = []
                 infiles = []
@@ -307,7 +307,7 @@ class JobProvider(job.JobProvider):
                         # FIXME we can also read files locally, or via
                         # xrootd...
                         if not self.__chirp:
-                            inputs.append((input, os.path.basename(input)))
+                            inputs.append((input, os.path.basename(input), False))
                     else:
                         missing.append(job)
 
@@ -322,7 +322,8 @@ class JobProvider(job.JobProvider):
                     # running jobs is going to be messed up.
                     logger.debug("skipping job {0} with only one input file!".format(id))
 
-                inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:])) for r in inreports]
+                inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in inreports]
+
                 epilogue = ['python', 'merge_reports.py', 'report.xml.gz'] \
                         + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in inreports]
 
@@ -334,14 +335,14 @@ class JobProvider(job.JobProvider):
                 epilogue = None
 
             if cmssw_job:
-                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py'),
-                               (cms_config, os.path.basename(cms_config))
+                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True),
+                               (cms_config, os.path.basename(cms_config), True)
                                ])
 
             if 'X509_USER_PROXY' in os.environ:
-                inputs.append((os.environ['X509_USER_PROXY'], 'proxy'))
+                inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
-            inputs += [(i, os.path.basename(i)) for i in self.extra_inputs[label]]
+            inputs += [(i, os.path.basename(i), True) for i in self.extra_inputs[label]]
 
             jdir = self.create_jobdir(id, label, 'running')
 
@@ -396,7 +397,7 @@ class JobProvider(job.JobProvider):
 
                 with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                     json.dump(config, f, indent=2)
-                inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json'))
+                inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
 
                 cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(os.path.basename(cms_config))
 

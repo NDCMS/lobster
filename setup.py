@@ -16,7 +16,8 @@ setup(
         'cmssw/data/siteconfig/JobConfig/site-local-config.xml',
         'cmssw/data/siteconfig/PhEDEx/storage.xml',
         'cmssw/data/template.html',
-        'cmssw/data/merge_cfg.py'
+        'cmssw/data/merge_cfg.py',
+        'cmssw/data/merge_reports.py'
     ]},
     install_requires=[
         'argparse',

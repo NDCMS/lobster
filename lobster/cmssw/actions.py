@@ -13,13 +13,15 @@ class Actions(object):
     def __init__(self, config):
         if 'plotdir' in config:
             logger.info('plots in {0} will be updated automatically'.format(config['plotdir']))
+            if 'foremen logs' in config:
+                logger.info('foremen logs will be included from: {0}'.format(', '.join(config['foremen logs'])))
             plotter = Plotter(config['filename'], config['plotdir'])
         else:
             plotter = DummyPlotter()
 
         def plotf(q):
             while q.get() not in ('stop', None):
-                plotter.make_plots()
+                plotter.make_plots(foremen=config.get('foremen logs'))
 
         self.plotq = multiprocessing.Queue()
         self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))

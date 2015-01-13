@@ -262,7 +262,7 @@ class JobProvider(job.JobProvider):
 
         return os.path.join(jobdir, 'report.xml.gz')
 
-    def obtain(self, num=1, bijective=False):
+    def obtain(self, num=1):
         # FIXME allow for adjusting the number of LS per job
 
         jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('merge size', -1), 10), {}) \

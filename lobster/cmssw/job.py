@@ -77,6 +77,8 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
         files = set([filename for (id, filename) in self._files])
+        if self._use_local and not self._chirp:
+            files = ['file:' + os.path.basename(f) for f in files]
 
         if self._file_based:
             lumis = None

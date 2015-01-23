@@ -308,7 +308,7 @@ class JobitStore:
 
         self.db.commit()
 
-        return jobs if len(jobit_update) > 0 else None
+        return jobs if len(jobit_update) > 0 else []
 
     def reset_jobits(self):
         with self.db as db:

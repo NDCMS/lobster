@@ -124,7 +124,7 @@ class JobitStore:
                        jobits_left,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-                           dataset_cfg.get('dataset', dataset_cfg.get('files', None)),
+                           dataset_cfg.get('dataset', label),
                            label,
                            os.path.join(self.config['stageout location'], label),
                            os.path.basename(os.environ['LOCALRT']),

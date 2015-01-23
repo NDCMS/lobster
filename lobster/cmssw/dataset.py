@@ -122,13 +122,16 @@ class FileInterface:
                 # etc...)
             else:
                 dset.jobsize = cfg.get("files per job", 1)
-
-                if os.path.isdir(files):
-                    dset.files = [f for f in glob.glob(os.path.join(files, '*'))]
-                elif os.path.isfile(files):
-                    dset.files = [f.strip() for f in open(files).readlines()]
-                elif isinstance(files, str):
-                    dset.files = [f for f in glob.glob(os.path.join(files))]
+                if not isinstance(files, list):
+                    files = [files]
+                for entry in files:
+                    entry = os.path.expanduser(entry)
+                    if os.path.isdir(entry):
+                        dset.files += [f for f in glob.glob(os.path.join(entry, '*'))]
+                    elif os.path.isfile(entry):
+                        dset.files += [f.strip() for f in open(entry).readlines()]
+                    elif isinstance(entry, str):
+                        dset.files += [f for f in glob.glob(os.path.join(entry))]
 
                 dset.total_lumis = len(dset.files)
 

@@ -24,7 +24,9 @@ class JobHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, lumis, jobdir, cmssw_job=True, empty_source=False, chirp=None, merge=False):
+    def __init__(
+            self, id, dataset, files, lumis, jobdir,
+            cmssw_job=True, empty_source=False, chirp=None, chirp_root=None, merge=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
@@ -37,6 +39,9 @@ class JobHandler(object):
         self._cmssw_job = cmssw_job
         self._empty_source = empty_source
         self._chirp = chirp
+
+        chirp_stagein = chirp and self._use_local and all([file.startswith(chirp_root) for (_, file) in self._files])
+        self._transfer_inputs = merge or chirp_stagein
 
     @property
     def cmssw_job(self):
@@ -77,7 +82,7 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
         files = set([filename for (id, filename) in self._files])
-        if self._use_local and not self._chirp:
+        if self._use_local and not self._transfer_inputs:
             files = ['file:' + os.path.basename(f) for f in files]
 
         if self._file_based:
@@ -149,11 +154,11 @@ class JobHandler(object):
                 file_update, jobit_update
 
     def update_inputs(self, inputs):
-        if self._use_local and not self._chirp:
+        if self._use_local and not self._transfer_inputs:
             inputs += [(f, os.path.basename(f), False) for id, f in self._files if f]
 
     def update_config(self, config):
-        if self._merge:
+        if self._transfer_inputs:
             config['transfer inputs'] = True
 
 class JobProvider(job.JobProvider):
@@ -185,6 +190,7 @@ class JobProvider(job.JobProvider):
                 logger.error('merging disabled due to malformed size {0}'.format(orig))
 
         self.__chirp = self.config.get('stageout server', None)
+        self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else ''
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
@@ -354,7 +360,11 @@ class JobProvider(job.JobProvider):
 
             monitorid, syncid = self.__dash.register_job(id)
 
-            handler = JobHandler(id, label, files, lumis, jdir, cmssw_job, empty_source, merge=merge, chirp=self.__chirp)
+            handler = JobHandler(
+                id, label, files, lumis, jdir, cmssw_job, empty_source,
+                merge=merge,
+                chirp=self.__chirp,
+                chirp_root=self.__chirp_root)
             files, lumis = handler.get_job_info()
 
             stageout = []
@@ -365,7 +375,8 @@ class JobProvider(job.JobProvider):
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
                 handler.outputs.append(os.path.join(label, outname))
-                stageout.append((filename, os.path.join(label, outname)))
+                prefix = self.stageout.replace(self.__chirp_root, '', 1)
+                stageout.append((filename, os.path.join(prefix, label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 
@@ -389,7 +400,7 @@ class JobProvider(job.JobProvider):
                         'taskid': self.taskid
                     },
                     'arguments': args,
-                    'chirp prefix': self.stageout,
+                    'chirp root': self.__chirp_root,
                     'chirp server': self.__chirp,
                     'output files': stageout,
                     'want summary': sum

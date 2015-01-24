@@ -97,7 +97,7 @@ def copy_inputs(data, config, env):
         return
 
     chirp_server = config.get('chirp server', None)
-    chirp_prefix = config.get('chirp prefix', None)
+    chirp_root = config.get('chirp root', None)
     lfn_prefix = config.get('lfn prefix')
 
     files = list(config['mask']['files'])
@@ -112,9 +112,9 @@ def copy_inputs(data, config, env):
 
         # TODO xrootd test
 
-        if chirp_server and chirp_prefix:
-            if file.startswith(chirp_prefix):
-                cfile = file.replace(chirp_prefix, '', 1)
+        if chirp_server and chirp_root:
+            if file.startswith(chirp_root):
+                cfile = file.replace(chirp_root, '', 1)
             else:
                 cfile = file
 

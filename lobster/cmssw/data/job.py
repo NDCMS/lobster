@@ -85,7 +85,7 @@ def check_outputs(config):
             return False
     return True
 
-def copy_inputs(config, env):
+def copy_inputs(data, config, env):
     """Copies input files if desired.
 
     Checks the passed configuration for transfer settings and modifies the
@@ -140,6 +140,9 @@ def copy_inputs(config, env):
         # add file if not local or in chirp and then hope that CMSSW can
         # access it
         config['mask']['files'].append(file)
+
+    if not config['mask']['files']:
+        data['stagein exit code'] = status
 
     print "--- modified input files:"
     for fn in config['mask']['files']:
@@ -302,7 +305,7 @@ with open(configfile) as f:
     config = json.load(f)
 
 with check_execution(data, 179):
-    copy_inputs(config, env)
+    copy_inputs(data, config, env)
 
 data['task timing info'][2] = int(datetime.now().strftime('%s'))
 

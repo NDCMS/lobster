@@ -90,56 +90,75 @@ def copy_inputs(data, config, env):
 
     Checks the passed configuration for transfer settings and modifies the
     input file mask to point to transferred files, where appropriate.
-    Local access is checked first, followed by (not yet implemented) xrootd
-    access, and finally, attempting to transfer files via chirp.
+    Local access is checked first, followed by xrootd access, and finally,
+    attempting to transfer files via chirp.
     """
-    if not config.get('transfer inputs', False):
-        return
+    config['file map'] = {}
 
     chirp_server = config.get('chirp server', None)
     chirp_root = config.get('chirp root', None)
-    lfn_prefix = config.get('lfn prefix')
+
+    xrootd_server = config.get('xrootd server', None)
+    xrootd_root = config.get('xrootd root', None)
 
     files = list(config['mask']['files'])
     config['mask']['files'] = []
 
-    for file in [f.replace("file:", "") for f in files]:
-        # pfile = lfn_prefix + file
-        pfile = file
-        if os.path.exists(pfile) and os.access(pfile, os.R_OK) and not os.path.isdir(pfile):
-            config['mask']['files'].append('file:' + pfile)
+    for file in files:
+        # File is locally accessible
+        if os.path.exists(file) and os.access(file, os.R_OK) and not os.path.isdir(file):
+            filename = 'file:' + file
+            config['mask']['files'].append(filename)
+            config['file map'][filename] = file
             continue
 
-        # TODO xrootd test
-
-        if chirp_server and chirp_root:
-            if file.startswith(chirp_root):
-                cfile = file.replace(chirp_root, '', 1)
-            else:
-                cfile = file
-
-            lfile = os.path.basename(file)
-
-            status = subprocess.call([
-                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
-                "-a",
-                "globus",
-                "-d",
-                "all",
-                chirp_server,
-                cfile,
-                lfile], env=env)
-
-            if status == 0:
-                config['mask']['files'].append('file:' + lfile)
-            else:
-                raise IOError("Could not transfer file {0}".format(cfile))
+        # File has been transferred via WQ
+        if os.path.exists(os.path.basename(file)):
+            filename = 'file:' + os.path.basename(file)
+            config['mask']['files'].append(filename)
+            config['file map'][filename] = file
             continue
+
+        if config.get('transfer inputs', False):
+            if xrootd_server and xrootd_root:
+                if file.startswith(xrootd_root):
+                    xfile = file.replace(xrootd_root, '', 1)
+                    filename = 'root://{server}/{file}'.format(server=xrootd_server, file=xfile)
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+                    continue
+
+            if chirp_server and chirp_root:
+                if file.startswith(chirp_root):
+                    cfile = file.replace(chirp_root, '', 1)
+                else:
+                    cfile = file
+
+                lfile = os.path.basename(file)
+
+                status = subprocess.call([
+                    os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
+                    "-a",
+                    "globus",
+                    "-d",
+                    "all",
+                    chirp_server,
+                    cfile,
+                    lfile], env=env)
+
+                if status == 0:
+                    filename = 'file:' + lfile
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+                else:
+                    raise IOError("Could not transfer file {0}".format(cfile))
+                continue
 
         # FIXME remove with xrootd test?
         # add file if not local or in chirp and then hope that CMSSW can
         # access it
         config['mask']['files'].append(file)
+        config['file map'][file] = file
 
     if not config['mask']['files']:
         data['stagein exit code'] = status
@@ -207,7 +226,7 @@ def edit_process_source(pset, config, events=-1):
         print "---"
         fp.write(frag)
 
-def extract_info(data, report_filename):
+def extract_info(config, data, report_filename):
     """Extract job data from a framework report.
 
     Analyze the CMSSW job framework report to get the CMSSW exit code,
@@ -227,6 +246,8 @@ def extract_info(data, report_filename):
                     exit_code = code
 
             for file in report.skippedFiles:
+                filename = file['Lfn']
+                filename = config['file map'].get(filename, filename)
                 skipped.append(file['Lfn'])
 
             for file in report.files:
@@ -234,6 +255,7 @@ def extract_info(data, report_filename):
 
             for file in report.inputFiles:
                 filename = file['LFN'] if len(file['LFN']) > 0 else file['PFN']
+                filename = config['file map'].get(filename, filename)
                 file_lumis = []
                 try:
                     for run, ls in file['Runs'].items():
@@ -354,7 +376,7 @@ apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 
 cputime = 0
 with check_execution(data, 190):
-    cputime = extract_info(data, 'report.xml')
+    cputime = extract_info(config, data, 'report.xml')
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]

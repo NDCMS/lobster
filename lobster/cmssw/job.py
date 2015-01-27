@@ -27,22 +27,23 @@ class JobHandler(object):
 
     def __init__(
             self, id, dataset, files, lumis, jobdir,
-            cmssw_job=True, empty_source=False, chirp=None, chirp_root=None, merge=False, local=False):
+            cmssw_job=True, empty_source=False, chirp_root=None, xrootd_root=None, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
-        self._use_local = local
-        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in lumis]) or self._use_local
+        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in lumis])
         self._jobits = lumis
         self._jobdir = jobdir
         self._outputs = []
         self._merge = merge
         self._cmssw_job = cmssw_job
         self._empty_source = empty_source
-        self._chirp = chirp
 
-        chirp_stagein = chirp and self._use_local and all([file.startswith(chirp_root) for (_, file) in self._files])
-        self._transfer_inputs = merge or chirp_stagein
+        # transfer inputs by other means than WQ!
+        self._transfer_inputs = local and (
+                (chirp_root and all(file.startswith(chirp_root) for (_, file) in self._files))
+                or
+                (xrootd_root and all(file.startswith(xrootd_root) for (_, file) in self._files)))
 
     @property
     def cmssw_job(self):
@@ -83,8 +84,6 @@ class JobHandler(object):
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
         files = set([filename for (id, filename) in self._files])
-        if self._use_local and not self._transfer_inputs:
-            files = ['file:' + os.path.basename(f) for f in files]
 
         if self._file_based:
             lumis = None
@@ -100,13 +99,16 @@ class JobHandler(object):
 
         jobits_processed = 0
         jobits_missed = 0
+
+        local_files = any(f.startswith('file:') for f in files_info.keys())
+
         for (id, file) in self._files:
             file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
 
             skipped = False
             read = 0
             if self._cmssw_job:
-                if self._use_local:
+                if local_files:
                     file = 'file:' + os.path.basename(file)
                 if not self._empty_source:
                     skipped = file in files_skipped or file not in files_info
@@ -155,7 +157,7 @@ class JobHandler(object):
                 file_update, jobit_update
 
     def update_inputs(self, inputs):
-        if self._use_local and not self._transfer_inputs:
+        if not self._transfer_inputs:
             inputs += [(f, os.path.basename(f), False) for id, f in self._files if f]
 
     def update_config(self, config):
@@ -191,7 +193,10 @@ class JobProvider(job.JobProvider):
                 logger.error('merging disabled due to malformed size {0}'.format(orig))
 
         self.__chirp = self.config.get('chirp server', None)
-        self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else ''
+        self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else None
+        self.__xrootd = self.config.get('xrootd server', None)
+        self.__xrootd_root = self.config.get('xrootd root', None) if self.__xrootd else None
+
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
@@ -322,9 +327,8 @@ class JobProvider(job.JobProvider):
                     if os.path.isfile(report) and os.path.isfile(input):
                         inreports.append(report)
                         infiles.append((job, input))
-                        # FIXME we can also read files locally, or via
-                        # xrootd...
-                        if not self.__chirp:
+                        # FIXME we can also read files locally
+                        if not self.__chirp and not self.__xrootd:
                             inputs.append((input, os.path.basename(input), False))
                     else:
                         missing.append(job)
@@ -373,8 +377,8 @@ class JobProvider(job.JobProvider):
             handler = JobHandler(
                 id, label, files, lumis, jdir, cmssw_job, empty_source,
                 merge=merge,
-                chirp=self.__chirp,
                 chirp_root=self.__chirp_root,
+                xrootd_root=self.__xrootd_root,
                 local=self.__local[label])
             files, lumis = handler.get_job_info()
 
@@ -411,8 +415,10 @@ class JobProvider(job.JobProvider):
                         'taskid': self.taskid
                     },
                     'arguments': args,
-                    'chirp root': self.__chirp_root,
                     'chirp server': self.__chirp,
+                    'chirp root': self.__chirp_root,
+                    'xrootd server': self.__xrootd,
+                    'xrootd root': self.__xrootd_root,
                     'output files': stageout,
                     'want summary': sum
                 }

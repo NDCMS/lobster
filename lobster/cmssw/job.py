@@ -189,7 +189,7 @@ class JobProvider(job.JobProvider):
             else:
                 logger.error('merging disabled due to malformed size {0}'.format(orig))
 
-        self.__chirp = self.config.get('stageout server', None)
+        self.__chirp = self.config.get('chirp server', None)
         self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else ''
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 

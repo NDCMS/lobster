@@ -151,7 +151,7 @@ and try again.
 Then add the follow line to your lobster configuration and you should be
 all set:
 
-    stageout server: "earth.crc.nd.edu:<your_port>"
+    chirp server: "earth.crc.nd.edu:<your_port>"
 
 This is optional, but will improve performance.
 

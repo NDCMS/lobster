@@ -22,7 +22,7 @@ def validate(args):
     store = cmssw.jobit.JobitStore(config)
 
     stageout = config['stageout location']
-    server = config.get('stageout server', None)
+    server = config.get('chirp server', None)
 
     stats = dict((cfg['label'], [0, 0]) for cfg in config['tasks'])
 

@@ -24,7 +24,7 @@ advanced:
 
 ### optional
 ## chirp server to use for stage-in / stage-out
-# stageout server: "earth.crc.nd.edu:9094"
+# chirp server: "earth.crc.nd.edu:9094"
 ## specify directories in CMSSW work area to omit from sandbox
 # sandbox blacklist: ['*DrawPlots*']
 ## DBS instance to publish to

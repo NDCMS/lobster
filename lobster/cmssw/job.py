@@ -4,6 +4,7 @@ import imp
 import json
 import multiprocessing
 import os
+import re
 import shutil
 import sys
 
@@ -26,11 +27,11 @@ class JobHandler(object):
 
     def __init__(
             self, id, dataset, files, lumis, jobdir,
-            cmssw_job=True, empty_source=False, chirp=None, chirp_root=None, merge=False):
+            cmssw_job=True, empty_source=False, chirp=None, chirp_root=None, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
-        self._use_local = any([run == -1 or lumi == -1 for (id, file, run, lumi) in lumis])
+        self._use_local = local
         self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in lumis]) or self._use_local
         self._jobits = lumis
         self._jobdir = jobdir
@@ -197,6 +198,7 @@ class JobProvider(job.JobProvider):
 
         self.__datasets = {}
         self.__configs = {}
+        self.__local = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
@@ -238,6 +240,7 @@ class JobProvider(job.JobProvider):
                 self.__configs[label] = os.path.basename(cms_config)
 
             self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
+            self.__local[label] = cfg.get('local', 'files' in cfg)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
@@ -257,8 +260,15 @@ class JobProvider(job.JobProvider):
                 logger.info("querying backend for {0}".format(label))
                 dataset_info = self.__interface.get_info(cfg)
 
+                if 'filename transformation' in cfg:
+                    match, sub = cfg['filename transformation']
+                    def trafo(filename):
+                        return re.sub(match, sub, filename)
+                else:
+                    trafo = lambda s: s
+
                 logger.info("registering {0} in database".format(label))
-                self.__store.register(cfg, dataset_info)
+                self.__store.register(cfg, dataset_info, trafo)
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
 
             elif os.path.exists(os.path.join(taskdir, 'running')):
@@ -364,7 +374,8 @@ class JobProvider(job.JobProvider):
                 id, label, files, lumis, jdir, cmssw_job, empty_source,
                 merge=merge,
                 chirp=self.__chirp,
-                chirp_root=self.__chirp_root)
+                chirp_root=self.__chirp_root,
+                local=self.__local[label])
             files, lumis = handler.get_job_info()
 
             stageout = []

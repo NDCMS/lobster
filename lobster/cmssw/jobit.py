@@ -102,7 +102,7 @@ class JobitStore:
     def disconnect(self):
         self.db.close()
 
-    def register(self, dataset_cfg, dataset_info):
+    def register(self, dataset_cfg, dataset_info, filemap):
         label = dataset_cfg['label']
         unique_args = dataset_cfg.get('unique parameters', [None])
 
@@ -169,7 +169,7 @@ class JobitStore:
                     """insert into files_{0}(jobits, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
                         file_lumis * len(unique_args),
                         dataset_info.event_counts[file],
-                        file,
+                        filemap(file),
                         dataset_info.filesizes[file]))
             file_id = cur.lastrowid
 

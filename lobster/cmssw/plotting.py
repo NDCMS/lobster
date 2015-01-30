@@ -553,6 +553,10 @@ class Plotter(object):
             else:
                 newlabels.append(label)
 
+        with open(os.path.join(self.__plotdir, name + '.dat'), 'w') as f:
+            for l, v in zip(labels, vals):
+                f.write('{0}\t{1}\n'.format(l, v))
+
         patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
 
         boxes = []

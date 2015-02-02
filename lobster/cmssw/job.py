@@ -31,16 +31,17 @@ class JobHandler(object):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
-        self._file_based = any([run == -2 or lumi == -2 for (id, file, run, lumi) in lumis])
+        self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
         self._jobits = lumis
         self._jobdir = jobdir
         self._outputs = []
         self._merge = merge
         self._cmssw_job = cmssw_job
         self._empty_source = empty_source
+        self._local = local
 
         # transfer inputs by other means than WQ!
-        self._transfer_inputs = local and (
+        self._transfer_inputs = (local or merge) and (
                 (chirp_root and all(file.startswith(chirp_root) for (_, file) in self._files))
                 or
                 (xrootd_root and all(file.startswith(xrootd_root) for (_, file) in self._files)))
@@ -100,16 +101,12 @@ class JobHandler(object):
         jobits_processed = 0
         jobits_missed = 0
 
-        local_files = any(f.startswith('file:') for f in files_info.keys())
-
         for (id, file) in self._files:
             file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
 
             skipped = False
             read = 0
             if self._cmssw_job:
-                if local_files:
-                    file = 'file:' + os.path.basename(file)
                 if not self._empty_source:
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
@@ -157,7 +154,7 @@ class JobHandler(object):
                 file_update, jobit_update
 
     def update_inputs(self, inputs):
-        if not self._transfer_inputs:
+        if self._local and not self._transfer_inputs:
             inputs += [(f, os.path.basename(f), False) for id, f in self._files if f]
 
     def update_config(self, config):

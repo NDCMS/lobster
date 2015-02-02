@@ -470,10 +470,11 @@ class JobitStore:
 
         logger.debug("trying to merge jobs from {0}".format(dataset))
 
+        # Select the finished processing jobs from the task
         rows = self.db.execute("""
             select id, jobits, bytes_output
             from jobs
-            where status=? and dataset=?
+            where status=? and dataset=? and type=0
             order by bytes_output desc""", (SUCCESSFUL, dset_id)).fetchall()
 
         # If we don't have enough rows, or the smallest two jobs can't be
@@ -503,20 +504,28 @@ class JobitStore:
             def left(self):
                 return self.maxsize - self.size
 
-        merges = []
+        candidates = []
         for job, jobits, size in rows:
             # Try to add the current job to a merge, in increasing order of
             # size left
-            for merge in reversed(sorted(merges)):
+            for merge in reversed(sorted(candidates)):
                 if merge.add(job, jobits, size):
                     break
             else:
-                # If we're too large to merge, we're skipped.  Also skip if
-                # we have enough merges going on already
+                # If we're too large to merge, we're skipped
                 if size + minsize <= bytes:
-                    merges.append(Merge(job, jobits, size, bytes))
+                    candidates.append(Merge(job, jobits, size, bytes))
 
-        merges = [m for m in reversed(sorted(merges)) if len(m.jobs) > 1][:num]
+        merges = []
+        for merge in reversed(sorted(candidates)):
+            if len(merge.jobs) == 1:
+                continue
+            # For one iteration only: merge if we are either close enough
+            # to the target size (TODO maybe this threshold should be
+            # configurable? FIXME it's a magic number, anyways) or we are
+            # done processing the task, when we merge everything we can.
+            if jobits_complete or merge.size >= bytes * 0.9:
+                merges.append(merge)
 
         logger.debug("created {0} merge jobs".format(len(merges)))
 

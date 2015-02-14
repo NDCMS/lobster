@@ -12,7 +12,7 @@ import time
 
 from functools import partial
 from hashlib import sha1
-from lobster import util
+from lobster import chirp, util
 
 logger = multiprocessing.get_logger()
 
@@ -50,6 +50,7 @@ class JobProvider(object):
         self.workdir = config.get('workdir', os.getcwd())
         self.stageout = config.get('stageout location', os.getcwd())
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
+
         self.parrot_path = os.path.dirname(util.which('parrot_run'))
         self.parrot_bin = os.path.join(self.workdir, 'bin')
         self.parrot_lib = os.path.join(self.workdir, 'lib')
@@ -59,6 +60,9 @@ class JobProvider(object):
         self.outputs = {}
         self.outputformats = {}
         self.cmds = {}
+
+        chirp_server = config.get('chirp server')
+        chirp_root = config.get('chirp root')
 
         create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
         if create:
@@ -84,12 +88,15 @@ class JobProvider(object):
             taskdir = os.path.join(self.workdir, label)
             stageoutdir = os.path.join(self.stageout, label)
             if create:
-                for dir in [taskdir, stageoutdir]:
-                    if not os.path.exists(dir):
-                        os.makedirs(dir)
-                    else:
-                        # TODO warn about non-empty stageout directories
-                        pass
+                if not os.path.exists(taskdir):
+                    os.makedirs(taskdir)
+                if stageoutdir.startswith(chirp_root):
+                    target = stageoutdir.replace(chirp_root, '', 1)
+                    if not chirp.exists(chirp_server, chirp_root, target):
+                        chirp.makedirs(chirp_server, chirp_root, target)
+                else:
+                    if not os.path.exists(stageoutdir):
+                        os.makedirs(stageoutdir)
 
                 shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 

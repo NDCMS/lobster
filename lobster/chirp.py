@@ -4,21 +4,66 @@ import subprocess
 
 logger = multiprocessing.get_logger()
 
+def get_chirp_output(server, args=None, cmd=None):
+    if not args:
+        args = []
+    p = subprocess.Popen(
+            ["chirp", "-t", "10", server] + args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE)
+    out, err = p.communicate(cmd)
+    return out
+
+def exists(server, basedir, file):
+    if os.path.isdir(basedir):
+        # We have access to the stageout base directory
+        path = os.path.join(basedir, file)
+        return os.path.exists(path)
+    elif server:
+        out = get_chirp_output(server, args=["stat", file])
+        return len(out.splitlines()) > 1
+    else:
+        raise IOError("Can't access stageout directory.")
+
+def isfile(server, basedir, file):
+    if os.path.isdir(basedir):
+        # We have access to the stageout base directory
+        path = os.path.join(basedir, file)
+        return os.path.isfile(path)
+    elif server:
+        out = get_chirp_output(server, args=["stat", file])
+        try:
+            # no links means a directory
+            if out.splitlines()[4].split() == ["nlink:", "0"]:
+                return False
+        except:
+            return False
+        out = get_chirp_output(server, args=["ls", "-la", file])
+        return len(out) > 0 and not out.startswith('d')
+    else:
+        raise IOError("Can't access stageout directory.")
+
 def listdir(server, basedir, dir):
     if os.path.isdir(basedir):
         for file in os.listdir(os.path.join(basedir, dir)):
             if os.path.isfile(os.path.join(basedir, dir, file)):
                 yield os.path.join(dir, file)
     elif server:
-        p = subprocess.Popen(
-                ['chirp', server, 'ls', '-la', dir],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-        out, err = p.communicate()
+        out = get_chirp_output(server, args=['ls', '-la', dir])
         for line in out.splitlines():
             if not line.startswith('d'):
                 file = line.split(None, 9)[8]
                 yield os.path.join(dir, file)
+    else:
+        raise IOError("Can't access stageout directory.")
+
+def makedirs(server, basedir, dir):
+    if os.path.isdir(basedir):
+        # We have access to the stageout base directory
+        os.makedirs(os.path.join(basedir, dir))
+    elif server:
+        get_chirp_output(server, args=['mkdir', '-p', dir])
     else:
         raise IOError("Can't access stageout directory.")
 
@@ -31,13 +76,7 @@ def unlink(server, basedir, files):
                 logger.info("deleting " + path)
                 os.unlink(path)
     elif server:
-        cmd = "".join("rm " + file + "\n" for file in files)
-        p = subprocess.Popen(
-                ["chirp", server],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE)
-        out, err = p.communicate(cmd)
+        out = get_chirp_output(server, cmd="".join("rm " + file + "\n" for file in files))
     else:
         raise IOError("Can't access stageout directory.")
 

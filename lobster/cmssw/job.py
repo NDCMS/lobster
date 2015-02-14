@@ -320,8 +320,7 @@ class JobProvider(job.JobProvider):
                     base, ext = os.path.splitext(self.outputs[label][0])
                     input = os.path.join(sdir, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
 
-                    # FIXME this is not chirp-proof!!!!111!1111!!!!!elf
-                    if os.path.isfile(report) and os.path.isfile(input):
+                    if os.path.isfile(report) and chirp.isfile(self.__chirp, self.__chirp_root, input):
                         inreports.append(report)
                         infiles.append((job, input))
                         # FIXME we can also read files locally

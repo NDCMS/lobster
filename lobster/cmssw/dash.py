@@ -19,7 +19,7 @@ class DummyMonitor(object):
         self._taskid = taskid
 
     def generate_ids(self, jobid):
-        monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}/'.format(sha1(self._taskid).hexdigest()[-16:]))
+        monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._taskid).hexdigest()[-16:]))
         syncid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._taskid, jobid)
 
         return monitorid, syncid

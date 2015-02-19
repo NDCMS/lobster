@@ -237,6 +237,7 @@ def extract_info(config, data, report_filename):
     skipped = []
     infos = {}
     written = 0
+    eventsPerRun = 0
 
     with open(report_filename) as f:
         for report in readJobReport(f):
@@ -264,6 +265,8 @@ def extract_info(config, data, report_filename):
                 except AttributeError:
                     print 'Detected file-based job.'
                 infos[filename] = (int(file['EventsRead']), file_lumis)
+                eventsPerRun += infos[filename][0]
+
             eventtime = report.performance.summaries['Timing']['TotalEventCPU']
             cputime = report.performance.summaries['Timing']['TotalJobCPU']
 
@@ -274,6 +277,7 @@ def extract_info(config, data, report_filename):
     # For efficiency, we care only about the CPU time spent processing
     # events
     data['cpu time'] = eventtime
+    data['events per run'] = eventsPerRun
 
     return cputime
 
@@ -316,7 +320,8 @@ data = {
     'cpu time': 0,
     'events written': 0,
     'output size': 0,
-    'task timing info': [None] * 7
+    'task timing info': [None] * 7,
+    'events per run': 0
 }
 
 env = os.environ
@@ -331,9 +336,10 @@ with check_execution(data, 179):
 
 data['task timing info'][2] = int(datetime.now().strftime('%s'))
 
-monitorid = config['monitoring']['monitorid']
-syncid = config['monitoring']['syncid']
-taskid = config['monitoring']['taskid']
+# Dashboard does not like Unicode, just ASCII encoding
+monitorid = str(config['monitoring']['monitorid'])
+syncid = str(config['monitoring']['syncid'])
+taskid = str(config['monitoring']['taskid'])
 
 args = config['arguments']
 
@@ -357,12 +363,20 @@ data['task timing info'][3] = int(datetime.now().strftime('%s'))
 # Start proper CMSSW job
 #
 
-apmonSend(taskid, monitorid, {
+parameters = {
             'ExeStart': 'cmsRun',
             'SyncCE': 'ndcms.crc.nd.edu',
             'SyncGridJobId': syncid,
             'WNHostName': os.environ.get('HOSTNAME', '')
-            })
+            }
+# @todo: Running status should not be done from the WN but the Master instead,
+#        but we currently don't have that info from work_queue.
+parameters.update( {
+                    'StatusValue': 'Running',
+                    'StatusEnterTime': '{0:%F_%T}'.format(datetime.utcnow())
+                   })
+
+apmonSend(taskid, monitorid, parameters)
 apmonFree()
 
 print "--- Running cmsRun"
@@ -424,10 +438,11 @@ for filename in 'cmssw.log report.xml'.split():
                 zipf.close()
 
 total_time = data['task timing info'][-1] - data['task timing info'][0]
-
+cmssw_wc_time = data['task timing info'][7] - data['task timing info'][3]
 exit_code = data['job exit code']
 cmssw_exit_code = data['cmssw exit code']
 stageout_exit_code = data['stageout exit code']
+events_per_run = data['events per run']
 
 print "Execution time", str(total_time)
 
@@ -435,20 +450,29 @@ print "Exiting with code", str(exit_code)
 print "Reporting ExeExitCode", str(cmssw_exit_code)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
 
-apmonSend(taskid, monitorid, {
-            'ExeTime': str(total_time),
+parameters = {
+            'ExeTime': str(cmssw_wc_time),
             'ExeExitCode': str(cmssw_exit_code),
             'JobExitCode': str(exit_code),
             'JobExitReason': '',
-            'StageOutSE': ' ndcms.crc.nd.edu',
+            'StageOutSE': 'ndcms.crc.nd.edu',
             'StageOutExitStatus': str(stageout_exit_code),
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
             'CrabUserCpuTime': str(cputime),
-            # 'CrabSysCpuTime': '5.91',
-            # 'CrabCpuPercentage': '18%',
+            #'CrabSysCpuTime': '5.91',
             'CrabWrapperTime': str(total_time),
             # 'CrabStageoutTime': '50',
-            })
+            'WCCPU': str(total_time),
+            'NoEventsPerRun': str(events_per_run),
+            'NbEvPerRun': str(events_per_run),
+            'NEventsProcessed': str(events_per_run)
+            }
+try:
+     parameters.update( {'CrabCpuPercentage': str( float(cputime) / float(total_time)  ) } )
+except:
+     pass
+
+apmonSend(taskid, monitorid, parameters)
 apmonFree()
 
 sys.exit(exit_code)

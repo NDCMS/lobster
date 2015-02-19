@@ -19,19 +19,16 @@ class DummyMonitor(object):
         self._taskid = taskid
 
     def generate_ids(self, jobid):
-        syncid = 'https://ndcms.crc.nd.edu/{1}/{0}'.format(
-                jobid,
-                sha1(self._taskid).hexdigest()[-16:])
-        monitorid = '{0}_{1}'.format(jobid, syncid)
-        sid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._taskid, jobid)
+        monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}/'.format(sha1(self._taskid).hexdigest()[-16:]))
+        syncid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._taskid, jobid)
 
-        return monitorid, syncid, sid
+        return monitorid, syncid
 
     def register_run(self):
         pass
 
     def register_job(self, id):
-        """Returns Dashboard MonitorJobID and SyncGridJobId."""
+        """Returns Dashboard MonitorJobID and SyncId."""
         return None, None
 
     def update_job(self, id, status):
@@ -83,11 +80,11 @@ class Monitor(DummyMonitor):
         self.free()
 
     def register_job(self, id):
-        monitorid, syncid, sid = self.generate_ids(id)
+        monitorid, syncid = self.generate_ids(id)
         apmonSend(self._taskid, monitorid, {
             'taskId': self._taskid,
             'jobId': monitorid,
-            'sid': sid,
+            'sid': syncid,
             'broker': 'condor',
             'bossId': str(id),
             'SubmissionType': 'Direct',
@@ -111,11 +108,11 @@ class Monitor(DummyMonitor):
         return monitorid, syncid
 
     def update_job(self, id, status):
-        monitorid, syncid, sid = self.generate_ids(id)
+        monitorid, syncid = self.generate_ids(id)
         apmonSend(self._taskid, monitorid, {
             'taskId': self._taskid,
             'jobId': monitorid,
-            'sid': sid,
+            'sid': syncid,
             'StatusValueReason': '',
             'StatusValue': status,
             'StatusEnterTime':

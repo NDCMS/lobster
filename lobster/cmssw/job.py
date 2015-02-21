@@ -207,6 +207,7 @@ class JobProvider(job.JobProvider):
 
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
 
+        self.__events = {}
         self.__datasets = {}
         self.__configs = {}
         self.__local = {}
@@ -252,6 +253,7 @@ class JobProvider(job.JobProvider):
 
             self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__local[label] = cfg.get('local', 'files' in cfg)
+            self.__events[label] = cfg.get('max events', -1)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
@@ -412,7 +414,8 @@ class JobProvider(job.JobProvider):
                 config = {
                     'mask': {
                         'files': list(files),
-                        'lumis': lumis.getCompactList() if lumis else None
+                        'lumis': lumis.getCompactList() if lumis else None,
+                        'events': self.__events[label],
                     },
                     'monitoring': {
                         'monitorid': monitorid,

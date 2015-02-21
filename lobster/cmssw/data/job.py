@@ -218,7 +218,7 @@ def copy_outputs(data, config, env):
     data['output size'] = outsize
     data['events tree compressed size'] = events_tree_compressed_size
 
-def edit_process_source(pset, config, events=-1):
+def edit_process_source(pset, config):
     """Edit parameter set for job.
 
     Adjust input files and lumi mask, as well as adding a process summary
@@ -229,7 +229,7 @@ def edit_process_source(pset, config, events=-1):
     want_summary = config['want summary']
 
     with open(pset, 'a') as fp:
-        frag = fragment.format(events=events)
+        frag = fragment.format(events=config['mask']['events'])
         if any([f for f in files]):
             frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files]))
         if lumis:

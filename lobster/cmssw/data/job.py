@@ -9,12 +9,18 @@ import shutil
 import subprocess
 import sys
 import traceback
+import ROOT
+from ROOT import TFile
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
+
+ROOT.PyConfig.IgnoreCommandLineOptions = True
+ROOT.gErrorIgnoreLevel = ROOT.kError
+ROOT.gROOT.SetBatch(True)
 
 fragment = """
 import FWCore.ParameterSet.Config as cms
@@ -178,6 +184,8 @@ def copy_outputs(data, config, env):
     """
     server = config.get('chirp server', None)
     outsize = 0
+    events_tree_compressed_size = 0
+
     for localname, remotename in config['output files']:
         # prevent stageout of data for failed jobs
         if os.path.exists(localname) and data['cmssw exit code'] != 0:
@@ -187,6 +195,13 @@ def copy_outputs(data, config, env):
             continue
 
         outsize += os.path.getsize(localname)
+
+        # using try just in case. Successful jobs should always
+        # have an existing Events::TTree though.
+        try:
+          events_tree_compressed_size += get_events_tree_compressed_size(localname)
+        except IOError as error:
+           print error
 
         if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
@@ -201,6 +216,7 @@ def copy_outputs(data, config, env):
                 data['stageout exit code'] = status
                 raise IOError("Failed to transfer output file '{0}'".format(localname))
     data['output size'] = outsize
+    data['events tree compressed size'] = events_tree_compressed_size
 
 def edit_process_source(pset, config, events=-1):
     """Edit parameter set for job.
@@ -308,6 +324,20 @@ def extract_cmssw_times(log_filename, default=None):
 
     return (finit, fopen, first)
 
+
+def get_events_tree_compressed_size(filename):
+  """Get the Events Tree compressed size.
+  Extracts Events->TTree::GetZipBytes()
+  """
+  rootfile = TFile( filename,"READ" )
+  if rootfile.IsZombie() or not rootfile.GetListOfKeys().Contains('Events'):
+    raise IOError('The ROOT output file: {0} does not exist or does not contain TTree::Events'.format(filename))
+  else:
+    eventsTree = rootfile.Get("Events")
+    events_size = eventsTree.GetZipBytes()
+    rootfile.Close()
+    return events_size
+
 data = {
     'files': {
         'adler32': {},
@@ -320,6 +350,7 @@ data = {
     'cpu time': 0,
     'events written': 0,
     'output size': 0,
+    'events tree compressed size': 0,
     'task timing info': [None] * 7,
     'events per run': 0
 }
@@ -421,7 +452,7 @@ with check_execution(data, 210):
 
 if data['job exit code'] == 0 and not check_outputs(config):
     data['job exit code'] = 211
-    data['outsize'] = 0
+    data['output size'] = 0
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 

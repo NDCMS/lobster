@@ -199,9 +199,9 @@ def copy_outputs(data, config, env):
         # using try just in case. Successful jobs should always
         # have an existing Events::TTree though.
         try:
-          events_tree_compressed_size += get_events_tree_compressed_size(localname)
+            events_tree_compressed_size += get_events_tree_compressed_size(localname)
         except IOError as error:
-           print error
+            print error
 
         if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
@@ -326,17 +326,18 @@ def extract_cmssw_times(log_filename, default=None):
 
 
 def get_events_tree_compressed_size(filename):
-  """Get the Events Tree compressed size.
-  Extracts Events->TTree::GetZipBytes()
-  """
-  rootfile = TFile( filename,"READ" )
-  if rootfile.IsZombie() or not rootfile.GetListOfKeys().Contains('Events'):
-    raise IOError('The ROOT output file: {0} does not exist or does not contain TTree::Events'.format(filename))
-  else:
-    eventsTree = rootfile.Get("Events")
-    events_size = eventsTree.GetZipBytes()
-    rootfile.Close()
-    return events_size
+    """Get the Events Tree compressed size.
+
+    Extracts Events->TTree::GetZipBytes()
+    """
+    rootfile = TFile(filename, "READ")
+    if rootfile.IsZombie() or not rootfile.GetListOfKeys().Contains('Events'):
+        raise IOError('The ROOT output file: {0} does not exist or does not contain TTree::Events'.format(filename))
+    else:
+        eventsTree = rootfile.Get("Events")
+        events_size = eventsTree.GetZipBytes()
+        rootfile.Close()
+        return events_size
 
 data = {
     'files': {
@@ -402,7 +403,7 @@ parameters = {
             }
 # @todo: Running status should not be done from the WN but the Master instead,
 #        but we currently don't have that info from work_queue.
-parameters.update( {
+parameters.update({
                     'StatusValue': 'Running',
                     'StatusEnterTime': '{0:%F_%T}'.format(datetime.utcnow())
                    })
@@ -490,7 +491,7 @@ parameters = {
             'StageOutExitStatus': str(stageout_exit_code),
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
             'CrabUserCpuTime': str(cputime),
-            #'CrabSysCpuTime': '5.91',
+            # 'CrabSysCpuTime': '5.91',
             'CrabWrapperTime': str(total_time),
             # 'CrabStageoutTime': '50',
             'WCCPU': str(total_time),
@@ -499,9 +500,9 @@ parameters = {
             'NEventsProcessed': str(events_per_run)
             }
 try:
-     parameters.update( {'CrabCpuPercentage': str( float(cputime) / float(total_time)  ) } )
+    parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
 except:
-     pass
+    pass
 
 apmonSend(taskid, monitorid, parameters)
 apmonFree()

@@ -429,8 +429,11 @@ class Plotter(object):
                     wall += (edges[i + 1] - start) * ratio
             if abs(wall - cpu)/cpu > 0.1:
                 logger.debug("time {0}: CPU {1}, {2} - {3}").format(wall, cpu, start, end)
-        with open(cache, 'wb') as f:
-            pickle.dump((cputime, ids), f)
+        try:
+            with open(cache, 'wb') as f:
+                pickle.dump((cputime, ids), f)
+        except IOError:
+            logger.warning("could not save cpu time stats")
 
         cpu = np.zeros(len(reshape) - 1)
 

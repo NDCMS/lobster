@@ -464,6 +464,9 @@ class Plotter(object):
             filename = stub
             fig, ax = plt.subplots()
 
+            # to pickle plot contents
+            data = {'data': a, 'bins': bins, 'labels': kwargs.get('labels')}
+
             if mode & Plotter.TIME:
                 f = np.vectorize(self.unix2matplotlib)
                 a = [(f(x), y) for (x, y) in a if len(x) > 0]
@@ -487,6 +490,7 @@ class Plotter(object):
                     ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
             elif mode & Plotter.PROF:
                 filename += '-prof'
+                data['data'] = []
 
                 for (x, y) in a:
                     sums, edges = np.histogram(x, bins=bins, weights=y)
@@ -502,6 +506,8 @@ class Plotter(object):
 
                     centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
                     ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
+
+                    data['data'].append((centers, avg, err))
             elif mode & Plotter.PLOT:
                 filename += '-plot'
 
@@ -538,6 +544,7 @@ class Plotter(object):
             if 'label' in kwargs:
                 ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
 
+            self.pickle(filename, data)
             self.saveimg(filename)
 
     def make_pie(self, vals, labels, name, **kwargs):
@@ -578,12 +585,16 @@ class Plotter(object):
 
         return self.saveimg(name)
 
+    def pickle(self, name, data):
+        logger.debug("Saving data for {0}".format(name))
+        with open(os.path.join(self.__plotdir, name + '.pkl'), 'wb') as f:
+            pickle.dump(data, f)
+
     def saveimg(self, name):
         logger.info("Saving {0}".format(name))
-        # plt.gcf().set_size_inches(6, 1.5)
 
-        plt.savefig(os.path.join(self.__plotdir, '%s.png' % name))
-        # plt.savefig(os.path.join(dir, '%s.pdf' % name))
+        plt.savefig(os.path.join(self.__plotdir, name + '.png'))
+        # plt.savefig(os.path.join(self.__plotdir, name + '.pdf'))
 
         plt.close()
 

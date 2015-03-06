@@ -50,11 +50,13 @@ def boil():
     args = parser.parse_args()
 
     if os.path.isdir(args.checkpoint):
+        args.resume = True
         configfile = os.path.join(args.checkpoint, 'lobster_config.yaml')
         if not os.path.isfile(configfile):
             parser.error('the working directory specified does not contain a configuration')
         args.configfile = os.path.abspath(configfile)
     else:
+        args.resume = False
         args.configfile = os.path.abspath(args.checkpoint)
 
     args.configdir = os.path.dirname(args.configfile)

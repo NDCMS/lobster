@@ -82,11 +82,14 @@ class Plotter(object):
     PLOT = 4
     PROF = 8
 
-    def __init__(self, configfile, outdir=None):
+    def __init__(self, configfile, outdir=None, resume_workdir=False):
         with open(configfile) as f:
             config = yaml.load(f)
 
-        self.__workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
+        if resume_workdir:
+            self.__workdir = os.path.dirname(configfile)
+        else:
+            self.__workdir = os.path.expandvars(os.path.expanduser(config["workdir"]))
         util.verify(self.__workdir)
         self.__id = config['id']
 
@@ -967,5 +970,5 @@ def plot(args):
     logger.setLevel(logging.INFO)
     logger.addHandler(console)
 
-    p = Plotter(args.configfile, args.outdir)
+    p = Plotter(args.configfile, args.outdir, args.resume)
     p.make_plots(args.xmin, args.xmax, args.foreman_list)

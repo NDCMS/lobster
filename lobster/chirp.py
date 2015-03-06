@@ -13,6 +13,11 @@ def get_chirp_output(server, args=None, cmd=None):
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE)
     out, err = p.communicate(cmd)
+
+    logger.debug("args:\"{0}\"".format('" "'.join(args)))
+    logger.debug("stdout:\n{0}".format(out))
+    logger.debug("stderr:\n{0}".format(err))
+
     return out
 
 def exists(server, basedir, file):
@@ -59,9 +64,12 @@ def listdir(server, basedir, dir):
         raise IOError("Can't access stageout directory.")
 
 def makedirs(server, basedir, dir):
+    if dir.startswith(os.path.sep):
+        dir = dir[len(os.path.sep):]
     if os.path.isdir(basedir):
         # We have access to the stageout base directory
-        os.makedirs(os.path.join(basedir, dir))
+        if not os.path.exists(os.path.join(basedir, dir)):
+            os.makedirs(os.path.join(basedir, dir))
     elif server:
         get_chirp_output(server, args=['mkdir', '-p', dir])
     else:

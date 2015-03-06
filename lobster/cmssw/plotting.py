@@ -468,11 +468,13 @@ class Plotter(object):
             fig, ax = plt.subplots()
 
             # to pickle plot contents
-            data = {'data': a, 'bins': bins, 'labels': kwargs.get('labels')}
+            data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}
 
             if mode & Plotter.TIME:
                 f = np.vectorize(self.unix2matplotlib)
                 a = [(f(x), y) for (x, y) in a if len(x) > 0]
+
+                data['data'] = a
 
                 # interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
                 # num_bins = map(self.unix2matplotlib, bins)

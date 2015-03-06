@@ -460,7 +460,7 @@ class JobitStore:
             from datasets
             where
                 merged <> 1 and
-                jobits_done * 10 > jobits
+                jobits_done * 10 >= jobits
                 and (select count(*) from jobs where dataset=datasets.id and status=2) > 0
         """).fetchall()
 

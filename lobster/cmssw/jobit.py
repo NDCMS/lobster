@@ -473,13 +473,11 @@ class JobitStore:
         logger.debug("trying to merge jobs from {0}".format(dataset))
 
         # Select the finished processing jobs from the task
-        bytes_outfile = "bytes_events_output" if self.config.get('use file size without overhead', False) else "bytes_output"
-
         rows = self.db.execute("""
-            select id, jobits, {0}
+            select id, jobits, bytes_event_output
             from jobs
             where status=? and dataset=? and type=0
-            order by {0} desc""".format(bytes_outfile), (SUCCESSFUL, dset_id)).fetchall()
+            order by bytes_event_output desc""", (SUCCESSFUL, dset_id)).fetchall()
 
         # If we don't have enough rows, or the smallest two jobs can't be
         # merge, set this up so that the loop below is not evaluted and we

@@ -202,6 +202,7 @@ def copy_outputs(data, config, env):
             events_tree_compressed_size += get_events_tree_compressed_size(localname)
         except IOError as error:
             print error
+            events_tree_compressed_size += os.path.getsize(localname)
 
         if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),

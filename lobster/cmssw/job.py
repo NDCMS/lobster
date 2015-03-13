@@ -478,6 +478,9 @@ class JobProvider(job.JobProvider):
             cputime = 0
             outsize = 0
             events_tree_compressed_outsize = 0
+            cache_start_size = 0
+            cache_end_size = 0
+            cache = None
 
             if handler.cmssw_job:
                 try:
@@ -491,6 +494,9 @@ class JobProvider(job.JobProvider):
                         cputime = data['cpu time']
                         outsize = data['output size']
                         events_tree_compressed_outsize = data['events tree compressed size']
+                        cache_start_size = data['cache']['start size']
+                        cache_end_size = data['cache']['end size']
+                        cache = data['cache']['type']
                 except (ValueError, EOFError, IOError) as e:
                     failed = True
                     logger.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -517,6 +523,9 @@ class JobProvider(job.JobProvider):
                     cputime
                     ]
             data = [
+                    cache_start_size,
+                    cache_end_size,
+                    cache,
                     task.total_bytes_received,
                     task.total_bytes_sent,
                     outsize,

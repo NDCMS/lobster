@@ -188,7 +188,8 @@ class Plotter(object):
             bytes_received,
             bytes_sent,
             bytes_output,
-            type
+            type,
+            cache
             from jobs
             where status in (2, 6, 8) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
@@ -225,7 +226,8 @@ class Plotter(object):
                     ('b_recv', 'i4'),
                     ('b_sent', 'i4'),
                     ('b_output', 'i4'),
-                    ('type', 'i4')
+                    ('type', 'i4'),
+                    ('cache', 'i4')
                     ])
 
         summary_data = list(db.execute("""
@@ -497,7 +499,7 @@ class Plotter(object):
                 filename += '-prof'
                 data['data'] = []
 
-                for (x, y) in a:
+                for i, (x, y) in enumerate(a):
                     sums, edges = np.histogram(x, bins=bins, weights=y)
                     squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
                     counts, edges = np.histogram(x, bins=bins)
@@ -507,12 +509,15 @@ class Plotter(object):
 
                     newargs = dict(kwargs)
                     if 'color' in newargs:
-                        newargs['color'] = newargs['color'][0]
+                        newargs['color'] = newargs['color'][i]
+                    if 'label' in newargs:
+                        newargs['label'] = newargs['label'][i]
 
                     centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
                     ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
 
                     data['data'].append((centers, avg, err))
+
             elif mode & Plotter.PLOT:
                 filename += '-plot'
 
@@ -538,12 +543,16 @@ class Plotter(object):
                 ax.axis(ymax=kwargs_raw['ymax'])
 
             if not mode & Plotter.TIME and mode & Plotter.HIST:
-                all = np.concatenate([y for (x, y) in a])
-                avg = np.average(all)
-                var = np.std(all)
-                med = np.median(all)
+                labels = kwargs.get('label', [''] * len(a))
+                stats = {}
+                for label, (x, y) in zip(labels, a):
+                    avg = np.average(y)
+                    var = np.std(y)
+                    med = np.median(y)
+                    stats[label] = (avg, var, med)
+                info = u"{0} μ = {1:.3g}, σ = {2:.3g} median = {3:.3g}"
                 ax.text(0.75, 0.7,
-                        u"μ = {0:.3g}, σ = {1:.3g}\nmedian = {2:.3g}".format(avg, var, med),
+                        '\n'.join([info.format(label + ':', avg, var, med) for label, (avg, var, med) in stats.items()]),
                         ha="center", transform=ax.transAxes, backgroundcolor='white')
 
             if 'label' in kwargs:
@@ -877,49 +886,51 @@ class Plotter(object):
             for prefix, jobs, failures in [('good-', success_jobs, failed_processing), ('merge-', merge_jobs, failed_merging)]:
                 if len(jobs) == 0:
                     continue
-                starttimes = jobs['t_wrapper_start']
-                endtimes = jobs['t_processing_end']
 
+                cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated cache', 'darkorchid')}
+                cache, split_jobs = split_by_column(jobs, 'cache')
                 # plot timeline
                 things_we_are_looking_at = [
-                        # x-times   , y-times                                                         , y-label                      , filestub             , color             , in pie
-                        (endtimes   , (jobs['t_allput'] - jobs['t_goodput'])                          , 'Lost runtime'               , 'eviction'           , "crimson"         , False) , # red
-                        (endtimes   , (jobs['t_processing_end'] - jobs['t_wrapper_start'])            , 'Runtime'                    , 'runtime'            , "green"            , False) , # red
-                        (starttimes , (jobs['t_send_end'] - jobs['t_send_start'])                     , 'Input transfer'             , 'transfer-in'        , "black"      , True)  , # gray
-                        (starttimes , (jobs['t_wrapper_start'] - jobs['t_send_end'])                  , 'Startup'                    , 'startup'            , "darkorchid"  , True)  , # blue
-                        (starttimes , (jobs['t_wrapper_ready'] - jobs['t_wrapper_start'])             , 'Release setup'              , 'setup-release'      , "navy"       , True)  , # blue
-                        (starttimes , (jobs['t_stage_in'] - jobs['t_wrapper_ready'])                  , 'Stage-in'                   , 'stage-in'           , "gray" , True)  , # gray
-                        (starttimes , (jobs['t_prologue'] - jobs['t_stage_in'])                       , 'Prologue'                   , 'prologue'           , "orange" , True)  , # yellow
-                        (starttimes , (jobs['t_file_req'] - jobs['t_prologue'])                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue" , True)  , # blue
-                        (starttimes , (jobs['t_file_open'] - jobs['t_file_req'])                      , 'File request'               , 'file-open'          , "fuchsia"      , True)  , # blue
-                        (starttimes , (jobs['t_first_ev'] - jobs['t_file_open'])                      , 'CMSSW job setup'            , 'setup-job'          , "dodgerblue"      , True)  , # blue
-                        (endtimes   , (jobs['t_wrapper_ready'] - jobs['t_wrapper_start']
-                                        + jobs['t_first_ev'] - jobs['t_prologue'])                    , 'Overhead'                   , 'overhead'           , "blue"            , False) , # blue
-                        (endtimes   , jobs['t_cpu']                                                   , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"     , True)  , # green
-                        (endtimes   , (jobs['t_processing_end'] - jobs['t_first_ev'] - jobs['t_cpu']) , 'Non-CPU processing'         , 'processing-non-cpu' , "green"           , True)  , # green
-                        (endtimes   , (jobs['t_processing_end'] - jobs['t_first_ev'])                 , 'Processing Total'           , 'processing'         , "mediumseagreen"  , False) , # green
-                        (endtimes   , (jobs['t_epilogue'] - jobs['t_processing_end'])                 , 'Epilogue'                   , 'epilogue'           , "khaki"      , True)  , # yellow
-                        (endtimes   , (jobs['t_stage_out'] - jobs['t_epilogue'])                      , 'Stage-out'                  , 'stage-out'          , "silver"      , True)  , # gray
-                        (endtimes   , (jobs['t_recv_start'] - jobs['t_stage_out'])                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"         , True)  , # blue
-                        (endtimes   , (jobs['t_recv_end'] - jobs['t_recv_start'])                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"   , True)    # gray
+                        # x-times              , y-times                                                                       , y-label                      , filestub             , color            , in pie
+                        ([(x['t_wrapper_start'], x['t_allput'] - x['t_goodput']) for x in split_jobs]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_wrapper_start']) for x in split_jobs]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
+                        ([(x['t_wrapper_start'], x['t_send_end'] - x['t_send_start']) for x in split_jobs]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_wrapper_start'] - x['t_send_end']) for x in split_jobs]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']) for x in split_jobs]             , 'Release setup'              , 'setup-release'      , "navy"           , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_stage_in'] - x['t_wrapper_ready']) for x in split_jobs]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_prologue'] - x['t_stage_in']) for x in split_jobs]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_file_req'] - x['t_prologue']) for x in split_jobs]                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue"      , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_file_open'] - x['t_file_req']) for x in split_jobs]                      , 'File request'               , 'file-open'          , "fuchsia"        , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_first_ev'] - x['t_file_open']) for x in split_jobs]                      , 'CMSSW job setup'            , 'setup-job'          , "dodgerblue"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']
+                                               + x['t_first_ev'] - x['t_prologue']) for x in split_jobs]                       , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue
+                        ([(x['t_wrapper_start'], x['t_cpu']) for x in split_jobs]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev'] - x['t_cpu']) for x in split_jobs]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev']) for x in split_jobs]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
+                        ([(x['t_wrapper_start'], x['t_epilogue'] - x['t_processing_end']) for x in split_jobs]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_stage_out'] - x['t_epilogue']) for x in split_jobs]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_recv_start'] - x['t_stage_out']) for x in split_jobs]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_jobs]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
                 ]
-
-                for xtimes, ytimes, label, filestub, color, pie in things_we_are_looking_at:
-                    ytimes[np.abs(ytimes) > 1e7] = 0
 
                 self.make_pie(
                         [
                             np.sum(jobs['t_allput'] - jobs['t_goodput'])
                                 + np.sum(failures['t_allput'] - failures['t_goodput']),
                             np.sum(failures['t_allput'])
-                        ] + [np.sum(plot[1]) for plot in things_we_are_looking_at if plot[-1]],
-                        ["Eviction", "Failed"] + [plot[2] for plot in things_we_are_looking_at if plot[-1]],
+                        ] + [np.sum(plot[0][1][1]) for plot in things_we_are_looking_at if plot[-1]],
+                        ["Eviction", "Failed"] + [plot[1] for plot in things_we_are_looking_at if plot[-1]],
                         prefix + "time-detail-pie",
                         colors=["crimson", "red"] + [plot[-2] for plot in things_we_are_looking_at if plot[-1]]
                 )
 
-                for xtimes, ytimes, label, filestub, color, pie in things_we_are_looking_at:
-                        self.plot([(xtimes, ytimes / 60.)], label+' (m)', prefix+filestub, color=[color])
+                for a, label, filestub, color, pie in things_we_are_looking_at:
+                    self.plot(
+                        [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
+                        label+' (m)', prefix+filestub,
+                        color=[cache_map[x][1] for x in cache],
+                        label=[cache_map[x][0] for x in cache]
+                    )
 
         if len(failed_jobs) > 0:
             logs = self.savelogs(failed_jobs)

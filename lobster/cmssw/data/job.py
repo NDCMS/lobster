@@ -345,6 +345,11 @@ data = {
         'info': {},
         'skipped': [],
     },
+    'cache': {
+        'start size': 0,
+        'end size': 0,
+        'type': None,
+    },
     'job exit code': 0,
     'cmssw exit code': 0,
     'stageout exit code': 0,
@@ -456,6 +461,12 @@ if data['job exit code'] == 0 and not check_outputs(config):
     data['output size'] = 0
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
+
+
+if 'PARROT_ENABLED' in os.environ:
+    data['cache']['type'] = int(os.path.isfile(os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')))
+else:
+    data['cache']['type'] = 2
 
 with check_execution(data, 193):
     with open('report.json', 'w') as f:

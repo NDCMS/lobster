@@ -170,6 +170,9 @@ class JobProvider(object):
                     raise
                 time.sleep(1)
 
+    def bad_exitcodes(self):
+        return []
+
 class SimpleJobProvider(JobProvider):
     def __init__(self, config):
         super(SimpleJobProvider, self).__init__(config)

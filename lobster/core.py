@@ -153,6 +153,8 @@ def run(args):
                     "total_cores " +
                     "jobits_left\n")
 
+        bad_exitcodes = job_src.bad_exitcodes()
+
         while not job_src.done():
             jobits_left = job_src.work_left()
             stats = queue.stats
@@ -235,6 +237,9 @@ def run(args):
             while task:
                 if task.return_status == 0:
                     successful_jobs += 1
+                elif task.return_status in bad_exitcodes:
+                    logger.warning("blacklisting host {0} due to bad exit code from job {1}".format(task.hostname, task.tag))
+                    queue.blacklist(task.hostname)
                 tasks.append(task)
                 if queue.stats.tasks_complete > 0:
                     task = queue.wait(1)

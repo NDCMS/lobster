@@ -537,6 +537,9 @@ class JobProvider(job.JobProvider):
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 
+    def bad_exitcodes(self):
+        return [169]
+
     def done(self):
         left = self.__store.unfinished_jobits()
         if self.config.get('merge size', -1) > 0:

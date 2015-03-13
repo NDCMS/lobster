@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 from lobster import chirp, job, util
@@ -191,6 +192,14 @@ class JobProvider(job.JobProvider):
 
         self.__chirp = self.config.get('chirp server', None)
         self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else None
+
+        if self.__chirp:
+            try:
+                chirp.get_chirp_output(self.__chirp, args=['ls', '/'], timeout=5, throw=True)
+            except subprocess.CalledProcessError, e:
+                logger.critical('cannot access chirp server {0}'.format(self.__chirp))
+                raise RuntimeError('unavailable chirp connection')
+
         self.__xrootd = self.config.get('xrootd server', None)
         self.__xrootd_root = self.config.get('xrootd root', None) if self.__xrootd else None
 

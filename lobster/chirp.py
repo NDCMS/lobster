@@ -4,11 +4,11 @@ import subprocess
 
 logger = multiprocessing.get_logger()
 
-def get_chirp_output(server, args=None, cmd=None):
+def get_chirp_output(server, args=None, cmd=None, timeout=10, throw=False):
     if not args:
         args = []
     p = subprocess.Popen(
-            ["chirp", "-t", "10", server] + args,
+            ["chirp", "-t", str(timeout), server] + args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE)
@@ -17,6 +17,10 @@ def get_chirp_output(server, args=None, cmd=None):
     logger.debug("args:\"{0}\"".format('" "'.join(args)))
     logger.debug("stdout:\n{0}".format(out))
     logger.debug("stderr:\n{0}".format(err))
+
+    if throw and p.returncode != 0:
+        raise subprocess.CalledProcessError(p.returncode,
+                " ".join(["chirp", "-t", str(timeout), server] + args))
 
     return out
 

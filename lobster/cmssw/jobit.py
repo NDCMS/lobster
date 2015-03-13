@@ -89,7 +89,7 @@ class JobitStore:
             bytes_received int,
             bytes_sent int,
             bytes_output int default 0,
-            bytes_events_output int default 0,
+            bytes_bare_output int default 0,
             foreign key(dataset) references datasets(id))""")
 
         self.db.commit()
@@ -398,7 +398,7 @@ class JobitStore:
             bytes_received=?,
             bytes_sent=?,
             bytes_output=?,
-            bytes_events_output=?,
+            bytes_bare_output=?,
             jobits_processed=(jobits - ?),
             events_read=?,
             events_written=?,
@@ -474,10 +474,10 @@ class JobitStore:
 
         # Select the finished processing jobs from the task
         rows = self.db.execute("""
-            select id, jobits, bytes_event_output
+            select id, jobits, bytes_bare_output
             from jobs
             where status=? and dataset=? and type=0
-            order by bytes_event_output desc""", (SUCCESSFUL, dset_id)).fetchall()
+            order by bytes_bare_output desc""", (SUCCESSFUL, dset_id)).fetchall()
 
         # If we don't have enough rows, or the smallest two jobs can't be
         # merge, set this up so that the loop below is not evaluted and we

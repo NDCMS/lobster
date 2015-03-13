@@ -474,7 +474,7 @@ class JobProvider(job.JobProvider):
             cmssw_exit_code = None
             cputime = 0
             outsize = 0
-            events_tree_compressed_outsize = 0
+            outsize_bare = 0
 
             if handler.cmssw_job:
                 try:
@@ -487,7 +487,7 @@ class JobProvider(job.JobProvider):
                         cmssw_exit_code = data['cmssw exit code']
                         cputime = data['cpu time']
                         outsize = data['output size']
-                        events_tree_compressed_outsize = data['events tree compressed size']
+                        outsize_bare = data['output bare size']
                 except (ValueError, EOFError, IOError) as e:
                     failed = True
                     logger.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -517,7 +517,7 @@ class JobProvider(job.JobProvider):
                     task.total_bytes_received,
                     task.total_bytes_sent,
                     outsize,
-                    events_tree_compressed_outsize
+                    outsize_bare
                     ]
 
             job_update, file_update, jobit_update = \

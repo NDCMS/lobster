@@ -184,7 +184,7 @@ def copy_outputs(data, config, env):
     """
     server = config.get('chirp server', None)
     outsize = 0
-    events_tree_compressed_size = 0
+    outsize_bare = 0
 
     for localname, remotename in config['output files']:
         # prevent stageout of data for failed jobs
@@ -199,10 +199,10 @@ def copy_outputs(data, config, env):
         # using try just in case. Successful jobs should always
         # have an existing Events::TTree though.
         try:
-            events_tree_compressed_size += get_events_tree_compressed_size(localname)
+            outsize_bare += get_bare_size(localname)
         except IOError as error:
             print error
-            events_tree_compressed_size += os.path.getsize(localname)
+            outsize_bare += os.path.getsize(localname)
 
         if server:
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
@@ -217,7 +217,7 @@ def copy_outputs(data, config, env):
                 data['stageout exit code'] = status
                 raise IOError("Failed to transfer output file '{0}'".format(localname))
     data['output size'] = outsize
-    data['events tree compressed size'] = events_tree_compressed_size
+    data['output bare size'] = outsize_bare
 
 def edit_process_source(pset, config, events=-1):
     """Edit parameter set for job.
@@ -326,8 +326,8 @@ def extract_cmssw_times(log_filename, default=None):
     return (finit, fopen, first)
 
 
-def get_events_tree_compressed_size(filename):
-    """Get the Events Tree compressed size.
+def get_bare_size(filename):
+    """Get the output bare size.
 
     Extracts Events->TTree::GetZipBytes()
     """
@@ -352,7 +352,7 @@ data = {
     'cpu time': 0,
     'events written': 0,
     'output size': 0,
-    'events tree compressed size': 0,
+    'output bare size': 0,
     'task timing info': [None] * 7,
     'events per run': 0
 }

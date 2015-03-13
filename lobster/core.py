@@ -204,11 +204,11 @@ def run(args):
                     break
 
                 hunger -= len(jobs)
-
+                cores = config.get('cores per job', 1)
                 for id, cmd, inputs, outputs in jobs:
                     task = wq.Task(cmd)
                     task.specify_tag(id)
-                    task.specify_cores(1)
+                    task.specify_cores(cores)
                     # temporary work-around?
                     # task.specify_memory(1000)
                     # task.specify_disk(4000)

@@ -90,7 +90,7 @@ class JobProvider(object):
             if create:
                 if not os.path.exists(taskdir):
                     os.makedirs(taskdir)
-                if stageoutdir.startswith(chirp_root):
+                if chirp_root and stageoutdir.startswith(chirp_root):
                     target = stageoutdir.replace(chirp_root, '', 1)
                     if not chirp.exists(chirp_server, chirp_root, target):
                         chirp.makedirs(chirp_server, chirp_root, target)

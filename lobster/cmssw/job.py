@@ -477,7 +477,7 @@ class JobProvider(job.JobProvider):
             cmssw_exit_code = None
             cputime = 0
             outsize = 0
-            events_tree_compressed_outsize = 0
+            outsize_bare = 0
             cache_start_size = 0
             cache_end_size = 0
             cache = None
@@ -493,7 +493,7 @@ class JobProvider(job.JobProvider):
                         cmssw_exit_code = data['cmssw exit code']
                         cputime = data['cpu time']
                         outsize = data['output size']
-                        events_tree_compressed_outsize = data['events tree compressed size']
+                        outsize_bare = data['output bare size']
                         cache_start_size = data['cache']['start size']
                         cache_end_size = data['cache']['end size']
                         cache = data['cache']['type']
@@ -529,7 +529,7 @@ class JobProvider(job.JobProvider):
                     task.total_bytes_received,
                     task.total_bytes_sent,
                     outsize,
-                    events_tree_compressed_outsize
+                    outsize_bare
                     ]
 
             job_update, file_update, jobit_update = \

@@ -397,8 +397,7 @@ class JobProvider(job.JobProvider):
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
                 handler.outputs.append(os.path.join(label, outname))
-                prefix = self.stageout.replace(self.__chirp_root, '', 1)
-                stageout.append((filename, os.path.join(prefix, label, outname)))
+                stageout.append((filename, os.path.join(self.stageout, label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 

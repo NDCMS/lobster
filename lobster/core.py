@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import yaml
+import sqlite3
 
 from lobster import util, cmssw, job
 
@@ -17,6 +18,7 @@ from pkg_resources import get_distribution
 import work_queue as wq
 
 logger = multiprocessing.get_logger()
+
 
 class ShortPathFormatter(logging.Formatter):
     def format(self, record):
@@ -36,7 +38,28 @@ def kill(args):
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
+    logger.info("reporting unfinished tasks as Aborted to the dashboard")
+    # report unfinished tasks as aborted to dashboard
+    # note: even if lobster didn't terminate gracefully for some reason,
+    # "lobster terminate" can still be run afterwards to properly update
+    # the tasks as aborted to the dashboard.
+    db_path = os.path.join(workdir, "lobster.db")
+    db = sqlite3.connect(db_path)
+    ids = db.execute("select id from jobs where status=1").fetchall()
+    task_id = util.checkpoint(workdir, 'id')
+    if task_id:
+        for (id,) in ids:
+            if config.get('use dashboard', True):
+                dash = cmssw.dash.Monitor(task_id)
+            else:
+                dash = cmssw.dash.DummyMonitor(task_id)
+            dash.update_job(id, cmssw.dash.ABORTED)
+    else:
+        logger.warning("""taskid not found: could not report aborted jobs
+                       to the dashboard""")
+
 def run(args):
+    dash_checker = cmssw.dash.JobStateChecker(300)
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
 
@@ -184,6 +207,13 @@ def run(args):
 
             if util.checkpoint(workdir, 'KILLED') == 'PENDING':
                 util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
+                # just in case, check for any remaining not done task that
+                # hasn't been reported as aborted
+                for task_id in queue._task_table.keys():
+                    status = cmssw.dash.status_map[queue.task_state(task_id)]
+                    if status not in (cmssw.dash.DONE, cmssw.dash.ABORTED):
+                        job_src._JobProvider__dash.update_job(task_id, cmssw.dash.ABORTED)
+
                 logger.info("terminating gracefully")
                 break
 
@@ -229,6 +259,18 @@ def run(args):
 
                     queue.submit(task)
             creation_time += int((time.time() - t) * 1e6)
+
+            # update dashboard status for all not done tasks
+            # report Done status only once when releasing the task
+            # WAITING_RETRIEVAL is not a valid status in dashboard
+            # so, skipping it for now
+            monitor = job_src._JobProvider__dash
+            queue = queue
+            exclude_states = (cmssw.dash.DONE, cmssw.dash.WAITING_RETRIEVAL)
+            try:
+                dash_checker.update_dashboard_states(monitor, queue, exclude_states)
+            except Exception as e:
+                logger.warning("Could not update job states to dashboard")
 
             task = queue.wait(300)
             tasks = []

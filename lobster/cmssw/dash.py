@@ -9,10 +9,29 @@ from hashlib import sha1
 from DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 
+import time
+import work_queue as wq
+import DashboardAPI
+
+UNKNOWN = 'Unknown'
 SUBMITTED = 'Pending'
 DONE = 'Done'
 RETRIEVED = 'Retrieved'
 ABORTED = 'Aborted'
+RUNNING = 'Running'
+WAITING_RETRIEVAL = 'Waiting Retrieval'
+
+# dictionary between work queue and dashboard status
+status_map = {
+    wq.WORK_QUEUE_TASK_UNKNOWN: UNKNOWN,
+    wq.WORK_QUEUE_TASK_READY: SUBMITTED,
+    wq.WORK_QUEUE_TASK_RUNNING: RUNNING,
+    wq.WORK_QUEUE_TASK_WAITING_RETRIEVAL: WAITING_RETRIEVAL,
+    wq.WORK_QUEUE_TASK_RETRIEVED: RETRIEVED,
+    wq.WORK_QUEUE_TASK_DONE: DONE,
+    wq.WORK_QUEUE_TASK_CANCELED: ABORTED
+}
+
 
 class DummyMonitor(object):
     def __init__(self, taskid):
@@ -104,7 +123,6 @@ class Monitor(DummyMonitor):
             'resubmitter': 'user',
             'exe': 'cmsRun'
             })
-        self.update_job(id, SUBMITTED)
         return monitorid, syncid
 
     def update_job(self, id, status):
@@ -120,3 +138,51 @@ class Monitor(DummyMonitor):
             'StatusDestination': 'ndcms.crc.nd.edu',
             'RBname': 'condor'
             })
+
+
+class JobStateChecker(object):
+    """
+    Check the job state  at a given time interval
+    """
+
+    def __init__(self, interval):
+        self._t_interval = interval
+        self._t_previous = 0
+        self._previous_states = {}
+
+    def report_in_interval(self, t_current):
+        """
+        Returns True if the lapse time between the current time
+        and the last time reported is greater than the interval time defined
+        """
+
+        report = t_current - self._t_previous >= self._t_interval \
+            if self._t_previous else True
+        return report
+
+    def update_dashboard_states(self, monitor, queue, exclude_states):
+        """
+        Update dashboard states for all jobs.
+        This is done only if the job status changed.
+        """
+        t_current = time.time()
+        if self.report_in_interval(t_current):
+            self._t_previous = t_current
+            try:
+                ids_list = queue._task_table.keys()
+            except:
+                raise
+
+            for id in ids_list:
+                status = status_map[queue.task_state(id)]
+                status_new_or_changed = not self._previous_states.get(id) or \
+                    self._previous_states.get(id, status) != status
+
+                if status not in exclude_states and status_new_or_changed:
+                    try:
+                        monitor.update_job(id, status)
+                    except:
+                        raise
+
+                if status_new_or_changed:
+                    self._previous_states.update({id: status})

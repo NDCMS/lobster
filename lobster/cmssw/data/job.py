@@ -407,12 +407,6 @@ parameters = {
             'SyncGridJobId': syncid,
             'WNHostName': os.environ.get('HOSTNAME', '')
             }
-# @todo: Running status should not be done from the WN but the Master instead,
-#        but we currently don't have that info from work_queue.
-parameters.update({
-                    'StatusValue': 'Running',
-                    'StatusEnterTime': '{0:%F_%T}'.format(datetime.utcnow())
-                   })
 
 apmonSend(taskid, monitorid, parameters)
 apmonFree()

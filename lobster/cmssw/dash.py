@@ -11,7 +11,6 @@ from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 
 import time
 import work_queue as wq
-import DashboardAPI
 
 UNKNOWN = 'Unknown'
 SUBMITTED = 'Pending'

@@ -182,11 +182,16 @@ def copy_outputs(data, config, env):
     output files out via chirp.  In any case, file sizes are added up and
     inserted into the job data.
     """
-    server = config.get('chirp server', None)
+    chirp_server = config.get('chirp server', None)
+    chirp_root = config.get('chirp root', None)
+
     outsize = 0
     outsize_bare = 0
 
-    for localname, remotename in config['output files']:
+    files = list(config['output files'])
+    config['output files'] = []
+
+    for localname, remotename in files:
         # prevent stageout of data for failed jobs
         if os.path.exists(localname) and data['cmssw exit code'] != 0:
             os.remove(localname)
@@ -204,20 +209,32 @@ def copy_outputs(data, config, env):
             print error
             outsize_bare += os.path.getsize(localname)
 
-        if server:
+        if chirp_server:
+            if chirp_root and remotename.startswith(chirp_root):
+                remotename = remotename.replace(chirp_root, '', 1)
+
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
                                       "-a",
                                       "globus",
                                       "-d",
                                       "all",
                                       localname,
-                                      server,
+                                      chirp_server,
                                       remotename], env=env)
             if status != 0:
                 data['stageout exit code'] = status
                 raise IOError("Failed to transfer output file '{0}'".format(localname))
+
+        config['output files'].append((localname, remotename))
+
     data['output size'] = outsize
     data['output bare size'] = outsize_bare
+
+    print "--- modified output files:"
+    for fn in config['output files']:
+        print fn
+    print "---"
+
 
 def edit_process_source(pset, config):
     """Edit parameter set for job.

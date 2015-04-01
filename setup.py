@@ -22,12 +22,14 @@ setup(
     install_requires=[
         'argparse',
         'jinja2',
+        'hadoopy',
         'nose',
         'pyyaml',
         'python-daemon',
         'python-dateutil',
         'pytz'
     ],
+    dependency_links=['git+https://github.com/bwhite/hadoopy#egg=hadoopy'],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']
     }

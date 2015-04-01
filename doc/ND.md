@@ -36,7 +36,7 @@ above:
 
 To allow you to use the setuptools commands, in tcsh
    
-   setenv PATH ~/.local/bin:${PATH}   
+    setenv PATH ~/.local/bin:${PATH}   
 
 Then, to actually install lobster, run
 

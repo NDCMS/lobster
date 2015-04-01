@@ -12,8 +12,8 @@ Use `work_queue` etc from the CC lab:
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
-    setenv PATH /afs/nd.edu/user37/ccl/software/cctools/bin:${PATH}
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/cctools-ndcms/lib/python2.6/site-packages/
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-ndcms/bin:${PATH}
 
 These statements are best put into your shell startup scripts.  Test the
 cctools with
@@ -34,6 +34,10 @@ above:
 
     wget http://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
 
+To allow you to use the setuptools commands, in tcsh
+   
+   setenv PATH ~/.local/bin:${PATH}   
+
 Then, to actually install lobster, run
 
     easy_install https://github.com/matz-e/lobster/tarball/master
@@ -48,7 +52,7 @@ for the latest stable release.  Then add `.local/bin` to your `PATH`:
 
 or, for `tcsh` users,
 
-    setenv PATH $PATH:$HOME/.local/bin
+    setenv PATH ${PATH}:$HOME/.local/bin
 
 ## Running lobster
 

@@ -144,8 +144,11 @@ def run(args):
         queue.tune("transfer-outlier-factor", 4)
         queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
 
+
+        cores = config.get('cores per job', 1)
         logger.info("starting queue as {0}".format(queue.name))
-        logger.info("submit workers with: condor_submit_workers -M {0} <num>".format(queue.name))
+        logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
+            queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
 
         payload = config.get('advanced', {}).get('payload', 400)
         abort_active = False
@@ -234,7 +237,6 @@ def run(args):
                     break
 
                 hunger -= len(jobs)
-                cores = config.get('cores per job', 1)
                 for id, cmd, inputs, outputs in jobs:
                     task = wq.Task(cmd)
                     task.specify_tag(id)

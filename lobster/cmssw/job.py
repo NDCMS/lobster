@@ -165,6 +165,8 @@ class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
 
+        self.bad_exitcodes += [169]
+
         if 'merge size' in self.config:
             bytes = self.config['merge size']
             orig = bytes
@@ -536,9 +538,6 @@ class JobProvider(job.JobProvider):
             self.__unlinker.remove(cleanup)
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
-
-    def bad_exitcodes(self):
-        return [169]
 
     def done(self):
         left = self.__store.unfinished_jobits()

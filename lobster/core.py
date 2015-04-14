@@ -153,7 +153,7 @@ def run(args):
                     "total_cores " +
                     "jobits_left\n")
 
-        bad_exitcodes = job_src.bad_exitcodes()
+        bad_exitcodes = job_src.bad_exitcodes
 
         while not job_src.done():
             jobits_left = job_src.work_left()

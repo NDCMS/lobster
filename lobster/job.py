@@ -60,6 +60,7 @@ class JobProvider(object):
         self.outputs = {}
         self.outputformats = {}
         self.cmds = {}
+        self.bad_exitcodes = config.get('bad exit codes', [])
 
         chirp_server = config.get('chirp server')
         chirp_root = config.get('chirp root')
@@ -169,9 +170,6 @@ class JobProvider(object):
                 if attempts <= 0:
                     raise
                 time.sleep(1)
-
-    def bad_exitcodes(self):
-        return []
 
 class SimpleJobProvider(JobProvider):
     def __init__(self, config):

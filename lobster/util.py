@@ -104,12 +104,13 @@ def ldd(name):
 
     return libs
 
-def get_lock(workdir):
+def get_lock(workdir, force=False):
     pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
     try:
         pidfile.acquire()
     except AlreadyLocked:
-        print "Another instance of lobster is accessing {0}".format(workdir)
-        raise
+        if not force:
+            print "Another instance of lobster is accessing {0}".format(workdir)
+            raise
     pidfile.break_lock()
     return pidfile

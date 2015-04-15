@@ -104,7 +104,7 @@ def run(args):
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
-            pidfile=util.get_lock(workdir),
+            pidfile=util.get_lock(workdir, args.force),
             signal_map=signals):
 
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)

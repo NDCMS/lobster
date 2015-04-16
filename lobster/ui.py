@@ -11,7 +11,7 @@ def boil():
     subparsers = parser.add_subparsers(title='commands')
 
     parser_run = subparsers.add_parser('process', help='process configuration')
-    parser_run.add_argument('-g', '--foreground', action='store_true', default=False,
+    parser_run.add_argument('--foreground', action='store_true', default=False,
             help='do not daemonize; run in the foreground instead')
     parser_run.add_argument('-f', '--force', action='store_true', default=False,
             help='force processing, even if the working directory is locked by a previous instance')

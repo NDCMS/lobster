@@ -166,6 +166,8 @@ class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
 
+        self.bad_exitcodes += [169]
+
         if 'merge size' in self.config:
             bytes = self.config['merge size']
             orig = bytes

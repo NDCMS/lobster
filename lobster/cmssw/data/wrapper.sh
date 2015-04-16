@@ -84,6 +84,14 @@ else
 		echo ">>> parrot helper: $PARROT_HELPER"
 		print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
 
+		echo ">>> testing parrot usage"
+		if [ -n "$(ldd $PARROT_PATH/parrot_run 2>&1 | grep 'not found')" ]; then
+			print_output ldd $PARROT_PATH/parrot_run
+			exit 169
+		else
+			echo "parrot OK"
+		fi
+
 		echo ">>> starting parrot to access CMSSW..."
 		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi

@@ -60,6 +60,7 @@ class JobProvider(object):
         self.outputs = {}
         self.outputformats = {}
         self.cmds = {}
+        self.bad_exitcodes = config.get('bad exit codes', [])
 
         chirp_server = config.get('chirp server')
         chirp_root = config.get('chirp root')

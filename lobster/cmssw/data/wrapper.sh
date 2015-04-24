@@ -64,9 +64,8 @@ else
 
 		# Last safeguard, if everything else fails.  We need a
 		# proxy for parrot!
-		# export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128;DIRECT}
-		export HTTP_PROXY=${HTTP_PROXY:-http://ndcms.crc.nd.edu:3128}
-		# FIXME this hardcodes the IP address of ndcms!
+		# export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128;DIRECT}
+		export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128}
 		export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
 		echo ">>> using CVMFS proxy: $HTTP_PROXY"
 		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch

@@ -5,7 +5,7 @@
     </event-data>
     <calib-data>
      <frontier-connect>
-       <proxy url="http://ndcms.crc.nd.edu:3128"/>
+       <proxy url="http://eddie.crc.nd.edu:3128"/>
        <backupproxy url="http://cmsbproxy.fnal.gov:3128"/>
        <backupproxy url="http://cmsbpfrontier.cern.ch:3128"/>
        <server url="http://cmsfrontier.cern.ch:8000/FrontierInt"/>

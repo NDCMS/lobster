@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Lobster
+title: Introduction
 ---
 
 CMS lacks tools for users to run their jobs at sites not conforming to WLCG

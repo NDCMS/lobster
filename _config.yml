@@ -1,5 +1,6 @@
 # Site settings
 title: Lobster
+author: Matthias Wolf, Anna Woodard
 email: mwolf3@nd.edu, awoodard@nd.edu
 description: > # this means to ignore newlines until "baseurl:"
   Lobster is a user tool to run workflows requiring CMS infrastructure at a

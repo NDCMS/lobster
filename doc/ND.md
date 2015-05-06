@@ -35,8 +35,8 @@ above:
     wget http://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
 
 To allow you to use the setuptools commands, in tcsh
-   
-    setenv PATH ~/.local/bin:${PATH}   
+
+    setenv PATH ~/.local/bin:${PATH}
 
 Then, to actually install lobster, run
 

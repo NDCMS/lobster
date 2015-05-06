@@ -101,63 +101,10 @@ And to obtain progress plots:
 
 The CRC login nodes `opteron`, `newcell`, and `crcfe01` are connected to
 the ND opportunistic computing pool.  On these, multicore jobs are
-preferred and can be run with
-
-    cores=4
-    condor_submit_workers -N lobster_<your_id> --cores $cores \
-        --memory $(($cores * 1100)) --disk $(($cores * 4500)) 10
-
-or, for `tcsh` users,
-
-    set cores=4
-    condor_submit_workers -N lobster_<your_id> --cores $cores \
-        --memory `dc -e "$cores 1100 *p"` --disk `dc -e "$cores 4500 *p"` 10
-
-### Submitting workers locally
-
-To submit 10 workers (= 10 cores) to the T3 at ND, run
-
-    condor_submit_workers -N lobster_<your_id> --cores 1 \
-        --memory 1000 --disk 4500 10
-
-on `earth`.
+preferred and can be run with the same commands as specified in the main
+documentation.
 
 ## Advanced usage
-
-### Using chirp
-
-Create a file called `acl` with default access permissions in your home
-directory via: (you will need a valid proxy for this!)
-
-    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" > ~/acl
-
-On earth, do something akin to the following commands:
-
-    chirp_server --root=<your_stageout_directory> -A ~/acl -p <your_port>
-
-where the default port is `9094`, but may be occupied, in which case it
-should be best to linearly increment this port until you find a free one.
-**If you are using chirp to stage out to `/store`, limit the connections
-by adding `-M 50` to the arguments.**
-
-You should test chirp on `ndcms` or any other computer than earth:
-
-    voms-proxy-init -voms cms -valid 192:00
-    chirp_put <some_file> earth:<your_port> spam
-
-If this command fails with a permission issue, make sure you do not have
-any `.__acl` files lingering around in your stageout directory:
-
-    find <your_stageout_directory> -name .__acl -exec rm \{} \;
-
-and try again.
-
-Then add the follow line to your lobster configuration and you should be
-all set:
-
-    chirp server: "earth.crc.nd.edu:<your_port>"
-
-This is optional, but will improve performance.
 
 ### Using chirp with hadoop
 
@@ -174,10 +121,8 @@ be altered slightly (change to suit your needs):
 Test this command above, and add it to the configuration to enjoy talking
 to hadoop directly.
 
-## Monitoring
+## Notre Dame Monitoring
 
-* [CMS dasboard](http://dashb-cms-job.cern.ch/dashboard/templates/web-job2/)
-* [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)
 * [Condor usage](http://condor.cse.nd.edu/condor_matrix.cgi)
 * [NDCMS trends](http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=ndcms.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=)
   to monitor squid bandwidth

@@ -11,7 +11,7 @@ import traceback
 import yaml
 import sqlite3
 
-from lobster import util, cmssw, job
+from lobster import cmssw, fs, job, util
 
 from pkg_resources import get_distribution
 

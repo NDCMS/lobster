@@ -1,9 +1,8 @@
 from collections import defaultdict
-import glob
 import math
 import os
 import sys
-from lobster import util
+from lobster import util, fs
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
@@ -126,20 +125,19 @@ class FileInterface:
                     files = [files]
                 for entry in files:
                     entry = os.path.expanduser(entry)
-                    if os.path.isdir(entry):
-                        dset.files += [f for f in glob.glob(os.path.join(entry, '*'))]
-                    elif os.path.isfile(entry):
+                    if fs.isdir(entry):
+                        dset.files += [f for f in fs.ls(os.path.join(entry, '*'))]
+                    if fs.isfile(entry):
                         dset.files += [f.strip() for f in open(entry).readlines()]
                     elif isinstance(entry, str):
-                        dset.files += [f for f in glob.glob(os.path.join(entry))]
+                        dset.files += [f for f in fs.ls(os.path.join(entry))]
 
                 dset.total_lumis = len(dset.files)
 
                 for file in dset.files:
                     # hack because it will be slow to open all the input files to read the run/lumi info
                     dset.lumis[file] = [(-1, -1)]
-                    dset.filesizes[file] = os.path.getsize(file)
-
+                    dset.filesizes[file] = fs.getsize(file)
             self.__dsets[label] = dset
 
         return self.__dsets[label]

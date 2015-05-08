@@ -139,7 +139,25 @@ The last line of arguments corresponds to the desired worker configuration.
 
 # Advanced usage
 
-## Stage-out via chirp
+## Stage-out
+
+### Via SRM
+
+Lobster supports SRM stage-out.  Parameters for SRM stage-out can be found
+in `/cvmfs/cms.cern.ch/SITECONFIG`, the directory of the destination
+storage element, file `PhEDEx/storage.xml`.  A `lfn-to-pfn` leaf with the
+`srmv2` protocol will reveal the server URL, which should be used in the
+configuration, without any `$1`.  For example, the adjusted settings for
+`T3_US_ND` are:
+
+    srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
+    srm root: "/hadoop/"
+
+The `srm root` maps the physical file name to the logical file name.  Both
+the `srm url` and `srm root` should be adjusted such that the logical file
+name can be appended to the `srm url` without any problem.
+
+### Via chirp
 
 Using chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.

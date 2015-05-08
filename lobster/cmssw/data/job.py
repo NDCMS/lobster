@@ -182,6 +182,9 @@ def copy_outputs(data, config, env):
     output files out via chirp.  In any case, file sizes are added up and
     inserted into the job data.
     """
+    srm_server = config.get('srm server', None)
+    srm_root = config.get('srm root', None)
+
     chirp_server = config.get('chirp server', None)
     chirp_root = config.get('chirp root', None)
 
@@ -209,7 +212,35 @@ def copy_outputs(data, config, env):
             print error
             outsize_bare += os.path.getsize(localname)
 
-        if chirp_server:
+        if srm_server:
+            if srm_root and remotename.startswith(srm_root):
+                remotename = remotename.replace(srm_root, '', 1)
+            if remotename.startswith('/'):
+                remotename = remotename[1:]
+
+            prg = []
+
+            if int(os.environ["LOBSTER_GFAL_COPY"]) == 1:
+                prg = ["env", "-i", "X509_USER_PROXY=proxy", "gfal-copy"]
+            elif int(os.environ["LOBSTER_LCG_CP"]) == 1:
+                prg = ["lcg-cp", "-b", "-D", "srmv2"]
+            else:
+                raise RuntimeError("no stage-out method available")
+
+            args = prg + [
+                "file:///" + os.path.join(os.getcwd(), localname),
+                os.path.join(srm_server, remotename)
+            ]
+
+            print "--- staging-out with:"
+            print " ".join(args)
+            print "---"
+
+            status = subprocess.call(args, env=env)
+            if status != 0:
+                data['stageout exit code'] = status
+                raise IOError("Failed to transfer output file '{0}'".format(localname))
+        elif chirp_server:
             if chirp_root and remotename.startswith(chirp_root):
                 remotename = remotename.replace(chirp_root, '', 1)
 

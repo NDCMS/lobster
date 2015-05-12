@@ -153,7 +153,10 @@ class JobProvider(object):
     def obtain(self):
         raise NotImplementedError
 
-    def release(self, id, return_code, output, task):
+    def release(self, tasks):
+        raise NotImplementedError
+
+    def terminate(self):
         raise NotImplementedError
 
     def work_left(self):
@@ -224,6 +227,9 @@ class SimpleJobProvider(JobProvider):
                 f = gzip.open(os.path.join(self.workdir, label, id+'_job.log.gz'), 'wb')
                 f.write(task.output)
                 f.close()
+
+    def terminate(self):
+        pass
 
     def work_left(self):
         return self.__max - self.__done

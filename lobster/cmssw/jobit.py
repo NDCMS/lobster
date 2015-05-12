@@ -618,6 +618,11 @@ class JobitStore:
 
         return cur
 
+    def running_jobs(self):
+        cur = self.db.execute("select id from jobs where status=1")
+        for (v,) in cur:
+            yield v
+
     def update_pset_hash(self, pset_hash, dataset):
         self.db.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))
 

@@ -559,6 +559,10 @@ class JobProvider(job.JobProvider):
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 
+    def terminate(self):
+        for id in self.__store.running_jobs():
+            self.__dash.update_job(str(id), dash.CANCELLED)
+
     def done(self):
         left = self.__store.unfinished_jobits()
         if self.config.get('merge size', -1) > 0:

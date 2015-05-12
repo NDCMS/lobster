@@ -9,7 +9,6 @@ import sys
 import time
 import traceback
 import yaml
-import sqlite3
 
 from lobster import util, cmssw, job
 
@@ -37,26 +36,6 @@ def kill(args):
 
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
-
-    logger.info("reporting unfinished tasks as Aborted to the dashboard")
-    # report unfinished tasks as aborted to dashboard
-    # note: even if lobster didn't terminate gracefully for some reason,
-    # "lobster terminate" can still be run afterwards to properly update
-    # the tasks as aborted to the dashboard.
-    db_path = os.path.join(workdir, "lobster.db")
-    db = sqlite3.connect(db_path)
-    ids = db.execute("select id from jobs where status=1").fetchall()
-    task_id = util.checkpoint(workdir, 'id')
-    if task_id:
-        for (id,) in ids:
-            if config.get('use dashboard', True):
-                dash = cmssw.dash.Monitor(task_id)
-            else:
-                dash = cmssw.dash.DummyMonitor(task_id)
-            dash.update_job(id, cmssw.dash.ABORTED)
-    else:
-        logger.warning("""taskid not found: could not report aborted jobs
-                       to the dashboard""")
 
 def run(args):
     dash_checker = cmssw.dash.JobStateChecker(300)
@@ -212,13 +191,10 @@ def run(args):
 
             if util.checkpoint(workdir, 'KILLED') == 'PENDING':
                 util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
-                # just in case, check for any remaining not done task that
-                # hasn't been reported as aborted
-                for task_id in queue._task_table.keys():
-                    status = cmssw.dash.status_map[queue.task_state(task_id)]
-                    if status not in (cmssw.dash.DONE, cmssw.dash.ABORTED):
-                        job_src._JobProvider__dash.update_job(task_id, cmssw.dash.ABORTED)
 
+                # let the job source shut down gracefully
+                logger.info("terminating job source")
+                job_src.terminate()
                 logger.info("terminating gracefully")
                 break
 

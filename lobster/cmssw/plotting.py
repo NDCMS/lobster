@@ -913,12 +913,13 @@ class Plotter(object):
                         ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_jobs]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
                 ]
 
+                times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
                 self.make_pie(
                         [
                             np.sum(jobs['t_allput'] - jobs['t_goodput'])
                                 + np.sum(failures['t_allput'] - failures['t_goodput']),
                             np.sum(failures['t_allput'])
-                        ] + [np.sum(plot[0][1][1]) for plot in things_we_are_looking_at if plot[-1]],
+                        ] + [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
                         ["Eviction", "Failed"] + [plot[1] for plot in things_we_are_looking_at if plot[-1]],
                         prefix + "time-detail-pie",
                         colors=["crimson", "red"] + [plot[-2] for plot in things_we_are_looking_at if plot[-1]]

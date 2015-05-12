@@ -1,9 +1,9 @@
 import daemon
+import datetime
 import logging
 import logging.handlers
 import multiprocessing
 import os
-import datetime
 import signal
 import sys
 import time

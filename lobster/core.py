@@ -276,7 +276,7 @@ def run(args):
                     for task in tasks:
                         logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
-            if successful_jobs >= abort_threshold and not abort_active:
+            if abort_threshold > 0 and successful_jobs >= abort_threshold and not abort_active:
                 logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
                 abort_active = True
                 queue.activate_fast_abort(abort_multiplier)

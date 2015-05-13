@@ -236,7 +236,11 @@ def copy_outputs(data, config, env):
             print " ".join(args)
             print "---"
 
-            p = subprocess.Popen(args, env=env, stderr=subprocess.PIPE)
+            pruned_env = env
+            for k in ['LD_LIBRARY_PATH', 'PATH']:
+                pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+
+            p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
             p.wait()
             if p.returncode != 0:
                 data['stageout exit code'] = p.returncode

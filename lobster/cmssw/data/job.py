@@ -236,10 +236,11 @@ def copy_outputs(data, config, env):
             print " ".join(args)
             print "---"
 
-            status = subprocess.call(args, env=env)
-            if status != 0:
-                data['stageout exit code'] = status
-                raise IOError("Failed to transfer output file '{0}'".format(localname))
+            p = subprocess.Popen(args, env=env, stderr=subprocess.PIPE)
+            p.wait()
+            if p.returncode != 0:
+                data['stageout exit code'] = p.returncode
+                raise IOError("Failed to transfer output file '{0}':\n{1}".format(localname, p.stderr.read()))
         elif chirp_server:
             if chirp_root and remotename.startswith(chirp_root):
                 remotename = remotename.replace(chirp_root, '', 1)

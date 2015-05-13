@@ -4,6 +4,7 @@ import logging
 import logging.handlers
 import multiprocessing
 import os
+import resource
 import signal
 import sys
 import time
@@ -75,6 +76,10 @@ def run(args):
         ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
         print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
 
+    if config.get('advanced', {}).get('dump core', False):
+        print "Setting core dump size to unlimited"
+        resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
     signals = daemon.daemon.make_default_signal_map()
     signals[signal.SIGTERM] = lambda num, frame: kill(args)
 
@@ -84,6 +89,7 @@ def run(args):
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
             pidfile=util.get_lock(workdir, args.force),
+            prevent_core=False,
             signal_map=signals):
 
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)

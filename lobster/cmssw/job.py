@@ -112,13 +112,6 @@ class JobHandler(object):
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
 
-            if not self._file_based:
-                jobits_finished = len(file_jobits)
-                jobits_done = 0 if failed or skipped else len(files_info[file][1])
-            else:
-                jobits_finished = 1
-                jobits_done = 0 if failed or skipped else 1
-
             events_read += read
 
             if not failed:
@@ -210,7 +203,6 @@ class JobProvider(job.JobProvider):
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
 
         self.__events = {}
-        self.__datasets = {}
         self.__configs = {}
         self.__local = {}
         self.__jobhandlers = {}
@@ -253,7 +245,6 @@ class JobProvider(job.JobProvider):
             if cms_config:
                 self.__configs[label] = os.path.basename(cms_config)
 
-            self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__local[label] = cfg.get('local', 'files' in cfg)
             self.__events[label] = cfg.get('max events', -1)
 

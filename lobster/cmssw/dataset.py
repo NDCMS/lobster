@@ -10,7 +10,6 @@ from FWCore.PythonUtilities.LumiList import LumiList
 
 class DatasetInfo():
     def __init__(self):
-        self.events = {}
         self.event_counts = defaultdict(int)
         self.file_based = False
         self.empty_source = False

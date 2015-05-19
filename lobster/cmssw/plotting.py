@@ -551,7 +551,7 @@ class Plotter(object):
                     med = np.median(y)
                     stats[label] = (avg, var, med)
                 info = u"{0} μ = {1:.3g}, σ = {2:.3g} median = {3:.3g}"
-                ax.text(0.75, 0.7,
+                ax.text(0.75, 0.6,
                         '\n'.join([info.format(label + ':', avg, var, med) for label, (avg, var, med) in stats.items()]),
                         ha="center", transform=ax.transAxes, backgroundcolor='white')
 
@@ -887,7 +887,7 @@ class Plotter(object):
                 if len(jobs) == 0:
                     continue
 
-                cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated cache', 'darkorchid')}
+                cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated', 'darkorchid')}
                 cache, split_jobs = split_by_column(jobs, 'cache')
                 # plot timeline
                 things_we_are_looking_at = [
@@ -913,15 +913,12 @@ class Plotter(object):
                         ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_jobs]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
                 ]
 
+                times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
                 self.make_pie(
-                        [
-                            np.sum(jobs['t_allput'] - jobs['t_goodput'])
-                                + np.sum(failures['t_allput'] - failures['t_goodput']),
-                            np.sum(failures['t_allput'])
-                        ] + [np.sum(plot[0][1][1]) for plot in things_we_are_looking_at if plot[-1]],
-                        ["Eviction", "Failed"] + [plot[1] for plot in things_we_are_looking_at if plot[-1]],
+                        [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
+                        [plot[1] for plot in things_we_are_looking_at if plot[-1]],
                         prefix + "time-detail-pie",
-                        colors=["crimson", "red"] + [plot[-2] for plot in things_we_are_looking_at if plot[-1]]
+                        colors=[plot[-2] for plot in things_we_are_looking_at if plot[-1]]
                 )
 
                 for a, label, filestub, color, pie in things_we_are_looking_at:

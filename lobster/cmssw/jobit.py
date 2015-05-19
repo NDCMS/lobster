@@ -143,7 +143,6 @@ class JobitStore:
                            dataset_info.masked_lumis,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.total_events))
-        dset_id = cur.lastrowid
 
         self.db.execute("""create table if not exists files_{0}(
             id integer primary key autoincrement,

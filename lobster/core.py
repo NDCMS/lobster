@@ -92,6 +92,7 @@ def run(args):
             pidfile=util.get_lock(workdir, args.force),
             prevent_core=False,
             signal_map=signals):
+
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
         fileh.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
@@ -290,7 +291,7 @@ def sprint(config, workdir, cmsjob, dash_checker):
                 for task in tasks:
                     logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                 raise
-        if successful_jobs >= abort_threshold and not abort_active:
+        if abort_threshold > 0 and successful_jobs >= abort_threshold and not abort_active:
             logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
             abort_active = True
             queue.activate_fast_abort(abort_multiplier)

@@ -33,6 +33,8 @@ advanced:
   abort threshold: 10
   ## define excessive runtime in multiples of the average runtime
   # abort multiplier: 4
+  ## enables core dumps by overriding `ulimit` settings
+  # dump core: false
   ## override automatic proxy renewal
   # renew proxy: false
   ## level of verbosity.  Everything is 1, only critical messages is 5, default 2

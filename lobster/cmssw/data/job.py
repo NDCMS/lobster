@@ -212,7 +212,9 @@ def copy_outputs(data, config, env):
             print error
             outsize_bare += os.path.getsize(localname)
 
-        if srm_server:
+        if os.path.isdir(os.path.dirname(remotename)):
+            shutil.copy2(localname, remotename)
+        elif srm_server:
             if srm_root and remotename.startswith(srm_root):
                 remotename = remotename.replace(srm_root, '', 1)
             if remotename.startswith('/'):

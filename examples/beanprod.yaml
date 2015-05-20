@@ -1,7 +1,22 @@
 id: <your id here>
 workdir: <your working directory here>
+## optional: to automatically update monitoring plots
 plotdir: <your plotting directory here>
+
+## directory for output files
 stageout location: <your stageout directory here>
+
+## optional: chirp server to use for stage-in / stage-out
+# chirp server: "earth.crc.nd.edu:9094"
+# chirp root: /hadoop/store/user/
+
+## optional: XrootD for streaming local datasets
+# xrootd server: "ndcms.crc.nd.edu"
+# xrootd root: /hadoop
+
+## optional: SRM for stage-out
+# srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
+# srm root: /hadoop
 
 ## report jobs to the CMS dashboard
 use dashboard: true
@@ -9,12 +24,17 @@ use dashboard: true
 ## merge output files to this size
 merge size: 3.5G
 
+## optional: specify directories in CMSSW work area to omit from sandbox
+# sandbox blacklist: ['*DrawPlots*']
+
 advanced:
   ## start killing jobs with excessive runtimes after this many successful
   ## jobs
   abort threshold: 10
   ## define excessive runtime in multiples of the average runtime
   # abort multiplier: 4
+  ## enables core dumps by overriding `ulimit` settings
+  # dump core: false
   ## override automatic proxy renewal
   # renew proxy: false
   ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
@@ -22,11 +42,6 @@ advanced:
   ## how many jobs to create and keep in the queue
   # payload: 400
 
-### optional
-## chirp server to use for stage-in / stage-out
-# chirp server: "earth.crc.nd.edu:9094"
-## specify directories in CMSSW work area to omit from sandbox
-# sandbox blacklist: ['*DrawPlots*']
 ## DBS instance to publish to
 # dbs instance: phys03
 ## overwrite the username to use for publishing, in case it is different from the environment var $USER
@@ -34,21 +49,15 @@ advanced:
 ## specify sandbox instead of creating one at startup
 # recycle sandbox: path/to/sandbox.tar.bz2
 
-### use configuration below to run non-cmsRun jobs
-# cmd: 'python make_big_file.py'
-# inputs: ['make_big_file.py']
-# outputs: ['output.txt', 'log.txt']
-# max: 5000
-######################################################
-
 task defaults:
     cmssw config: makeBEAN_cfg.py
-    # if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
+    ## if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
     outputs: [ttH_pat2bean_53x.root]
-    # optional renaming of files, based on their basename and extension:
+    ## optional renaming of files, based on their basename and extension:
     # output format: "this_is_file_{id}_{base}.{ext}"
     publish label: 'test'
-    #lumis per job: 25
+    ## default job size
+    # lumis per job: 25
     matching:
       - label: '2012[AB]$' #match all labels with 2012A or 2012B
         lumi mask: examples/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt

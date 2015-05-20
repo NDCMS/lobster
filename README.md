@@ -10,9 +10,10 @@ CMSSW.
 
 ### CClab tools
 
-Download version 4.2.0rc1 of the cctools from the [Notre Dame Cooperative
-Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml) and install
-them with CVMFS (and, for chirp, globus authentication) enabled.
+Download the most recent version of the cctools from the [Notre Dame
+Cooperative Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml)
+and install them with CVMFS (and, for chirp, globus authentication)
+enabled.
 
 See [instructions on github](https://github.com/cooperative-computing-lab/cctools)
 of the Cooperative Computing Lab to obtain current versions of `parrot` and
@@ -131,6 +132,52 @@ maximum of 200 workers for a lobster master running with formen:
 
 The last line of arguments corresponds to the desired worker configuration.
 
+# Monitoring
+
+* [CMS dasboard](http://dashb-cms-job.cern.ch/dashboard/templates/web-job2/)
+* [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)
+
+# Advanced usage
+
+## Stage-out via chirp
+
+Using chirp for stage-in and stage-out can be helpful when standard CMS
+tools for file handling, i.e., XrootD and SRM, are not available.
+
+Create a file called `acl` with default access permissions in, e.g., your
+home directory via: (you will need a valid proxy for this!)
+
+    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" > ~/acl
+
+On earth, do something akin to the following commands:
+
+    chirp_server --root=<some_directory> -A ~/acl -p <your_port>
+
+where the default port is `9094`, but may be occupied, in which case it
+should be best to linearly increment this port until you find a free one.
+The `root` directory given to the chirp server can be the desired stage-out
+location, or any directory above it.
+**If you are using chirp to stage out to a server that cannot handle a high
+load, limit the connections by adding `-M 50` to the arguments.**
+
+You should test chirp from another machine:
+
+    voms-proxy-init -voms cms -valid 192:00
+    chirp_put <some_file> <your_server>:<your_port> spam
+
+If this command fails with a permission issue, make sure you do not have
+any `.__acl` files lingering around in your stageout directory:
+
+    find <your_stageout_directory> -name .__acl -exec rm \{} \;
+
+and try again.
+
+Then add the follow line to your lobster configuration and you should be
+all set:
+
+    chirp server: "<your_server>:<your_port>"
+    chirp root: <your_directory>
+
 ## Altering the worker environment
 
 The following environment variables may be set to influence the environment
@@ -152,8 +199,3 @@ To receive CVMFS debug messages from parrot, alter your environment with
 the following command **before** submitting workers:
 
     export PARROT_DEBUG_FLAGS=cvmfs
-
-# Monitoring
-
-* [CMS dasboard](http://dashb-cms-job.cern.ch/dashboard/templates/web-job2/)
-* [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)

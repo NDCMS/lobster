@@ -17,6 +17,7 @@ SUBMITTED = 'Pending'
 DONE = 'Done'
 RETRIEVED = 'Retrieved'
 ABORTED = 'Aborted'
+CANCELLED = 'Killed'
 RUNNING = 'Running'
 WAITING_RETRIEVAL = 'Waiting Retrieval'
 

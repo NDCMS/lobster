@@ -112,13 +112,6 @@ class JobHandler(object):
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
 
-            if not self._file_based:
-                jobits_finished = len(file_jobits)
-                jobits_done = 0 if failed or skipped else len(files_info[file][1])
-            else:
-                jobits_finished = 1
-                jobits_done = 0 if failed or skipped else 1
-
             events_read += read
 
             if not failed:
@@ -166,6 +159,8 @@ class JobProvider(job.JobProvider):
     def __init__(self, config):
         super(JobProvider, self).__init__(config)
 
+        self.bad_exitcodes += [169]
+
         if 'merge size' in self.config:
             bytes = self.config['merge size']
             orig = bytes
@@ -208,14 +203,13 @@ class JobProvider(job.JobProvider):
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
 
         self.__events = {}
-        self.__datasets = {}
         self.__configs = {}
         self.__local = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
 
-        if self.config.get('use dashboard', True):
+        if self.config.get('use dashboard', False):
             logger.info("using dashboard with task id {0}".format(self.taskid))
             self.__dash = dash.Monitor(self.taskid)
         else:
@@ -239,7 +233,6 @@ class JobProvider(job.JobProvider):
             if cms_config:
                 self.__configs[label] = os.path.basename(cms_config)
 
-            self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__local[label] = cfg.get('local', 'files' in cfg)
             self.__events[label] = cfg.get('max events', -1)
 
@@ -544,6 +537,10 @@ class JobProvider(job.JobProvider):
             self.__unlinker.remove(cleanup)
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
+
+    def terminate(self):
+        for id in self.__store.running_jobs():
+            self.__dash.update_job(str(id), dash.CANCELLED)
 
     def done(self):
         left = self.__store.unfinished_jobits()

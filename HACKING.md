@@ -1,0 +1,19 @@
+Lobster development should follow a style similar to the [github
+workflow](http://scottchacon.com/2011/08/31/github-flow.html).  That is:
+
+* the master branch is always stable
+* development occurs in branches
+* branches are merged via PRs
+* PRs should be used for review and discussion
+* minor fixes can be direct commits to the master
+
+Git commit messages should be at least one comprehensive, short summary
+line, optionally followed by one or more explanitory paragraphs, separated
+from the summary by an empty line:
+
+    Implement telepathic stageout and dashboard reporting.
+
+    Done via [brain](http://en.wikipedia.org/wiki/Human_brain).  Required
+    re-write of foo.py and bar.py.  Fixes #-1.
+
+Non-descriptive summaries such as `Changed spam.py` should be avoided.

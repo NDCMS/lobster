@@ -1,17 +1,18 @@
 import daemon
+import datetime
 import logging
 import logging.handlers
 import multiprocessing
 import os
-import datetime
+import resource
 import signal
 import sys
+import threading
 import time
 import traceback
 import yaml
-import sqlite3
 
-from lobster import util, cmssw, job
+from lobster import cmssw, fs, job, util
 
 from pkg_resources import get_distribution
 
@@ -37,26 +38,6 @@ def kill(args):
 
     workdir = config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
-
-    logger.info("reporting unfinished tasks as Aborted to the dashboard")
-    # report unfinished tasks as aborted to dashboard
-    # note: even if lobster didn't terminate gracefully for some reason,
-    # "lobster terminate" can still be run afterwards to properly update
-    # the tasks as aborted to the dashboard.
-    db_path = os.path.join(workdir, "lobster.db")
-    db = sqlite3.connect(db_path)
-    ids = db.execute("select id from jobs where status=1").fetchall()
-    task_id = util.checkpoint(workdir, 'id')
-    if task_id:
-        for (id,) in ids:
-            if config.get('use dashboard', True):
-                dash = cmssw.dash.Monitor(task_id)
-            else:
-                dash = cmssw.dash.DummyMonitor(task_id)
-            dash.update_job(id, cmssw.dash.ABORTED)
-    else:
-        logger.warning("""taskid not found: could not report aborted jobs
-                       to the dashboard""")
 
 def run(args):
     dash_checker = cmssw.dash.JobStateChecker(300)
@@ -96,6 +77,10 @@ def run(args):
         ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
         print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
 
+    if config.get('advanced', {}).get('dump core', False):
+        print "Setting core dump size to unlimited"
+        resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
     signals = daemon.daemon.make_default_signal_map()
     signals[signal.SIGTERM] = lambda num, frame: kill(args)
 
@@ -104,7 +89,8 @@ def run(args):
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
             working_directory=workdir,
-            pidfile=util.get_lock(workdir),
+            pidfile=util.get_lock(workdir, args.force),
+            prevent_core=False,
             signal_map=signals):
 
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
@@ -123,185 +109,195 @@ def run(args):
         config['configdir'] = args.configdir
         config['filename'] = args.configfile
         config['startdir'] = args.startdir
-        if cmsjob:
-            job_src = cmssw.JobProvider(config)
-            actions = cmssw.Actions(config)
-        else:
-            job_src = job.SimpleJobProvider(config)
-            actions = None
 
-        logger.info("using wq from {0}".format(wq.__file__))
+        t = threading.Thread(target=sprint, args=(config, workdir, cmsjob, dash_checker))
+        t.start()
+        t.join()
 
-        wq.cctools_debug_flags_set("all")
-        wq.cctools_debug_config_file(os.path.join(workdir, "work_queue_debug.log"))
-        wq.cctools_debug_config_file_size(1 << 29)
+        logger.info("lobster terminated")
 
-        queue = wq.WorkQueue(-1)
-        queue.specify_log(os.path.join(workdir, "work_queue.log"))
-        queue.specify_name("lobster_" + config["id"])
-        queue.specify_keepalive_timeout(300)
-        # queue.tune("short-timeout", 600)
-        queue.tune("transfer-outlier-factor", 4)
-        queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
+def sprint(config, workdir, cmsjob, dash_checker):
+    if cmsjob:
+        job_src = cmssw.JobProvider(config)
+        actions = cmssw.Actions(config)
+    else:
+        job_src = job.SimpleJobProvider(config)
+        actions = None
+
+    logger.info("using wq from {0}".format(wq.__file__))
+
+    wq.cctools_debug_flags_set("all")
+    wq.cctools_debug_config_file(os.path.join(workdir, "work_queue_debug.log"))
+    wq.cctools_debug_config_file_size(1 << 29)
+
+    queue = wq.WorkQueue(-1)
+    queue.specify_log(os.path.join(workdir, "work_queue.log"))
+    queue.specify_name("lobster_" + config["id"])
+    queue.specify_keepalive_timeout(300)
+    # queue.tune("short-timeout", 600)
+    queue.tune("transfer-outlier-factor", 4)
+    queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
 
 
-        cores = config.get('cores per job', 1)
-        logger.info("starting queue as {0}".format(queue.name))
-        logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
-            queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
+    cores = config.get('cores per job', 1)
+    logger.info("starting queue as {0}".format(queue.name))
+    logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
+        queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
 
-        payload = config.get('advanced', {}).get('payload', 400)
-        abort_active = False
-        abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
-        abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
+    payload = config.get('advanced', {}).get('payload', 400)
+    abort_active = False
+    abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
+    abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
 
-        if util.checkpoint(workdir, 'KILLED') == 'PENDING':
-            util.register_checkpoint(workdir, 'KILLED', 'RESTART')
+    if util.checkpoint(workdir, 'KILLED') == 'PENDING':
+        util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
-        jobits_left = 0
-        successful_jobs = 0
+    jobits_left = 0
+    successful_jobs = 0
 
-        creation_time = 0
-        destruction_time = 0
+    creation_time = 0
+    destruction_time = 0
+
+    with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
+        statsfile.write(
+                "#timestamp " +
+                "total_workers_connected total_workers_joined total_workers_removed " +
+                "workers_busy workers_idle " +
+                "tasks_running " +
+                "total_send_time total_receive_time " +
+                "total_create_time total_return_time " +
+                "idle_percentage " +
+                "capacity " +
+                "efficiency " +
+                "total_memory " +
+                "total_cores " +
+                "jobits_left\n")
+
+    bad_exitcodes = job_src.bad_exitcodes
+
+    while not job_src.done():
+        jobits_left = job_src.work_left()
+        stats = queue.stats
 
         with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
-            statsfile.write(
-                    "#timestamp " +
-                    "total_workers_connected total_workers_joined total_workers_removed " +
-                    "workers_busy workers_idle " +
-                    "tasks_running " +
-                    "total_send_time total_receive_time " +
-                    "total_create_time total_return_time " +
-                    "idle_percentage " +
-                    "capacity " +
-                    "efficiency " +
-                    "total_memory " +
-                    "total_cores " +
-                    "jobits_left\n")
+            now = datetime.datetime.now()
+            statsfile.write(" ".join(map(str,
+                [
+                    int(int(now.strftime('%s')) * 1e6 + now.microsecond),
+                    stats.total_workers_connected,
+                    stats.total_workers_joined,
+                    stats.total_workers_removed,
+                    stats.workers_busy,
+                    stats.workers_idle,
+                    stats.tasks_running,
+                    stats.total_send_time,
+                    stats.total_receive_time,
+                    creation_time,
+                    destruction_time,
+                    stats.idle_percentage,
+                    stats.capacity,
+                    stats.efficiency,
+                    stats.total_memory,
+                    stats.total_cores,
+                    jobits_left
+                ]
+                )) + "\n"
+            )
 
-        while not job_src.done():
-            jobits_left = job_src.work_left()
-            stats = queue.stats
+        if util.checkpoint(workdir, 'KILLED') == 'PENDING':
+            util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
 
-            with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
-                now = datetime.datetime.now()
-                statsfile.write(" ".join(map(str,
-                    [
-                        int(int(now.strftime('%s')) * 1e6 + now.microsecond),
-                        stats.total_workers_connected,
-                        stats.total_workers_joined,
-                        stats.total_workers_removed,
-                        stats.workers_busy,
-                        stats.workers_idle,
-                        stats.tasks_running,
-                        stats.total_send_time,
-                        stats.total_receive_time,
-                        creation_time,
-                        destruction_time,
-                        stats.idle_percentage,
-                        stats.capacity,
-                        stats.efficiency,
-                        stats.total_memory,
-                        stats.total_cores,
-                        jobits_left
-                    ]
-                    )) + "\n"
-                )
+            # let the job source shut down gracefully
+            logger.info("terminating job source")
+            job_src.terminate()
+            logger.info("terminating gracefully")
+            break
 
-            if util.checkpoint(workdir, 'KILLED') == 'PENDING':
-                util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
-                # just in case, check for any remaining not done task that
-                # hasn't been reported as aborted
-                for task_id in queue._task_table.keys():
-                    status = cmssw.dash.status_map[queue.task_state(task_id)]
-                    if status not in (cmssw.dash.DONE, cmssw.dash.ABORTED):
-                        job_src._JobProvider__dash.update_job(task_id, cmssw.dash.ABORTED)
+        logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
+                stats.workers_busy,
+                stats.workers_busy + stats.workers_ready,
+                jobits_left,
+                stats.tasks_running,
+                stats.tasks_waiting))
 
-                logger.info("terminating gracefully")
+        hunger = max(payload - stats.tasks_waiting, 0)
+
+        t = time.time()
+        while hunger > 0:
+            jobs = job_src.obtain(50)
+
+            if jobs == None or len(jobs) == 0:
                 break
 
-            logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
-                    stats.workers_busy,
-                    stats.workers_busy + stats.workers_ready,
-                    jobits_left,
-                    stats.tasks_running,
-                    stats.tasks_waiting))
+            hunger -= len(jobs)
+            for id, cmd, inputs, outputs in jobs:
+                task = wq.Task(cmd)
+                task.specify_tag(id)
+                task.specify_cores(cores)
+                # temporary work-around?
+                # task.specify_memory(1000)
+                # task.specify_disk(4000)
 
-            hunger = max(payload - stats.tasks_waiting, 0)
+                for (local, remote, cache) in inputs:
+                    if os.path.isfile(local):
+                        cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
+                        task.specify_input_file(str(local), str(remote), cache_opt)
+                    elif fs.isdir(local):
+                        task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
+                                wq.WORK_QUEUE_CACHE, recursive=True)
+                    else:
+                        logger.critical("cannot send file to worker: {0}".format(local))
+                        raise NotImplementedError
 
-            t = time.time()
-            while hunger > 0:
-                jobs = job_src.obtain(50)
+                for (local, remote) in outputs:
+                    task.specify_output_file(str(local), str(remote))
 
-                if jobs == None or len(jobs) == 0:
-                    break
+                queue.submit(task)
+        creation_time += int((time.time() - t) * 1e6)
 
-                hunger -= len(jobs)
-                for id, cmd, inputs, outputs in jobs:
-                    task = wq.Task(cmd)
-                    task.specify_tag(id)
-                    task.specify_cores(cores)
-                    # temporary work-around?
-                    # task.specify_memory(1000)
-                    # task.specify_disk(4000)
+        # update dashboard status for all not done tasks
+        # report Done status only once when releasing the task
+        # WAITING_RETRIEVAL is not a valid status in dashboard
+        # so, skipping it for now
+        monitor = job_src._JobProvider__dash
+        queue = queue
+        exclude_states = (cmssw.dash.DONE, cmssw.dash.WAITING_RETRIEVAL)
+        try:
+            dash_checker.update_dashboard_states(monitor, queue, exclude_states)
+        except Exception as e:
+            logger.warning("Could not update job states to dashboard")
 
-                    for (local, remote, cache) in inputs:
-                        if os.path.isfile(local):
-                            cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
-                            task.specify_input_file(str(local), str(remote), cache_opt)
-                        elif os.path.isdir(local):
-                            task.specify_directory(local, remote, wq.WORK_QUEUE_INPUT,
-                                    wq.WORK_QUEUE_CACHE, recursive=True)
-                        else:
-                            logger.critical("cannot send file to worker: {0}".format(local))
-                            raise NotImplementedError
-
-                    for (local, remote) in outputs:
-                        task.specify_output_file(str(local), str(remote))
-
-                    queue.submit(task)
-            creation_time += int((time.time() - t) * 1e6)
-
-            # update dashboard status for all not done tasks
-            # report Done status only once when releasing the task
-            # WAITING_RETRIEVAL is not a valid status in dashboard
-            # so, skipping it for now
-            monitor = job_src._JobProvider__dash
-            queue = queue
-            exclude_states = (cmssw.dash.DONE, cmssw.dash.WAITING_RETRIEVAL)
+        task = queue.wait(300)
+        tasks = []
+        while task:
+            if task.return_status == 0:
+                successful_jobs += 1
+            elif task.return_status in bad_exitcodes:
+                logger.warning("blacklisting host {0} due to bad exit code from job {1}".format(task.hostname, task.tag))
+                queue.blacklist(task.hostname)
+            tasks.append(task)
+            if queue.stats.tasks_complete > 0:
+                task = queue.wait(1)
+            else:
+                task = None
+        if len(tasks) > 0:
             try:
-                dash_checker.update_dashboard_states(monitor, queue, exclude_states)
-            except Exception as e:
-                logger.warning("Could not update job states to dashboard")
+                t = time.time()
+                job_src.release(tasks)
+                destruction_time += int((time.time() - t) * 1e6)
+            except:
+                tb = traceback.format_exc()
+                logger.critical("cannot recover from the following exception:\n" + tb)
+                for task in tasks:
+                    logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
+                raise
+        if abort_threshold > 0 and successful_jobs >= abort_threshold and not abort_active:
+            logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
+            abort_active = True
+            queue.activate_fast_abort(abort_multiplier)
 
-            task = queue.wait(300)
-            tasks = []
-            while task:
-                if task.return_status == 0:
-                    successful_jobs += 1
-                tasks.append(task)
-                if queue.stats.tasks_complete > 0:
-                    task = queue.wait(1)
-                else:
-                    task = None
-            if len(tasks) > 0:
-                try:
-                    t = time.time()
-                    job_src.release(tasks)
-                    destruction_time += int((time.time() - t) * 1e6)
-                except:
-                    tb = traceback.format_exc()
-                    logger.critical("cannot recover from the following exception:\n" + tb)
-                    for task in tasks:
-                        logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
-                    raise
-            if successful_jobs >= abort_threshold and not abort_active:
-                logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
-                abort_active = True
-                queue.activate_fast_abort(abort_multiplier)
-
-            # recurring actions are triggered here
-            if actions:
-                actions.take()
-        if jobits_left == 0:
-            logger.info("no more work left to do")
+        # recurring actions are triggered here
+        if actions:
+            actions.take()
+    if jobits_left == 0:
+        logger.info("no more work left to do")

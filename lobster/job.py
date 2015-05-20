@@ -12,7 +12,7 @@ import time
 
 from functools import partial
 from hashlib import sha1
-from lobster import chirp, util
+from lobster import chirp, fs, util
 
 logger = multiprocessing.get_logger()
 
@@ -60,6 +60,7 @@ class JobProvider(object):
         self.outputs = {}
         self.outputformats = {}
         self.cmds = {}
+        self.bad_exitcodes = config.get('bad exit codes', [])
 
         chirp_server = config.get('chirp server')
         chirp_root = config.get('chirp root')
@@ -88,21 +89,21 @@ class JobProvider(object):
             taskdir = os.path.join(self.workdir, label)
             stageoutdir = os.path.join(self.stageout, label)
             if create:
-                if not os.path.exists(taskdir):
-                    os.makedirs(taskdir)
+                if not fs.exists(taskdir):
+                    fs.makedirs(taskdir)
                 if chirp_root and stageoutdir.startswith(chirp_root):
                     target = stageoutdir.replace(chirp_root, '', 1)
                     if not chirp.exists(chirp_server, chirp_root, target):
                         chirp.makedirs(chirp_server, chirp_root, target)
                 else:
-                    if not os.path.exists(stageoutdir):
-                        os.makedirs(stageoutdir)
+                    if not fs.exists(stageoutdir):
+                        fs.makedirs(stageoutdir)
 
                 shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 
         for p in (self.parrot_bin, self.parrot_lib):
-            if not os.path.exists(p):
-                os.makedirs(p)
+            if not fs.exists(p):
+                fs.makedirs(p)
 
         for exe in ('parrot_run', 'chirp', 'chirp_put', 'chirp_get'):
             shutil.copy(util.which(exe), self.parrot_bin)
@@ -117,8 +118,8 @@ class JobProvider(object):
 
     def create_jobdir(self, jobid, label, status='running'):
         jdir = self.get_jobdir(jobid, label, status)
-        if not os.path.isdir(jdir):
-            os.makedirs(jdir)
+        if not fs.isdir(jdir):
+            fs.makedirs(jdir)
         return jdir
 
     def move_jobdir(self, jobid, label, status, oldstatus='running'):
@@ -132,8 +133,8 @@ class JobProvider(object):
         old = self.get_jobdir(jobid, label, oldstatus)
         new = self.get_jobdir(jobid, label, status)
         parent = os.path.dirname(new)
-        if not os.path.isdir(parent):
-            os.makedirs(parent)
+        if not fs.isdir(parent):
+            fs.makedirs(parent)
         shutil.move(old, parent)
         if len(os.listdir(os.path.dirname(old))) == 0:
             os.removedirs(os.path.dirname(old))
@@ -152,7 +153,10 @@ class JobProvider(object):
     def obtain(self):
         raise NotImplementedError
 
-    def release(self, id, return_code, output, task):
+    def release(self, tasks):
+        raise NotImplementedError
+
+    def terminate(self):
         raise NotImplementedError
 
     def work_left(self):
@@ -223,6 +227,9 @@ class SimpleJobProvider(JobProvider):
                 f = gzip.open(os.path.join(self.workdir, label, id+'_job.log.gz'), 'wb')
                 f.write(task.output)
                 f.close()
+
+    def terminate(self):
+        pass
 
     def work_left(self):
         return self.__max - self.__done

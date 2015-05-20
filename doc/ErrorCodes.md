@@ -4,6 +4,7 @@ Lobster uses the following error codes:
 
 | Code | Reason
 | :--- | :-----
+|  169 | Unable to run parrot
 |  170 | Sandbox unpacking failure
 |  171 | Failed to determine base release
 |  172 | Failed to find old releasetop

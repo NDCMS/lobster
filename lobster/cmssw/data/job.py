@@ -225,7 +225,7 @@ def copy_outputs(data, config, env):
             if int(os.environ["LOBSTER_GFAL_COPY"]) == 1:
                 prg = ["env", "-i", "X509_USER_PROXY=proxy", "gfal-copy"]
             elif int(os.environ["LOBSTER_LCG_CP"]) == 1:
-                prg = ["lcg-cp", "-b", "-D", "srmv2"]
+                prg = ["lcg-cp", "-b", "-v", "-D", "srmv2"]
             else:
                 raise RuntimeError("no stage-out method available")
 

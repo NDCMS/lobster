@@ -209,18 +209,6 @@ class JobProvider(job.JobProvider):
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
 
-        self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x), True) for x in
-                                 ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',
-                                  '3.2.11-1/external/etc/profile.d/grid-env-funcs.sh',
-                                  '3.2.11-1/external/etc/profile.d/grid-env.sh',
-                                  '3.2.11-1/etc/profile.d/grid-env.sh',
-                                  '3.2.11-1/glite/bin/voms-proxy-info',
-                                  '3.2.11-1/glite/lib64/libvomsapi_nog.so.0.0.0',
-                                  '3.2.11-1/glite/lib64/libvomsapi_nog.so.0',
-                                  'etc/grid-security/certificates'
-                                  ]
-                             ]
-
         if self.config.get('use dashboard', False):
             logger.info("using dashboard with task id {0}".format(self.taskid))
             self.__dash = dash.Monitor(self.taskid)
@@ -307,7 +295,7 @@ class JobProvider(job.JobProvider):
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                       (self.parrot_bin, 'bin', None),
                       (self.parrot_lib, 'lib', None)
-                      ] + self.__grid_files
+                      ]
 
             if merge:
                 args = ['output=' + self.outputs[label][0]]

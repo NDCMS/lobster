@@ -41,16 +41,8 @@ fi
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"
 else
-	# test for stage-out availability
-	LOBSTER_LCG_CP=0
-	LOBSTER_GFAL_COPY=0
-	command -v lcg-cp > /dev/null 2>&1 && LOBSTER_LCG_CP=1
-	command -v gfal-copy > /dev/null 2>&1 && LOBSTER_LCG_CP=1
-	export LOBSTER_LCG_CP LOBSTER_GFAL_COPY
-	
 	if [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 			&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
-			&& ( $LOBSTER_GFAL_COPY > 0 || $LOBSTER_LCG_CP > 0 ) \
 			&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
 		if [ -f /etc/cvmfs/default.local ]; then
 			print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
@@ -81,8 +73,7 @@ else
 		export PARROT_PATH=${PARROT_PATH:-./bin}
 		export PARROT_CVMFS_REPO=\
 '*:try_local_filesystem
-*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*
-*.opensciencegrid.org:pubkey=<BUILTIN-opensciencegrid.org.pub>,url=http://oasis-replica.opensciencegrid.org:8000/cvmfs/*;http://cvmfs.fnal.gov:8000/cvmfs/*;http://cvmfs.racf.bnl.gov:8000/cvmfs/*'
+*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*'
 
 		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 		export PARROT_CACHE=$TMPDIR
@@ -100,17 +91,19 @@ else
 		fi
 
 		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_PATH/parrot_run -m mtab -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+		exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	fi
 fi
 
-if [[ $LOBSTER_GFAL_COPY == 0 && $LOBSTER_LCG_CP == 0 ]]; then
-	echo ">>>> sourcing OSG lcg-cp"
-	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el6-$(uname -m)/setup.sh
-	export LOBSTER_LCG_CP=1
-fi
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
+
+# test for stage-out availability
+LOBSTER_LCG_CP=0
+LOBSTER_GFAL_COPY=0
+command -v lcg-cp > /dev/null 2>&1 && LOBSTER_LCG_CP=1
+command -v gfal-copy > /dev/null 2>&1 && LOBSTER_LCG_CP=1
+export LOBSTER_LCG_CP LOBSTER_GFAL_COPY
 
 print_output "environment after sourcing startup scripts" env\|sort
 print_output "proxy information" env X509_USER_PROXY=proxy voms-proxy-info

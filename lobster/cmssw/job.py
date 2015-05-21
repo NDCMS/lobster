@@ -112,13 +112,6 @@ class JobHandler(object):
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
 
-            if not self._file_based:
-                jobits_finished = len(file_jobits)
-                jobits_done = 0 if failed or skipped else len(files_info[file][1])
-            else:
-                jobits_finished = 1
-                jobits_done = 0 if failed or skipped else 1
-
             events_read += read
 
             if not failed:
@@ -213,24 +206,11 @@ class JobProvider(job.JobProvider):
         self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
 
         self.__events = {}
-        self.__datasets = {}
         self.__configs = {}
         self.__local = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
-
-        self.__grid_files = [(os.path.join('/cvmfs/grid.cern.ch', x), os.path.join('grid', x), True) for x in
-                                 ['3.2.11-1/external/etc/profile.d/clean-grid-env-funcs.sh',
-                                  '3.2.11-1/external/etc/profile.d/grid-env-funcs.sh',
-                                  '3.2.11-1/external/etc/profile.d/grid-env.sh',
-                                  '3.2.11-1/etc/profile.d/grid-env.sh',
-                                  '3.2.11-1/glite/bin/voms-proxy-info',
-                                  '3.2.11-1/glite/lib64/libvomsapi_nog.so.0.0.0',
-                                  '3.2.11-1/glite/lib64/libvomsapi_nog.so.0',
-                                  'etc/grid-security/certificates'
-                                  ]
-                             ]
 
         if self.config.get('use dashboard', False):
             logger.info("using dashboard with task id {0}".format(self.taskid))
@@ -256,7 +236,6 @@ class JobProvider(job.JobProvider):
             if cms_config:
                 self.__configs[label] = os.path.basename(cms_config)
 
-            self.__datasets[label] = cfg.get('dataset', cfg.get('files', ''))
             self.__local[label] = cfg.get('local', 'files' in cfg)
             self.__events[label] = cfg.get('max events', -1)
 
@@ -319,7 +298,7 @@ class JobProvider(job.JobProvider):
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                       (self.parrot_bin, 'bin', None),
                       (self.parrot_lib, 'lib', None)
-                      ] + self.__grid_files
+                      ]
 
             if merge:
                 args = ['output=' + self.outputs[label][0]]
@@ -563,6 +542,10 @@ class JobProvider(job.JobProvider):
             self.__unlinker.remove(cleanup)
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
+
+    def terminate(self):
+        for id in self.__store.running_jobs():
+            self.__dash.update_job(str(id), dash.CANCELLED)
 
     def done(self):
         left = self.__store.unfinished_jobits()

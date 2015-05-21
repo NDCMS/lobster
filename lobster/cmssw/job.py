@@ -293,7 +293,6 @@ class JobProvider(job.JobProvider):
             ids.append(id)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab', True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                       (self.parrot_bin, 'bin', None),

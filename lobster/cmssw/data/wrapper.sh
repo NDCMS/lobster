@@ -40,59 +40,57 @@ fi
 
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"
-else
-	if [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
-			&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
-			&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
-		if [ -f /etc/cvmfs/default.local ]; then
-			print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
+elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
+		&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
+		&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
+	if [ -f /etc/cvmfs/default.local ]; then
+		print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
 
-			cvmfsproxy=$(cat /etc/cvmfs/default.local|perl -ne '$file  = ""; while (<>) { s/\\\n//; $file .= $_ }; my $proxy = (grep /PROXY/, split("\n", $file))[0]; $proxy =~ s/^.*="?|"$//g; print $proxy;')
-			# cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
-			echo ">>> found CVMFS proxy: $cvmfsproxy"
-			export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
-		fi
+		cvmfsproxy=$(cat /etc/cvmfs/default.local|perl -ne '$file  = ""; while (<>) { s/\\\n//; $file .= $_ }; my $proxy = (grep /PROXY/, split("\n", $file))[0]; $proxy =~ s/^.*="?|"$//g; print $proxy;')
+		# cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
+		echo ">>> found CVMFS proxy: $cvmfsproxy"
+		export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
+	fi
 
-		if [ -n "$OSG_SQUID_LOCATION" ]; then
-			export HTTP_PROXY=${HTTP_PROXY:-$OSG_SQUID_LOCATION}
-		elif [ -n "$GLIDEIN_Proxy_URL" ]; then
-			export HTTP_PROXY=${HTTP_PROXY:-$GLIDEIN_Proxy_URL}
-		fi
+	if [ -n "$OSG_SQUID_LOCATION" ]; then
+		export HTTP_PROXY=${HTTP_PROXY:-$OSG_SQUID_LOCATION}
+	elif [ -n "$GLIDEIN_Proxy_URL" ]; then
+		export HTTP_PROXY=${HTTP_PROXY:-$GLIDEIN_Proxy_URL}
+	fi
 
-		# Last safeguard, if everything else fails.  We need a
-		# proxy for parrot!
-		# export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128;DIRECT}
-		export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128}
-		export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
-		echo ">>> using CVMFS proxy: $HTTP_PROXY"
-		export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
+	# Last safeguard, if everything else fails.  We need a
+	# proxy for parrot!
+	# export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128;DIRECT}
+	export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128}
+	export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
+	echo ">>> using CVMFS proxy: $HTTP_PROXY"
+	export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
-		# These are allowed to be modified via the environment
-		# passed to the job (e.g. via condor)
-		export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
-		export PARROT_PATH=${PARROT_PATH:-./bin}
-		export PARROT_CVMFS_REPO=\
+	# These are allowed to be modified via the environment
+	# passed to the job (e.g. via condor)
+	export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
+	export PARROT_PATH=${PARROT_PATH:-./bin}
+	export PARROT_CVMFS_REPO=\
 '*:try_local_filesystem
 *.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*'
 
-		export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
-		export PARROT_CACHE=$TMPDIR
-		export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
+	export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
+	export PARROT_CACHE=$TMPDIR
+	export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
 
-		echo ">>> parrot helper: $PARROT_HELPER"
-		print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
+	echo ">>> parrot helper: $PARROT_HELPER"
+	print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
 
-		echo ">>> testing parrot usage"
-		if [ -n "$(ldd $PARROT_PATH/parrot_run 2>&1 | grep 'not found')" ]; then
-			print_output ldd $PARROT_PATH/parrot_run
-			exit 169
-		else
-			echo "parrot OK"
-		fi
-
-		echo ">>> starting parrot to access CMSSW..."
-		exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	echo ">>> testing parrot usage"
+	if [ -n "$(ldd $PARROT_PATH/parrot_run 2>&1 | grep 'not found')" ]; then
+		print_output ldd $PARROT_PATH/parrot_run
+		exit 169
+	else
+		echo "parrot OK"
 	fi
+
+	echo ">>> starting parrot to access CMSSW..."
+	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh

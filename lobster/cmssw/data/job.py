@@ -222,10 +222,10 @@ def copy_outputs(data, config, env):
 
             prg = []
 
-            if int(os.environ["LOBSTER_GFAL_COPY"]) == 1:
-                prg = ["env", "-i", "X509_USER_PROXY=proxy", "gfal-copy"]
-            elif int(os.environ["LOBSTER_LCG_CP"]) == 1:
-                prg = ["lcg-cp", "-b", "-v", "-D", "srmv2"]
+            if len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                prg = ["env", "-i", "X509_USER_PROXY=proxy", os.environ["LOBSTER_GFAL_COPY"]]
+            elif len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
             else:
                 raise RuntimeError("no stage-out method available")
 
@@ -238,9 +238,10 @@ def copy_outputs(data, config, env):
             print " ".join(args)
             print "---"
 
+            # FIXME is this really needed after simplifying the repos?
             pruned_env = dict(env)
-            for k in ['LD_LIBRARY_PATH', 'PATH']:
-                pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+            # for k in ['LD_LIBRARY_PATH', 'PATH']:
+            #     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
             p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
             p.wait()

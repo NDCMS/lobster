@@ -27,7 +27,15 @@ echo "=hostname= "$(hostname)
 echo "=kernel= "$(uname -a)
 
 print_output "tracing google" traceroute -w 1 www.google.com
-print_output "environment at startup" env\|sort
+print_output "environment at startup" env
+
+# determine locally present stage-out method
+LOBSTER_LCG_CP=$(command -v lcg-cp)
+LOBSTER_GFAL_COPY=$(command -v gfal-copy)
+export LOBSTER_LCG_CP LOBSTER_GFAL_COPY
+
+# determine grid proxy needs
+LOBSTER_PROXY_INFO=$(command -v grid-proxy-init)
 
 unset PARROT_HELPER
 export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
@@ -41,7 +49,8 @@ fi
 if [ "x$PARROT_ENABLED" != "x" ]; then
 	echo "=parrot= True"
 elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
-		&& -f /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh \
+		&& -n "$LOBSTER_PROXY_INFO" \
+		&& ( -n "$LOBSTER_GFAL_COPY" || -n "$LOBSTER_LCG_CP" ) \
 		&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
 	if [ -f /etc/cvmfs/default.local ]; then
 		print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
@@ -72,7 +81,8 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	export PARROT_PATH=${PARROT_PATH:-./bin}
 	export PARROT_CVMFS_REPO=\
 '*:try_local_filesystem
-*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*'
+*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*
+*.opensciencegrid.org:pubkey=<BUILTIN-opensciencegrid.org.pub>,url=http://oasis-replica.opensciencegrid.org:8000/cvmfs/*;http://cvmfs.fnal.gov:8000/cvmfs/*;http://cvmfs.racf.bnl.gov:8000/cvmfs/*'
 
 	export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 	export PARROT_CACHE=$TMPDIR
@@ -90,20 +100,27 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	fi
 
 	echo ">>> starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -M /etc/grid-security/certificates=/afs/crc.nd.edu/user/m/mwolf3/certs -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 
+echo ">>> sourcing CMS setup"
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-source /cvmfs/grid.cern.ch/3.2.11-1/etc/profile.d/grid-env.sh
 
-# test for stage-out availability
-LOBSTER_LCG_CP=0
-LOBSTER_GFAL_COPY=0
-command -v lcg-cp > /dev/null 2>&1 && LOBSTER_LCG_CP=1
-command -v gfal-copy > /dev/null 2>&1 && LOBSTER_LCG_CP=1
-export LOBSTER_LCG_CP LOBSTER_GFAL_COPY
+if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_COPY" ) ]]; then
+	echo ">>> sourcing OSG setup"
+	# FIXME this fixes broken symlinks in CVMFS
+	# TODO source proper setup script
+	# source /cvmfs/oasis.opensciencegrid.org/mis/osg-wn-client/3.2/3.2.23/el6-$(uname -m)/setup.sh
+	source /cvmfs/oasis.opensciencegrid.org/mis/osg-wn-client/3.1/3.1.46/el6-$(uname -m)/setup.sh
 
-print_output "environment after sourcing startup scripts" env\|sort
+	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
+	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)
+fi
+
+# FIXME this fixes broken symlinks in CVMFS
+export X509_CERT_DIR=/cvmfs/oasis.opensciencegrid.org/mis/certificates
+
+print_output "environment after sourcing startup scripts" env
 print_output "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
 print_output "working directory at startup" ls -l
 
@@ -141,7 +158,7 @@ done
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 
-print_output "environment before execution" env\|sort
+print_output "environment before execution" env
 
 echo "[$(date '+%F %T')] wrapper ready"
 date +%s > t_wrapper_ready

@@ -222,10 +222,11 @@ def copy_outputs(data, config, env):
 
             prg = []
 
-            if len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
-                prg = ["env", "-i", "X509_USER_PROXY=proxy", os.environ["LOBSTER_GFAL_COPY"]]
-            elif len(os.environ["LOBSTER_LCG_CP"]) > 0:
+            if len(os.environ["LOBSTER_LCG_CP"]) > 0:
                 prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+            elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                # FIXME gfal is very picky about its environment
+                prg = [os.environ["LOBSTER_GFAL_COPY"]]
             else:
                 raise RuntimeError("no stage-out method available")
 

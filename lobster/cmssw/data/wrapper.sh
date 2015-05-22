@@ -73,7 +73,6 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128}
 	export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
 	echo ">>> using CVMFS proxy: $HTTP_PROXY"
-	export VO_CMS_SW_DIR=/cvmfs/cms.cern.ch
 
 	# These are allowed to be modified via the environment
 	# passed to the job (e.g. via condor)
@@ -100,7 +99,7 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	fi
 
 	echo ">>> starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -M /etc/grid-security/certificates=/afs/crc.nd.edu/user/m/mwolf3/certs -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 
 echo ">>> sourcing CMS setup"

@@ -107,10 +107,7 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 
 if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_COPY" ) ]]; then
 	echo ">>> sourcing OSG setup"
-	# FIXME this fixes broken symlinks in CVMFS
-	# TODO source proper setup script
-	# source /cvmfs/oasis.opensciencegrid.org/mis/osg-wn-client/3.2/3.2.23/el6-$(uname -m)/setup.sh
-	source /cvmfs/oasis.opensciencegrid.org/mis/osg-wn-client/3.1/3.1.46/el6-$(uname -m)/setup.sh
+	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el6-$(uname -m)/setup.sh
 
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)

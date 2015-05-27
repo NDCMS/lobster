@@ -70,8 +70,10 @@ def check_outputs(config):
     """Check that chirp received the output files.
     """
     chirp_server = config.get('chirp server', None)
+    srm_server = config.get('srm server', None)
 
-    if not chirp_server:
+    # Trust SRM to reliably copy output files
+    if srm_server or not chirp_server:
         return True
 
     for local, remote in config['output files']:
@@ -182,6 +184,9 @@ def copy_outputs(data, config, env):
     output files out via chirp.  In any case, file sizes are added up and
     inserted into the job data.
     """
+    srm_server = config.get('srm server', None)
+    srm_root = config.get('srm root', None)
+
     chirp_server = config.get('chirp server', None)
     chirp_root = config.get('chirp root', None)
 
@@ -209,7 +214,46 @@ def copy_outputs(data, config, env):
             print error
             outsize_bare += os.path.getsize(localname)
 
-        if chirp_server:
+        if os.path.isdir(os.path.dirname(remotename)):
+            shutil.copy2(localname, remotename)
+        elif srm_server:
+            if srm_root and remotename.startswith(srm_root):
+                remotename = remotename.replace(srm_root, '', 1)
+            if remotename.startswith('/'):
+                remotename = remotename[1:]
+
+            prg = []
+
+            if len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+            elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                # FIXME gfal is very picky about its environment
+                prg = [os.environ["LOBSTER_GFAL_COPY"]]
+            else:
+                raise RuntimeError("no stage-out method available")
+
+            args = prg + [
+                "file:///" + os.path.join(os.getcwd(), localname),
+                os.path.join(srm_server, remotename)
+            ]
+
+            print "--- staging-out with:"
+            print " ".join(args)
+            print "---"
+
+            # FIXME is this really needed after simplifying the repos?
+            pruned_env = dict(env)
+            # for k in ['LD_LIBRARY_PATH', 'PATH']:
+            #     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+
+            p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
+            p.wait()
+            if p.returncode != 0:
+                data['stageout exit code'] = p.returncode
+                raise IOError("Failed to transfer output file '{0}':\n{1}".format(localname, p.stderr.read()))
+            else:
+                print p.stderr.read()
+        elif chirp_server:
             if chirp_root and remotename.startswith(chirp_root):
                 remotename = remotename.replace(chirp_root, '', 1)
 

@@ -188,6 +188,9 @@ class JobProvider(job.JobProvider):
         self.__chirp = self.config.get('chirp server', None)
         self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else None
 
+        self.__srm = self.config.get('srm url', None)
+        self.__srm_root = self.config.get('srm root' '') if self.__srm else None
+
         if self.__chirp:
             try:
                 chirp.get_chirp_output(self.__chirp, args=['ls', '/'], timeout=5, throw=True)
@@ -290,7 +293,6 @@ class JobProvider(job.JobProvider):
             ids.append(id)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'mtab'), 'mtab', True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                       (self.parrot_bin, 'bin', None),
@@ -405,6 +407,8 @@ class JobProvider(job.JobProvider):
                     'arguments': args,
                     'chirp server': self.__chirp,
                     'chirp root': self.__chirp_root,
+                    'srm server': self.__srm,
+                    'srm root': self.__srm_root,
                     'xrootd server': self.__xrootd,
                     'xrootd root': self.__xrootd_root,
                     'output files': stageout,

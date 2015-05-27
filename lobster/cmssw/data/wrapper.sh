@@ -90,6 +90,15 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	echo ">>> parrot helper: $PARROT_HELPER"
 	print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
 
+	# Variables needed to set symlinks in CVMFS
+	# FIXME add heuristic detection?
+	# FIXME setting the CMS local site should actually work!
+	# export CMS_LOCAL_SITE=${CMS_LOCAL_SITE:-$PWD/siteconfig}
+	# echo ">>> CMS local site: $CMS_LOCAL_SITE"
+
+	export OASIS_CERTIFICATES=${OASIS_CERTIFICATES:-/cvmfs/oasis.opensciencegrid.org/mis/certificates}
+	echo ">>> OSG certificate location: $OASIS_CERTIFICATES"
+
 	echo ">>> testing parrot usage"
 	if [ -n "$(ldd $PARROT_PATH/parrot_run 2>&1 | grep 'not found')" ]; then
 		print_output ldd $PARROT_PATH/parrot_run
@@ -98,8 +107,12 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 		echo "parrot OK"
 	fi
 
+	# FIXME the -M could be removed once local site setting via
+	# environment works
+	# FIXME the -l workaround should be removed later
 	echo ">>> starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -l "$(find /lib64 /lib -name 'ld-linux*.so.*' -print -quit)" -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 
 echo ">>> sourcing CMS setup"
@@ -112,9 +125,6 @@ if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_CO
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)
 fi
-
-# FIXME this fixes broken symlinks in CVMFS
-export X509_CERT_DIR=/cvmfs/oasis.opensciencegrid.org/mis/certificates
 
 print_output "environment after sourcing startup scripts" env
 print_output "proxy information" env X509_USER_PROXY=proxy voms-proxy-info

@@ -18,7 +18,7 @@ or, for `tcsh` users,
 These statements are best put into your shell startup scripts.  Test the
 cctools with
 
-    env HTTP_PROXY="http://eddie.crc.nd.edu:3128" parrot_run ls /
+    env HTTP_PROXY=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g') parrot_run ls /
 
 If you see any errors, try replacing `cctools` with `cctools-autobuild`.
 Should that also fail, please contact us or the CC lab.

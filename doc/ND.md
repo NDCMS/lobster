@@ -7,13 +7,13 @@ your setup might be needed.
 
 Use `work_queue` etc from the CC lab:
 
-    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
-    export PATH=/afs/nd.edu/user37/ccl/software/cctools/bin:$PATH
+    export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
+    export PATH=/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:$PATH
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/cctools-ndcms/lib/python2.6/site-packages/
-    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-ndcms/bin:${PATH}
+    setenv PYTHONPATH $PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:$PATH
 
 These statements are best put into your shell startup scripts.  Test the
 cctools with
@@ -40,11 +40,11 @@ To allow you to use the setuptools commands, in tcsh
 
 Then, to actually install lobster, run
 
-    easy_install https://github.com/matz-e/lobster/tarball/master
+    easy_install --user https://github.com/matz-e/lobster/tarball/master
 
 to get the most recent version, or
 
-    easy_install https://github.com/matz-e/lobster/archive/v1.0.tar.gz
+    easy_install --user https://github.com/matz-e/lobster/archive/v1.0.tar.gz
 
 for the latest stable release.  Then add `.local/bin` to your `PATH`:
 

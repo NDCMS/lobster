@@ -18,7 +18,7 @@ or, for `tcsh` users,
 These statements are best put into your shell startup scripts.  Test the
 cctools with
 
-    parrot_run ls /
+    env HTTP_PROXY="http://eddie.crc.nd.edu:3128" parrot_run ls /
 
 If you see any errors, try replacing `cctools` with `cctools-autobuild`.
 Should that also fail, please contact us or the CC lab.

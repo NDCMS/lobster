@@ -70,8 +70,10 @@ def check_outputs(config):
     """Check that chirp received the output files.
     """
     chirp_server = config.get('chirp server', None)
+    srm_server = config.get('srm server', None)
 
-    if not chirp_server:
+    # Trust SRM to reliably copy output files
+    if srm_server or not chirp_server:
         return True
 
     for local, remote in config['output files']:

@@ -2,7 +2,7 @@
 
 # Installation
 
-Lobster requires Python 2.6.  On SLC/RH 5, the following should be done
+Lobster requires Python 2.6.  On SLC/RH 6, the following should be done
 after issuing `cmsenv` or equivalent in a release of the `5_3_X` series of
 CMSSW.
 
@@ -50,11 +50,10 @@ CMS):
 
         voms-proxy-init -voms cms -valid 192:00
 
-3. Adjusting the configuration file, e.g.:
+3. Download an example configuration file and adjust it for your needs, e.g.:
 
         wget --no-check-certificate \
-	    https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
-	vi beanprod.yaml
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
 
 4. Running lobster
 
@@ -71,7 +70,7 @@ CMS):
    By default, output files are not merged.  If they are too small and
    should be merged, consider adding
 
-       merge size: 300M
+        merge size: 300M
 
    to your configuration.  Then output files will get merged as processing
    jobs finish.  If all processing is already done, only merge jobs will

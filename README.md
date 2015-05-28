@@ -23,7 +23,7 @@ of the Cooperative Computing Lab to obtain current versions of `parrot` and
 
 Install the python `setuptools`, if not already present, with
 
-    wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
+    wget https://bootstrap.pypa.io/get-pip.py; python get-pip.py --user
 
 Now lobster can be installed, and any further python dependencies will be
 installed into your `~/.local` directory.
@@ -32,7 +32,7 @@ installed into your `~/.local` directory.
 
 Install lobster itself with
 
-    easy_install https://github.com/matz-e/lobster/tarball/master
+    pip install --user https://github.com/matz-e/lobster/tarball/master
 
 and lobster will be installed as `~/.local/bin/lobster`.  Add it to your
 path with
@@ -52,11 +52,13 @@ CMS):
 
 3. Adjusting the configuration file, e.g.:
 
-        vi examples/beanprod.yaml
+        wget --no-check-certificate \
+	    https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
+	vi beanprod.yaml
 
 4. Running lobster
 
-        lobster process examples/beanprod.yaml
+        lobster process beanprod.yaml
 
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.

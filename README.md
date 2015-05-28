@@ -30,6 +30,11 @@ installed into your `~/.local` directory.
 
 ## Setup
 
+Because automatic installation of this dependency may fail, we recommend installing
+`hadoopy` manually with
+
+    pip install --user -e git+https://github.com/bwhite/hadoopy#egg=hadoopy
+
 Install lobster itself with
 
     pip install --user https://github.com/matz-e/lobster/tarball/master

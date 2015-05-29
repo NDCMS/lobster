@@ -2,7 +2,7 @@
 
 # Installation
 
-Lobster requires Python 2.6.  On SLC/RH 5, the following should be done
+Lobster requires Python 2.6.  On SLC/RH 6, the following should be done
 after issuing `cmsenv` or equivalent in a release of the `5_3_X` series of
 CMSSW.
 
@@ -23,16 +23,21 @@ of the Cooperative Computing Lab to obtain current versions of `parrot` and
 
 Install the python `setuptools`, if not already present, with
 
-    wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
+    wget https://bootstrap.pypa.io/get-pip.py; python get-pip.py --user
 
 Now lobster can be installed, and any further python dependencies will be
 installed into your `~/.local` directory.
 
 ## Setup
 
+Because automatic installation of this dependency may fail, we recommend installing
+`hadoopy` manually with
+
+    pip install --user -e git+https://github.com/bwhite/hadoopy#egg=hadoopy
+
 Install lobster itself with
 
-    easy_install https://github.com/matz-e/lobster/tarball/master
+    pip install --user https://github.com/matz-e/lobster/tarball/master
 
 and lobster will be installed as `~/.local/bin/lobster`.  Add it to your
 path with
@@ -50,13 +55,14 @@ CMS):
 
         voms-proxy-init -voms cms -valid 192:00
 
-3. Adjusting the configuration file, e.g.:
+3. Download an example configuration file and adjust it for your needs, e.g.:
 
-        vi examples/beanprod.yaml
+        wget --no-check-certificate \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
 
 4. Running lobster
 
-        lobster process examples/beanprod.yaml
+        lobster process beanprod.yaml
 
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
@@ -69,7 +75,7 @@ CMS):
    By default, output files are not merged.  If they are too small and
    should be merged, consider adding
 
-       merge size: 300M
+        merge size: 300M
 
    to your configuration.  Then output files will get merged as processing
    jobs finish.  If all processing is already done, only merge jobs will
@@ -139,7 +145,25 @@ The last line of arguments corresponds to the desired worker configuration.
 
 # Advanced usage
 
-## Stage-out via chirp
+## Stage-out
+
+### Via SRM
+
+Lobster supports SRM stage-out.  Parameters for SRM stage-out can be found
+in `/cvmfs/cms.cern.ch/SITECONFIG`, the directory of the destination
+storage element, file `PhEDEx/storage.xml`.  A `lfn-to-pfn` leaf with the
+`srmv2` protocol will reveal the server URL, which should be used in the
+configuration, without any `$1`.  For example, the adjusted settings for
+`T3_US_ND` are:
+
+    srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
+    srm root: "/hadoop/"
+
+The `srm root` maps the physical file name to the logical file name.  Both
+the `srm url` and `srm root` should be adjusted such that the logical file
+name can be appended to the `srm url` without any problem.
+
+### Via chirp
 
 Using chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.

@@ -7,18 +7,18 @@ your setup might be needed.
 
 Use `work_queue` etc from the CC lab:
 
-    export PYTHONPATH=$PYTHONPATH:/afs/nd.edu/user37/ccl/software/cctools/lib/python2.7/site-packages/
-    export PATH=/afs/nd.edu/user37/ccl/software/cctools/bin:$PATH
+    export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
+    export PATH=/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:$PATH
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/cctools-ndcms/lib/python2.6/site-packages/
-    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-ndcms/bin:${PATH}
+    setenv PYTHONPATH $PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:$PATH
 
 These statements are best put into your shell startup scripts.  Test the
 cctools with
 
-    parrot_run ls /
+    env HTTP_PROXY=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g') parrot_run ls /
 
 If you see any errors, try replacing `cctools` with `cctools-autobuild`.
 Should that also fail, please contact us or the CC lab.
@@ -26,76 +26,6 @@ Should that also fail, please contact us or the CC lab.
 Then enter a `CMSSW` release directory and source the software environment:
 
     cmsenv
-
-## Installing lobster
-
-Use the following command to install the python setuptools, then proceed as
-above:
-
-    wget http://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python - --user
-
-To allow you to use the setuptools commands, in tcsh
-
-    setenv PATH ~/.local/bin:${PATH}
-
-Then, to actually install lobster, run
-
-    easy_install https://github.com/matz-e/lobster/tarball/master
-
-to get the most recent version, or
-
-    easy_install https://github.com/matz-e/lobster/archive/v1.0.tar.gz
-
-for the latest stable release.  Then add `.local/bin` to your `PATH`:
-
-    export PATH=$PATH:$HOME/.local/bin
-
-or, for `tcsh` users,
-
-    setenv PATH ${PATH}:$HOME/.local/bin
-
-## Running lobster
-
-### Configuration
-
-Download an example configuration with
-
-    wget --no-check-certificate \
-        https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
-
-and edit it with your favorite editor.  The first two lines specify the ID
-the references your lobster instance, and the working directory for log
-files and the payload database.
-
-### Running the lobster master
-
-Be sure that you issued
-
-    cmsenv
-
-in the release you want your jobs to run in.  Then obtain a proxy via
-
-    voms-proxy-init -voms cms -valid 192:00
-
-or similar.  Then start lobster:
-
-    lobster process <your_config_file>
-
-Which should print you the location of a log file and stderr.  You can
-follow these with
-
-    tail -f <your_working_directory>/lobster.{err,log}
-
-If you see statements regarding failed jobs (exit code >0), some exit codes
-are listed [here](ErrorCodes.md).
-
-To stop lobster, use
-
-    lobster terminate <your_config_file/your_working_directory>
-
-And to obtain progress plots:
-
-    lobster plot --outdir <some_web_directory> <your_config_file/your_working_directory>
 
 ### Submitting workers opportunistically
 

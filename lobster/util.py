@@ -68,7 +68,7 @@ def verify_string(s):
 def ldd(name):
     """Find libcrypto and libssl that `name` is linked to.
 
-    CMS and grid directories are excluded from the `LD_LIBRARY_PATH` while
+    CMS directories are excluded from the `LD_LIBRARY_PATH` while
     looking for libraries.  This is not guaranteed to work with ldd.
 
     Was used to ship compatibility libcrypto and libssl from RH5 to RH6
@@ -79,7 +79,7 @@ def ldd(name):
     env = dict(os.environ)
 
     def anti_cms_filter(d):
-        return not (d.startswith('/cvmfs') or 'grid' in d or 'cms' in d)
+        return not (d.startswith('/cvmfs') or 'cms' in d)
 
     env["LD_LIBRARY_PATH"] = os.path.pathsep.join(
             filter(anti_cms_filter, os.environ.get("LD_LIBRARY_PATH", "").split(os.path.pathsep)))

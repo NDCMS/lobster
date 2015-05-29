@@ -2,8 +2,11 @@ import glob
 import hadoopy
 import os
 
+from functools import wraps
+
 def fs_handler(backup, *args, **kwargs):
     def wrapper(func):
+        @wraps(func)
         def call(path):
             if path.startswith('/hadoop'):
                 return backup(path.replace('/hadoop', '', 1), *args, **kwargs)
@@ -23,6 +26,10 @@ def isdir(path):
 @fs_handler(hadoopy.mkdir)
 def makedirs(path):
     return os.makedirs(path)
+
+@fs_handler(hadoopy.rmr)
+def remove(path):
+    return os.remove(path)
 
 @fs_handler(hadoopy.stat, '%b')
 def getsize(path):

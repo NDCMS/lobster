@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 
-from lobster import chirp, job, util
+from lobster import chirp, fs, job, util
 import dash
 import sandbox
 
@@ -203,8 +203,6 @@ class JobProvider(job.JobProvider):
 
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
-        self.__unlinker = chirp.Unlinker(self.stageout, self.__chirp)
-
         self.__events = {}
         self.__configs = {}
         self.__local = {}
@@ -314,7 +312,7 @@ class JobProvider(job.JobProvider):
                     base, ext = os.path.splitext(self.outputs[label][0])
                     input = os.path.join(sdir, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
 
-                    if os.path.isfile(report) and chirp.isfile(self.__chirp, self.__chirp_root, input):
+                    if os.path.isfile(report) and fs.isfile(input):
                         inreports.append(report)
                         infiles.append((job, input))
                         # FIXME we can also read files locally
@@ -379,7 +377,7 @@ class JobProvider(job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append(os.path.join(label, outname))
+                handler.outputs.append(os.path.join(self.stageout, label, outname))
                 stageout.append((filename, os.path.join(self.stageout, label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
@@ -537,8 +535,13 @@ class JobProvider(job.JobProvider):
 
         self.__dash.free()
 
-        if len(cleanup) > 0:
-            self.__unlinker.remove(cleanup)
+        for f in cleanup:
+            try:
+                fs.remove(f)
+            except IOError:
+                pass
+            except OSError:
+                pass
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 

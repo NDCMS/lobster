@@ -540,8 +540,9 @@ class JobProvider(job.JobProvider):
                 fs.remove(f)
             except IOError:
                 pass
-            except OSError:
-                pass
+            except (ValueError, OSError) as e:
+                logger.error("error removing {0}:\n{1}".format(task.tag, e))
+
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 

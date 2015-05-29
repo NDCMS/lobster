@@ -377,7 +377,7 @@ class JobProvider(job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append(os.path.join(label, outname))
+                handler.outputs.append(os.path.join(self.stageout, label, outname))
                 stageout.append((filename, os.path.join(self.stageout, label, outname)))
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
@@ -536,7 +536,12 @@ class JobProvider(job.JobProvider):
         self.__dash.free()
 
         for f in cleanup:
-            fs.remove(f)
+            try:
+                fs.remove(f)
+            except IOError:
+                pass
+            except OSError:
+                pass
         if len(jobs) > 0:
             self.retry(self.__store.update_jobits, (jobs,), {})
 

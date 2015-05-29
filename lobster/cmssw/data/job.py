@@ -345,8 +345,8 @@ def extract_info(config, data, report_filename):
                 infos[filename] = (int(file['EventsRead']), file_lumis)
                 eventsPerRun += infos[filename][0]
 
-            eventtime = report.performance.summaries['Timing']['TotalEventCPU']
             cputime = report.performance.summaries['Timing']['TotalJobCPU']
+            eventtime = report.performance.summaries['Timing'].get('TotalEventCPU', cputime)
 
     data['files']['info'] = infos
     data['files']['skipped'] = skipped

@@ -12,8 +12,8 @@ Use `work_queue` etc from the CC lab:
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH $PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
-    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:$PATH
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-a078e9c9d-cvmfs-f50d781c0/x86_64/redhat6/bin:${PATH}
 
 These statements are best put into your shell startup scripts.  Test the
 cctools with

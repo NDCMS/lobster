@@ -58,11 +58,12 @@ CMS):
 3. Download an example configuration file and adjust it for your needs, e.g.:
 
         wget --no-check-certificate \
-            https://raw.githubusercontent.com/matz-e/lobster/master/examples/beanprod.yaml
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim.yaml \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim.py
 
 4. Running lobster
 
-        lobster process beanprod.yaml
+        lobster process slim.yaml
 
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
@@ -85,7 +86,7 @@ CMS):
 
 7. Stopping lobster
 
-        lobster terminate examples/beanprod.yaml
+        lobster terminate slim.yaml
 
 8. Creating summary plots
 

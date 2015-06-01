@@ -24,9 +24,19 @@ of the Cooperative Computing Lab to obtain current versions of `parrot` and
 Install the python `setuptools`, if not already present, with
 
     wget https://bootstrap.pypa.io/get-pip.py; python get-pip.py --user
+    
+This installs pip in your `~/.local` directory. Note that lobster and any further python
+dependencies will also be installed there. In order to access these executables, add them
+to your path with
 
-Now lobster can be installed, and any further python dependencies will be
-installed into your `~/.local` directory.
+    export PATH=$PATH:$HOME/.local/bin
+
+for bash or, for tcsh
+
+    setenv PATH ${PATH}:${HOME}/.local/bin
+
+As you'll need `~/.local` in your path each time you run lobster, we recommend adding
+the step above to your login script.
 
 ## Setup
 
@@ -39,10 +49,7 @@ Install lobster itself with
 
     pip install --user https://github.com/matz-e/lobster/tarball/master
 
-and lobster will be installed as `~/.local/bin/lobster`.  Add it to your
-path with
-
-    export PATH=$PATH:$HOME/.local/bin
+and lobster will be installed as `~/.local/bin/lobster`.
 
 # Running lobster
 

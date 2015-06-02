@@ -77,32 +77,13 @@ task defaults:
     publish label: 'test'
     ## Apply defaults only to tasks matching the labels in this list
     matching:
-      - label: '^TJets.*' # match all labels starting with "TJets"
+      - label: '^ttH_.*' # match all labels starting with "TJets"
         events per job: 5000
-      # - label: '2012[AB]$' #match all labels with 2012A or 2012B
-      #   lumi mask: examples/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
       # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
       #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
-      # - label: '2012C$'
-      #   lumi mask: examples/json/Cert_190456-206098_8TeV_PromptReco_Collisions12_JSON.txt
-      # - label: '2012C_24Aug$'
-      #   lumi mask: examples/json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
-      # - label: '2012D$'
-      #   lumi mask: examples/json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
 
 tasks:
-  - {label: SingleMu_2012A, dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}
   - {label: SingleMu_2012A_06Aug, dataset: /SingleMu/Run2012A-recover-06Aug2012-v1/AOD}
-  - {label: SingleMu_2012B, dataset: /SingleMu/Run2012B-13Jul2012-v1/AOD}
-  - {label: SingleMu_2012C, dataset: /SingleMu/Run2012C-PromptReco-v2/AOD}
-  - {label: SingleMu_2012C_24Aug, dataset: /SingleMu/Run2012C-24Aug2012-v1/AOD}
-  - {label: SingleMu_2012D, dataset: /SingleMu/Run2012D-PromptReco-v1/AOD}
-  - {label: SingleElectron_2012A, dataset: /SingleElectron/Run2012A-13Jul2012-v1/AOD}
   - {label: SingleElectron_2012A_06Aug, dataset: /SingleElectron/Run2012A-recover-06Aug2012-v1/AOD}
-  - {label: SingleElectron_2012B, dataset: /SingleElectron/Run2012B-13Jul2012-v1/AOD}
-  - {label: SingleElectron_2012C, dataset: /SingleElectron/Run2012C-PromptReco-v2/AOD}
-  - {label: SingleElectron_2012C_24Aug, dataset: /SingleElectron/Run2012C-24Aug2012-v1/AOD}
-  - {label: SingleElectron_2012D, dataset: /SingleElectron/Run2012D-PromptReco-v1/AOD}
-  - {label: TTJets_MSd_166,  dataset: /TTJets_MSDecays_mass166_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
-  - {label: TTJets_MSd_169,  dataset: /TTJets_MSDecays_mass169_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
-  - {label: TTJets_MSd_171,  dataset: /TTJets_MSDecays_mass171_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: ttH_120, dataset: /TTH_Inclusive_M-120_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
+  - {label: ttH_125, dataset: /TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}

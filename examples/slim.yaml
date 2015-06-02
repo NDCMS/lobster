@@ -1,0 +1,108 @@
+id: <your id here>
+workdir: <your working directory here>
+## optional: to automatically update monitoring plots
+plotdir: <your plotting directory here>
+
+## directory for output files
+stageout location: <your stageout directory here>
+
+## optional: chirp server to use for stage-in / stage-out
+# chirp server: "earth.crc.nd.edu:9094"
+# chirp root: /hadoop/store/user/
+
+## optional (recommended): XrootD for streaming local datasets
+# xrootd server: "ndcms.crc.nd.edu"
+# xrootd root: /hadoop
+
+## optional (recommended): SRM for stage-out
+# srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN="
+# srm root: ""
+
+## merge output files to this size
+merge size: 3.5G
+
+## optional: specify directories in CMSSW work area to omit from sandbox
+# sandbox blacklist: ['*DrawPlots*']
+
+use dashboard: True
+
+# advanced:
+  ## start killing jobs with excessive runtimes after this many successful
+  ## jobs
+  # abort threshold: 10
+  ## define excessive runtime in multiples of the average runtime
+  # abort multiplier: 4
+  ## enables core dumps by overriding `ulimit` settings
+  # dump core: false
+  ## override automatic proxy renewal
+  # renew proxy: false
+  ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
+  # log level: 0
+  ## how many jobs to create and keep in the queue
+  # payload: 400
+
+## DBS instance to publish to
+# dbs instance: phys03
+## overwrite the username to use for publishing, in case it is different from the environment var $USER
+# publish user: username
+## specify sandbox instead of creating one at startup
+# recycle sandbox: path/to/sandbox.tar.bz2
+
+## task fields:
+##      required:
+##             label (string): label for this task
+##             outputs (list): output files to be collected
+##      must include one of the following:
+##              cmssw config (string): path to cmssw parameter set to call cmsRun on
+##              cmd (string): command to run
+##      optional:
+##              one of:
+##                      dataset (string): DBS dataset name of input files to run over
+##                      files (string): path to input files (wildcards accepted)
+##              one of:
+##                      events per job (int): number of events to process per job
+##                      lumis per job (int): lumis to process per job (default: 25)
+##              lumi mask (string): path to lumi mask to apply
+##              parameters (list of strings): parameters to pass to cmsRun
+##              extra inputs (list of strings): extra files needed to run the job
+##              publish label (string): label to include in the published dataset name
+##              output format (string): optional renaming of files, based on their basename and extension
+##                                      for example, "this_is_file_{id}_{base}.{ext}"
+
+## Set task default, applied to all tasks specified below, unless they
+## override certain options.
+task defaults:
+    cmssw config: slim.py
+    outputs: [output.root]
+    publish label: 'test'
+    ## Apply defaults only to tasks matching the labels in this list
+    matching:
+      - label: '^TJets.*' # match all labels starting with "TJets"
+        events per job: 5000
+      # - label: '2012[AB]$' #match all labels with 2012A or 2012B
+      #   lumi mask: examples/json/Cert_190456-196531_8TeV_13Jul2012ReReco_Collisions12_JSON.txt
+      # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
+      #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
+      # - label: '2012C$'
+      #   lumi mask: examples/json/Cert_190456-206098_8TeV_PromptReco_Collisions12_JSON.txt
+      # - label: '2012C_24Aug$'
+      #   lumi mask: examples/json/Cert_198022-198523_8TeV_24Aug2012ReReco_Collisions12_JSON.txt
+      # - label: '2012D$'
+      #   lumi mask: examples/json/Cert_190456-208686_8TeV_PromptReco_Collisions12_JSON.txt
+
+tasks:
+  - {label: SingleMu_2012A, dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}
+  - {label: SingleMu_2012A_06Aug, dataset: /SingleMu/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: SingleMu_2012B, dataset: /SingleMu/Run2012B-13Jul2012-v1/AOD}
+  - {label: SingleMu_2012C, dataset: /SingleMu/Run2012C-PromptReco-v2/AOD}
+  - {label: SingleMu_2012C_24Aug, dataset: /SingleMu/Run2012C-24Aug2012-v1/AOD}
+  - {label: SingleMu_2012D, dataset: /SingleMu/Run2012D-PromptReco-v1/AOD}
+  - {label: SingleElectron_2012A, dataset: /SingleElectron/Run2012A-13Jul2012-v1/AOD}
+  - {label: SingleElectron_2012A_06Aug, dataset: /SingleElectron/Run2012A-recover-06Aug2012-v1/AOD}
+  - {label: SingleElectron_2012B, dataset: /SingleElectron/Run2012B-13Jul2012-v1/AOD}
+  - {label: SingleElectron_2012C, dataset: /SingleElectron/Run2012C-PromptReco-v2/AOD}
+  - {label: SingleElectron_2012C_24Aug, dataset: /SingleElectron/Run2012C-24Aug2012-v1/AOD}
+  - {label: SingleElectron_2012D, dataset: /SingleElectron/Run2012D-PromptReco-v1/AOD}
+  - {label: TTJets_MSd_166,  dataset: /TTJets_MSDecays_mass166_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_169,  dataset: /TTJets_MSDecays_mass169_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}
+  - {label: TTJets_MSd_171,  dataset: /TTJets_MSDecays_mass171_5_TuneZ2star_8TeV-madgraph-tauola/Summer12_DR53X-PU_S10_START53_V19-v1/AODSIM}

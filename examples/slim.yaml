@@ -10,13 +10,13 @@ stageout location: <your stageout directory here>
 # chirp server: "earth.crc.nd.edu:9094"
 # chirp root: /hadoop/store/user/
 
-## optional: XrootD for streaming local datasets
+## optional (recommended): XrootD for streaming local datasets
 # xrootd server: "ndcms.crc.nd.edu"
 # xrootd root: /hadoop
 
-## optional: SRM for stage-out
-# srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
-# srm root: /hadoop
+## optional (recommended): SRM for stage-out
+# srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN="
+# srm root: ""
 
 ## merge output files to this size
 merge size: 3.5G
@@ -48,29 +48,34 @@ use dashboard: True
 ## specify sandbox instead of creating one at startup
 # recycle sandbox: path/to/sandbox.tar.bz2
 
-# task fields:
-#       required:
-#               label (string): label for this task
-#               outputs (list): output files to be collected
-#       must include one of the following:
-#               cmssw config (string): path to cmssw parameter set to call cmsRun on
-#               cmd (string): command to run
-#       optional:
-#               dataset (string): DBS dataset name of input files to run over
-#               files (string): path to input files (wildcards accepted)
-#               events per job (int): number of events to process per job
-#               lumis per job (int): lumis to process per job (default: 25)
-#               lumi mask (string): path to lumi mask to apply
-#               parameters (list of strings): parameters to pass to cmsRun
-#               extra inputs (list of strings): extra files needed to run the job
-#               publish label (string): label to include in the published dataset name
-#               output format (string): optional renaming of files, based on their basename and extension
-#                                       for example, "this_is_file_{id}_{base}.{ext}"
+## task fields:
+##      required:
+##             label (string): label for this task
+##             outputs (list): output files to be collected
+##      must include one of the following:
+##              cmssw config (string): path to cmssw parameter set to call cmsRun on
+##              cmd (string): command to run
+##      optional:
+##              one of:
+##                      dataset (string): DBS dataset name of input files to run over
+##                      files (string): path to input files (wildcards accepted)
+##              one of:
+##                      events per job (int): number of events to process per job
+##                      lumis per job (int): lumis to process per job (default: 25)
+##              lumi mask (string): path to lumi mask to apply
+##              parameters (list of strings): parameters to pass to cmsRun
+##              extra inputs (list of strings): extra files needed to run the job
+##              publish label (string): label to include in the published dataset name
+##              output format (string): optional renaming of files, based on their basename and extension
+##                                      for example, "this_is_file_{id}_{base}.{ext}"
 
+## Set task default, applied to all tasks specified below, unless they
+## override certain options.
 task defaults:
     cmssw config: slim.py
     outputs: [output.root]
     publish label: 'test'
+    ## Apply defaults only to tasks matching the labels in this list
     matching:
       - label: '^TJets.*' # match all labels starting with "TJets"
         events per job: 5000

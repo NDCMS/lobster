@@ -163,12 +163,11 @@ storage element, file `PhEDEx/storage.xml`.  A `lfn-to-pfn` leaf with the
 configuration, without any `$1`.  For example, the adjusted settings for
 `T3_US_ND` are:
 
-    srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
-    srm root: "/hadoop/"
+    srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN="
+    srm root: ""
 
-The `srm root` maps the physical file name to the logical file name.  Both
-the `srm url` and `srm root` should be adjusted such that the logical file
-name can be appended to the `srm url` without any problem.
+For the stage-out, `srm root` is removed from the physical file name and
+the result is appended to the `srm url`.
 
 ### Via chirp
 

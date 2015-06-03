@@ -109,7 +109,6 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 
 	# FIXME the -M could be removed once local site setting via
 	# environment works
-	# FIXME the -l workaround should be removed later
 	echo ">>> starting parrot to access CMSSW..."
 	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
@@ -120,7 +119,8 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 
 if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_COPY" ) ]]; then
 	echo ">>> sourcing OSG setup"
-	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el6-$(uname -m)/setup.sh
+	slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
+	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el$slc-$(uname -m)/setup.sh
 
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)

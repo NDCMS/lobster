@@ -111,7 +111,7 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	# environment works
 	# FIXME the -l workaround should be removed later
 	echo ">>> starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -l "$(find /lib64 /lib -name 'ld-linux*.so.*' -print -quit)" -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 

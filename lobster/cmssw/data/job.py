@@ -241,10 +241,9 @@ def copy_outputs(data, config, env):
             print " ".join(args)
             print "---"
 
-            # FIXME is this really needed after simplifying the repos?
             pruned_env = dict(env)
-            # for k in ['LD_LIBRARY_PATH', 'PATH']:
-            #     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+            for k in ['LD_LIBRARY_PATH', 'PATH']:
+                pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
             p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
             p.wait()

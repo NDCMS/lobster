@@ -24,7 +24,7 @@ of the Cooperative Computing Lab to obtain current versions of `parrot` and
 Install the python `setuptools`, if not already present, with
 
     wget https://bootstrap.pypa.io/get-pip.py; python get-pip.py --user
-    
+
 This installs pip in your `~/.local` directory. Note that lobster and any further python
 dependencies will also be installed there. In order to access these executables, add them
 to your path with

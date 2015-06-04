@@ -1,3 +1,5 @@
+# General
+
 Lobster development should follow a style similar to the [github
 workflow](http://scottchacon.com/2011/08/31/github-flow.html).  That is:
 
@@ -17,3 +19,12 @@ from the summary by an empty line:
     re-write of foo.py and bar.py.  Fixes #-1.
 
 Non-descriptive summaries such as `Changed spam.py` should be avoided.
+
+# Concept
+
+Lobster executes workflows, specified in a configuration file, containing
+several jobs.  These jobs are broken down into tasks by a `JobProvider` (to
+be renamed), and executed on workers via Work Queue.
+
+Optional, CMS specific component that should be pluggable include:
+dashboard monitoring, `cmsRun` support, sandboxing.

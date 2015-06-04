@@ -377,7 +377,7 @@ class Plotter(object):
                 os.makedirs(target)
 
                 files = []
-                for l in ['cmssw.log.gz', 'job.log.gz']:
+                for l in ['executable.log.gz', 'job.log.gz']:
                     s = os.path.join(source, l)
                     t = os.path.join(target, l[:-3])
                     if os.path.exists(s):

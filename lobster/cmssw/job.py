@@ -347,11 +347,11 @@ class JobProvider(job.JobProvider):
                 epilogue = None
                 if cmssw_job:
                     cms_config = os.path.join(self.workdir, label, self.__configs[label])
+                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
+
 
             if cmssw_job:
-                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True),
-                               (cms_config, os.path.basename(cms_config), True)
-                               ])
+                inputs.extend([(cms_config, os.path.basename(cms_config), True)])
 
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
@@ -382,50 +382,47 @@ class JobProvider(job.JobProvider):
                 if not self.__chirp:
                     outputs.append((os.path.join(sdir, outname), filename))
 
-            if not cmssw_job:
-                if handler.file_based:
-                    args += [','.join([os.path.basename(f) for f in files])]
-                cmd = 'sh wrapper.sh {0} {1}'.format(self.cmds[label], ' '.join(args))
-            else:
-                outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'cmssw.log.gz', 'report.json']])
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
 
-                sum = self.config.get('cmssw summary', True)
+            sum = self.config.get('cmssw summary', True)
 
-                config = {
-                    'mask': {
-                        'files': list(files),
-                        'lumis': lumis.getCompactList() if lumis else None,
-                        'events': self.__events[label],
-                    },
-                    'monitoring': {
-                        'monitorid': monitorid,
-                        'syncid': syncid,
-                        'taskid': self.taskid
-                    },
-                    'arguments': args,
-                    'chirp server': self.__chirp,
-                    'chirp root': self.__chirp_root,
-                    'srm server': self.__srm,
-                    'srm root': self.__srm_root,
-                    'xrootd server': self.__xrootd,
-                    'xrootd root': self.__xrootd_root,
-                    'output files': stageout,
-                    'want summary': sum
-                }
-                if prologue:
-                    config['prologue'] = prologue
+            config = {
+                'mask': {
+                    'files': list(files),
+                    'lumis': lumis.getCompactList() if lumis else None,
+                    'events': self.__events[label],
+                },
+                'monitoring': {
+                    'monitorid': monitorid,
+                    'syncid': syncid,
+                    'taskid': self.taskid
+                },
+                'arguments': args,
+                'chirp server': self.__chirp,
+                'chirp root': self.__chirp_root,
+                'srm server': self.__srm,
+                'srm root': self.__srm_root,
+                'xrootd server': self.__xrootd,
+                'xrootd root': self.__xrootd_root,
+                'output files': stageout,
+                'want summary': sum,
+                'executable': 'cmsRun' if cmssw_job else self.cmds[label],
+                'pset': os.path.basename(cms_config) if cms_config else None
+            }
+            if prologue:
+                config['prologue'] = prologue
 
-                if epilogue:
-                    config['epilogue'] = epilogue
+            if epilogue:
+                config['epilogue'] = epilogue
 
-                handler.update_config(config)
-                handler.update_inputs(inputs)
+            handler.update_config(config)
+            handler.update_inputs(inputs)
 
-                with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
-                    json.dump(config, f, indent=2)
-                inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
+            with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
+                json.dump(config, f, indent=2)
+            inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
 
-                cmd = 'sh wrapper.sh python job.py {0} parameters.json'.format(os.path.basename(cms_config))
+            cmd = 'sh wrapper.sh python job.py parameters.json'
 
             tasks.append((id, cmd, inputs, outputs))
 

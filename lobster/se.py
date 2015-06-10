@@ -7,10 +7,9 @@ import subprocess
 from functools import partial
 
 class FileSystem(object):
-    _dispatch = {}
-    _default = None
+    _systems = []
 
-    def __init__(self, prefix=None, mode='', default=False):
+    def __init__(self, lfn2pfn=None, pfn2lfn=None):
         """Create or use a FileSystem abstraction.
 
         As a user, use with no parameters to access various storage
@@ -21,34 +20,19 @@ class FileSystem(object):
 
         Parameters
         ----------
-        prefix : string, optional
-            Specifies the prefix for which the implementation is chosen.
-            If `None`, acts as abstraction that switches implementations
-            based on method parameters.
-        mode : {'', 'a', 'r'}
-            Specifies how to handle the prefix.  The default, `''`, does
-            not alter the path.  With `'a'`, the `prefix` gets prepended
-            before operations and removed from results, with `'r'`, the
-            opposite:  the `prefix` is removed before operations and
-            prepended to results.
-        default : bool
-            Specifies a default system.
+        lfn2pfn : tuple, optional
+            Contains a tuple out of a regexp and a replacement to perform
+            path transformations from LFN to PFN.
+        pfn2lfn : tuple, optional
+            Contains a tuple out of a regexp and a replacement to perform
+            path transformations from PFN to LFN.
         """
         self.__master = False
 
-        if mode not in ['', 'a', 'r']:
-            raise TypeError("mode '{0}' not in ('', 'a', 'r')".format(mode))
-
-        if prefix is not None:
-            if default:
-                if FileSystem._default:
-                    raise AttributeError('Default file system defined twice.')
-                FileSystem._default = self
-            else:
-                FileSystem._dispatch[prefix] = self
-            self._prefix = prefix
-            self._mode = mode
-            self._absolute = False
+        if lfn2pfn is not None:
+            self._lfn2pfn = lfn2pfn
+            self._pfn2lfn = pfn2lfn
+            self._systems.append(self)
         else:
             self.__master = True
 
@@ -57,41 +41,20 @@ class FileSystem(object):
             return self.__dict__[attr]
 
         def switch(path):
-            print path
-            imp = self._default
-            for k, o in self._dispatch.items():
-                if path.startswith(k):
-                    imp = o
-            print imp
-            # print imp._mode
-            print imp._prefix
-            return imp.fixresult(getattr(imp, attr)(imp.fixpath(path)))
+            for imp in self._systems:
+                if imp.matches(path):
+                    return imp.fixresult(getattr(imp, attr)(imp.fixpath(path)))
         return switch
 
+    def matches(self, path):
+        return re.match(self._lfn2pfn[0], path) is not None
+
     def fixpath(self, path):
-        if self._mode == '':
-            return path
-
-        if self._mode == 'a':
-            return self._prefix + path
-
-        localpath = path.replace(self._prefix, '', 1)
-        if self._prefix.endswith('/') and self._absolute:
-            localpath = '/' + localpath
-        return localpath
+        return re.sub(*(list(self._lfn2pfn) + [path]))
 
     def fixresult(self, res):
-        if self._mode == '':
-            return res
-
-        if self._mode == 'a':
-            def fixup(p):
-                return p.replace(self._prefix, 1)
-        else:
-            def fixup(p):
-                if self._prefix.endswith('/') and self._absolute:
-                    p = p[1:]
-                return self._prefix + p
+        def fixup(p):
+            return re.sub(*(list(self._pfn2lfn) + [p]))
 
         if isinstance(res, str):
             return fixup(res)
@@ -103,12 +66,11 @@ class FileSystem(object):
 
     @classmethod
     def reset(cls):
-        cls._dispatch = {}
-        cls._default = None
+        cls._systems = []
 
 class Local(FileSystem):
-    def __init__(self, prefix='', mode='', default=True):
-        super(Local, self).__init__(prefix=prefix, mode=mode, default=default)
+    def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
+        super(Local, self).__init__(lfn2pfn, pfn2lfn)
         self.exists = os.path.exists
         self.getsize = os.path.getsize
         self.isdir = os.path.isdir
@@ -118,9 +80,8 @@ class Local(FileSystem):
         self.remove = os.remove
 
 class Hadoop(FileSystem):
-    def __init__(self, prefix='/hadoop/', mode='r', default=False):
-        super(Hadoop, self).__init__(prefix=prefix, mode=mode, default=default)
-        self._absolute = True
+    def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
+        super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
 
         self.exists = hadoopy.exists
         self.getsize = partial(hadoopy.stat, format='%b')
@@ -138,8 +99,8 @@ class Hadoop(FileSystem):
         return self.__hadoop.stat(path, '%F') == 'regular file'
 
 class SRM(FileSystem):
-    def __init__(self, prefix='srm://', mode='', default=False):
-        super(SRM, self).__init__(prefix=prefix, mode=mode, default=default)
+    def __init__(self, lfn2pfn=('srm://', 'srm://'), pfn2lfn=('srm://', 'srm://')):
+        super(SRM, self).__init__(lfn2pfn, pfn2lfn)
 
         self.__stub = re.compile('^srm://[A-Za-z0-9:.\-/]+\?SFN=')
 

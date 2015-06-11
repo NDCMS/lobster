@@ -10,19 +10,20 @@ import shutil
 import subprocess
 import sys
 import traceback
-import ROOT
-from ROOT import TFile
 import xml.dom.minidom
+import ROOT
+
+ROOT.gROOT.SetBatch(True)
+ROOT.PyConfig.IgnoreCommandLineOptions = True
+ROOT.gErrorIgnoreLevel = ROOT.kError
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
+from ROOT import TFile
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
-ROOT.PyConfig.IgnoreCommandLineOptions = True
-ROOT.gErrorIgnoreLevel = ROOT.kError
-ROOT.gROOT.SetBatch(True)
 
 fragment = """
 import FWCore.ParameterSet.Config as cms
@@ -121,19 +122,27 @@ def check_outputs(config):
 
     for local, remote in config['output files']:
         size = os.path.getsize(local)
-        p = subprocess.Popen([
-            os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
-            chirp_server, "stat", remote], stdout=subprocess.PIPE)
-        stdout = p.communicate()[0]
-        for l in stdout.splitlines():
-            if l.startswith('size:'):
-                if int(l.split()[1]) != size:
-                    print "> size mismatch after transfer for " + local
-                    return False
-                break
+        if os.path.isfile(remote):
+            if size != os.path.getsize(remote):
+                print "> size mismatch after transfer for " + local
+                return False
         else:
-            # size: is not in stdout
-            return False
+            p = subprocess.Popen([
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                chirp_server, "stat", remote], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+            if stderr:
+                return False
+            for l in stdout.splitlines():
+                if l.startswith('size:'):
+                    if int(l.split()[1]) != size:
+                        print "> size mismatch after transfer for " + local
+                        return False
+                    break
+            else:
+                # size: is not in stdout
+                return False
     return True
 
 def copy_inputs(data, config, env):

@@ -44,7 +44,7 @@ be altered slightly (change to suit your needs):
     cd /var/tmp/
     cp -r /usr/lib/hadoop/ .
     cp /usr/lib64/libhdfs* hadoop/lib/
-    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop chirp_server \
+    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop LIBHDFS_OPTS=-Xmx100m chirp_server \
             --root=hdfs://ndcms.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop> \
             -A ~/acl -p <your_port>
 

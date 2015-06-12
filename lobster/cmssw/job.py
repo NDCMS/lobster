@@ -347,8 +347,8 @@ class JobProvider(job.JobProvider):
                 epilogue = None
                 if cmssw_job:
                     cms_config = os.path.join(self.workdir, label, self.__configs[label])
-                inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
 
+            inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
 
             if cmssw_job:
                 inputs.extend([(cms_config, os.path.basename(cms_config), True)])

@@ -27,11 +27,14 @@ class MetaInterface:
         self.__file_interface = FileInterface()
         self.__das_interface = DASInterface()
 
-    def get_info(self, cfg):
+    def get_info(self, cfg, base):
+        info = None
         if 'dataset' in cfg:
-            return self.__das_interface.get_info(cfg)
+            info = self.__das_interface.get_info(cfg)
         else:
-            return self.__file_interface.get_info(cfg)
+            info = self.__file_interface.get_info(cfg)
+        info.path = os.path.join(base, cfg['label'])
+        return info
 
 class DASInterface:
     def __init__(self):

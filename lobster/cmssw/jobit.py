@@ -130,7 +130,7 @@ class JobitStore:
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', label),
                            label,
-                           os.path.join(self.config['stageout location'], label),
+                           dataset_info.path,
                            os.path.basename(os.environ['LOCALRT']),
                            dataset_cfg.get('global tag'),
                            dataset_cfg.get('publish label', dataset_cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check

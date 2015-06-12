@@ -145,5 +145,68 @@ class SRM(FileSystem):
         return True
 
     def remove(self, path):
-        raise NotImplementedError
-        self.execute('del', path)
+        # FIXME safe is active because SRM does not care about directories.
+        self.execute('del', path, safe=True)
+
+class StorageElement(object):
+    def __init__(self, config):
+        self.__base = config['base']
+        self.__input = config.get('input')
+        self.__output = config.get('output')
+        self.__local = config.get('local')
+        self.__hadoop = config.get('hadoop')
+
+    @property
+    def path(self):
+        return self.__base
+
+    def transfer_inputs(self):
+        """Indicates whether input files need to be transferred manually.
+        """
+        return self.__input is None
+
+    def transfer_outputs(self):
+        """Indicates whether output files need to be transferred manually.
+        """
+        return self.__input is None
+
+    def pfn(self, path):
+        if self.__local:
+            return path.replace(self.__base, self.__local)
+        raise IOError("Can't create LFN without local storage access")
+
+    def activate(self):
+        FileSystem.reset()
+
+        if self.__hadoop:
+            Hadoop(lfn2pfn=(self.__base, self.__hadoop), pfn2lfn=(self.__hadoop, self.__base))
+        if self.__local:
+            Local(lfn2pfn=(self.__base, self.__local), pfn2lfn=(self.__local, self.__base))
+        if self.__output:
+            if self.__output.startswith("srm://"):
+                SRM(lfn2pfn=(self.__base, self.__output), pfn2lfn=(self.__output, self.__base))
+
+    def preprocess(self, parameters, localdata):
+        """Adjust the input, output files within the parameters send with a task.
+
+        Parameters
+        ----------
+        parameters : dict
+            The task parameters to alter.  This should contain the keys
+            'output files' and 'mask', the latter with a subkey 'files'.
+        localdata : bool
+            Indicates whether input file translation is needed or not.
+        """
+        if self.__output:
+            outputs = parameters['output files']
+            parameters['output files'] = [(src, tgt.replace(self.__base, self.__output)) for src, tgt in outputs]
+        if self.__input and localdata:
+            inputs = parameters['mask']['files']
+            parameters['mask']['files'] = [f.replace(self.__base, self.__input) for f in inputs]
+
+    def postprocess(self, report):
+        if self.__input:
+            infos = report['files']['info']
+            report['files']['info'] = dict((k.replace(self.__input, self.__base), v) for k, v in infos.items())
+            skipped = report['files']['skipped']
+            report['files']['skipped'] = [f.replace(self.__input, self.__base) for f in skipped]

@@ -12,7 +12,7 @@ import time
 
 from functools import partial
 from hashlib import sha1
-from lobster import chirp, fs, util
+from lobster import fs, se, util
 
 logger = multiprocessing.get_logger()
 
@@ -48,7 +48,8 @@ class JobProvider(object):
         self.config = config
         self.basedirs = [config['configdir'], config['startdir']]
         self.workdir = config.get('workdir', os.getcwd())
-        self.stageout = config.get('stageout location', os.getcwd())
+        self._storage = se.StorageElement(config['storage'])
+        self._storage.activate()
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
 
         self.parrot_path = os.path.dirname(util.which('parrot_run'))
@@ -61,9 +62,6 @@ class JobProvider(object):
         self.outputformats = {}
         self.cmds = {}
         self.bad_exitcodes = config.get('bad exit codes', [])
-
-        chirp_server = config.get('chirp server')
-        chirp_root = config.get('chirp root')
 
         create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
         if create:
@@ -87,17 +85,12 @@ class JobProvider(object):
             self.cmds[label] = cfg.get('cmd')
 
             taskdir = os.path.join(self.workdir, label)
-            stageoutdir = os.path.join(self.stageout, label)
+            stageoutdir = os.path.join(self._storage.path, label)
             if create:
                 if not os.path.exists(taskdir):
                     os.makedirs(taskdir)
-                if chirp_root and stageoutdir.startswith(chirp_root):
-                    target = stageoutdir.replace(chirp_root, '', 1)
-                    if not chirp.exists(chirp_server, chirp_root, target):
-                        chirp.makedirs(chirp_server, chirp_root, target)
-                else:
-                    if not fs.exists(stageoutdir):
-                        fs.makedirs(stageoutdir)
+                if not fs.exists(stageoutdir):
+                    fs.makedirs(stageoutdir)
 
                 shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 

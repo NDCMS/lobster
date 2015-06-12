@@ -5,6 +5,7 @@ from datetime import datetime
 import gzip
 import json
 import os
+import re
 import resource
 import shutil
 import subprocess
@@ -112,28 +113,23 @@ def check_execution(data, code):
 def check_outputs(config):
     """Check that chirp received the output files.
     """
-    chirp_server = config.get('chirp server', None)
-    srm_server = config.get('srm server', None)
-
-    # Trust SRM to reliably copy output files
-    if srm_server or not chirp_server:
-        return True
-
-    for local, remote in config['output files']:
-        size = os.path.getsize(local)
-        p = subprocess.Popen([
-            os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
-            chirp_server, "stat", remote], stdout=subprocess.PIPE)
-        stdout = p.communicate()[0]
-        for l in stdout.splitlines():
-            if l.startswith('size:'):
-                if int(l.split()[1]) != size:
-                    print "> size mismatch after transfer for " + local
-                    return False
-                break
-        else:
-            # size: is not in stdout
-            return False
+    for localname, remotename in config['output files']:
+        if remotename.startswith("chirp://"):
+            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", remotename).groups()
+            size = os.path.getsize(localname)
+            p = subprocess.Popen([
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                server, "stat", path], stdout=subprocess.PIPE)
+            stdout = p.communicate()[0]
+            for l in stdout.splitlines():
+                if l.startswith('size:'):
+                    if int(l.split()[1]) != size:
+                        print "> size mismatch after transfer for " + localname
+                        return False
+                    break
+            else:
+                # size: is not in stdout
+                return False
     return True
 
 def copy_inputs(data, config, env):
@@ -145,12 +141,6 @@ def copy_inputs(data, config, env):
     attempting to transfer files via chirp.
     """
     config['file map'] = {}
-
-    chirp_server = config.get('chirp server', None)
-    chirp_root = config.get('chirp root', None)
-
-    xrootd_server = config.get('xrootd server', None)
-    xrootd_root = config.get('xrootd root', None)
 
     files = list(config['mask']['files'])
     config['mask']['files'] = []
@@ -170,40 +160,26 @@ def copy_inputs(data, config, env):
             config['file map'][filename] = file
             continue
 
-        if config.get('transfer inputs', False):
-            if xrootd_server and xrootd_root:
-                if file.startswith(xrootd_root):
-                    xfile = file.replace(xrootd_root, '', 1)
-                    filename = 'root://{server}/{file}'.format(server=xrootd_server, file=xfile)
-                    config['mask']['files'].append(filename)
-                    config['file map'][filename] = file
-                    continue
+        if file.startswith("chirp://"):
+            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", file).groups()
 
-            if chirp_server and chirp_root:
-                if file.startswith(chirp_root):
-                    cfile = file.replace(chirp_root, '', 1)
-                else:
-                    cfile = file
+            status = subprocess.call([
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
+                "-a",
+                "globus",
+                "-d",
+                "all",
+                server,
+                path,
+                os.path.basename(path)], env=env)
 
-                lfile = os.path.basename(file)
-
-                status = subprocess.call([
-                    os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
-                    "-a",
-                    "globus",
-                    "-d",
-                    "all",
-                    chirp_server,
-                    cfile,
-                    lfile], env=env)
-
-                if status == 0:
-                    filename = 'file:' + lfile
-                    config['mask']['files'].append(filename)
-                    config['file map'][filename] = file
-                else:
-                    raise IOError("Could not transfer file {0}".format(cfile))
-                continue
+            if status == 0:
+                filename = 'file:' + os.path.basename(path)
+                config['mask']['files'].append(filename)
+                config['file map'][filename] = file
+            else:
+                raise IOError("Could not transfer file {0}".format(cfile))
+            continue
 
         # FIXME remove with xrootd test?
         # add file if not local or in chirp and then hope that CMSSW can
@@ -227,12 +203,6 @@ def copy_outputs(data, config, env):
     output files out via chirp.  In any case, file sizes are added up and
     inserted into the job data.
     """
-    srm_server = config.get('srm server', None)
-    srm_root = config.get('srm root', None)
-
-    chirp_server = config.get('chirp server', None)
-    chirp_root = config.get('chirp root', None)
-
     outsize = 0
     outsize_bare = 0
 
@@ -259,14 +229,8 @@ def copy_outputs(data, config, env):
 
         if os.path.isdir(os.path.dirname(remotename)):
             shutil.copy2(localname, remotename)
-        elif srm_server:
-            if srm_root and remotename.startswith(srm_root):
-                remotename = remotename.replace(srm_root, '', 1)
-            if remotename.startswith('/'):
-                remotename = remotename[1:]
-
+        elif remotename.startswith("srm://"):
             prg = []
-
             if len(os.environ["LOBSTER_LCG_CP"]) > 0:
                 prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
             elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
@@ -277,7 +241,7 @@ def copy_outputs(data, config, env):
 
             args = prg + [
                 "file:///" + os.path.join(os.getcwd(), localname),
-                os.path.join(srm_server, remotename)
+                remotename
             ]
 
             print "--- staging-out with:"
@@ -295,9 +259,8 @@ def copy_outputs(data, config, env):
                 raise IOError("Failed to transfer output file '{0}':\n{1}".format(localname, p.stderr.read()))
             else:
                 print p.stderr.read()
-        elif chirp_server:
-            if chirp_root and remotename.startswith(chirp_root):
-                remotename = remotename.replace(chirp_root, '', 1)
+        if remotename.startswith("chirp://"):
+            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", remotename).groups()
 
             status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
                                       "-a",
@@ -305,8 +268,8 @@ def copy_outputs(data, config, env):
                                       "-d",
                                       "all",
                                       localname,
-                                      chirp_server,
-                                      remotename], env=env)
+                                      server,
+                                      path], env=env)
             if status != 0:
                 data['stageout exit code'] = status
                 raise IOError("Failed to transfer output file '{0}'".format(localname))

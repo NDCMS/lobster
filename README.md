@@ -12,7 +12,7 @@ CMSSW.
 
 Download the most recent version of the cctools from the [Notre Dame
 Cooperative Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml)
-and install them with CVMFS (and, for chirp, globus authentication)
+and install them with CVMFS (and, for Chirp, globus authentication)
 enabled.
 
 See [instructions on github](https://github.com/cooperative-computing-lab/cctools)
@@ -155,24 +155,29 @@ The last line of arguments corresponds to the desired worker configuration.
 
 ## Stage-out
 
-### Via SRM
+Lobster supports multiple file transfer methods:  via Work Queue, Chirp,
+XrootD (input only), and SRM (output only.)  Basic settings are:
 
-Lobster supports SRM stage-out.  Parameters for SRM stage-out can be found
-in `/cvmfs/cms.cern.ch/SITECONFIG`, the directory of the destination
-storage element, file `PhEDEx/storage.xml`.  A `lfn-to-pfn` leaf with the
-`srmv2` protocol will reveal the server URL, which should be used in the
-configuration, without any `$1`.  For example, the adjusted settings for
-`T3_US_ND` are:
+    storage:
+        base: /store/user/<user>/<output directory>
+        hadoop: /store/user/<user>/<output directory>
+        local: /hadoop/store/user/<user>/<output directory>
 
-    srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN="
-    srm root: ""
+Where all paths point to the storage directory.  To use input or output
+methods other than Work Queue, `input` and `output` settings are used,
+e.g., for Chirp:
 
-For the stage-out, `srm root` is removed from the physical file name and
-the result is appended to the `srm url`.
+        input: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
+        output: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
 
-### Via chirp
+Or for XrootD/SRM:
 
-Using chirp for stage-in and stage-out can be helpful when standard CMS
+        input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
+        output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
+
+### Setting up a Chirp server
+
+Using Chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.
 
 Create a file called `acl` with default access permissions in, e.g., your
@@ -186,12 +191,12 @@ On earth, do something akin to the following commands:
 
 where the default port is `9094`, but may be occupied, in which case it
 should be best to linearly increment this port until you find a free one.
-The `root` directory given to the chirp server can be the desired stage-out
+The `root` directory given to the Chirp server can be the desired stage-out
 location, or any directory above it.
-**If you are using chirp to stage out to a server that cannot handle a high
+**If you are using Chirp to stage out to a server that cannot handle a high
 load, limit the connections by adding `-M 50` to the arguments.**
 
-You should test chirp from another machine:
+You should test Chirp from another machine:
 
     voms-proxy-init -voms cms -valid 192:00
     chirp_put <some_file> <your_server>:<your_port> spam
@@ -202,12 +207,6 @@ any `.__acl` files lingering around in your stageout directory:
     find <your_stageout_directory> -name .__acl -exec rm \{} \;
 
 and try again.
-
-Then add the follow line to your lobster configuration and you should be
-all set:
-
-    chirp server: "<your_server>:<your_port>"
-    chirp root: <your_directory>
 
 ## Altering the worker environment
 

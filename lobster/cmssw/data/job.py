@@ -11,19 +11,20 @@ import shutil
 import subprocess
 import sys
 import traceback
-import ROOT
-from ROOT import TFile
 import xml.dom.minidom
+import ROOT
+
+ROOT.gROOT.SetBatch(True)
+ROOT.PyConfig.IgnoreCommandLineOptions = True
+ROOT.gErrorIgnoreLevel = ROOT.kError
 
 sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 
+from ROOT import TFile
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
-ROOT.PyConfig.IgnoreCommandLineOptions = True
-ROOT.gErrorIgnoreLevel = ROOT.kError
-ROOT.gROOT.SetBatch(True)
 
 fragment = """
 import FWCore.ParameterSet.Config as cms

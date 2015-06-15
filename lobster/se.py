@@ -1,10 +1,13 @@
 import glob
 import hadoopy
+import multiprocessing
 import os
 import re
 import subprocess
 
-from functools import partial
+from functools import partial, wraps
+
+logger = multiprocessing.get_logger()
 
 class FileSystem(object):
     _systems = []
@@ -40,10 +43,11 @@ class FileSystem(object):
         if attr in self.__dict__ or not self.__master:
             return self.__dict__[attr]
 
-        def switch(path):
+        def switch(path=None):
             for imp in self._systems:
                 if imp.matches(path):
                     return imp.fixresult(getattr(imp, attr)(imp.fixpath(path)))
+            raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch
 
     def matches(self, path):
@@ -97,6 +101,57 @@ class Hadoop(FileSystem):
 
     def isfile(self, path):
         return self.__hadoop.stat(path, '%F') == 'regular file'
+
+class Chirp(FileSystem):
+    def __init__(self, server, chirppath, basepath):
+        super(Chirp, self).__init__((basepath, chirppath), (chirppath, basepath))
+
+        self.__server = server
+        self.__sub = subprocess
+
+    def execute(self, *args, **kwargs):
+        cmd = ["chirp", self.__server] + list(args)
+        p = self.__sub.Popen(
+                cmd,
+                stdout=self.__sub.PIPE,
+                stderr=self.__sub.PIPE,
+                stdin=self.__sub.PIPE)
+        p.wait()
+
+        if p.returncode != 0 and not kwargs.get("safe", False):
+            raise subprocess.CalledProcessError(p.returncode,
+                    " ".join(["chirp", self.__server] + args))
+
+        return p.stdout.read()
+
+    def exists(self, path):
+        out = self.execute("stat", path)
+        return len(out.splitlines()) > 1
+
+    def getsize(self, path):
+        raise NotImplementedError
+
+    def isdir(self, path):
+        out = self.execute('stat', path)
+        return out.splitlines()[4].split() == ["nlink:", "0"]
+
+    def isfile(self, path):
+        out = self.execute('stat', path)
+        return out.splitlines()[4].split() != ["nlink:", "0"]
+
+    def ls(self, path):
+        out = self.execute('ls', '-la', path)
+        for l in out.splitlines():
+            if l.startswith('d'):
+                continue
+            yield os.path.join(path, l.split(None, 9)[8])
+
+    def makedirs(self, path):
+        self.execute('mkdir', '-p', path)
+
+    def remove(self, path):
+        # FIXME remove does not work for directories
+        self.execute('rm', path)
 
 class SRM(FileSystem):
     def __init__(self, lfn2pfn=('srm://', 'srm://'), pfn2lfn=('srm://', 'srm://')):
@@ -176,6 +231,9 @@ class StorageElement(object):
         raise IOError("Can't create LFN without local storage access")
 
     def activate(self):
+        """Replaces default file system access methods with the ones
+        specified per configuration.
+        """
         FileSystem.reset()
 
         if self.__hadoop:
@@ -185,6 +243,9 @@ class StorageElement(object):
         if self.__output:
             if self.__output.startswith("srm://"):
                 SRM(lfn2pfn=(self.__base, self.__output), pfn2lfn=(self.__output, self.__base))
+            elif self.__output.startswith("chirp://"):
+                server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
+                Chirp(server, path, self.__base)
 
     def preprocess(self, parameters, localdata):
         """Adjust the input, output files within the parameters send with a task.

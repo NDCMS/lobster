@@ -175,6 +175,10 @@ Or for XrootD/SRM:
         input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
         output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
 
+For convenience, the latter can also be specified by the site name:
+
+        site: T2_CH_CERN
+
 ### Setting up a Chirp server
 
 Using Chirp for stage-in and stage-out can be helpful when standard CMS

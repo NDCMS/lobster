@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import re
 import subprocess
+import xml.dom.minidom
 
 from functools import partial, wraps
 
@@ -206,10 +207,49 @@ class SRM(FileSystem):
 class StorageElement(object):
     def __init__(self, config):
         self.__base = config['base']
-        self.__input = config.get('input')
-        self.__output = config.get('output')
+        self.__input = None
+        self.__output = None
+
+        self._discover(config.get('site'))
+
+        if 'input' in config:
+            self.__input = config['input']
+        if 'output' in config:
+            self.__output = config['output']
+
         self.__local = config.get('local')
         self.__hadoop = config.get('hadoop')
+
+        logger.debug("using input location {0}".format(self.__input))
+        logger.debug("using output location {0}".format(self.__output))
+
+    def _find_match(self, doc, tag, protocol):
+        for e in doc.getElementsByTagName(tag):
+            if e.attributes["protocol"].value != protocol:
+                continue
+            if e.attributes.has_key('destination-match') and \
+                    not re.match(e.attributes['destination-match'].value, self.__site):
+                continue
+            if self.__base and len(self.__base) > 0 and \
+                    e.attributes.has_key('path-match') and \
+                    re.match(e.attributes['path-match'].value, self.__base) is None:
+                continue
+
+            return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
+
+    def _discover(self, site):
+        if not site:
+            return
+
+        self.__site = site
+
+        file = os.path.join('/cvmfs/cms.cern.ch/SITECONF', site, 'PhEDEx/storage.xml')
+        doc = xml.dom.minidom.parse(file)
+
+        regexp, result = self._find_match(doc, "lfn-to-pfn", "xrootd")
+        self.__input = re.sub(regexp, result, self.__base)
+        regexp, result = self._find_match(doc, "lfn-to-pfn", "srmv2")
+        self.__output = re.sub(regexp, result, self.__base)
 
     @property
     def path(self):

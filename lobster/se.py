@@ -1,5 +1,4 @@
 import glob
-import hadoopy
 import multiprocessing
 import os
 import re
@@ -84,24 +83,29 @@ class Local(FileSystem):
         self.makedirs = os.makedirs
         self.remove = os.remove
 
-class Hadoop(FileSystem):
-    def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
-        super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
+try:
+    import hadoopy
 
-        self.exists = hadoopy.exists
-        self.getsize = partial(hadoopy.stat, format='%b')
-        self.isdir = hadoopy.isdir
-        self.isfile = os.path.isfile
-        self.ls = hadoopy.ls
-        self.makedirs = hadoopy.mkdir
-        self.remove = hadoopy.rmr
+    class Hadoop(FileSystem):
+        def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
+            super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
 
-        # local imports are not available after the module hack at the end
-        # of the file
-        self.__hadoop = hadoopy
+            self.exists = hadoopy.exists
+            self.getsize = partial(hadoopy.stat, format='%b')
+            self.isdir = hadoopy.isdir
+            self.isfile = os.path.isfile
+            self.ls = hadoopy.ls
+            self.makedirs = hadoopy.mkdir
+            self.remove = hadoopy.rmr
 
-    def isfile(self, path):
-        return self.__hadoop.stat(path, '%F') == 'regular file'
+            # local imports are not available after the module hack at the end
+            # of the file
+            self.__hadoop = hadoopy
+
+        def isfile(self, path):
+            return self.__hadoop.stat(path, '%F') == 'regular file'
+except:
+    pass
 
 class Chirp(FileSystem):
     def __init__(self, server, chirppath, basepath):
@@ -277,7 +281,10 @@ class StorageElement(object):
         FileSystem.reset()
 
         if self.__hadoop:
-            Hadoop(lfn2pfn=(self.__base, self.__hadoop), pfn2lfn=(self.__hadoop, self.__base))
+            try:
+                Hadoop(lfn2pfn=(self.__base, self.__hadoop), pfn2lfn=(self.__hadoop, self.__base))
+            except NameError:
+                raise NotImplementedError("hadoop support is missing on this system")
         if self.__local:
             Local(lfn2pfn=(self.__base, self.__local), pfn2lfn=(self.__local, self.__base))
         if self.__output:

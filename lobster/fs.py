@@ -1,9 +1,12 @@
-from se import FileSystem, Local, Hadoop, SRM
+import se
 
 # Order matters: defines resolution attempts.
-h = Hadoop()
-s = SRM()
-l = Local()
+try:
+    h = se.Hadoop()
+except:
+    pass
+s = se.SRM()
+l = se.Local()
 
 import sys
-sys.modules[__name__] = FileSystem()
+sys.modules[__name__] = se.FileSystem()

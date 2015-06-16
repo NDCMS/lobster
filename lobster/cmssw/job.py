@@ -234,7 +234,8 @@ class JobProvider(job.JobProvider):
                     shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
 
                 logger.info("querying backend for {0}".format(label))
-                dataset_info = self.__interface.get_info(cfg, self._storage.path)
+                with fs.default():
+                    dataset_info = self.__interface.get_info(cfg, self._storage.path)
 
                 if 'filename transformation' in cfg:
                     match, sub = cfg['filename transformation']

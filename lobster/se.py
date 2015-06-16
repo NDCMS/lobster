@@ -5,11 +5,13 @@ import re
 import subprocess
 import xml.dom.minidom
 
+from contextlib import contextmanager
 from functools import partial, wraps
 
 logger = multiprocessing.get_logger()
 
 class StorageElement(object):
+    _default = []
     _systems = []
 
     def __init__(self, lfn2pfn=None, pfn2lfn=None):
@@ -76,6 +78,19 @@ class StorageElement(object):
     def test(cls, path):
         for system in cls._systems:
             list(system.ls(system.fixpath(path)))
+
+    @classmethod
+    def store(cls):
+        cls._default = list(cls._systems)
+
+    @contextmanager
+    def default(self):
+        tmp = self._systems
+        self._systems = self._defaults
+        try:
+            yield
+        finally:
+            self._systems = tmp
 
 class Local(StorageElement):
     def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
@@ -286,6 +301,7 @@ class StorageConfiguration(object):
         """Replaces default file system access methods with the ones
         specified per configuration.
         """
+        StorageElement.store()
         StorageElement.reset()
 
         if self.__hadoop:

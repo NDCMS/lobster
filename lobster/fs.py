@@ -9,4 +9,4 @@ s = se.SRM()
 l = se.Local()
 
 import sys
-sys.modules[__name__] = se.FileSystem()
+sys.modules[__name__] = se.StorageElement()

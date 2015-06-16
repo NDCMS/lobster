@@ -9,11 +9,11 @@ from functools import partial, wraps
 
 logger = multiprocessing.get_logger()
 
-class FileSystem(object):
+class StorageElement(object):
     _systems = []
 
     def __init__(self, lfn2pfn=None, pfn2lfn=None):
-        """Create or use a FileSystem abstraction.
+        """Create or use a StorageElement abstraction.
 
         As a user, use with no parameters to access various storage
         elements transparently.
@@ -72,7 +72,7 @@ class FileSystem(object):
     def reset(cls):
         cls._systems = []
 
-class Local(FileSystem):
+class Local(StorageElement):
     def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
         super(Local, self).__init__(lfn2pfn, pfn2lfn)
         self.exists = os.path.exists
@@ -86,7 +86,7 @@ class Local(FileSystem):
 try:
     import hadoopy
 
-    class Hadoop(FileSystem):
+    class Hadoop(StorageElement):
         def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
             super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
 
@@ -107,7 +107,7 @@ try:
 except:
     pass
 
-class Chirp(FileSystem):
+class Chirp(StorageElement):
     def __init__(self, server, chirppath, basepath):
         super(Chirp, self).__init__((basepath, chirppath), (chirppath, basepath))
 
@@ -158,7 +158,7 @@ class Chirp(FileSystem):
         # FIXME remove does not work for directories
         self.execute('rm', path)
 
-class SRM(FileSystem):
+class SRM(StorageElement):
     def __init__(self, lfn2pfn=('srm://', 'srm://'), pfn2lfn=('srm://', 'srm://')):
         super(SRM, self).__init__(lfn2pfn, pfn2lfn)
 
@@ -208,7 +208,7 @@ class SRM(FileSystem):
         # FIXME safe is active because SRM does not care about directories.
         self.execute('del', path, safe=True)
 
-class StorageElement(object):
+class StorageConfiguration(object):
     def __init__(self, config):
         self.__base = config['base']
         self.__input = None
@@ -278,7 +278,7 @@ class StorageElement(object):
         """Replaces default file system access methods with the ones
         specified per configuration.
         """
-        FileSystem.reset()
+        StorageElement.reset()
 
         if self.__hadoop:
             try:

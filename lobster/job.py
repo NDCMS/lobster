@@ -48,7 +48,7 @@ class JobProvider(object):
         self.config = config
         self.basedirs = [config['configdir'], config['startdir']]
         self.workdir = config.get('workdir', os.getcwd())
-        self._storage = se.StorageElement(config['storage'])
+        self._storage = se.StorageConfiguration(config['storage'])
         self._storage.activate()
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
 

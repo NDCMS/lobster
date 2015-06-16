@@ -72,6 +72,11 @@ class StorageElement(object):
     def reset(cls):
         cls._systems = []
 
+    @classmethod
+    def test(cls, path):
+        for system in cls._systems:
+            list(system.ls(system.fixpath(path)))
+
 class Local(StorageElement):
     def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
         super(Local, self).__init__(lfn2pfn, pfn2lfn)
@@ -170,11 +175,14 @@ class SRM(StorageElement):
 
     def execute(self, cmd, path, safe=False):
         args = ['lcg-' + cmd, '-b', '-D', 'srmv2', path]
-        p = self.__sub.Popen(args, stdout=self.__sub.PIPE, stderr=self.__sub.PIPE)
-        p.wait()
-        if p.returncode != 0 and not safe:
-            msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
-            raise IOError(msg)
+        try:
+            p = self.__sub.Popen(args, stdout=self.__sub.PIPE, stderr=self.__sub.PIPE)
+            p.wait()
+            if p.returncode != 0 and not safe:
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
+                raise IOError(msg)
+        except OSError:
+            raise AttributeError("srm utilities not available")
         return p.stdout.read()
 
     def strip(self, path):
@@ -293,6 +301,8 @@ class StorageConfiguration(object):
             elif self.__output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
                 Chirp(server, path, self.__base)
+
+        StorageElement.test(self.__base)
 
     def preprocess(self, parameters, localdata):
         """Adjust the input, output files within the parameters send with a task.

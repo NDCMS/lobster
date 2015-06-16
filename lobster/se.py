@@ -115,7 +115,7 @@ class Chirp(StorageElement):
         self.__sub = subprocess
 
     def execute(self, *args, **kwargs):
-        cmd = ["chirp", self.__server] + list(args)
+        cmd = ["chirp", "-t", "10", self.__server] + list(args)
         p = self.__sub.Popen(
                 cmd,
                 stdout=self.__sub.PIPE,
@@ -125,7 +125,7 @@ class Chirp(StorageElement):
 
         if p.returncode != 0 and not kwargs.get("safe", False):
             raise subprocess.CalledProcessError(p.returncode,
-                    " ".join(["chirp", self.__server] + args))
+                    " ".join(["chirp", self.__server] + list(args)))
 
         return p.stdout.read()
 

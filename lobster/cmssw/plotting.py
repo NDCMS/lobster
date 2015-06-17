@@ -191,7 +191,7 @@ class Plotter(object):
             type,
             cache
             from jobs
-            where status in (2, 6, 8) and time_retrieved>=? and time_retrieved<=?""",
+            where status in (2, 6, 7, 8) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[
                     ('id', 'i4'),

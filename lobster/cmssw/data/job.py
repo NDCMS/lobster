@@ -10,7 +10,8 @@ import shutil
 import subprocess
 import sys
 import traceback
-import xml.dom.minidom
+from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
+from ProdCommon.FwkJobRep.PerformanceReport import PerformanceReport
 import ROOT
 
 ROOT.gROOT.SetBatch(True)
@@ -41,60 +42,43 @@ else:
 """
 
 def create_fjr(config, usage, outfile='report.xml'):
-    doc = xml.dom.minidom.Document()
 
-    report = doc.createElement('FrameworkJobReport')
-    doc.appendChild(report)
+    report = FwkJobReport()
+    checksums, events = calculate_alder32(config)
 
     for local, remote in config['output files']:
-        file = doc.createElement('File')
-        report.appendChild(file)
 
-        state = doc.createElement('State')
-        state.setAttribute('Value', 'closed')
-        file.appendChild(state)
+        file = report.newFile()
+        file.state = 'closed'
+        file['PFN'] = local
+        file['Checksum'] = checksums.get(os.path.basename(remote), None)
+        file['TotalEvents'] = events.get(os.path.basename(remote), 0)
 
-        pfn = doc.createElement('PFN')
-        file.appendChild(pfn)
+    jobcpu = {'TotalJobCPU': usage.ru_stime}
+    performance = PerformanceReport()
+    performance.addSummary("Timing", **jobcpu)
+    report.performance = performance
 
-        ptext = doc.createTextNode(local)
-        pfn.appendChild(ptext)
+    report.write(outfile)
 
-        events = doc.createElement('TotalEvents')
-        file.appendChild(events)
 
-        etext = doc.createTextNode('0') # TODO: try edmFileUtil
-        events.appendChild(etext)
-
-    performance = doc.createElement('PerformanceReport')
-    report.appendChild(performance)
-
-    summary = doc.createElement('PerformanceSummary')
-    summary.setAttribute('Metric', 'Timing')
-    performance.appendChild(summary)
-
-    metric = doc.createElement('Metric')
-    metric.setAttribute('Name', 'TotalJobCPU')
-    metric.setAttribute('Value', str(usage.ru_stime))
-    summary.appendChild(metric)
-
-    with open(outfile, 'w') as f:
-        f.write(doc.toprettyxml(indent='  '))
-
-def calculate_alder32(data, config):
+def calculate_alder32(config):
     """Try to calculate checksums for output files.
     """
-    res = {}
+    checksums = {}
+    totalevents = {}
+
     for local, remote in config['output files']:
         try:
             p = subprocess.Popen(['edmFileUtil', '-a', local], stdout=subprocess.PIPE)
             stdout = p.communicate()[0]
 
             if p.returncode == 0:
-                res[os.path.basename(remote)] = stdout.split()[-2]
+                checksums[os.path.basename(remote)] = stdout.split()[-2]
+                totalevents[os.path.basename(remote)] = stdout.split()[-6]
         except:
             pass
-    return res
+    return (checksums, totalevents)
 
 @contextmanager
 def check_execution(data, code):
@@ -452,6 +436,13 @@ def get_bare_size(filename):
         rootfile.Close()
         return events_size
 
+
+configfile = sys.argv[1]
+with open(configfile) as f:
+    config = json.load(f)
+
+cmsRun = True if config['executable'] == 'cmsRun' else False
+
 data = {
     'files': {
         'adler32': {},
@@ -464,7 +455,7 @@ data = {
         'type': None,
     },
     'job exit code': 0,
-    'cmssw exit code': 0,
+    '{0} exit code'.format('cmssw' if cmsRun else 'exe'): 0,
     'stageout exit code': 0,
     'cpu time': 0,
     'events written': 0,
@@ -477,9 +468,6 @@ data = {
 env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 
-configfile = sys.argv[1]
-with open(configfile) as f:
-    config = json.load(f)
 
 with check_execution(data, 179):
     copy_inputs(data, config, env)
@@ -504,7 +492,20 @@ if len(prologue) > 0:
 
 data['task timing info'][3] = int(datetime.now().strftime('%s'))
 
-if config['executable'] == 'cmsRun':
+parameters = {
+            'ExeStart': str(config['executable']),
+            'SyncCE': 'ndcms.crc.nd.edu',
+            'SyncGridJobId': syncid,
+            'WNHostName': os.environ.get('HOSTNAME', '')
+            }
+
+apmonSend(taskid, monitorid, parameters)
+apmonFree()
+
+print "print config[]:"
+print config
+
+if cmsRun:
     #
     # Start proper CMSSW job
     #
@@ -515,16 +516,6 @@ if config['executable'] == 'cmsRun':
 
     edit_process_source(pset_mod, config)
 
-    parameters = {
-                'ExeStart': 'cmsRun',
-                'SyncCE': 'ndcms.crc.nd.edu',
-                'SyncGridJobId': syncid,
-                'WNHostName': os.environ.get('HOSTNAME', '')
-                }
-
-    apmonSend(taskid, monitorid, parameters)
-    apmonFree()
-
     cmd = 'cmsRun -j report.xml "{0}" {1} > executable.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args]))
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -533,9 +524,10 @@ else:
 print "--- Running {0}".format(config['executable'])
 print cmd
 print "---"
-data['job exit code'] = subprocess.call(cmd, shell=True, env=env)
+data['exe exit code'] = subprocess.call(cmd, shell=True, env=env)
+data['job exit code'] = data['exe exit code']
 
-if config['executable'] == 'cmsRun':
+if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
 else:
     create_fjr(config, usage)
@@ -546,12 +538,13 @@ with check_execution(data, 190):
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
 
-data['files']['adler32'] = calculate_alder32(data, config)
+data['files']['adler32'] = calculate_alder32(config)[0]
 
 now = int(datetime.now().strftime('%s'))
 
-with check_execution(data, 192):
-    data['task timing info'][4:] = extract_cmssw_times('executable.log', now)
+if cmsRun:
+    with check_execution(data, 192):
+        data['task timing info'][4:] = extract_cmssw_times('executable.log', now)
 
 data['task timing info'].append(now)
 
@@ -591,41 +584,39 @@ for filename in 'executable.log report.xml'.split():
                 zipf.close()
 
 total_time = data['task timing info'][-1] - data['task timing info'][0]
-cmssw_wc_time = data['task timing info'][7] - data['task timing info'][3]
-exit_code = data['job exit code']
-cmssw_exit_code = data['cmssw exit code']
+exe_wc_time = data['task timing info'][-3] - data['task timing info'][3]
+job_exit_code = data['job exit code']
 stageout_exit_code = data['stageout exit code']
 events_per_run = data['events per run']
+exe_exit_code = data['{0} exit code'.format('cmssw' if cmsRun else 'exe')]
 
 print "Execution time", str(total_time)
 
-print "Exiting with code", str(exit_code)
-print "Reporting ExeExitCode", str(cmssw_exit_code)
+print "Exiting with code", str(job_exit_code)
+print "Reporting ExeExitCode", str(exe_exit_code)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
-if config['executable'] == 'cmsRun':
-    parameters = {
-                'ExeTime': str(cmssw_wc_time),
-                'ExeExitCode': str(cmssw_exit_code),
-                'JobExitCode': str(exit_code),
-                'JobExitReason': '',
-                'StageOutSE': 'ndcms.crc.nd.edu',
-                'StageOutExitStatus': str(stageout_exit_code),
-                'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
-                'CrabUserCpuTime': str(cputime),
-                # 'CrabSysCpuTime': '5.91',
-                'CrabWrapperTime': str(total_time),
-                # 'CrabStageoutTime': '50',
-                'WCCPU': str(total_time),
-                'NoEventsPerRun': str(events_per_run),
-                'NbEvPerRun': str(events_per_run),
-                'NEventsProcessed': str(events_per_run)
-                }
-    try:
-        parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
-    except:
-        pass
 
-    apmonSend(taskid, monitorid, parameters)
-    apmonFree()
+parameters = {
+            'ExeTime': str(exe_wc_time),
+            'ExeExitCode': str(exe_exit_code),
+            'JobExitCode': str(job_exit_code),
+            'JobExitReason': '',
+            'StageOutSE': 'ndcms.crc.nd.edu',
+            'StageOutExitStatus': str(stageout_exit_code),
+            'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
+            'CrabUserCpuTime': str(cputime),
+            'CrabWrapperTime': str(total_time),
+            'WCCPU': str(total_time),
+            'NoEventsPerRun': str(events_per_run),
+            'NbEvPerRun': str(events_per_run),
+            'NEventsProcessed': str(events_per_run)
+            }
+try:
+    parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
+except:
+    pass
 
-sys.exit(exit_code)
+apmonSend(taskid, monitorid, parameters)
+apmonFree()
+
+sys.exit(job_exit_code)

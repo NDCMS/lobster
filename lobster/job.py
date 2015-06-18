@@ -159,6 +159,9 @@ class JobProvider(object):
     def terminate(self):
         raise NotImplementedError
 
+    def update(self, queue):
+        raise NotImplementedError
+
     def work_left(self):
         raise NotImplementedError
 

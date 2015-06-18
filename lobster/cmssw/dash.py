@@ -10,8 +10,6 @@ from DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from lobster import util
 
-import DashboardAPI
-DashboardAPI.apmonLoggingLevel = "DEBUG"
 import time
 import work_queue as wq
 

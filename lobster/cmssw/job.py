@@ -156,10 +156,13 @@ class JobHandler(object):
             config['transfer inputs'] = True
 
 class JobProvider(job.JobProvider):
-    def __init__(self, config):
+    def __init__(self, config, interval=300):
         super(JobProvider, self).__init__(config)
 
         self.bad_exitcodes += [169]
+        self.__interval = interval  # seconds
+        self.__dash = None
+        self.__dash_checker = dash.JobStateChecker(interval)
 
         if 'merge size' in self.config:
             bytes = self.config['merge size']
@@ -565,6 +568,18 @@ class JobProvider(job.JobProvider):
             return self.__store.merged() and left == 0
         return left == 0
 
+    def __update_dashboard(self, queue, exclude_states):
+        try:
+            self.__dash_checker.update_dashboard_states(self.__dash, queue, exclude_states)
+        except:
+            logger.warning("Could not update job states to dashboard")
+
+    def update(self, queue):
+        # update dashboard status for all unfinished tasks.
+        # WAITING_RETRIEVAL is not a valid status in dashboard,
+        # so skipping it for now.
+        exclude_states = ( dash.DONE, dash.WAITING_RETRIEVAL )
+        self.__update_dashboard(queue, exclude_states)
+
     def work_left(self):
         return self.__store.unfinished_jobits()
-

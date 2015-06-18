@@ -40,7 +40,6 @@ def kill(args):
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 def run(args):
-    dash_checker = cmssw.dash.JobStateChecker(300)
     with open(args.configfile) as configfile:
         config = yaml.load(configfile)
 
@@ -110,13 +109,13 @@ def run(args):
         config['filename'] = args.configfile
         config['startdir'] = args.startdir
 
-        t = threading.Thread(target=sprint, args=(config, workdir, cmsjob, dash_checker))
+        t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
         t.start()
         t.join()
 
         logger.info("lobster terminated")
 
-def sprint(config, workdir, cmsjob, dash_checker):
+def sprint(config, workdir, cmsjob):
     if cmsjob:
         job_src = cmssw.JobProvider(config)
         actions = cmssw.Actions(config)
@@ -255,18 +254,7 @@ def sprint(config, workdir, cmsjob, dash_checker):
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 
-        # update dashboard status for all not done tasks
-        # report Done status only once when releasing the task
-        # WAITING_RETRIEVAL is not a valid status in dashboard
-        # so, skipping it for now
-        monitor = job_src._JobProvider__dash
-        queue = queue
-        exclude_states = (cmssw.dash.DONE, cmssw.dash.WAITING_RETRIEVAL)
-        try:
-            dash_checker.update_dashboard_states(monitor, queue, exclude_states)
-        except Exception as e:
-            logger.warning("Could not update job states to dashboard")
-
+        job_src.update(queue)
         task = queue.wait(300)
         tasks = []
         while task:

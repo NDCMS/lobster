@@ -426,14 +426,17 @@ def extract_cmssw_times(log_filename, default=None):
     fopen = default
     first = default
 
+    def gettime(s):
+        return re.search(r'[0-9]{1,2}-[A-Z][a-z]{2}-[0-9]{4} [0-9]{1,2}:[0-9]{2}:[0-9]{2}', s).group(0)
+
     with open(log_filename) as f:
         for line in f.readlines():
-            if finit == default and line[26:36] == "Initiating":
-                finit = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
-            elif fopen == default and line[26:38] == "Successfully":
-                fopen = int(datetime.strptime(line[0:20], "%d-%b-%Y %X").strftime('%s'))
-            elif first == default and line[21:24] == "1st":
-                first = int(datetime.strptime(line[-29:-9], "%d-%b-%Y %X").strftime('%s'))
+            if finit == default and re.search("Initiating request to open file", line):
+                finit = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))
+            elif fopen == default and re.search("Successfully opened file", line):
+                fopen = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))
+            elif first == default and re.search("the 1st record", line):
+                first = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))
 
     return (finit, fopen, first)
 

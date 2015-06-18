@@ -233,7 +233,7 @@ class SRM(StorageElement):
 
 class StorageConfiguration(object):
     def __init__(self, config):
-        self.__base = config['base']
+        self.__base = config.get('base', '')
         self.__input = None
         self.__output = None
 
@@ -267,6 +267,9 @@ class StorageConfiguration(object):
     def _discover(self, site):
         if not site:
             return
+
+        if len(self.__base) == 0:
+            raise KeyError("can't run CMS site discovery without 'base' path.")
 
         self.__site = site
 

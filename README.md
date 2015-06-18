@@ -156,28 +156,74 @@ The last line of arguments corresponds to the desired worker configuration.
 ## Stage-out
 
 Lobster supports multiple file transfer methods:  via Work Queue, Chirp,
-XrootD (input only), and SRM (output only.)  Basic settings are:
+XrootD (input only), and SRM (output only.)  Configuration is done in terms
+of paths and URLs that all point to the same output directory.  Output
+files are then saved in sub-directories named after the task labels.
+
+### Using Work Queue
+
+Minimal settings for transferring files via Work Queue:
+
+    storage:
+        local: /hadoop/store/user/<user>/<output directory>
+        # optional
+        hadoop: /store/user/<user>/<output directory>
+
+Where all paths point to the storage directory.  The `hadoop` directory is
+optional.  When supplied, the master will access files via native hadoop
+methods, but Work Queue will use the given `local` directory.
+
+### Chirp
+
+To use input or output methods other than Work Queue, `input` and `output`
+settings are used, e.g., for Chirp (see also section below on the server
+setup):
+
+    storage:
+        input: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
+        output: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
+        # optional
+        local: /hadoop/store/user/<user>/<output directory>
+        hadoop: /store/user/<user>/<output directory>
+
+If `local` and/or `hadoop` directories are given, lobster will use these to
+access the storage element on the master side.
+
+### XrootD/SRM
+
+The manual configuration for using grid access methods uses URLs in the
+following form:
+
+    storage:
+        input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
+        output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
+        # optional
+        local: /hadoop/store/user/<user>/<output directory>
+        hadoop: /store/user/<user>/<output directory>
+
+If `local` and/or `hadoop` directories are given, lobster will use these to
+access the storage element on the master side.
+
+For convenience, the settings can also be determined by the site name,
+where a `base` path has to be given that corresponds to the LFN of the
+stage-out directory.  It is used to determine the correct mapping of
+`input` and `output` URLs.
 
     storage:
         base: /store/user/<user>/<output directory>
-        hadoop: /store/user/<user>/<output directory>
-        local: /hadoop/store/user/<user>/<output directory>
-
-Where all paths point to the storage directory.  To use input or output
-methods other than Work Queue, `input` and `output` settings are used,
-e.g., for Chirp:
-
-        input: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
-        output: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
-
-Or for XrootD/SRM:
-
+        site: T3_US_NotreDame
+        # optional, will override auto-detected settings
         input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
         output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
+        # optional
+        local: /hadoop/store/user/<user>/<output directory>
+        hadoop: /store/user/<user>/<output directory>
 
-For convenience, the latter can also be specified by the site name:
-
-        site: T2_CH_CERN
+If `input` and/or `output` URLs are given in addition, they will override
+the settings inferred from the `site` setting;  they may be necessary to
+override faulty server configuration settings.  If `local` and/or `hadoop`
+directories are given, lobster will use these to access the storage element
+on the master side.
 
 ### Setting up a Chirp server
 

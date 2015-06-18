@@ -8,7 +8,10 @@ from hashlib import sha1
 
 from DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
+from lobster import util
 
+import DashboardAPI
+DashboardAPI.apmonLoggingLevel = "DEBUG"
 import time
 import work_queue as wq
 
@@ -34,8 +37,8 @@ status_map = {
 
 
 class DummyMonitor(object):
-    def __init__(self, taskid):
-        self._taskid = taskid
+    def __init__(self, workdir):
+        self._taskid = util.checkpoint(workdir, 'id')
 
     def generate_ids(self, jobid):
         monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._taskid).hexdigest()[-16:]))
@@ -57,8 +60,8 @@ class DummyMonitor(object):
         pass
 
 class Monitor(DummyMonitor):
-    def __init__(self, taskid):
-        super(Monitor, self).__init__(taskid)
+    def __init__(self, workdir):
+        super(Monitor, self).__init__(workdir)
 
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
                 stdout=subprocess.PIPE,
@@ -70,6 +73,14 @@ class Monitor(DummyMonitor):
         self.__username = db.dnUserName(dn=id)
         self.__fullname = id.rsplit('/CN=', 1)[1]
         # self.__fullname = pwd.getpwnam(getpass.getuser())[4]
+        if util.checkpoint(workdir, "sandbox cmssw version"):
+            self.__cmssw_version = str(util.checkpoint(workdir, "sandbox cmssw version"))
+        else:
+            self.__cmssw_version = 'Unknown'
+        if util.checkpoint(workdir, "executable"):
+            self.__executable = str(util.checkpoint(workdir, "executable"))
+        else:
+            self.__executable = 'Unknown'
 
     def __del__(self):
         self.free()
@@ -87,14 +98,14 @@ class Monitor(DummyMonitor):
             'JSToolVersion': '3.2.1',
             'scheduler': 'work_queue',
             'GridName': '/CN=' + self.__fullname,
-            'ApplicationVersion': os.path.basename(os.path.normpath(os.environ.get('LOCALRT'))),
+            'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
             'CMSUser': self.__username,
             'user': self.__username,
             'datasetFull': '',
             'resubmitter': 'user',
-            'exe': 'cmsRun'
+            'exe': self.__executable
             })
         self.free()
 
@@ -114,14 +125,14 @@ class Monitor(DummyMonitor):
             'tool_ui': os.environ.get('HOSTNAME',''),
             'scheduler': 'work_queue',
             'GridName': '/CN=' + self.__fullname,
-            'ApplicationVersion': os.path.basename(os.path.normpath(os.environ.get('LOCALRT'))),
+            'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
             'CMSUser': self.__username,
             'user': self.__username,
             # 'datasetFull': self.datasetPath,
             'resubmitter': 'user',
-            'exe': 'cmsRun'
+            'exe': self.__executable
             })
         return monitorid, syncid
 

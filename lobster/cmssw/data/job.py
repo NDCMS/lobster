@@ -44,6 +44,7 @@ else:
 def create_fjr(config, usage, outfile='report.xml'):
 
     report = FwkJobReport()
+    report.status = 0
     checksums, events = calculate_alder32(config)
 
     for local, remote in config['output files']:

@@ -23,6 +23,10 @@ def package(indir, outdir, blacklist=[], recycle=None):
 
     if recycle:
         shutil.copy2(recycle, os.path.split(outdir)[0])
+        for file in tarfile.open(recycle):
+            if ".SCRAM" in file.name:
+                rtname = os.path.dirname(os.path.normpath(file.name)).split("/")[0]
+                break
     else:
         outfile = (outdir if not outdir.endswith("/") else outdir[:-1]) + ".tar.bz2"
         logger.info("packing sandbox into {0}".format(outfile))
@@ -55,3 +59,5 @@ def package(indir, outdir, blacklist=[], recycle=None):
             tarball.add(inname, outname, exclude=ignore_file)
 
         tarball.close()
+
+    return rtname

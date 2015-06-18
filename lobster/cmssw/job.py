@@ -210,19 +210,31 @@ class JobProvider(job.JobProvider):
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
 
+        if not util.checkpoint(self.workdir, 'executable'):
+            # Note: This only setup an executable name based on yaml defaults
+            # We can actually have more than one exe name (one per task label)
+            # Using this for dashboard exe name reporting
+            exename = 'cmsRun' if self.config['task defaults'].get('cmssw config') \
+                else self.config['task defaults'].get('cmd', 'nonCmsRun')
+            util.register_checkpoint(self.workdir, 'executable', exename)
+
         if self.config.get('use dashboard', True):
             logger.info("using dashboard with task id {0}".format(self.taskid))
-            self.__dash = dash.Monitor(self.taskid)
+            monitor = dash.Monitor
         else:
-            self.__dash = dash.DummyMonitor(self.taskid)
+            monitor = dash.DummyMonitor
 
         if not util.checkpoint(self.workdir, 'sandbox'):
             blacklist = self.config.get('sandbox blacklist', [])
-            sandbox.package(os.environ['LOCALRT'], self.__sandbox, blacklist, self.config.get('recycle sandbox'))
+            cmssw_version = sandbox.package(os.environ['LOCALRT'], self.__sandbox,
+                                            blacklist, self.config.get('recycle sandbox'))
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
+            util.register_checkpoint(self.workdir, 'sandbox cmssw version', cmssw_version)
+            self.__dash = monitor(self.workdir)
             self.__dash.register_run()
 
         else:
+            self.__dash = monitor(self.workdir)
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
 

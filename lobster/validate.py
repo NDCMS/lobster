@@ -3,8 +3,7 @@ import logging
 import yaml
 import multiprocessing
 
-import chirp
-from lobster import cmssw
+from lobster import cmssw, fs, se
 from lobster.job import apply_matching
 
 def validate(args):
@@ -20,9 +19,8 @@ def validate(args):
 
     config = apply_matching(config)
     store = cmssw.jobit.JobitStore(config)
-
-    stageout = config['stageout location']
-    server = config.get('chirp server', None)
+    storage = se.StorageConfiguration(config['storage'])
+    storage.activate()
 
     stats = dict((cfg['label'], [0, 0]) for cfg in config['tasks'])
 
@@ -31,7 +29,7 @@ def validate(args):
         label = cfg['label']
         logger.info('validating output files for {0}'.format(label))
 
-        files = set(chirp.listdir(server, stageout, label))
+        files = set(fs.ls(os.path.join(storage.path, label)))
         delete = []
 
         for job, job_type in store.failed_jobs(label):
@@ -60,13 +58,14 @@ def validate(args):
                     if not args.dry_run and args.delete_merged:
                         delete.append(filename)
 
-        if len(delete) > 0:
-            chirp.unlink(server, stageout, delete)
+        for fn in delete:
+            fs.remove(fn)
 
         for job, job_type in store.successful_jobs(label):
             for output in cfg['outputs']:
                 base, ext = os.path.splitext(output)
                 filename = os.path.join(
+                        storage.path,
                         label,
                         cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
 

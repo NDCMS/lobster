@@ -214,11 +214,20 @@ class JobProvider(job.JobProvider):
         self.__store = jobit.JobitStore(self.config)
 
         if not util.checkpoint(self.workdir, 'executable'):
-            # Note: This only setup an executable name based on yaml defaults
             # We can actually have more than one exe name (one per task label)
+            # Set 'cmsRun' if any of the tasks are of that type,
+            # or use cmd command if all tasks execute the same cmd,
+            # or use 'noncmsRun' if task cmds are different
             # Using this for dashboard exe name reporting
-            exename = 'cmsRun' if self.config['task defaults'].get('cmssw config') \
-                else self.config['task defaults'].get('cmd', 'nonCmsRun')
+            cmsconfigs = [cfg.get('cmssw config') for cfg in self.config['tasks']]
+            cmds = [cfg.get('cmd') for cfg in self.config['tasks']]
+            if any(cmsconfigs):
+                exename = 'cmsRun'
+            elif all(x == cmds[0] and x is not None for x in cmds):
+                exename = cmds[0]
+            else:
+                exename = 'noncmsRun'
+
             util.register_checkpoint(self.workdir, 'executable', exename)
 
         if self.config.get('use dashboard', True):

@@ -6,7 +6,12 @@ customize as needed.
 ## Setup
 
 Download the CC tools and unpack them somewhere.  Follow the regular
-Lobster installation procedure.
+Lobster installation procedure.  I used:
+
+    http://ccl.cse.nd.edu/software/files/cctools-002-b7289441-cvmfs-90fca639c-x86_64-redhat6.tar.gz
+
+Make sure that all elements of the computing chain are using the same
+version of the CC tools!
 
 ## Setting up your environment
 

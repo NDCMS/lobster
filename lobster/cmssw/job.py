@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 
-from lobster import chirp, fs, job, util
+from lobster import fs, job, util
 import dash
 import sandbox
 
@@ -28,7 +28,7 @@ class JobHandler(object):
 
     def __init__(
             self, id, dataset, files, lumis, jobdir,
-            cmssw_job=True, empty_source=False, chirp_root=None, xrootd_root=None, merge=False, local=False):
+            cmssw_job=True, empty_source=False, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files if file]
@@ -40,12 +40,6 @@ class JobHandler(object):
         self._cmssw_job = cmssw_job
         self._empty_source = empty_source
         self._local = local
-
-        # transfer inputs by other means than WQ!
-        self._transfer_inputs = (local or merge) and (
-                (chirp_root and all(file.startswith(chirp_root) for (_, file) in self._files))
-                or
-                (xrootd_root and all(file.startswith(xrootd_root) for (_, file) in self._files)))
 
     @property
     def cmssw_job(self):
@@ -147,13 +141,16 @@ class JobHandler(object):
         return [jobits_missed, events_read, events_written, status], \
                 file_update, jobit_update
 
-    def update_inputs(self, inputs):
-        if self._local and not self._transfer_inputs:
-            inputs += [(f, os.path.basename(f), False) for id, f in self._files if f]
+    def update_job(self, parameters, inputs, outputs, se):
+        locality = self._local or self._merge
+        se.preprocess(parameters, locality)
+        if locality and se.transfer_inputs():
+            inputs += [(se.pfn(f), os.path.basename(f), False) for id, f in self._files if f]
+        if se.transfer_outputs():
+            outputs += [(se.pfn(rf), os.path.basename(lf)) for lf, rf in self._outputs]
 
-    def update_config(self, config):
-        if self._transfer_inputs:
-            config['transfer inputs'] = True
+    def update_report(self, report, se):
+        se.postprocess(report)
 
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):
@@ -187,22 +184,6 @@ class JobProvider(job.JobProvider):
                 logger.info('merging outputs up to {0} bytes'.format(bytes))
             else:
                 logger.error('merging disabled due to malformed size {0}'.format(orig))
-
-        self.__chirp = self.config.get('chirp server', None)
-        self.__chirp_root = self.config.get('chirp root', self.stageout) if self.__chirp else None
-
-        self.__srm = self.config.get('srm url', None)
-        self.__srm_root = self.config.get('srm root' '') if self.__srm else None
-
-        if self.__chirp:
-            try:
-                chirp.get_chirp_output(self.__chirp, args=['ls', '/'], timeout=5, throw=True)
-            except subprocess.CalledProcessError, e:
-                logger.critical('cannot access chirp server {0}'.format(self.__chirp))
-                raise RuntimeError('unavailable chirp connection')
-
-        self.__xrootd = self.config.get('xrootd server', None)
-        self.__xrootd_root = self.config.get('xrootd root', None) if self.__xrootd else None
 
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
 
@@ -277,7 +258,8 @@ class JobProvider(job.JobProvider):
                     shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
 
                 logger.info("querying backend for {0}".format(label))
-                dataset_info = self.__interface.get_info(cfg)
+                with fs.default():
+                    dataset_info = self.__interface.get_info(cfg, self._storage.path)
 
                 if 'filename transformation' in cfg:
                     match, sub = cfg['filename transformation']
@@ -311,7 +293,7 @@ class JobProvider(job.JobProvider):
         ids = []
 
         for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
-            sdir = os.path.join(self.stageout, label)
+            sdir = os.path.join(self._storage.path, label)
             ids.append(id)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
@@ -326,6 +308,7 @@ class JobProvider(job.JobProvider):
                 cmssw_job = True
                 cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
                 inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
+                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True))
 
                 missing = []
                 infiles = []
@@ -336,12 +319,12 @@ class JobProvider(job.JobProvider):
                     base, ext = os.path.splitext(self.outputs[label][0])
                     input = os.path.join(sdir, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
 
-                    if os.path.isfile(report) and fs.isfile(input):
+                    if os.path.isfile(report):
                         inreports.append(report)
                         infiles.append((job, input))
                         # FIXME we can also read files locally
-                        if not self.__chirp and not self.__xrootd:
-                            inputs.append((input, os.path.basename(input), False))
+                        # if not self.__chirp and not self.__xrootd:
+                            # inputs.append((input, os.path.basename(input), False))
                     else:
                         missing.append(job)
 
@@ -389,22 +372,16 @@ class JobProvider(job.JobProvider):
             handler = JobHandler(
                 id, label, files, lumis, jdir, cmssw_job, empty_source,
                 merge=merge,
-                chirp_root=self.__chirp_root,
-                xrootd_root=self.__xrootd_root,
                 local=self.__local[label])
             files, lumis = handler.get_job_info()
 
-            stageout = []
             stagein = []
             outputs = []
             for filename in self.outputs[label]:
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append(os.path.join(self.stageout, label, outname))
-                stageout.append((filename, os.path.join(self.stageout, label, outname)))
-                if not self.__chirp:
-                    outputs.append((os.path.join(sdir, outname), filename))
+                handler.outputs.append((filename, os.path.join(self._storage.path, label, outname)))
 
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
 
@@ -422,13 +399,7 @@ class JobProvider(job.JobProvider):
                     'taskid': self.taskid
                 },
                 'arguments': args,
-                'chirp server': self.__chirp,
-                'chirp root': self.__chirp_root,
-                'srm server': self.__srm,
-                'srm root': self.__srm_root,
-                'xrootd server': self.__xrootd,
-                'xrootd root': self.__xrootd_root,
-                'output files': stageout,
+                'output files': handler.outputs,
                 'want summary': sum,
                 'executable': 'cmsRun' if cmssw_job else self.cmds[label],
                 'pset': os.path.basename(cms_config) if cms_config else None
@@ -439,8 +410,7 @@ class JobProvider(job.JobProvider):
             if epilogue:
                 config['epilogue'] = epilogue
 
-            handler.update_config(config)
-            handler.update_inputs(inputs)
+            handler.update_job(config, inputs, outputs, self._storage)
 
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
@@ -489,6 +459,7 @@ class JobProvider(job.JobProvider):
                 try:
                     with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
                         data = json.load(f)
+                        handler.update_report(data, self._storage)
                         files_info = data['files']['info']
                         files_skipped = data['files']['skipped']
                         events_written = data['events written']
@@ -544,7 +515,7 @@ class JobProvider(job.JobProvider):
             if failed:
                 faildir = self.move_jobdir(handler.id, handler.dataset, 'failed')
                 logger.info("parameters and logs can be found in {0}".format(faildir))
-                cleanup += handler.outputs
+                cleanup += [lf for rf, lf in handler.outputs]
             else:
                 self.move_jobdir(handler.id, handler.dataset, 'successful')
 

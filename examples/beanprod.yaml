@@ -3,20 +3,18 @@ workdir: <your working directory here>
 ## optional: to automatically update monitoring plots
 plotdir: <your plotting directory here>
 
-## directory for output files
-stageout location: <your stageout directory here>
-
-## optional: chirp server to use for stage-in / stage-out
-# chirp server: "earth.crc.nd.edu:9094"
-# chirp root: /hadoop/store/user/
-
-## optional: XrootD for streaming local datasets
-# xrootd server: "ndcms.crc.nd.edu"
-# xrootd root: /hadoop
-
-## optional: SRM for stage-out
-# srm url: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/"
-# srm root: /hadoop
+storage:
+    base: /store/user/<user>/<output directory>
+    ## ND example settings
+    # hadoop: /store/user/<user>/<output directory>
+    # local: /hadoop/store/user/<user>/<output directory>
+    # input: "chirp://earth.crc.nd.edu:9099/<output directory>"
+    # output: "chirp://earth.crc.nd.edu:9099/<output directory>"
+    # input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
+    # output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
+    ## CERN example settings
+    input: "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
+    output: "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
 
 ## report jobs to the CMS dashboard
 use dashboard: true

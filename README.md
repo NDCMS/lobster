@@ -1,4 +1,5 @@
-**See [special instructions](doc/ND.md) to run at Notre Dame.**
+**See special instructions to run at Notre Dame [locally](doc/ND.md), and
+from [CERN](doc/CERN.md).**
 
 # Installation
 
@@ -225,7 +226,7 @@ override faulty server configuration settings.  If `local` and/or `hadoop`
 directories are given, lobster will use these to access the storage element
 on the master side.
 
-### Setting up a Chirp server
+## Setting up a Chirp server
 
 Using Chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.

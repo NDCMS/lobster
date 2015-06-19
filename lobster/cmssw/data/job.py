@@ -11,8 +11,6 @@ import shutil
 import subprocess
 import sys
 import traceback
-from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
-from ProdCommon.FwkJobRep.PerformanceReport import PerformanceReport
 import ROOT
 
 ROOT.gROOT.SetBatch(True)
@@ -24,6 +22,8 @@ sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
 from ROOT import TFile
 from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
+from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
+from ProdCommon.FwkJobRep.PerformanceReport import PerformanceReport
 from ProdCommon.FwkJobRep.ReportParser import readJobReport
 
 

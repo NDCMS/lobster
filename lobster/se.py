@@ -236,19 +236,21 @@ class SRM(StorageElement):
 
 class StorageConfiguration(object):
     def __init__(self, config):
-        self.__base = config.get('base', '')
+        self.__base = config.get('base', '').rstrip('/')
         self.__input = None
         self.__output = None
+        self.__local = None
 
         self._discover(config.get('site'))
 
         if 'input' in config:
-            self.__input = config['input']
+            self.__input = config['input'].rstrip('/')
         if 'output' in config:
-            self.__output = config['output']
+            self.__output = config['output'].rstrip('/')
 
-        self.__local = config.get('local')
         self.__hadoop = config.get('hadoop')
+        if 'local' in config:
+            self.__local = config['local'].rstrip('/')
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))

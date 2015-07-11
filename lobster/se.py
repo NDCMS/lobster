@@ -298,7 +298,7 @@ class StorageConfiguration(object):
     def transfer_outputs(self):
         """Indicates whether output files need to be transferred manually.
         """
-        return self.__input is None
+        return self.__output is None
 
     def pfn(self, path):
         if self.__local:

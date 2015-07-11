@@ -11,7 +11,7 @@ from functools import partial, wraps
 logger = multiprocessing.get_logger()
 
 class StorageElement(object):
-    _default = []
+    _defaults = []
     _systems = []
 
     def __init__(self, lfn2pfn=None, pfn2lfn=None):
@@ -84,7 +84,7 @@ class StorageElement(object):
 
     @classmethod
     def store(cls):
-        cls._default = list(cls._systems)
+        cls._defaults = list(cls._systems)
 
     @contextmanager
     def default(self):

@@ -240,6 +240,7 @@ class StorageConfiguration(object):
         self.__input = None
         self.__output = None
         self.__local = None
+        self.__hadoop = None
 
         self._discover(config.get('site'))
 
@@ -248,9 +249,13 @@ class StorageConfiguration(object):
         if 'output' in config:
             self.__output = config['output'].rstrip('/')
 
-        self.__hadoop = config.get('hadoop')
         if 'local' in config:
             self.__local = config['local'].rstrip('/')
+        if 'hadoop' in config:
+            if 'local' in config:
+                self.__hadoop = self.__local.replace(config['hadoop'].rstrip('/'), '')
+            else:
+                raise KeyError("must specify both 'local' and 'hadoop' paths when activating native hadoop access.")
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
@@ -314,7 +319,7 @@ class StorageConfiguration(object):
 
         if self.__hadoop:
             try:
-                Hadoop(lfn2pfn=(self.__base, self.__hadoop), pfn2lfn=(self.__hadoop, self.__base))
+                Hadoop(lfn2pfn=(self.__hadoop, ''), pfn2lfn=('', self.__hadoop))
             except NameError:
                 raise NotImplementedError("hadoop support is missing on this system")
         if self.__local:

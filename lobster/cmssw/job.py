@@ -142,9 +142,9 @@ class JobHandler(object):
                 file_update, jobit_update
 
     def update_job(self, parameters, inputs, outputs, se):
-        locality = self._local or self._merge
-        se.preprocess(parameters, locality)
-        if locality and se.transfer_inputs():
+        local = self._local or self._merge
+        se.preprocess(parameters, local)
+        if local and se.transfer_inputs():
             inputs += [(se.pfn(f), os.path.basename(f), False) for id, f in self._files if f]
         if se.transfer_outputs():
             outputs += [(se.pfn(rf), os.path.basename(lf)) for lf, rf in self._outputs]

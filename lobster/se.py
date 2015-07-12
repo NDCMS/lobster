@@ -48,25 +48,25 @@ class StorageElement(object):
         def switch(path=None):
             for imp in self._systems:
                 if imp.matches(path):
-                    return imp.fixresult(getattr(imp, attr)(imp.fixpath(path)))
+                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
             raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch
 
     def matches(self, path):
         return re.match(self._lfn2pfn[0], path) is not None
 
-    def fixpath(self, path):
+    def lfn2pfn(self, path):
         return re.sub(*(list(self._lfn2pfn) + [path, 1]))
 
     def fixresult(self, res):
-        def fixup(p):
+        def pfn2lfn(p):
             return re.sub(*(list(self._pfn2lfn) + [p, 1]))
 
         if isinstance(res, str):
-            return fixup(res)
+            return pfn2lfn(res)
 
         try:
-            return map(fixup, res)
+            return map(pfn2lfn, res)
         except TypeError:
             return res
 
@@ -78,7 +78,7 @@ class StorageElement(object):
     def test(cls, path):
         for system in cls._systems:
             try:
-                list(system.ls(system.fixpath(path)))
+                list(system.ls(system.lfn2pfn(path)))
             except:
                 list(system.ls(path))
 

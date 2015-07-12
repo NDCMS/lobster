@@ -56,11 +56,11 @@ class StorageElement(object):
         return re.match(self._lfn2pfn[0], path) is not None
 
     def fixpath(self, path):
-        return path.replace(*(list(self._lfn2pfn) + [1]))
+        return re.sub(*(list(self._lfn2pfn) + [path, 1]))
 
     def fixresult(self, res):
         def fixup(p):
-            return p.replace(*(list(self._pfn2lfn) + [1]))
+            return re.sub(*(list(self._pfn2lfn) + [p, 1]))
 
         if isinstance(res, str):
             return fixup(res)

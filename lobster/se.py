@@ -325,8 +325,8 @@ class StorageConfiguration(object):
             elif self.__output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
                 Chirp(server, path, self.__base)
+            StorageElement.test(self.__output.replace(self.__base, '', 1))
 
-        StorageElement.test(self.__output.replace(self.__base, '', 1))
 
     def preprocess(self, parameters, localdata):
         """Adjust the input, output files within the parameters send with a task.

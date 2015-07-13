@@ -236,7 +236,7 @@ class SRM(StorageElement):
 
 class StorageConfiguration(object):
     def __init__(self, config):
-        self.__base = config.get('base', '').rstrip('/')
+        self.__base = re.sub('([^/]$)', '\\1/', config.get('base', ''), 1)
         self.__input = None
         self.__output = None
         self.__local = None
@@ -245,15 +245,15 @@ class StorageConfiguration(object):
         self._discover(config.get('site'))
 
         if 'input' in config:
-            self.__input = config['input'].rstrip('/')
+            self.__input = re.sub('([^/]$)', '\\1/', config['input'], 1)
         if 'output' in config:
-            self.__output = config['output'].rstrip('/')
+            self.__output = re.sub('([^/]$)', '\\1/', config['output'], 1)
 
         if 'local' in config:
-            self.__local = config['local'].rstrip('/')
+            self.__local = re.sub('([^/]$)', '\\1/', config['local'], 1)
         if 'hadoop' in config:
             if 'local' in config:
-                self.__hadoop = self.__local.replace(config['hadoop'].rstrip('/'), '')
+                self.__hadoop = self.__local.replace(config['hadoop'], '')
             else:
                 raise KeyError("must specify both 'local' and 'hadoop' paths when activating native hadoop access.")
 

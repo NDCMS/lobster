@@ -1,4 +1,7 @@
+## This is an arbitrary label for your Lobster project
 id: <your id here>
+## This is the area Lobster uses to store files (e.g. database, logs).  Should normally be in 
+## a local directory (i.e. not AFS, e.g. /tmpscratch)
 workdir: <your working directory here>
 ## optional: to automatically update monitoring plots
 plotdir: <your plotting directory here>

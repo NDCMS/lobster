@@ -240,7 +240,7 @@ class JobProvider(job.JobProvider):
                 self.__configs[label] = os.path.basename(cms_config)
 
             self.__local[label] = cfg.get('local', 'files' in cfg)
-            self.__events[label] = cfg.get('max events', -1)
+            self.__events[label] = cfg.get('events per job', -1)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module

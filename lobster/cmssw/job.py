@@ -530,7 +530,7 @@ class JobProvider(job.JobProvider):
         for f in cleanup:
             try:
                 fs.remove(f)
-            except IOError, OSError:
+            except (IOError, OSError):
                 pass
             except ValueError as e:
                 logger.error("error removing {0}:\n{1}".format(task.tag, e))

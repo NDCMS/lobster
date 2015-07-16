@@ -33,7 +33,7 @@ def package(indir, outdir, blacklist=[], recycle=None):
         tarball = tarfile.open(outfile, "w|bz2")
 
         # package bin, etc
-        subdirs = ['.SCRAM', 'bin', 'config', 'lib', 'module', 'python']
+        subdirs = ['.SCRAM', 'bin', 'cfipython', 'config', 'lib', 'module', 'python']
 
         for (path, dirs, files) in os.walk(os.path.join(indir, 'src')):
             if any(d in blacklist for d in dirs):

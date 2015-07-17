@@ -386,6 +386,7 @@ class JobProvider(job.JobProvider):
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
 
             sum = self.config.get('cmssw summary', True)
+            cores = 1 if merge else self.config.get('cores per job', 1)
 
             config = {
                 'mask': {
@@ -401,6 +402,7 @@ class JobProvider(job.JobProvider):
                 'arguments': args,
                 'output files': handler.outputs,
                 'want summary': sum,
+                'cores per job': cores,
                 'executable': 'cmsRun' if cmssw_job else self.cmds[label],
                 'pset': os.path.basename(cms_config) if cms_config else None
             }

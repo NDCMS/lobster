@@ -437,6 +437,7 @@ data['task timing info'][2] = int(datetime.now().strftime('%s'))
 monitorid = str(config['monitoring']['monitorid'])
 syncid = str(config['monitoring']['syncid'])
 taskid = str(config['monitoring']['taskid'])
+NCores = str(config['cores per job'])
 
 args = config['arguments']
 
@@ -455,7 +456,8 @@ parameters = {
             'ExeStart': str(config['executable']),
             'SyncCE': 'ndcms.crc.nd.edu',
             'SyncGridJobId': syncid,
-            'WNHostName': os.environ.get('HOSTNAME', '')
+            'WNHostName': os.environ.get('HOSTNAME', ''),
+            'NCores': NCores
             }
 
 apmonSend(taskid, monitorid, parameters)
@@ -568,7 +570,8 @@ parameters = {
             'WCCPU': str(total_time),
             'NoEventsPerRun': str(events_per_run),
             'NbEvPerRun': str(events_per_run),
-            'NEventsProcessed': str(events_per_run)
+            'NEventsProcessed': str(events_per_run),
+            'NCores': NCores
             }
 try:
     parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})

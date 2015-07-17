@@ -391,7 +391,7 @@ class JobProvider(job.JobProvider):
                 'mask': {
                     'files': list(files),
                     'lumis': lumis.getCompactList() if lumis else None,
-                    'events': self.__events[label],
+                    'events': -1 if merge else self.__events[label],
                 },
                 'monitoring': {
                     'monitorid': monitorid,

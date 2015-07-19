@@ -16,7 +16,7 @@ storage:
     input: "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
     output: "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
 
-## report jobs to the CMS dashboard
+## report jobs to the CMS dashboard (default: true)
 use dashboard: true
 
 ## merge output files to this size

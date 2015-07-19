@@ -16,6 +16,9 @@ storage:
     input: "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
     output: "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
 
+## report jobs to the CMS dashboard (default: true)
+use dashboard: true
+
 ## merge output files to this size
 merge size: 3.5G
 
@@ -25,8 +28,6 @@ merge size: 3.5G
 
 ## optional: specify directories in CMSSW work area to omit from sandbox
 # sandbox blacklist: ['*DrawPlots*']
-
-use dashboard: True
 
 # advanced:
   ## start killing jobs with excessive runtimes after this many successful

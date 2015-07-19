@@ -31,7 +31,7 @@ class JobHandler(object):
             cmssw_job=True, empty_source=False, merge=False, local=False):
         self._id = id
         self._dataset = dataset
-        self._files = [(id, file) for id, file in files if file]
+        self._files = [(id, file) for id, file in files]
         self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
         self._jobits = lumis
         self._jobdir = jobdir
@@ -79,7 +79,7 @@ class JobHandler(object):
 
     def get_job_info(self):
         lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
-        files = set([filename for (id, filename) in self._files])
+        files = set([filename for (id, filename) in self._files if filename])
 
         if self._file_based:
             lumis = None

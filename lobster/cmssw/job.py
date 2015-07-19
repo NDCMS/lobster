@@ -73,6 +73,10 @@ class JobHandler(object):
     def jobit_source(self):
         return 'jobs' if self._merge else 'jobits_' + self._dataset
 
+    @property
+    def merge(self):
+        return self._merge
+
     @outputs.setter
     def outputs(self, files):
         self._outputs = files
@@ -517,6 +521,9 @@ class JobProvider(job.JobProvider):
                 logger.info("parameters and logs can be found in {0}".format(faildir))
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
+                if handler.merge and self.config.get('delete merged', True):
+                    files, _ = handler.get_job_info()
+                    cleanup += files
                 self.move_jobdir(handler.id, handler.dataset, 'successful')
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)

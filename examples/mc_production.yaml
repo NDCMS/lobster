@@ -25,6 +25,8 @@ use dashboard: true
 ## merge output files to this size
 merge size: 3.5G
 
+## delete intermediate files after merging (default: true)
+delete merged: true
 
 ## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
 # bad exit codes: [1, 2]

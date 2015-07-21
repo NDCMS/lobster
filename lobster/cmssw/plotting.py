@@ -787,13 +787,14 @@ class Plotter(object):
             colors = []
             labels = []
 
-            for jobs, label, color, altcolor in [
-                    (success_jobs, 'processing', 'green', 'lightgreen'),
-                    (merge_jobs, 'merging', 'purple', 'fuchsia')]:
+            for jobs, label, success_color, merged_color, merging_color in [
+                    (success_jobs, 'processing', 'green', 'lightgreen', 'darkgreen'),
+                    (merge_jobs, 'merging', 'purple', 'fuchsia', 'darkorchid')]:
                 code_map = {
-                        2: (label, color),
+                        2: (label + ' (status: successful)', success_color),
                         6: ('published', 'blue'),
-                        8: (label + ' (merged)', altcolor)
+                        7: (label + ' (status: merging)', merging_color),
+                        8: (label + ' (status: merged)', merged_color)
                 }
                 codes, split_jobs = split_by_column(jobs, 'status')
 

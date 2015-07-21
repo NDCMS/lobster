@@ -229,7 +229,7 @@ def sprint(config, workdir, cmsjob):
                 break
 
             hunger -= len(jobs)
-            for id, cmd, inputs, outputs in jobs:
+            for cores, cmd, id, inputs, outputs in jobs:
                 task = wq.Task(cmd)
                 task.specify_tag(id)
                 task.specify_cores(cores)

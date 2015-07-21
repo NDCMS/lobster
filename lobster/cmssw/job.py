@@ -422,7 +422,9 @@ class JobProvider(job.JobProvider):
 
             cmd = 'sh wrapper.sh python job.py parameters.json'
 
-            tasks.append((id, cmd, inputs, outputs))
+            cores = 1 if merge else self.config.get('cores per job', 1)
+
+            tasks.append((cores, cmd, id, inputs, outputs))
 
             self.__jobhandlers[id] = handler
 

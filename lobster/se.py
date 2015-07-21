@@ -11,7 +11,7 @@ from functools import partial, wraps
 logger = multiprocessing.get_logger()
 
 class StorageElement(object):
-    _default = []
+    _defaults = []
     _systems = []
 
     def __init__(self, lfn2pfn=None, pfn2lfn=None):
@@ -48,25 +48,25 @@ class StorageElement(object):
         def switch(path=None):
             for imp in self._systems:
                 if imp.matches(path):
-                    return imp.fixresult(getattr(imp, attr)(imp.fixpath(path)))
+                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
             raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch
 
     def matches(self, path):
         return re.match(self._lfn2pfn[0], path) is not None
 
-    def fixpath(self, path):
-        return path.replace(*(list(self._lfn2pfn) + [1]))
+    def lfn2pfn(self, path):
+        return re.sub(*(list(self._lfn2pfn) + [path, 1]))
 
     def fixresult(self, res):
-        def fixup(p):
-            return p.replace(*(list(self._pfn2lfn) + [1]))
+        def pfn2lfn(p):
+            return re.sub(*(list(self._pfn2lfn) + [p, 1]))
 
         if isinstance(res, str):
-            return fixup(res)
+            return pfn2lfn(res)
 
         try:
-            return map(fixup, res)
+            return map(pfn2lfn, res)
         except TypeError:
             return res
 
@@ -78,13 +78,13 @@ class StorageElement(object):
     def test(cls, path):
         for system in cls._systems:
             try:
-                list(system.ls(system.fixpath(path)))
+                list(system.ls(system.lfn2pfn(path)))
             except:
                 list(system.ls(path))
 
     @classmethod
     def store(cls):
-        cls._default = list(cls._systems)
+        cls._defaults = list(cls._systems)
 
     @contextmanager
     def default(self):
@@ -236,19 +236,26 @@ class SRM(StorageElement):
 
 class StorageConfiguration(object):
     def __init__(self, config):
-        self.__base = config.get('base', '')
+        self.__base = re.sub('([^/]$)', '\\1/', config.get('base', ''), 1)
         self.__input = None
         self.__output = None
+        self.__local = None
+        self.__hadoop = None
 
         self._discover(config.get('site'))
 
         if 'input' in config:
-            self.__input = config['input']
+            self.__input = re.sub('([^/]$)', '\\1/', config['input'], 1)
         if 'output' in config:
-            self.__output = config['output']
+            self.__output = re.sub('([^/]$)', '\\1/', config['output'], 1)
 
-        self.__local = config.get('local')
-        self.__hadoop = config.get('hadoop')
+        if 'local' in config:
+            self.__local = re.sub('([^/]$)', '\\1/', config['local'], 1)
+        if 'hadoop' in config:
+            if 'local' in config:
+                self.__hadoop = self.__local.replace(config['hadoop'], '')
+            else:
+                raise KeyError("must specify both 'local' and 'hadoop' paths when activating native hadoop access.")
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
@@ -296,7 +303,7 @@ class StorageConfiguration(object):
     def transfer_outputs(self):
         """Indicates whether output files need to be transferred manually.
         """
-        return self.__input is None
+        return self.__output is None
 
     def pfn(self, path):
         if self.__local:
@@ -312,7 +319,7 @@ class StorageConfiguration(object):
 
         if self.__hadoop:
             try:
-                Hadoop(lfn2pfn=(self.__base, self.__hadoop), pfn2lfn=(self.__hadoop, self.__base))
+                Hadoop(lfn2pfn=(self.__hadoop, ''), pfn2lfn=('', self.__hadoop))
             except NameError:
                 raise NotImplementedError("hadoop support is missing on this system")
         if self.__local:
@@ -323,8 +330,8 @@ class StorageConfiguration(object):
             elif self.__output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
                 Chirp(server, path, self.__base)
+            StorageElement.test(self.__output.replace(self.__base, '', 1))
 
-        StorageElement.test(self.__output.replace(self.__base, '', 1))
 
     def preprocess(self, parameters, localdata):
         """Adjust the input, output files within the parameters send with a task.

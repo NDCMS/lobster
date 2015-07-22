@@ -371,9 +371,9 @@ def extract_cmssw_times(log_filename, default=None):
 
     with open(log_filename) as f:
         for line in f.readlines():
-            if finit == default and re.search("Initiating request to open file", line):
+            if finit == default and re.search("Initiating request to open", line):
                 finit = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))
-            elif fopen == default and re.search("Successfully opened file", line):
+            elif fopen == default and re.search("Successfully opened", line):
                 fopen = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))
             elif first == default and re.search("the 1st record", line):
                 first = int(datetime.strptime(gettime(line), "%d-%b-%Y %X").strftime('%s'))

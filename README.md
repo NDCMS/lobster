@@ -1,9 +1,13 @@
-**See special instructions to run at Notre Dame [locally](doc/ND.md), and
-from [CERN](doc/CERN.md).**
+**See special instructions to run at [Notre Dame](doc/ND.md), and
+at [CERN](doc/CERN.md).**
 
 # Installation
 
-Lobster requires Python 2.6.  On SLC/RH 6, the following should be done
+Lobster requires Python 2.6. To check your python version, use
+
+    python -V
+
+On SLC/RH 6, the following should be done
 after issuing `cmsenv` or equivalent in a release of the `5_3_X` series of
 CMSSW.
 
@@ -13,12 +17,20 @@ CMSSW.
 
 Download the most recent version of the cctools from the [Notre Dame
 Cooperative Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml)
-and install them with CVMFS (and, for Chirp, globus authentication)
-enabled.
+and install them by unpacking the tarball and adding the bin directory to
+your path.
 
-See [instructions on github](https://github.com/cooperative-computing-lab/cctools)
-of the Cooperative Computing Lab to obtain current versions of `parrot` and
-`work_queue`.
+    cd $HOME
+    wget http://ccl.cse.nd.edu/software/files/cctools-5.0.5-x86_64-redhat6.tar.gz
+    tar xvzf cctools-5.0.5-x86_64-redhat6.tar.gz
+    export PATH=$HOME/cctools-5.0.5-x86_64-redhat6/bin:$PATH
+
+or, for tcsh
+
+    cd $HOME
+    wget http://ccl.cse.nd.edu/software/files/cctools-5.0.5-x86_64-redhat6.tar.gz
+    tar xvzf cctools-5.0.5-x86_64-redhat6.tar.gz
+    setenv PATH $HOME/cctools-5.0.5-x86_64-redhat6/bin:$PATH
 
 ### Setuptools
 

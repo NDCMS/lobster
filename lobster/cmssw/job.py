@@ -461,11 +461,14 @@ class JobProvider(job.JobProvider):
             cache_end_size = 0
             cache = None
 
-            if handler.cmssw_job:
-                try:
-                    with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
-                        data = json.load(f)
-                        handler.update_report(data, self._storage)
+            try:
+                with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
+                    data = json.load(f)
+                    handler.update_report(data, self._storage)
+                    cache_start_size = data['cache']['start size']
+                    cache_end_size = data['cache']['end size']
+                    cache = data['cache']['type']
+                    if handler.cmssw_job:
                         files_info = data['files']['info']
                         files_skipped = data['files']['skipped']
                         events_written = data['events written']
@@ -474,12 +477,9 @@ class JobProvider(job.JobProvider):
                         cputime = data['cpu time']
                         outsize = data['output size']
                         outsize_bare = data['output bare size']
-                        cache_start_size = data['cache']['start size']
-                        cache_end_size = data['cache']['end size']
-                        cache = data['cache']['type']
-                except (ValueError, EOFError, IOError) as e:
-                    failed = True
-                    logger.error("error processing {0}:\n{1}".format(task.tag, e))
+            except (ValueError, EOFError, IOError) as e:
+                failed = True
+                logger.error("error processing {0}:\n{1}".format(task.tag, e))
 
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code

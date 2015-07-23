@@ -19,6 +19,8 @@ from dataset import MetaInterface
 from FWCore.PythonUtilities.LumiList import LumiList
 from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
 
+import work_queue as wq
+
 logger = multiprocessing.get_logger()
 
 class JobHandler(object):
@@ -481,7 +483,13 @@ class JobProvider(job.JobProvider):
                 failed = True
                 logger.error("error processing {0}:\n{1}".format(task.tag, e))
 
-            if cmssw_exit_code not in (None, 0):
+            if task.result in [wq.WORK_QUEUE_RESULT_STDOUT_MISSING,
+                    wq.WORK_QUEUE_RESULT_SIGNAL,
+                    wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION,
+                    wq.WORK_QUEUE_RESULT_TASK_TIMEOUT]:
+                exit_code = task.result
+                failed = True
+            elif cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
                 if exit_code > 0:
                     failed = True

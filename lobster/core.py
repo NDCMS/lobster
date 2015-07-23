@@ -176,7 +176,7 @@ def sprint(config, workdir, cmsjob):
 
     while not job_src.done():
         jobits_left = job_src.work_left()
-        stats = queue.stats
+        stats = queue.stats_hierarchy
 
         with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:
             now = datetime.datetime.now()

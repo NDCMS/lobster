@@ -4,6 +4,10 @@ Lobster uses the following error codes:
 
 | Code | Reason
 | :--- | :-----
+|  4   | The task ran but its stdout has been truncated
+|  8   | The task was terminated with a signal
+|  16  | The task used more resources than requested
+|  32  | The task ran after specified end time
 |  169 | Unable to run parrot
 |  170 | Sandbox unpacking failure
 |  171 | Failed to determine base release

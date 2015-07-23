@@ -3,13 +3,12 @@ at [CERN](doc/CERN.md).**
 
 # Installation
 
-Lobster requires Python 2.6. To check your python version, use
+Lobster requires Python 2.6 or greater (but not Python 3).  CMSSW also uses Python.  Since you will probably be using Lobster and CMSSW together, you should make sure that you do `cmsenv` from a CMSSW release in which you will be using Lobster before running the installation.  (Any release `5_3_X` or newer should set up an appropriate version of Python.)  After you run `cmsenv`, to check your python version, use
 
     python -V
 
-On SLC/RH 6, the following should be done
-after issuing `cmsenv` or equivalent in a release of the `5_3_X` series of
-CMSSW.
+If the version you see is older than Python 2.6, you'll want to get help from an expert.  Also, if you switch to a release with a signficantly newer version of Python than you used to install Lobster, you may have to re-run the Lobster installation instructions below.
+
 
 ## Dependencies
 

@@ -114,7 +114,7 @@
 		</style>
 
 		{% macro label_wrapper(img_name, label) %}
-			<li><img
+		<li><a href="{{ img_name }}"><img
 					{% for k, v in kwargs.iteritems() %}
 						{{ k }}="{{ v }}"
 					{% endfor %}
@@ -122,7 +122,7 @@
 				<span class="text-content"><span>
 					{{ label }}
 				</span></span>
-			</img></li>
+			</a></img></li>
 		{% endmacro %}
 
 		<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
@@ -281,13 +281,13 @@
 		<h1>Job Summary</h1>
 		{% if good_jobs or bad_jobs %}
 		<div style="float:left">
-			<img src="time-pie.png"></img>
+			<a href="time-pie.png"><img src="time-pie.png"></img></a>
 		</div>
 		<div style="margin-left:410px;">
-			<img src="all-jobs-hist.png"></img>
+			<a href="all-jobs-hist.png"><img src="all-jobs-hist.png"></img></a>
 		{% if good_jobs %}
-			<img src="cpu-wall-hist.png"></img>
-			<img src="cpu-wall-int-hist.png"></img>
+			<a href="cpu-wall-hist.png"><img src="cpu-wall-hist.png"></img></a>
+			<a href="cpu-wall-int-hist.png"><img src="cpu-wall-int-hist.png"></img></a>
 		{% endif %}
 		</div>
 		{% endif %}
@@ -295,7 +295,7 @@
 		<h2>Successful Jobs</h2>
 		{% if good_jobs %}
 		<div style="float:left">
-			<img src="good-time-detail-pie.png"></img>
+			<a href="good-time-detail-pie.png"><img src="good-time-detail-pie.png"></img></a>
 		</div>
 		<div style="margin-left:410px;">
 			<p>
@@ -303,7 +303,7 @@
 				<span id="goodmore" class="button depressed"><a href="#" id="goodmore">show timeline breakdown</a></span>
 			</p>
 			<div class="good more"><ul class="img-list">
-				{{ label_wrapper('good-eviction-hist.png', 'Time lost to eviction', class="good") }}
+				{{ label_wrapper('good-eviction-hist.png', 'Time lost to eviction or exceeding requested resources', class="good") }}
 			</div></ul>
 			<div><ul class="img-list">
 				{{ label_wrapper('good-runtime-hist.png', 'Time from wrapper start to processing end', class='good') }}
@@ -338,7 +338,7 @@
 		<h2>Merge Jobs</h2>
 		{% if merge_jobs %}
 		<div style="float:left">
-			<img src="merge-time-detail-pie.png"></img>
+			<a href="merge-time-detail-pie.png"><img src="merge-time-detail-pie.png"></img><a/>
 		</div>
 		<div style="margin-left:410px;">
 			<p>
@@ -381,10 +381,10 @@
 		<h2>Failed Jobs</h2>
 		{% if bad_jobs %}
 		<div style="float:left">
-			<img src="failed-pie.png"></img>
+			<a href="failed-pie.png"><img src="failed-pie.png"></img></a>
 		</div>
 		<div style="margin-left:410px;">
-			<img src="failed-jobs-hist.png"></img>
+			<a href="failed-jobs-hist.png"><img src="failed-jobs-hist.png"></img></a>
 			<p><span id="logs" class="button depressed"><a href="#" id="logs">show log files</a></span></p>
 			<table id="logs" class="fancy">
 				<tr>
@@ -413,15 +413,15 @@
 
 		<h1><span class="lobster">Lobster</span> Summary</h1>
 		<div style="margin-left:410px;">
-			<img src="workers-plot.png"></img>
-			<img src="turnover-hist.png"></img>
-			<img src="tasks-plot.png"></img>
-			<img src="fraction-hist.png"></img>
-                        <img src="memory-per-core-plot.png"></img>
+			<a href="workers-plot.png"><img src="workers-plot.png"></img></a>
+			<a href="turnover-hist.png"><img src="turnover-hist.png"></img></a>
+			<a href="tasks-plot.png"><img src="tasks-plot.png"></img></a>
+			<a href="fraction-hist.png"><img src="fraction-hist.png"></img></a>
+			<a href="memory-per-core-plot.png"><img src="memory-per-core-plot.png"></img></a>
 			{% if good_jobs %}
-			<img src="output-hist.png"></img>
-			<img src="output-total-plot.png"></img>
-			<img src="jobits-total-plot.png"></img>
+			<a href="output-hist.png"><img src="output-hist.png"></img></a>
+			<a href="output-total-plot.png"><img src="output-total-plot.png"></img></a>
+			<a href="jobits-total-plot.png"><img src="jobits-total-plot.png"></img></a>
 			{% else %}
 			<p>No output yet!</p>
 			{% endif %}
@@ -431,19 +431,19 @@
 		<h1>Foreman Summary</h1>
 		<span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
 		<div style="margin-left:410px;">
-			<img src="foreman-tasks-plot.png"></img>
-			<img src="foreman-idle-plot.png"></img>
-			<img src="foreman-efficiency-plot.png"></img>
+			<a href="foreman-tasks-plot.png"><img src="foreman-tasks-plot.png"></img></a>
+			<a href="foreman-idle-plot.png"><img src="foreman-idle-plot.png"></img></a>
+			<a href="foreman-efficiency-plot.png"><img src="foreman-efficiency-plot.png"></img></a>
 		</div>
 
 		{% for foreman in foremen %}
 		<div class="foreman more"><h1>{{ foreman }} summary</h1></div>
 		<div class="foreman more" style="float:left">
-			<img src="{{ foreman }}-time-pie.png"></img>
+			<a href="{{ foreman }}-time-pie.png"><img src="{{ foreman }}-time-pie.png"></img></a>
 		</div>
 		<div class="foreman more" style="margin-left:410px;"><ul class = "img-list">
-			<img src="{{ foreman }}-workers-plot.png"></img>
-			<img src="{{ foreman }}-turnover-hist.png"></img>
+			<a href="{{ foreman }}-workers-plot.png"><img src="{{ foreman }}-workers-plot.png"></img></a>
+			<a href="{{ foreman }}-turnover-hist.png"><img src="{{ foreman }}-turnover-hist.png"></img></a>
 		</ul></div>
 		{% endfor %}
 		{% endif %}

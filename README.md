@@ -176,77 +176,36 @@ The last line of arguments corresponds to the desired worker configuration.
 
 # Advanced usage
 
-## Stage-out
+## Storage elements
 
 Lobster supports multiple file transfer methods:  via Work Queue, Chirp,
 XrootD (input only), and SRM (output only.)  Configuration is done in terms
 of paths and URLs that all point to the same output directory.  Output
 files are then saved in sub-directories named after the task labels.
 
-### Using Work Queue
-
-Minimal settings for transferring files via Work Queue:
-
-    storage:
-        local: /hadoop/store/user/<user>/<output directory>
-        # optional
-        hadoop: /store/user/<user>/<output directory>
-
-Where all paths point to the storage directory.  The `hadoop` directory is
-optional.  When supplied, the master will access files via native hadoop
-methods, but Work Queue will use the given `local` directory.
-
-### Chirp
-
-To use input or output methods other than Work Queue, `input` and `output`
-settings are used, e.g., for Chirp (see also section below on the server
-setup):
+Access to storage elements is defined by a list of access methods that is
+traversed until file access was successful.
 
     storage:
-        input: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
-        output: "chirp://earth.crc.nd.edu:<your port>/<output directory>"
-        # optional
-        local: /hadoop/store/user/<user>/<output directory>
-        hadoop: /store/user/<user>/<output directory>
+        use work queue for inputs: false   # default
+        use work queue for outputs: false  # default
+        disable input streaming: false     # default
 
-If `local` and/or `hadoop` directories are given, lobster will use these to
-access the storage element on the master side.
+        input:
+          - hdfs:///store/user/<user>/<some input directory>
+          - file:///hadoop/store/user/<user>/<some input directory>
+          - root://T3_US_NotreDame/store/user/<user>/<some input directory>
+          - srm://T3_US_NotreDame/store/user/<user>/<some input directory>
+          - chirp://<your server>:<your port>/<some input directory>
+        output:
+          - hdfs:///store/user/<user>/<output directory>
+          - file:///hadoop/store/user/<user>/<output directory>
+          - root://T3_US_NotreDame/store/user/<user>/<output directory>
+          - srm://T3_US_NotreDame/store/user/<user>/<output directory>
+          - chirp://<your server>:<your port>/<output directory>
 
-### XrootD/SRM
-
-The manual configuration for using grid access methods uses URLs in the
-following form:
-
-    storage:
-        input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
-        output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
-        # optional
-        local: /hadoop/store/user/<user>/<output directory>
-        hadoop: /store/user/<user>/<output directory>
-
-If `local` and/or `hadoop` directories are given, lobster will use these to
-access the storage element on the master side.
-
-For convenience, the settings can also be determined by the site name,
-where a `base` path has to be given that corresponds to the LFN of the
-stage-out directory.  It is used to determine the correct mapping of
-`input` and `output` URLs.
-
-    storage:
-        base: /store/user/<user>/<output directory>
-        site: T3_US_NotreDame
-        # optional, will override auto-detected settings
-        input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
-        output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
-        # optional
-        local: /hadoop/store/user/<user>/<output directory>
-        hadoop: /store/user/<user>/<output directory>
-
-If `input` and/or `output` URLs are given in addition, they will override
-the settings inferred from the `site` setting;  they may be necessary to
-override faulty server configuration settings.  If `local` and/or `hadoop`
-directories are given, lobster will use these to access the storage element
-on the master side.
+For analysis jobs streaming from external sites via XrootD, `input` should
+be empty.
 
 ## Setting up a Chirp server
 

@@ -75,14 +75,6 @@ class StorageElement(object):
         cls._systems = []
 
     @classmethod
-    def test(cls, path):
-        for system in cls._systems:
-            try:
-                list(system.ls(system.lfn2pfn(path)))
-            except:
-                list(system.ls(path))
-
-    @classmethod
     def store(cls):
         cls._defaults = list(cls._systems)
 
@@ -235,71 +227,79 @@ class SRM(StorageElement):
         self.execute('del', path, safe=True)
 
 class StorageConfiguration(object):
+    """Container for storage element configuration.
+    """
+
+    # Map protocol shorthands to actual protocol names
+    __protocols = {
+            'srm': 'srmv2',
+            'root': 'xrootd'
+    }
+
+    # Matches CMS tiered computing site as found in
+    # /cvmfs/cms.cern.ch/SITECONF/
+    __site_re = re.compile(r'^T[0123]_(?:[A-Z]{2}_)?[A-Za-z0-9_\-]+$')
+    # Breaks a URL down into 3 parts: the protocol, a optional server, and
+    # the path
+    __url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
+
     def __init__(self, config):
-        self.__base = re.sub('([^/]$)', '\\1/', config.get('base', ''), 1)
-        self.__input = None
-        self.__output = None
-        self.__local = None
-        self.__hadoop = None
+        self.__input = map(self._expand_site, config.get('input', []))
+        self.__output = map(self._expand_site, config.get('output', []))
 
-        self._discover(config.get('site'))
+        self.__wq_inputs = config.get('use work queue for inputs', False)
+        self.__wq_outputs = config.get('use work queue for outputs', False)
 
-        if 'input' in config:
-            self.__input = re.sub('([^/]$)', '\\1/', config['input'], 1)
-        if 'output' in config:
-            self.__output = re.sub('([^/]$)', '\\1/', config['output'], 1)
-
-        if 'local' in config:
-            self.__local = re.sub('([^/]$)', '\\1/', config['local'], 1)
-        if 'hadoop' in config:
-            if 'local' in config:
-                self.__hadoop = self.__local.replace(config['hadoop'], '')
-            else:
-                raise KeyError("must specify both 'local' and 'hadoop' paths when activating native hadoop access.")
+        self.__no_streaming = config.get('disable input streaming', False)
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
 
-    def _find_match(self, doc, tag, protocol):
-        for e in doc.getElementsByTagName(tag):
+    def _find_match(self, protocol, site, path):
+        """Extracts the LFN to PFN translation from the SITECONF.
+
+        >>> StorageConfiguration({})._find_match('xrootd', 'T3_US_NotreDame', '/store/user/spam/ham/eggs')
+        (u'/+store/(.*)', u'root://xrootd.unl.edu//store/\\\\1')
+        """
+        file = os.path.join('/cvmfs/cms.cern.ch/SITECONF', site, 'PhEDEx/storage.xml')
+        doc = xml.dom.minidom.parse(file)
+
+        for e in doc.getElementsByTagName("lfn-to-pfn"):
             if e.attributes["protocol"].value != protocol:
                 continue
             if e.attributes.has_key('destination-match') and \
-                    not re.match(e.attributes['destination-match'].value, self.__site):
+                    not re.match(e.attributes['destination-match'].value, site):
                 continue
-            if self.__base and len(self.__base) > 0 and \
+            if path and len(path) > 0 and \
                     e.attributes.has_key('path-match') and \
-                    re.match(e.attributes['path-match'].value, self.__base) is None:
+                    re.match(e.attributes['path-match'].value, path) is None:
                 continue
 
             return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
 
-    def _discover(self, site):
-        if not site:
-            return
+    def _expand_site(self, url):
+        """Expands a CMS site label in a url to the corresponding server.
 
-        if len(self.__base) == 0:
-            raise KeyError("can't run CMS site discovery without 'base' path.")
+        >>> StorageConfiguration({})._expand_site('root://T3_US_NotreDame/store/user/spam/ham/eggs')
+        u'root://xrootd.unl.edu//store/user/spam/ham/eggs'
+        """
+        protocol, server, path = self.__url_re.match(url).groups()
 
-        self.__site = site
+        if self.__site_re.match(server) and protocol in self.__protocols:
+            regexp, result = self._find_match(self.__protocols[protocol], server, path)
+            return re.sub(regexp, result, path)
 
-        file = os.path.join('/cvmfs/cms.cern.ch/SITECONF', site, 'PhEDEx/storage.xml')
-        doc = xml.dom.minidom.parse(file)
-
-        regexp, result = self._find_match(doc, "lfn-to-pfn", "xrootd")
-        self.__input = re.sub(regexp, result, self.__base)
-        regexp, result = self._find_match(doc, "lfn-to-pfn", "srmv2")
-        self.__output = re.sub(regexp, result, self.__base)
+        return "{0}://{1}{2}/".format(protocol, server, path)
 
     def transfer_inputs(self):
         """Indicates whether input files need to be transferred manually.
         """
-        return self.__input is None
+        return self.__wq_inputs
 
     def transfer_outputs(self):
         """Indicates whether output files need to be transferred manually.
         """
-        return self.__output is None
+        return self.__wq_outputs
 
     def pfn(self, path):
         if self.__local:
@@ -308,48 +308,37 @@ class StorageConfiguration(object):
 
     def activate(self):
         """Replaces default file system access methods with the ones
-        specified per configuration.
+        specified per configuration for output storage element access.
         """
         StorageElement.store()
         StorageElement.reset()
 
-        if self.__hadoop:
-            try:
-                Hadoop(lfn2pfn=(self.__hadoop, ''), pfn2lfn=('', self.__hadoop))
-            except NameError:
-                raise NotImplementedError("hadoop support is missing on this system")
-        if self.__local:
-            Local(lfn2pfn=(self.__base, self.__local), pfn2lfn=(self.__local, self.__base))
-        if self.__output:
-            if self.__output.startswith("srm://"):
-                SRM(lfn2pfn=(self.__base, self.__output), pfn2lfn=(self.__output, self.__base))
-            elif self.__output.startswith("chirp://"):
-                server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
-                Chirp(server, path, self.__base)
-            StorageElement.test(self.__output.replace(self.__base, '', 1))
+        for url in self.__output:
+            protocol, server, path = self.__url_re.match(url).groups()
 
+            if protocol == 'chirp':
+                Chirp(server, path, '')
+            elif protocol == 'file':
+                Local(lfn2pfn=('', path), pfn2lfn=(path, ''))
+            elif protocol == 'hdfs':
+                try:
+                    Hadoop(lfn2pfn=('', path), pfn2lfn=(path, ''))
+                except NameError:
+                    raise NotImplementedError("hadoop support is missing on this system")
+            elif protocol == 'srm':
+                Local(lfn2pfn=('', path), pfn2lfn=(path, ''))
+            else:
+                logger.debug("implementation of master access missing for URL {0}".format(url))
 
-    def preprocess(self, parameters, localdata):
-        """Adjust the input, output files within the parameters send with a task.
+    def preprocess(self, parameters, merge):
+        """Adjust the input, output file transfer parameters sent with a task.
 
         Parameters
         ----------
         parameters : dict
-            The task parameters to alter.  This should contain the keys
-            'output files' and 'mask', the latter with a subkey 'files'.
-        localdata : bool
-            Indicates whether input file translation is needed or not.
+            The task parameters to alter.  This method will add keys 'input', 'output'
+        merge : bool
+            Specify if this is a merging parameter set.
         """
-        if self.__output:
-            outputs = parameters['output files']
-            parameters['output files'] = [(src, tgt.replace(self.__base, self.__output)) for src, tgt in outputs]
-        if self.__input and localdata:
-            inputs = parameters['mask']['files']
-            parameters['mask']['files'] = [f.replace(self.__base, self.__input) for f in inputs]
-
-    def postprocess(self, report):
-        if self.__input:
-            infos = report['files']['info']
-            report['files']['info'] = dict((k.replace(self.__input, self.__base), v) for k, v in infos.items())
-            skipped = report['files']['skipped']
-            report['files']['skipped'] = [f.replace(self.__input, self.__base) for f in skipped]
+        parameters['input'] = self.__input if not merge else self.__output
+        parameters['output'] = self.__output

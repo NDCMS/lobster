@@ -3,12 +3,19 @@ at [CERN](doc/CERN.md).**
 
 # Installation
 
-Lobster requires Python 2.6 or greater (but not Python 3).  CMSSW also uses Python.  Since you will probably be using Lobster and CMSSW together, you should make sure that you do `cmsenv` from a CMSSW release in which you will be using Lobster before running the installation.  (Any release `5_3_X` or newer should set up an appropriate version of Python.)  After you run `cmsenv`, to check your python version, use
+Lobster requires Python 2.6 or greater (but not Python 3).  CMSSW also uses
+Python.  Since you will probably be using Lobster and CMSSW together, you
+should make sure that you do `cmsenv` from a CMSSW release in which you
+will be using Lobster before running the installation.  (Any release
+`5_3_X` or newer should set up an appropriate version of Python.)  After
+you run `cmsenv`, to check your python version, use
 
     python -V
 
-If the version you see is older than Python 2.6, you'll want to get help from an expert.  Also, if you switch to a release with a signficantly newer version of Python than you used to install Lobster, you may have to re-run the Lobster installation instructions below.
-
+If the version you see is older than Python 2.6, you'll want to get help
+from an expert.  Also, if you switch to a release with a signficantly newer
+version of Python than you used to install Lobster, you may have to re-run
+the Lobster installation instructions below.
 
 ## Dependencies
 
@@ -50,14 +57,18 @@ for bash or, for tcsh
 As you'll need `~/.local` in your path each time you run lobster, we recommend adding
 the step above to your login script.
 
-## Setup
+### Hadoopy (optional)
 
-Because automatic installation of this dependency may fail, we recommend installing
-`hadoopy` manually with
+For systems using Hadoop for storage, Lobster can access Hadoop directly,
+avoiding a FUSE mount, via `hadoopy`.  This is an optional dependency, as
+it requires compilation and may not work on all systems.  To install it,
+run:
 
     pip install --user -e git+https://github.com/bwhite/hadoopy#egg=hadoopy
 
-Install lobster itself with
+## Setup
+
+Install lobster with
 
     pip install --user https://github.com/matz-e/lobster/tarball/master
 

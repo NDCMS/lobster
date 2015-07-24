@@ -387,7 +387,7 @@ class JobProvider(job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append((filename, os.path.join(self._storage.path, label, outname)))
+                handler.outputs.append((filename, os.path.join(label, outname)))
 
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
 

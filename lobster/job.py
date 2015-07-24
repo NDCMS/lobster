@@ -85,12 +85,12 @@ class JobProvider(object):
             self.cmds[label] = cfg.get('cmd')
 
             taskdir = os.path.join(self.workdir, label)
-            stageoutdir = os.path.join(self._storage.path, label)
             if create:
                 if not os.path.exists(taskdir):
                     os.makedirs(taskdir)
-                if not fs.exists(stageoutdir):
-                    fs.makedirs(stageoutdir)
+                # create the stageout directory
+                if not fs.exists(label):
+                    fs.makedirs(label)
 
                 shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 

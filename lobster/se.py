@@ -291,10 +291,6 @@ class StorageConfiguration(object):
         regexp, result = self._find_match(doc, "lfn-to-pfn", "srmv2")
         self.__output = re.sub(regexp, result, self.__base)
 
-    @property
-    def path(self):
-        return self.__base
-
     def transfer_inputs(self):
         """Indicates whether input files need to be transferred manually.
         """

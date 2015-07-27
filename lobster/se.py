@@ -342,3 +342,9 @@ class StorageConfiguration(object):
         """
         parameters['input'] = self.__input if not merge else self.__output
         parameters['output'] = self.__output
+
+    def disable_streaming(self):
+        """
+        Indicates whether or not to disable input streaming.
+        """
+        return self.__no_streaming

@@ -1,6 +1,7 @@
 import glob
 import multiprocessing
 import os
+import random
 import re
 import subprocess
 import xml.dom.minidom
@@ -250,6 +251,9 @@ class StorageConfiguration(object):
         self.__wq_inputs = config.get('use work queue for inputs', False)
         self.__wq_outputs = config.get('use work queue for outputs', False)
 
+        self.__shuffle_inputs = config.get('shuffle inputs', False)
+        self.__shuffle_outputs = config.get('shuffle outputs', False)
+
         self.__no_streaming = config.get('disable input streaming', False)
 
         logger.debug("using input location {0}".format(self.__input))
@@ -340,6 +344,11 @@ class StorageConfiguration(object):
         merge : bool
             Specify if this is a merging parameter set.
         """
+        if self.__shuffle_inputs:
+            random.shuffle(self.__input)
+        if self.__shuffle_outputs or (self.__shuffle_inputs and merge):
+            random.shuffle(self.__output)
+
         parameters['input'] = self.__input if not merge else self.__output
         parameters['output'] = self.__output
 

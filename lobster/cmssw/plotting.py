@@ -500,9 +500,10 @@ class Plotter(object):
                 data['data'] = []
 
                 for i, (x, y) in enumerate(a):
-                    sums, edges = np.histogram(x, bins=bins, weights=y)
-                    squares, edges = np.histogram(x, bins=bins, weights=np.multiply(y, y))
-                    counts, edges = np.histogram(x, bins=bins)
+                    borders = (self.unix2matplotlib(self.__xmin), self.unix2matplotlib(self.__xmax))
+                    sums, edges = np.histogram(x, bins=bins, range=borders, weights=y)
+                    squares, edges = np.histogram(x, bins=bins, range=borders, weights=np.multiply(y, y))
+                    counts, edges = np.histogram(x, bins=bins, range=borders)
                     avg = np.divide(sums, counts)
                     avg_sq = np.divide(squares, counts)
                     err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))

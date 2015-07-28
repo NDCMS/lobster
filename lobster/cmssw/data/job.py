@@ -500,10 +500,12 @@ with check_execution(data, 191):
 data['files']['adler32'] = calculate_alder32(config)[0]
 
 now = int(datetime.now().strftime('%s'))
+firstevent = now
 
 if cmsRun:
     with check_execution(data, 192):
         data['task timing info'][4:] = extract_cmssw_times('executable.log', now)
+        firstevent = data['task timing info'][6]
 
 data['task timing info'].append(now)
 
@@ -524,9 +526,24 @@ if data['job exit code'] == 0 and not check_outputs(config):
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 
-
 if 'PARROT_ENABLED' in os.environ:
-    data['cache']['type'] = int(os.path.isfile(os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')))
+    cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
+    if not os.path.isfile(cachefile):
+        # Write the time of the first event to the cache file.  At that
+        # point in processing, almost everything should have been pulled
+        # from CVMFS.
+        with open(cachefile, 'w') as f:
+            f.write(str(firstevent))
+        data['cache']['type'] = 0
+    else:
+        with open(cachefile) as f:
+            fullcache = int(f.read())
+            selfstart = extract_time('t_wrapper_start')
+
+            # If our wrapper started before the cache was filled, we are
+            # still a cold cache job (value 0.)  Otherwise, we were
+            # operating on a hot cache.
+            data['cache']['type'] = int(selfstart > fullcache)
 else:
     data['cache']['type'] = 2
 

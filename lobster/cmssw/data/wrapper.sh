@@ -178,7 +178,4 @@ print_output "working directory after execution" ls -l
 
 echo "[$(date '+%F %T')] wrapper done"
 
-if [ "x$PARROT_ENABLED" != "x" ]; then
-    touch $PARROT_CACHE/hot_cache
-fi
 exit $res

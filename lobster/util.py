@@ -61,7 +61,7 @@ def register_checkpoint(workdir, key, value):
 def verify_string(s):
     try:
         s.decode('ascii')
-    except UnicodeDecodeError or AttributeError:
+    except (UnicodeDecodeError or AttributeError):
         return ""
     return s
 

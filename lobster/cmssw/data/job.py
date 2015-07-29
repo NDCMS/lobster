@@ -42,6 +42,22 @@ else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
 
+def run_subprocess(*args, **kwargs):
+    print "--- executing"
+    print " ".join(*args)
+    print "---"
+
+    kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT})
+    p = subprocess.Popen(*args, **kwargs)
+    p.wait()
+    p.stdout = p.stdout.read() # save stdout in case it is needed by caller
+
+    print "--- result is"
+    print p.stdout
+    print "---"
+
+    return p
+
 def create_fjr(config, usage, outfile='report.xml'):
 
     report = FwkJobReport()
@@ -96,26 +112,53 @@ def check_execution(data, code):
         if data['job exit code'] == 0:
             data['job exit code'] = code
 
-def check_outputs(config):
-    """Check that chirp received the output files.
+def check_output(config, localname, remotename):
+    """Check that file has been transferred correctly.
+
+    If XrootD or Chirp are in the output access methods, tries
+    them in the order specified to compare the local and remote
+    file sizes. If they agree, return True; otherwise, return False.
     """
-    for localname, remotename in config['output files']:
-        if remotename.startswith("chirp://"):
-            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", remotename).groups()
-            size = os.path.getsize(localname)
-            p = subprocess.Popen([
-                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
-                server, "stat", path], stdout=subprocess.PIPE)
-            stdout = p.communicate()[0]
-            for l in stdout.splitlines():
-                if l.startswith('size:'):
-                    if int(l.split()[1]) != size:
-                        print "> size mismatch after transfer for " + localname
-                        return False
-                    break
+    def compare(stat, file):
+        size = os.path.getsize(file)
+        match = re.search("[Ss]ize:\s*([0-9]*)", stat)
+        if match:
+            if int(size) == int(match.groups()[0]):
+                return True
             else:
-                # size: is not in stdout
+                print "--- size mismatch after transfer"
+                print "remote size: {0}".format(match.groups()[0])
+                print "local size: {0}".format(size)
+                print "---"
                 return False
+        else:
+            return False
+
+    for output in config['output']:
+        if output.startswith('root://'):
+            server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+            timeout = '5' # if the server is bogus, xrdfs hangs instead of returning an error
+            args = [
+                "timeout",
+                timeout,
+                "xrdfs",
+                server,
+                "stat",
+                os.path.join(path, remotename)
+            ]
+            p = run_subprocess(args)
+            return compare(p.stdout, localname)
+        elif output.startswith("chirp://"):
+            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+            args = [
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                server,
+                "stat",
+                os.path.join(path, remotename)
+            ]
+            p = run_subprocess(args)
+            return compare(p.stdout, localname)
+
     return True
 
 def copy_inputs(data, config, env):
@@ -155,7 +198,7 @@ def copy_inputs(data, config, env):
                     break
             elif input.startswith('root://'):
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
-                timeout = 5 # if the server is bogus, xrdfs hangs instead of returning an error
+                timeout = '5' # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
                     "timeout",
                     timeout,
@@ -163,27 +206,20 @@ def copy_inputs(data, config, env):
                     server,
                     "ls",
                     os.path.join(path, file)
-                    ]
+                ]
 
-                print "--- checking XrootD access to input file with:"
-                print " ".join([str(x) for x in args])
-                print "---"
-
-                status = subprocess.call(args)
-                if status == 0:
+                p = run_subprocess(args)
+                if p.returncode == 0:
                     if config['disable streaming']:
+                        print "--- streaming has been disabled, attempting stage-in"
                         args = [
                             "xrdcp",
                             os.path.join(input, file),
                             os.path.basename(file)
-                            ]
+                        ]
 
-                        print "--- streaming has been disabled, attempting stage-in with:"
-                        print " ".join(args)
-                        print "---"
-
-                        status = subprocess.call(args)
-                        if status == 0:
+                        p = run_subprocess(args)
+                        if p.returncode == 0:
                             filename = 'file:' + os.path.basename(path)
                             config['mask']['files'].append(filename)
                             config['file map'][filename] = file
@@ -209,13 +245,8 @@ def copy_inputs(data, config, env):
                 for k in ['LD_LIBRARY_PATH', 'PATH']:
                     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
-                p = subprocess.Popen(args, env=pruned_env)
-                p.wait()
+                p = run_subprocess(args, env=pruned_env)
                 if p.returncode == 0:
-                    print "--- staging in with:"
-                    print " ".join(args)
-                    print "---"
-
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
@@ -232,19 +263,14 @@ def copy_inputs(data, config, env):
                     "all",
                     server,
                     remotename,
-                    os.path.basename(remotename)]
-                status = subprocess.call(args, env=env)
-
-                if status == 0:
-                    print "--- staging in with:"
-                    print " ".join(args)
-                    print "---"
-
+                    os.path.basename(remotename)
+                ]
+                p = run_subprocess(args, env=env)
+                if p.returncode == 0:
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
                     break
-
             else:
                 print '--- skipping unhandled stage-in method: {0}'.format(input)
 
@@ -293,12 +319,13 @@ def copy_outputs(data, config, env):
                 if os.path.isdir(os.path.dirname(rn)):
                     print "--- local access detected"
                     print "--- attempting stage-out with:"
-                    print "shutil.copy2({0}, {1}) ".format(localname, rn)
+                    print "shutil.copy2('{0}', '{1}')".format(localname, rn)
                     print "---"
                     try:
                         shutil.copy2(localname, rn)
-                        transferred.append(localname)
-                        break
+                        if check_output(config, localname, remotename):
+                            transferred.append(localname)
+                            break
                     except Exception as e:
                         print e
             elif output.startswith('srm://'):
@@ -314,19 +341,13 @@ def copy_outputs(data, config, env):
                     os.path.join(output, remotename)
                 ]
 
-                print "--- attempting stage-out with:"
-                print " ".join(args)
-                print "---"
-
                 pruned_env = dict(env)
                 for k in ['LD_LIBRARY_PATH', 'PATH']:
                     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
-                p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
-                p.wait()
-                if p.returncode == 0:
+                p = run_subprocess(args, env=pruned_env)
+                if p.returncode == 0 and check_output(config, localname, remotename):
                     transferred.append(localname)
-                    print p.stderr.read()
                     break
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
@@ -339,14 +360,10 @@ def copy_outputs(data, config, env):
                         localname,
                         server,
                         os.path.join(path, remotename)]
-                status = subprocess.call(args, env=env)
-
-                print "--- attempting stage-out with:"
-                print " ".join(args)
-                print "---"
-
-                if status == 0:
+                p = run_subprocess(args, env=env)
+                if p.returncode == 0 and check_output(config, localname, remotename):
                     transferred.append(localname)
+                    break
             else:
                 print '--- skipping unhandled stage-out method: {0}'.format(output)
 
@@ -603,7 +620,8 @@ data['task timing info'].append(int(datetime.now().strftime('%s')))
 with check_execution(data, 210):
     copy_outputs(data, config, env)
 
-if data['job exit code'] == 0 and not check_outputs(config):
+transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
+if data['job exit code'] == 0 and not transfer_success:
     data['job exit code'] = 211
     data['output size'] = 0
 

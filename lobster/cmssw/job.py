@@ -470,11 +470,11 @@ class JobProvider(job.JobProvider):
                     cache_start_size = data['cache']['start size']
                     cache_end_size = data['cache']['end size']
                     cache = data['cache']['type']
+                    task_times = data['task timing info']
                     if handler.cmssw_job:
                         files_info = data['files']['info']
                         files_skipped = data['files']['skipped']
                         events_written = data['events written']
-                        task_times = data['task timing info']
                         cmssw_exit_code = data['cmssw exit code']
                         cputime = data['cpu time']
                         outsize = data['output size']

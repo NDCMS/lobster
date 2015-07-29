@@ -310,7 +310,7 @@ def copy_outputs(data, config, env):
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
 
                 args = prg + [
-                    "file:///" + os.path.join(os.getcwd(), localname),
+                    "file://" + os.path.join(os.getcwd(), localname),
                     os.path.join(output, remotename)
                 ]
 

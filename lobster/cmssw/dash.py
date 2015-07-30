@@ -37,6 +37,7 @@ status_map = {
 class DummyMonitor(object):
     def __init__(self, workdir):
         self._taskid = util.checkpoint(workdir, 'id')
+        self._db = SiteDBJSON({'cacheduration': 24})
 
     def generate_ids(self, jobid):
         monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._taskid).hexdigest()[-16:]))
@@ -66,9 +67,8 @@ class Monitor(DummyMonitor):
                 stderr=subprocess.PIPE)
         id, err = p.communicate()
         id = id.strip()
-        db = SiteDBJSON({'cacheduration': 24})
 
-        self.__username = db.dnUserName(dn=id)
+        self.__username = self._db.dnUserName(dn=id)
         self.__fullname = id.rsplit('/CN=', 1)[1]
         # self.__fullname = pwd.getpwnam(getpass.getuser())[4]
         if util.checkpoint(workdir, "sandbox cmssw version"):

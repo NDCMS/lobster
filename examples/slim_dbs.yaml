@@ -4,17 +4,10 @@ workdir: <your working directory here>
 plotdir: <your plotting directory here>
 
 storage:
-    base: /store/user/<user>/<output directory>
-    ## ND example settings
-    # hadoop: /store/user/<user>/<output directory>
-    # local: /hadoop/store/user/<user>/<output directory>
-    # input: "chirp://earth.crc.nd.edu:9099/<output directory>"
-    # output: "chirp://earth.crc.nd.edu:9099/<output directory>"
-    # input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
-    # output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
-    ## CERN example settings
-    input: "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
-    output: "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
+    ## example settings for storing output at CERN
+    output:
+      - "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
+      - "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
 
 ## report jobs to the CMS dashboard (default: true)
 use dashboard: true

@@ -9,6 +9,8 @@ import xml.dom.minidom
 from contextlib import contextmanager
 from functools import partial, wraps
 
+import Chirp as chirp
+
 logger = multiprocessing.get_logger()
 
 class StorageElement(object):
@@ -119,52 +121,34 @@ class Chirp(StorageElement):
     def __init__(self, server, pfnprefix):
         super(Chirp, self).__init__(pfnprefix)
 
-        self.__server = server
-        self.__sub = subprocess
-
-    def execute(self, *args, **kwargs):
-        cmd = ["chirp", "-t", "10", self.__server] + list(args)
-        p = self.__sub.Popen(
-                cmd,
-                stdout=self.__sub.PIPE,
-                stderr=self.__sub.PIPE,
-                stdin=self.__sub.PIPE)
-        p.wait()
-
-        if p.returncode != 0 and not kwargs.get("safe", False):
-            raise subprocess.CalledProcessError(p.returncode,
-                    " ".join(["chirp", self.__server] + list(args)))
-
-        return p.stdout.read()
+        self.__c = chirp.Client(server, timeout=10)
 
     def exists(self, path):
-        out = self.execute("stat", path)
-        return len(out.splitlines()) > 1
+        try:
+            self.__c.stat(path)
+            return True
+        except IOError:
+            return False
 
     def getsize(self, path):
-        raise NotImplementedError
+        return self.__c.stat(path).size
 
     def isdir(self, path):
-        out = self.execute('stat', path)
-        return out.splitlines()[4].split() == ["nlink:", "0"]
+        return len(self.__c.ls(path)) > 0
 
     def isfile(self, path):
-        out = self.execute('stat', path)
-        return out.splitlines()[4].split() != ["nlink:", "0"]
+        return len(self.__c.ls(path)) == 0
 
     def ls(self, path):
-        out = self.execute('ls', '-la', path)
-        for l in out.splitlines():
-            if l.startswith('d'):
-                continue
-            yield os.path.join(path, l.split(None, 9)[8])
+        for f in self.__c.ls(path):
+            if f.path not in ('.', '..'):
+                yield os.path.join(path, f.path)
 
     def makedirs(self, path):
-        self.execute('mkdir', '-p', path)
+        self.__c.mkdir(path)
 
     def remove(self, path):
-        # FIXME remove does not work for directories
-        self.execute('rm', path)
+        self.__c.rm(path)
 
 class SRM(StorageElement):
     def __init__(self, pfnprefix):

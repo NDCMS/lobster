@@ -129,9 +129,6 @@ class FileInterface:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
                         dset.files += filter(fs.isfile, fs.ls(entry))
-                    elif fs.isfile(entry):
-                        # FIXME this will not work for remote file systems
-                        dset.files += filter(fs.isfile, map(str.strip, open(entry).readlines()))
 
                 dset.total_lumis = len(dset.files)
 

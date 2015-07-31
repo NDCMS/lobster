@@ -176,6 +176,12 @@ def copy_inputs(data, config, env):
     config['mask']['files'] = []
 
     for file in files:
+        # use AAA to access data in, e.g., DBS
+        if len(config['input']) == 0:
+            config['mask']['files'].append(file)
+            config['file map'][file] = file
+            break
+
         for input in config['input']:
             if os.path.exists(os.path.basename(file)):
                 filename = 'file:' + os.path.basename(file)
@@ -593,6 +599,7 @@ if cmsRun:
 else:
     create_fjr(config, usage)
 
+cputime = 0
 with check_execution(data, 190):
     cputime = extract_info(config, data, 'report.xml')
 

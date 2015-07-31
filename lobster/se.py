@@ -14,6 +14,13 @@ import Chirp as chirp
 logger = multiprocessing.get_logger()
 
 class StorageElement(object):
+    """Weird class to handle all needs of storage implementations.
+
+    This class can be used for file system operations after at least one of
+    its subclasses has been instantiated.
+
+    "One size fits nobody." (T. Pratchett)
+    """
     _defaults = []
     _systems = []
 
@@ -46,11 +53,16 @@ class StorageElement(object):
 
         def switch(path=None):
             for imp in self._systems:
-                return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
+                try:
+                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
+                except:
+                    pass
             raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch
 
     def lfn2pfn(self, path):
+        if path.startswith('/'):
+            return os.path.join(self._pfnprefix, path[1:])
         return os.path.join(self._pfnprefix, path)
 
     def fixresult(self, res):
@@ -87,11 +99,23 @@ class Local(StorageElement):
         super(Local, self).__init__(pfnprefix)
         self.exists = os.path.exists
         self.getsize = os.path.getsize
-        self.isdir = os.path.isdir
-        self.isfile = os.path.isfile
-        self.ls = glob.glob
+        self.isdir = self._guard(os.path.isdir)
+        self.isfile = self._guard(os.path.isfile)
         self.makedirs = os.makedirs
         self.remove = os.remove
+
+    def _guard(self, method):
+        """Protect method against non-existent paths.
+        """
+        def guarded(path):
+            if not os.path.exists(path):
+                raise IOError()
+            return method(path)
+        return guarded
+
+    def ls(self, path):
+        for fn in os.listdir(path):
+            yield os.path.join(path, fn)
 
 try:
     import hadoopy
@@ -103,7 +127,6 @@ try:
             self.exists = hadoopy.exists
             self.getsize = partial(hadoopy.stat, format='%b')
             self.isdir = hadoopy.isdir
-            self.isfile = os.path.isfile
             self.ls = hadoopy.ls
             self.makedirs = hadoopy.mkdir
             self.remove = hadoopy.rmr
@@ -161,7 +184,8 @@ class SRM(StorageElement):
         self.__sub = subprocess
 
     def execute(self, cmd, path, safe=False):
-        args = ['lcg-' + cmd, '-b', '-D', 'srmv2', path]
+        cmds = cmd.split()
+        args = ['lcg-' + cmds[0]] + cmds[1:] + ['-b', '-D', 'srmv2', path]
         try:
             p = self.__sub.Popen(args, stdout=self.__sub.PIPE, stderr=self.__sub.PIPE)
             p.wait()
@@ -183,13 +207,20 @@ class SRM(StorageElement):
             return False
 
     def getsize(self, path):
-        raise NotImplementedError
+        # FIXME this should be something meaningful in the future!
+        return -666
 
     def isdir(self, path):
-        return True
+        return not self.isfile(path)
 
     def isfile(self, path):
-        return self.execute('ls', path, True).strip() == self.strip(path)
+        pre = self.__stub.match(path).group(0)
+        output = self.execute('ls -l', path, True)
+        if len(output.splitlines()) > 1:
+            return False
+        if output.startswith('d'):
+            return False
+        return True
 
     def ls(self, path):
         pre = self.__stub.match(path).group(0)
@@ -256,6 +287,7 @@ class StorageConfiguration(object):
                 continue
 
             return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
+        raise AttributeError("No match found for protocol {0} at site {1}, using {2}".format(protocol, site, path))
 
     def _expand_site(self, url):
         """Expands a CMS site label in a url to the corresponding server.
@@ -293,18 +325,15 @@ class StorageConfiguration(object):
                 return fn
         raise IOError("Can't create LFN without local storage access")
 
-    def activate(self):
-        """Replaces default file system access methods with the ones
-        specified per configuration for output storage element access.
-        """
-        StorageElement.store()
-        StorageElement.reset()
-
-        for url in self.__output:
+    def _initialize(self, methods):
+        for url in methods:
             protocol, server, path = self.__url_re.match(url).groups()
 
             if protocol == 'chirp':
-                Chirp(server, path)
+                try:
+                    Chirp(server, path)
+                except chirp.AuthenticationFailure:
+                    raise AttributeError("cannot access chirp server")
             elif protocol == 'file':
                 Local(path)
             elif protocol == 'hdfs':
@@ -316,6 +345,21 @@ class StorageConfiguration(object):
                 SRM(url)
             else:
                 logger.debug("implementation of master access missing for URL {0}".format(url))
+
+    def activate(self):
+        """Sets file system access methods.
+
+        Replaces default file system access methods with the ones specified
+        per configuration for input and output storage element access.
+        """
+        StorageElement.reset()
+
+        self._initialize(self.__input)
+
+        StorageElement.store()
+        StorageElement.reset()
+
+        self._initialize(self.__output)
 
     def preprocess(self, parameters, merge):
         """Adjust the storage transfer parameters sent with a task.

@@ -128,11 +128,10 @@ class FileInterface:
                 for entry in files:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
-                        dset.files += [f for f in fs.ls(os.path.join(entry, '*'))]
-                    if fs.isfile(entry):
-                        dset.files += [f.strip() for f in open(entry).readlines()]
-                    elif isinstance(entry, str):
-                        dset.files += [f for f in fs.ls(os.path.join(entry))]
+                        dset.files += filter(fs.isfile, fs.ls(entry))
+                    elif fs.isfile(entry):
+                        # FIXME this will not work for remote file systems
+                        dset.files += filter(fs.isfile, map(str.strip, open(entry).readlines()))
 
                 dset.total_lumis = len(dset.files)
 

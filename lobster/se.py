@@ -207,8 +207,7 @@ class SRM(StorageElement):
             return False
 
     def getsize(self, path):
-        # FIXME this should be something meaningful in the future!
-        return -666
+        return self.execute('ls -l', path, True).split()[4]
 
     def isdir(self, path):
         return not self.isfile(path)

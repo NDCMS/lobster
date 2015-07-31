@@ -15,7 +15,7 @@ class StorageElement(object):
     _defaults = []
     _systems = []
 
-    def __init__(self, lfn2pfn=None, pfn2lfn=None):
+    def __init__(self, pfnprefix=None):
         """Create or use a StorageElement abstraction.
 
         As a user, use with no parameters to access various storage
@@ -26,18 +26,14 @@ class StorageElement(object):
 
         Parameters
         ----------
-        lfn2pfn : tuple, optional
-            Contains a tuple out of a regexp and a replacement to perform
-            path transformations from LFN to PFN.
-        pfn2lfn : tuple, optional
-            Contains a tuple out of a regexp and a replacement to perform
-            path transformations from PFN to LFN.
+        pfnprefix : string, optional
+            The path prefix under which relative file names can be
+            accessed.
         """
         self.__master = False
 
-        if lfn2pfn is not None:
-            self._lfn2pfn = lfn2pfn
-            self._pfn2lfn = pfn2lfn
+        if pfnprefix is not None:
+            self._pfnprefix = pfnprefix
             self._systems.append(self)
         else:
             self.__master = True
@@ -48,20 +44,16 @@ class StorageElement(object):
 
         def switch(path=None):
             for imp in self._systems:
-                if imp.matches(path):
-                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
+                return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
             raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch
 
-    def matches(self, path):
-        return re.match(self._lfn2pfn[0], path) is not None
-
     def lfn2pfn(self, path):
-        return re.sub(*(list(self._lfn2pfn) + [path, 1]))
+        return os.path.join(self._pfnprefix, path)
 
     def fixresult(self, res):
         def pfn2lfn(p):
-            return re.sub(*(list(self._pfn2lfn) + [p, 1]))
+            return p.replace(self._pfnprefix, '', 1)
 
         if isinstance(res, str):
             return pfn2lfn(res)
@@ -89,8 +81,8 @@ class StorageElement(object):
             self._systems = tmp
 
 class Local(StorageElement):
-    def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
-        super(Local, self).__init__(lfn2pfn, pfn2lfn)
+    def __init__(self, pfnprefix=''):
+        super(Local, self).__init__(pfnprefix)
         self.exists = os.path.exists
         self.getsize = os.path.getsize
         self.isdir = os.path.isdir
@@ -103,8 +95,8 @@ try:
     import hadoopy
 
     class Hadoop(StorageElement):
-        def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
-            super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
+        def __init__(self, pfnprefix='/hadoop'):
+            super(Hadoop, self).__init__(pfnprefix)
 
             self.exists = hadoopy.exists
             self.getsize = partial(hadoopy.stat, format='%b')
@@ -124,8 +116,8 @@ except:
     pass
 
 class Chirp(StorageElement):
-    def __init__(self, server, chirppath, basepath):
-        super(Chirp, self).__init__((basepath, chirppath), (chirppath, basepath))
+    def __init__(self, server, pfnprefix):
+        super(Chirp, self).__init__(pfnprefix)
 
         self.__server = server
         self.__sub = subprocess
@@ -175,8 +167,8 @@ class Chirp(StorageElement):
         self.execute('rm', path)
 
 class SRM(StorageElement):
-    def __init__(self, lfn2pfn=('srm://', 'srm://'), pfn2lfn=('srm://', 'srm://')):
-        super(SRM, self).__init__(lfn2pfn, pfn2lfn)
+    def __init__(self, pfnprefix):
+        super(SRM, self).__init__(pfnprefix)
 
         self.__stub = re.compile('^srm://[A-Za-z0-9:.\-/]+\?SFN=')
 
@@ -305,9 +297,16 @@ class StorageConfiguration(object):
         """
         return self.__wq_outputs
 
-    def pfn(self, path):
-        if self.__local:
-            return path.replace(self.__base, self.__local)
+    def local(self, filename):
+        for url in self.__input + self.__output:
+            protocol, server, path = self.__url_re.match(url).groups()
+
+            if protocol != 'file':
+                continue
+
+            fn = os.path.join(path, filename)
+            if os.path.isfile(fn):
+                return fn
         raise IOError("Can't create LFN without local storage access")
 
     def activate(self):
@@ -321,16 +320,16 @@ class StorageConfiguration(object):
             protocol, server, path = self.__url_re.match(url).groups()
 
             if protocol == 'chirp':
-                Chirp(server, path, '')
+                Chirp(server, path)
             elif protocol == 'file':
-                Local(lfn2pfn=('', path), pfn2lfn=(path, ''))
+                Local(path)
             elif protocol == 'hdfs':
                 try:
-                    Hadoop(lfn2pfn=('', path), pfn2lfn=(path, ''))
+                    Hadoop(path)
                 except NameError:
                     raise NotImplementedError("hadoop support is missing on this system")
             elif protocol == 'srm':
-                Local(lfn2pfn=('', path), pfn2lfn=(path, ''))
+                SRM(url)
             else:
                 logger.debug("implementation of master access missing for URL {0}".format(url))
 

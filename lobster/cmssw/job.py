@@ -404,8 +404,7 @@ class JobProvider(job.JobProvider):
                 'output files': handler.outputs,
                 'want summary': sum,
                 'executable': 'cmsRun' if cmssw_job else self.cmds[label],
-                'pset': os.path.basename(cms_config) if cms_config else None,
-                'disable streaming': self._storage.disable_streaming()
+                'pset': os.path.basename(cms_config) if cms_config else None
             }
             if prologue:
                 config['prologue'] = prologue

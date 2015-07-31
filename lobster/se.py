@@ -335,12 +335,13 @@ class StorageConfiguration(object):
                 logger.debug("implementation of master access missing for URL {0}".format(url))
 
     def preprocess(self, parameters, merge):
-        """Adjust the input, output file transfer parameters sent with a task.
+        """Adjust the storage transfer parameters sent with a task.
 
         Parameters
         ----------
         parameters : dict
-            The task parameters to alter.  This method will add keys 'input', 'output'
+            The task parameters to alter.  This method will add keys
+            'input', 'output', and 'disable streaming'.
         merge : bool
             Specify if this is a merging parameter set.
         """
@@ -351,9 +352,4 @@ class StorageConfiguration(object):
 
         parameters['input'] = self.__input if not merge else self.__output
         parameters['output'] = self.__output
-
-    def disable_streaming(self):
-        """
-        Indicates whether or not to disable input streaming.
-        """
-        return self.__no_streaming
+        parameters['disable streaming'] = self.__no_streaming

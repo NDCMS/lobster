@@ -47,9 +47,22 @@ def run_subprocess(*args, **kwargs):
     print " ".join(*args)
     print "---"
 
+    retry = {}
+    if 'retry' in kwargs:
+        retry = dict(kwargs['retry'])
+        del kwargs['retry']
+
     kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT})
     p = subprocess.Popen(*args, **kwargs)
     p.wait()
+
+    if p.returncode in retry:
+        print 'retrying...'
+        if retry[p.returncode] > 0:
+            retry[p.returncode] -= 1
+            kwargs['retry'] = retry
+            return run_subprocess(*args, **kwargs)
+
     p.stdout = p.stdout.read() # save stdout in case it is needed by caller
 
     print "--- result is"
@@ -137,7 +150,7 @@ def check_output(config, localname, remotename):
     for output in config['output']:
         if output.startswith('root://'):
             server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
-            timeout = '5' # if the server is bogus, xrdfs hangs instead of returning an error
+            timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
             args = [
                 "timeout",
                 timeout,
@@ -146,7 +159,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args)
+            p = run_subprocess(args, retry={53: 5})
             return compare(p.stdout, localname)
         elif output.startswith("chirp://"):
             server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
@@ -204,7 +217,7 @@ def copy_inputs(data, config, env):
                     break
             elif input.startswith('root://'):
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
-                timeout = '5' # if the server is bogus, xrdfs hangs instead of returning an error
+                timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
                     "timeout",
                     timeout,
@@ -214,7 +227,7 @@ def copy_inputs(data, config, env):
                     os.path.join(path, file)
                 ]
 
-                p = run_subprocess(args)
+                p = run_subprocess(args, retry={53: 5})
                 if p.returncode == 0:
                     if config['disable streaming']:
                         print "--- streaming has been disabled, attempting stage-in"

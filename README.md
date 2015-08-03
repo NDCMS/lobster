@@ -205,7 +205,15 @@ traversed until file access was successful.
           - chirp://<your server>:<your port>/<output directory>
 
 For analysis jobs streaming from external sites via XrootD, `input` should
-be empty.
+be empty.  To use the Tier 2 at CERN for storage, use:
+
+    storage:
+        input:
+          - root://T2_CH_CERN//store/user/<user>/<output directory>
+          - srm://T2_CH_CERN//store/user/<user>/<output directory>
+        output:
+          - root://T2_CH_CERN//store/user/<user>/<output directory>
+          - srm://T2_CH_CERN//store/user/<user>/<output directory>
 
 ## Setting up a Chirp server
 

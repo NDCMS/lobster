@@ -244,8 +244,9 @@ def copy_inputs(data, config, env):
                             config['file map'][filename] = file
                             break
                     else:
-                        config['mask']['files'].append(file)
-                        config['file map'][file] = file
+                        filename = os.path.join(input, file)
+                        config['mask']['files'].append(filename)
+                        config['file map'][filename] = file
                         break
             elif input.startswith('srm://'):
                 prg = []

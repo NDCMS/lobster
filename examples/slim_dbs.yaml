@@ -4,18 +4,29 @@ workdir: <your working directory here>
 plotdir: <your plotting directory here>
 
 storage:
-    ## example settings for storing output at CERN
-    output:
-      - "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
-      - "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
+    shuffle outputs: false             # default is false
+    use work queue for outputs: false  # default is false
+    disable input streaming: false     # default is false
 
-## report jobs to the CMS dashboard (default: true)
+    ## example settings for storing output at ND
+    output:
+      - hdfs:///store/user/<user>/<output directory>
+      - file:///hadoop/store/user/<user>/<output directory>
+      - srm://T3_US_NotreDame/store/user/<user>/<output directory>
+      - chirp://earth.crc.nd.edu:9099/<output directory>
+
+    # ## example settings for storing output at CERN
+    # output:
+    #   - "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
+    #   - "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
+
+## report jobs to the CMS dashboard (default is true)
 use dashboard: true
 
 ## merge output files to this size
 merge size: 3.5G
 
-## delete intermediate files after merging (default: true)
+## delete intermediate files after merging (default is true)
 delete merged: true
 
 ## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
@@ -75,13 +86,10 @@ task defaults:
     publish label: 'test'
     ## Apply defaults only to tasks matching the labels in this list
     matching:
-      - label: '^ttH_.*' # match all labels starting with "TJets"
+      - label: '^SingleMu_.*' # match all labels starting with "SingleMu"
         events per job: 5000
       # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
       #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
 
 tasks:
   - {label: SingleMu_2012A_06Aug, dataset: /SingleMu/Run2012A-recover-06Aug2012-v1/AOD}
-  - {label: SingleElectron_2012A_06Aug, dataset: /SingleElectron/Run2012A-recover-06Aug2012-v1/AOD}
-  - {label: ttH_120, dataset: /TTH_Inclusive_M-120_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}
-  - {label: ttH_125, dataset: /TTH_Inclusive_M-125_8TeV_pythia6/Summer12_DR53X-PU_S10_START53_V7A-v1/AODSIM}

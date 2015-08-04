@@ -55,7 +55,7 @@ class StorageElement(object):
             for imp in StorageElement._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
-                except:
+                except (IOError, OSError):
                     pass
             raise AttributeError("no path resolution found for '{0}'".format(path))
         return switch

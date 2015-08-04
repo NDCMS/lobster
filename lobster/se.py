@@ -177,17 +177,11 @@ class SRM(StorageElement):
     def __init__(self, pfnprefix):
         super(SRM, self).__init__(pfnprefix)
 
-        self.__stub = re.compile('^srm://[A-Za-z0-9:.\-/]+\?SFN=')
-
-        # local imports are not available after the module hack at the end
-        # of the file
-        self.__sub = subprocess
-
     def execute(self, cmd, path, safe=False):
         cmds = cmd.split()
-        args = ['lcg-' + cmds[0]] + cmds[1:] + ['-b', '-D', 'srmv2', path]
+        args = ['gfal-' + cmds[0]] + cmds[1:] + [path]
         try:
-            p = self.__sub.Popen(args, stdout=self.__sub.PIPE, stderr=self.__sub.PIPE)
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             p.wait()
             if p.returncode != 0 and not safe:
                 msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
@@ -196,42 +190,41 @@ class SRM(StorageElement):
             raise AttributeError("srm utilities not available")
         return p.stdout.read()
 
-    def strip(self, path):
-        return self.__stub.sub('', path)
-
     def exists(self, path):
         try:
-            self.execute('ls', path)
+            self.execute('stat', path)
             return True
         except:
             return False
 
     def getsize(self, path):
-        return self.execute('ls -l', path, True).split()[4]
+        output = self.execute('stat', path, True)
+        return output.splitlines()[1].split()[1]
 
     def isdir(self, path):
-        return not self.isfile(path)
+        try:
+            output = self.execute('stat', path)
+            return 'directory' in output.splitlines()[1]
+        except:
+            return False
 
     def isfile(self, path):
-        pre = self.__stub.match(path).group(0)
-        output = self.execute('ls -l', path, True)
-        if len(output.splitlines()) > 1:
+        try:
+            output = self.execute('stat', path)
+            return 'regular file' in output.splitlines()[1]
+        except:
             return False
-        if output.startswith('d'):
-            return False
-        return True
 
     def ls(self, path):
-        pre = self.__stub.match(path).group(0)
         for p in self.execute('ls', path).splitlines():
-            yield pre + p
+            yield os.path.join(path, p)
 
     def makedirs(self, path):
-        return True
+        self.execute('mkdir -p', path)
 
     def remove(self, path):
         # FIXME safe is active because SRM does not care about directories.
-        self.execute('del', path, safe=True)
+        self.execute('rm -r', path, safe=True)
 
 class StorageConfiguration(object):
     """Container for storage element configuration.

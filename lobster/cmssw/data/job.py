@@ -43,6 +43,7 @@ else:
 """
 
 def run_subprocess(*args, **kwargs):
+    print
     print ">>> executing"
     print " ".join(*args)
 
@@ -64,6 +65,7 @@ def run_subprocess(*args, **kwargs):
 
     p.stdout = p.stdout.read() # save stdout in case it is needed by caller
 
+    print
     print ">>> result is"
     print p.stdout
 
@@ -407,6 +409,7 @@ def edit_process_source(pset, config):
         if want_summary:
             frag += sum_frag
 
+        print
         print ">>> config file fragment:"
         print frag
         fp.write(frag)
@@ -576,8 +579,9 @@ parameters = {
 apmonSend(taskid, monitorid, parameters)
 apmonFree()
 
-print "print config[]:"
-print config
+print
+print ">>> updated parameters are:"
+print json.dumps(config, sort_keys=True, indent=2)
 
 if cmsRun:
     #

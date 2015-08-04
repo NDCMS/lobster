@@ -43,9 +43,8 @@ else:
 """
 
 def run_subprocess(*args, **kwargs):
-    print "--- executing"
+    print ">>> executing"
     print " ".join(*args)
-    print "---"
 
     retry = {}
     if 'retry' in kwargs:
@@ -65,9 +64,8 @@ def run_subprocess(*args, **kwargs):
 
     p.stdout = p.stdout.read() # save stdout in case it is needed by caller
 
-    print "--- result is"
+    print ">>> result is"
     print p.stdout
-    print "---"
 
     return p
 
@@ -139,10 +137,9 @@ def check_output(config, localname, remotename):
             if int(size) == int(match.groups()[0]):
                 return True
             else:
-                print "--- size mismatch after transfer"
+                print ">>> size mismatch after transfer"
                 print "remote size: {0}".format(match.groups()[0])
                 print "local size: {0}".format(size)
-                print "---"
                 return False
         else:
             return False
@@ -193,6 +190,8 @@ def copy_inputs(data, config, env):
         if len(config['input']) == 0:
             config['mask']['files'].append(file)
             config['file map'][file] = file
+            print ">>> AAA access to input file detected:"
+            print file
             break
 
         for input in config['input']:
@@ -201,9 +200,8 @@ def copy_inputs(data, config, env):
                 config['mask']['files'].append(filename)
                 config['file map'][filename] = file
 
-                print "--- WQ transfer of input file detected:"
+                print ">>> WQ transfer of input file detected:"
                 print file
-                print "---"
                 break
             elif input.startswith('file://'):
                 if os.path.exists(file) and os.access(file, os.R_OK):
@@ -211,9 +209,8 @@ def copy_inputs(data, config, env):
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
-                    print "--- local access to input file detected:"
+                    print ">>> local access to input file detected:"
                     print file
-                    print "---"
                     break
             elif input.startswith('root://'):
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
@@ -230,7 +227,7 @@ def copy_inputs(data, config, env):
                 p = run_subprocess(args, retry={53: 5})
                 if p.returncode == 0:
                     if config['disable streaming']:
-                        print "--- streaming has been disabled, attempting stage-in"
+                        print ">>> streaming has been disabled, attempting stage-in"
                         args = [
                             "xrdcp",
                             os.path.join(input, file),
@@ -292,15 +289,14 @@ def copy_inputs(data, config, env):
                     config['file map'][filename] = file
                     break
             else:
-                print '--- skipping unhandled stage-in method: {0}'.format(input)
+                print '>>> skipping unhandled stage-in method: {0}'.format(input)
 
     if not config['mask']['files']:
         raise RuntimeError("no stage-in method succeeded")
 
-    print "--- modified input files:"
+    print ">>> modified input files:"
     for fn in config['mask']['files']:
         print fn
-    print "---"
 
 def copy_outputs(data, config, env):
     """Copy output files.
@@ -337,10 +333,9 @@ def copy_outputs(data, config, env):
             if output.startswith('file://'):
                 rn = os.path.join(output.replace('file://', ''), remotename)
                 if os.path.isdir(os.path.dirname(rn)):
-                    print "--- local access detected"
-                    print "--- attempting stage-out with:"
+                    print ">>> local access detected"
+                    print ">>> attempting stage-out with:"
                     print "shutil.copy2('{0}', '{1}')".format(localname, rn)
-                    print "---"
                     try:
                         shutil.copy2(localname, rn)
                         if check_output(config, localname, remotename):
@@ -385,7 +380,7 @@ def copy_outputs(data, config, env):
                     transferred.append(localname)
                     break
             else:
-                print '--- skipping unhandled stage-out method: {0}'.format(output)
+                print '>>> skipping unhandled stage-out method: {0}'.format(output)
 
     if set([ln for ln, rn in config['output files']]) - set(transferred):
         raise RuntimeError("no stage-out method succeeded")
@@ -412,9 +407,8 @@ def edit_process_source(pset, config):
         if want_summary:
             frag += sum_frag
 
-        print "--- config file fragment:"
+        print ">>> config file fragment:"
         print frag
-        print "---"
         fp.write(frag)
 
 def extract_info(config, data, report_filename):
@@ -566,10 +560,9 @@ prologue = config.get('prologue', [])
 epilogue = config.get('epilogue', [])
 
 if len(prologue) > 0:
-    print "--- prologue:"
+    print ">>> prologue:"
     with check_execution(data, 180):
         subprocess.check_call(prologue, env=env)
-    print "---"
 
 data['task timing info'][3] = int(datetime.now().strftime('%s'))
 
@@ -602,9 +595,8 @@ else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
     cmd = '{0} {1} > executable.log 2>&1'.format(config['executable'], ' '.join([repr(str(arg)) for arg in args]))
 
-print "--- running {0}".format(config['executable'])
+print ">>> running {0}".format(config['executable'])
 print cmd
-print "---"
 data['exe exit code'] = subprocess.call(cmd, shell=True, env=env)
 data['job exit code'] = data['exe exit code']
 
@@ -631,10 +623,9 @@ if cmsRun:
 data['task timing info'].append(now)
 
 if len(epilogue) > 0:
-    print "--- epilogue:"
+    print ">>> epilogue:"
     with check_execution(data, 199):
         subprocess.check_call(epilogue, env=env)
-    print "---"
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 

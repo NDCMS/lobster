@@ -15,9 +15,7 @@ print_output() {
 	echo
 	echo ">>> $1"
 	shift
-	echo "---8<---"
 	eval $*
-	echo "--->8---"
 	echo
 }
 

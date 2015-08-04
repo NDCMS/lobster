@@ -43,7 +43,7 @@ class StorageElement(object):
 
         if pfnprefix is not None:
             self._pfnprefix = pfnprefix
-            self._systems.append(self)
+            StorageElement._systems.append(self)
         else:
             self.__master = True
 
@@ -52,7 +52,7 @@ class StorageElement(object):
             return self.__dict__[attr]
 
         def switch(path=None):
-            for imp in self._systems:
+            for imp in StorageElement._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
                 except:
@@ -87,12 +87,12 @@ class StorageElement(object):
 
     @contextmanager
     def default(self):
-        tmp = self._systems
-        self._systems = self._defaults
+        tmp = StorageElement._systems
+        StorageElement._systems = self._defaults
         try:
             yield
         finally:
-            self._systems = tmp
+            StorageElement._systems = tmp
 
 class Local(StorageElement):
     def __init__(self, pfnprefix=''):

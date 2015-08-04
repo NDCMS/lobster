@@ -184,7 +184,7 @@ of paths and URLs that all point to the same output directory.  Output
 files are then saved in sub-directories named after the task labels.
 
 Access to storage elements is defined by a list of access methods that is
-traversed until file access was successful.
+traversed until file access is successful.
 
     storage:
         use work queue for inputs: false   # default
@@ -194,7 +194,7 @@ traversed until file access was successful.
         input:
           - hdfs:///store/user/<user>/<some input directory>
           - file:///hadoop/store/user/<user>/<some input directory>
-          - root://T3_US_NotreDame/store/user/<user>/<some input directory>
+          - root://ndcms.crc.nd.edu/store/user/<user>/<some input directory>
           - srm://T3_US_NotreDame/store/user/<user>/<some input directory>
           - chirp://<your server>:<your port>/<some input directory>
         output:
@@ -209,8 +209,8 @@ be empty.  To use the Tier 2 at CERN for storage, use:
 
     storage:
         input:
-          - root://T2_CH_CERN//store/user/<user>/<output directory>
-          - srm://T2_CH_CERN//store/user/<user>/<output directory>
+          - root://T2_CH_CERN//store/user/<user>/<input directory>
+          - srm://T2_CH_CERN//store/user/<user>/<input directory>
         output:
           - root://T2_CH_CERN//store/user/<user>/<output directory>
           - srm://T2_CH_CERN//store/user/<user>/<output directory>

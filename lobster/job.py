@@ -91,6 +91,10 @@ class JobProvider(object):
                 # create the stageout directory
                 if not fs.exists(label):
                     fs.makedirs(label)
+                else:
+                    if len(list(fs.ls(label))) > 0:
+                        msg = 'stageout directory is not empty: {0}'
+                        raise IOError(msg.format(fs.__getattr__('lfn2pfn')(label)))
 
                 shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
 

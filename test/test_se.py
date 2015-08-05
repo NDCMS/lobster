@@ -40,12 +40,10 @@ class TestSE(unittest.TestCase):
 
         assert not fs.exists('test')
         fs.makedirs('test')
-        print os.listdir(self.workdir)
 
         parent = os.stat(self.workdir).st_mode
         child = os.stat(os.path.join(self.workdir, 'test')).st_mode
 
-        print oct(parent), oct(child)
         assert parent == child
 
 class TestLocal(TestSE):

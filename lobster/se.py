@@ -108,7 +108,6 @@ class Local(StorageElement):
         self.getsize = os.path.getsize
         self.isdir = self._guard(os.path.isdir)
         self.isfile = self._guard(os.path.isfile)
-        self.mkdir = os.mkdir
         self.remove = os.remove
 
     def _guard(self, method):
@@ -123,6 +122,11 @@ class Local(StorageElement):
     def ls(self, path):
         for fn in os.listdir(path):
             yield os.path.join(path, fn)
+
+    def mkdir(self, path, mode=None):
+        os.mkdir(path)
+        if mode:
+            os.chmod(path, mode)
 
     def permissions(self, path):
         return os.stat(path).st_mode & 0777

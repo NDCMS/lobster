@@ -32,17 +32,45 @@ class TestSE(unittest.TestCase):
             info = dataset.MetaInterface().get_info({'label': 'ham', 'files': 'spam/'})
             assert len(info.files) == 10
 
+    def permissions(self, url):
+        if not isinstance(url, list):
+            url = [url]
+        s = se.StorageConfiguration({'output': url})
+        s.activate()
+
+        assert not fs.exists('test')
+        fs.makedirs('test')
+        print os.listdir(self.workdir)
+
+        parent = os.stat(self.workdir).st_mode
+        child = os.stat(os.path.join(self.workdir, 'test')).st_mode
+
+        print oct(parent), oct(child)
+        assert parent == child
+
 class TestLocal(TestSE):
     def runTest(self):
         self.query('file://' + self.workdir)
+
+class TestLocalPermissions(TestSE):
+    def runTest(self):
+        self.permissions('file://' + self.workdir)
 
 class TestHadoop(TestSE):
     def runTest(self):
         self.query('hdfs://' + self.workdir.replace('/hadoop', '', 1))
 
+class TestHadoopPermissions(TestSE):
+    def runTest(self):
+        self.permissions('hdfs://' + self.workdir.replace('/hadoop', '', 1))
+
 class TestSRM(TestSE):
     def runTest(self):
         self.query('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
+
+class TestSRMPermissions(TestSE):
+    def runTest(self):
+        self.permissions('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
 
 class TestChirp(TestSE):
     def setUp(self):
@@ -60,6 +88,10 @@ class TestChirp(TestSE):
 
     def runTest(self):
         self.query('chirp://earth.crc.nd.edu:9666')
+
+class TestChirpPermissions(TestChirp):
+    def runTest(self):
+        self.permissions('chirp://earth.crc.nd.edu:9666')
 
 class TestFailure(TestSE):
     def runTest(self):

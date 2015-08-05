@@ -231,7 +231,7 @@ class SRM(StorageElement):
         cmds = cmd.split()
         args = ['gfal-' + cmds[0]] + cmds[1:] + [path]
         try:
-            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
             p.wait()
             if p.returncode != 0 and not safe:
                 msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
@@ -274,7 +274,10 @@ class SRM(StorageElement):
 
     def permissions(self, path):
         output = self.execute('stat', path, True)
-        return int(output.splitlines()[2][9:13], 8)
+        try:
+            return int(output.splitlines()[2][9:13], 8)
+        except IndexError:
+            raise IOError
 
     def remove(self, path):
         # FIXME safe is active because SRM does not care about directories.

@@ -163,10 +163,10 @@ class Hadoop(StorageElement):
         return int(self.__execute('stat %b', path))
 
     def isdir(self, path):
-        return self.__execute('stat %F', path) == 'directory'
+        return self.__execute('stat %F', path).strip() == 'directory'
 
     def isfile(self, path):
-        return self.__execute('stat %F', path) == 'regular file'
+        return self.__execute('stat %F', path).strip() == 'regular file'
 
     def ls(self, path):
         for line in self.__execute('ls', path).splitlines()[1:]:

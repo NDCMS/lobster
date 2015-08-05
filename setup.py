@@ -28,10 +28,6 @@ setup(
         'python-dateutil',
         'pytz'
     ],
-    extra_requires=[
-        'hadoopy'
-    ],
-    dependency_links=['git+https://github.com/bwhite/hadoopy#egg=hadoopy'],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']
     }

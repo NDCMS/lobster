@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import random
 import re
+import string
 import subprocess
 import xml.dom.minidom
 
@@ -131,34 +132,56 @@ class Local(StorageElement):
     def permissions(self, path):
         return os.stat(path).st_mode & 0777
 
-try:
-    import hadoopy
+class Hadoop(StorageElement):
+    def __init__(self, pfnprefix='/hadoop'):
+        super(Hadoop, self).__init__(pfnprefix)
 
-    class Hadoop(StorageElement):
-        def __init__(self, pfnprefix='/hadoop'):
-            super(Hadoop, self).__init__(pfnprefix)
+    def __execute(self, cmd, path, safe=False):
+        cmds = cmd.split()
+        args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + [path]
+        try:
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p.wait()
+            if p.returncode != 0 and not safe:
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
+                raise IOError(msg)
+        except OSError:
+            raise AttributeError("hadoop filesystem utilities not available")
+        return p.stdout.read()
 
-            self.exists = hadoopy.exists
-            self.getsize = partial(hadoopy.stat, format='%b')
-            self.isdir = hadoopy.isdir
-            self.ls = hadoopy.ls
-            self.mkdir = hadoopy.mkdir
-            self.remove = hadoopy.rmr
+        self.mkdir = hadoopy.mkdir
+        self.remove = hadoopy.rmr
 
-            # local imports are not available after the module hack at the end
-            # of the file
-            self.__hadoop = hadoopy
+    def exists(self, path):
+        try:
+            self.__execute('stat', path)
+            return True
+        except IOError:
+            return False
 
-        def isfile(self, path):
-            return self.__hadoop.stat(path, '%F') == 'regular file'
+    def getsize(self, path):
+        return int(self.__execute('stat %b', path))
 
-        def permissions(self, path):
-            # import string
-            # tr = string.maketrans('rwx-', '1110')
-            # int("foob".translate(tr), 2)
-            raise NotImplementedError
-except:
-    pass
+    def isdir(self, path):
+        return self.__execute('stat %F', path) == 'directory'
+
+    def isfile(self, path):
+        return self.__execute('stat %F', path) == 'regular file'
+
+    def ls(self, path):
+        for line in self.__execute('ls', path).splitlines()[1:]:
+            yield line.split(None, 7)[-1]
+
+    def mkdir(self, path, mode):
+        self.__execute('mkdir', path)
+        self.__execute('chmod ' + oct(mode), path)
+
+    def permissions(self, path):
+        output = self.__execute('ls -d', path).splitlines()[1].split(None, 1)[0]
+        tr = string.maketrans('rwx-', '1110')
+        # first character of output is either 'd' or '-' and needs to be
+        # removed
+        return int(output[1:].translate(tr), 2)
 
 class Chirp(StorageElement):
     def __init__(self, server, pfnprefix):

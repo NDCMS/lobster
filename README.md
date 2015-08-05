@@ -66,7 +66,7 @@ run:
 
     pip install --user -e git+https://github.com/bwhite/hadoopy#egg=hadoopy
 
-## Setup
+# Setup
 
 Install lobster with
 
@@ -75,7 +75,7 @@ Install lobster with
 and lobster will be installed as `~/.local/bin/lobster`.
 
 # Running lobster
-
+## Basic procedure
 The following steps are necessary to run lobster (using grid resources for
 CMS):
 
@@ -101,6 +101,9 @@ CMS):
         wget --no-check-certificate \
             https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.yaml \
             https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.py
+            
+    For more information on how to specify where the output files should be written,
+    see [below](#storage-elements).
 
 4. Running lobster
 
@@ -123,7 +126,7 @@ CMS):
    jobs finish.  If all processing is already done, only merge jobs will
    run.  Valid units for this option are `K`, `k`, `M`, `m`, `G`, and `g`.
 
-6. Starting workers --- see below.
+6. Starting workers --- see [below](#submitting-workers).
 
 7. Stopping lobster
 
@@ -140,7 +143,50 @@ CMS):
 
         lobster publish <labels> <your config/working directory>
 
-# Submitting workers
+## Storage elements
+
+Lobster supports multiple file transfer methods:  via Work Queue, Chirp (see
+[below](#setting-up-a-chirp-server) for more information), XrootD (input only),
+and SRM (output only.)  Configuration is done in terms of paths and URLs that
+all point to the same output directory.  Output files are then saved in
+sub-directories named after the task labels.
+
+Access to storage elements is defined by a list of access methods that is
+traversed until file access is successful. Here is an example for jobs at
+Notre Dame:
+
+    storage:
+        use work queue for inputs: false   # default is false
+        use work queue for outputs: false  # default is false
+        disable input streaming: false     # default is false
+        shuffle inputs: true               # default is false
+        shuffle outputs: true              # default is false
+
+        input:
+          - hdfs:///store/user/<user>/<some input directory>
+          - file:///hadoop/store/user/<user>/<some input directory>
+          - root://ndcms.crc.nd.edu//store/user/<user>/<some input directory>
+          - srm://T3_US_NotreDame/store/user/<user>/<some input directory>
+          - chirp://<your server>:<your port>/<some input directory>
+        output:
+          - hdfs:///store/user/<user>/<output directory>
+          - file:///hadoop/store/user/<user>/<output directory>
+          - root://ndcms.crc.nd.edu//store/user/<user>/<output directory>
+          - srm://T3_US_NotreDame/store/user/<user>/<output directory>
+          - chirp://<your server>:<your port>/<output directory>
+
+For analysis jobs streaming from external sites via XrootD, `input` should
+be empty.  To use the Tier 2 at CERN for storage, use:
+
+    storage:
+        input:
+          - root://T2_CH_CERN//store/user/<user>/<input directory>
+          - srm://T2_CH_CERN//store/user/<user>/<input directory>
+        output:
+          - root://T2_CH_CERN//store/user/<user>/<output directory>
+          - srm://T2_CH_CERN//store/user/<user>/<output directory>
+
+## Submitting workers
 
 To start 10 workers, 4 cores each, connecing to a lobster instance with id
 `chowder`, issue the following commands:
@@ -186,49 +232,6 @@ The last line of arguments corresponds to the desired worker configuration.
 * [CMS squid statistics](http://wlcg-squid-monitor.cern.ch/snmpstats/indexcms.html)
 
 # Advanced usage
-
-## Storage elements
-
-Lobster supports multiple file transfer methods:  via Work Queue, Chirp,
-XrootD (input only), and SRM (output only.)  Configuration is done in terms
-of paths and URLs that all point to the same output directory.  Output
-files are then saved in sub-directories named after the task labels.
-
-Access to storage elements is defined by a list of access methods that is
-traversed until file access is successful. Here is an example for jobs at
-Notre Dame:
-
-    storage:
-        use work queue for inputs: false   # default is false
-        use work queue for outputs: false  # default is false
-        disable input streaming: false     # default is false
-        shuffle inputs: true               # default is false
-        shuffle outputs: true              # default is false
-
-        input:
-          - hdfs:///store/user/<user>/<some input directory>
-          - file:///hadoop/store/user/<user>/<some input directory>
-          - root://ndcms.crc.nd.edu//store/user/<user>/<some input directory>
-          - srm://T3_US_NotreDame/store/user/<user>/<some input directory>
-          - chirp://<your server>:<your port>/<some input directory>
-        output:
-          - hdfs:///store/user/<user>/<output directory>
-          - file:///hadoop/store/user/<user>/<output directory>
-          - root://ndcms.crc.nd.edu//store/user/<user>/<output directory>
-          - srm://T3_US_NotreDame/store/user/<user>/<output directory>
-          - chirp://<your server>:<your port>/<output directory>
-
-For analysis jobs streaming from external sites via XrootD, `input` should
-be empty.  To use the Tier 2 at CERN for storage, use:
-
-    storage:
-        input:
-          - root://T2_CH_CERN//store/user/<user>/<input directory>
-          - srm://T2_CH_CERN//store/user/<user>/<input directory>
-        output:
-          - root://T2_CH_CERN//store/user/<user>/<output directory>
-          - srm://T2_CH_CERN//store/user/<user>/<output directory>
-
 ## Setting up a Chirp server
 
 Using Chirp for stage-in and stage-out can be helpful when standard CMS

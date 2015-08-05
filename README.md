@@ -87,13 +87,24 @@ CMS):
 
 3. Download an example configuration file and adjust it for your needs, e.g.:
 
+        # reads dataset from CMS DBS and produces slimmed copy
         wget --no-check-certificate \
-            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim.yaml \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim_dbs.yaml \
             https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim.py
+
+        # reads input files from specified directory and produces slimmed copy
+        wget --no-check-certificate \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim_file_interface.yaml \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/slim.py
+
+        # produces MC simulation
+        wget --no-check-certificate \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.yaml \
+            https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.py
 
 4. Running lobster
 
-        lobster process slim.yaml
+        lobster process slim_dbs.yaml
 
    This will start a lobster instance in the background.  Check the logfile
    printed on the terminal for info while running.
@@ -116,7 +127,7 @@ CMS):
 
 7. Stopping lobster
 
-        lobster terminate slim.yaml
+        lobster terminate slim_dbs.yaml
 
 8. Creating summary plots
 

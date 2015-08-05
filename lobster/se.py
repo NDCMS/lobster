@@ -44,6 +44,8 @@ class StorageElement(object):
 
         if pfnprefix is not None:
             self._pfnprefix = pfnprefix
+            if not self._pfnprefix.endswith('/'):
+                self._pfnprefix += '/'
             StorageElement._systems.append(self)
         else:
             self.__master = True

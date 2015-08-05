@@ -29,7 +29,7 @@ def validate(args):
         label = cfg['label']
         logger.info('validating output files for {0}'.format(label))
 
-        files = set(fs.ls(os.path.join(storage.path, label)))
+        files = set(fs.ls(label))
         delete = []
 
         for job, job_type in store.failed_jobs(label):
@@ -65,7 +65,6 @@ def validate(args):
             for output in cfg['outputs']:
                 base, ext = os.path.splitext(output)
                 filename = os.path.join(
-                        storage.path,
                         label,
                         cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
 

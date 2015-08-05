@@ -194,13 +194,13 @@ traversed until file access is successful.
         input:
           - hdfs:///store/user/<user>/<some input directory>
           - file:///hadoop/store/user/<user>/<some input directory>
-          - root://ndcms.crc.nd.edu/store/user/<user>/<some input directory>
+          - root://ndcms.crc.nd.edu//store/user/<user>/<some input directory>
           - srm://T3_US_NotreDame/store/user/<user>/<some input directory>
           - chirp://<your server>:<your port>/<some input directory>
         output:
           - hdfs:///store/user/<user>/<output directory>
           - file:///hadoop/store/user/<user>/<output directory>
-          - root://T3_US_NotreDame/store/user/<user>/<output directory>
+          - root://ndcms.crc.nd.edu//store/user/<user>/<output directory>
           - srm://T3_US_NotreDame/store/user/<user>/<output directory>
           - chirp://<your server>:<your port>/<output directory>
 

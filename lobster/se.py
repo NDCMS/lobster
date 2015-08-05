@@ -81,8 +81,13 @@ class StorageElement(object):
             return res
 
     def makedirs(self, path):
-        parent = os.path.dirname(path)
-        if parent != '' and not self.exists(parent):
+        if re.match(r'^..(?:/..)*$', path):
+            parent = os.path.join(path, '..')
+        else:
+            parent = os.path.dirname(path)
+            if parent == '':
+                parent = '..'
+        if not self.exists(parent):
             self.makedirs(parent)
         mode = self.permissions(parent)
         self.mkdir(path, mode)

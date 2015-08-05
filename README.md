@@ -191,6 +191,8 @@ Notre Dame:
         use work queue for inputs: false   # default is false
         use work queue for outputs: false  # default is false
         disable input streaming: false     # default is false
+        shuffle inputs: true               # default is false
+        shuffle outputs: true              # default is false
 
         input:
           - hdfs:///store/user/<user>/<some input directory>

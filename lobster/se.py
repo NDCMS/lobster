@@ -51,10 +51,10 @@ class StorageElement(object):
         if attr in self.__dict__ or not self.__master:
             return self.__dict__[attr]
 
-        def switch(path=None):
+        def switch(path, *args):
             for imp in StorageElement._systems:
                 try:
-                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
+                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path), *args))
                 except (IOError, OSError):
                     pass
             raise AttributeError("no path resolution found for '{0}'".format(path))

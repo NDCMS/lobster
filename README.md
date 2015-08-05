@@ -57,15 +57,6 @@ for bash or, for tcsh
 As you'll need `~/.local` in your path each time you run lobster, we recommend adding
 the step above to your login script.
 
-### Hadoopy (optional)
-
-For systems using Hadoop for storage, Lobster can access Hadoop directly,
-avoiding a FUSE mount, via `hadoopy`.  This is an optional dependency, as
-it requires compilation and may not work on all systems.  To install it,
-run:
-
-    pip install --user -e git+https://github.com/bwhite/hadoopy#egg=hadoopy
-
 # Setup
 
 Install lobster with

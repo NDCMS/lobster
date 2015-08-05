@@ -116,7 +116,6 @@ class Local(StorageElement):
         self.getsize = os.path.getsize
         self.isdir = self._guard(os.path.isdir)
         self.isfile = self._guard(os.path.isfile)
-        self.remove = os.remove
 
     def _guard(self, method):
         """Protect method against non-existent paths.
@@ -138,6 +137,12 @@ class Local(StorageElement):
 
     def permissions(self, path):
         return os.stat(path).st_mode & 0777
+
+    def remove(self, path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 class Hadoop(StorageElement):
     def __init__(self, pfnprefix='/hadoop'):

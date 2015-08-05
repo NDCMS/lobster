@@ -156,9 +156,6 @@ class Hadoop(StorageElement):
             raise AttributeError("hadoop filesystem utilities not available")
         return p.stdout.read()
 
-        self.mkdir = hadoopy.mkdir
-        self.remove = hadoopy.rmr
-
     def exists(self, path):
         try:
             self.__execute('stat', path)
@@ -189,6 +186,9 @@ class Hadoop(StorageElement):
         # first character of output is either 'd' or '-' and needs to be
         # removed
         return int(output[1:].translate(tr), 2)
+
+    def remove(self, path):
+        self.__execute('rm', path)
 
 class Chirp(StorageElement):
     def __init__(self, server, pfnprefix):

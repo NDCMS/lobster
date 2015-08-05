@@ -77,6 +77,13 @@ class StorageElement(object):
         except TypeError:
             return res
 
+    def makedirs(self, path):
+        parent = os.path.dirname(path)
+        if parent != '' and not self.exists(parent):
+            self.makedirs(parent)
+        mode = self.permissions(parent)
+        self.mkdir(path, mode)
+
     @classmethod
     def reset(cls):
         cls._systems = []
@@ -101,7 +108,7 @@ class Local(StorageElement):
         self.getsize = os.path.getsize
         self.isdir = self._guard(os.path.isdir)
         self.isfile = self._guard(os.path.isfile)
-        self.makedirs = os.makedirs
+        self.mkdir = os.mkdir
         self.remove = os.remove
 
     def _guard(self, method):
@@ -117,6 +124,9 @@ class Local(StorageElement):
         for fn in os.listdir(path):
             yield os.path.join(path, fn)
 
+    def permissions(self, path):
+        return os.stat(path).st_mode & 0777
+
 try:
     import hadoopy
 
@@ -128,7 +138,7 @@ try:
             self.getsize = partial(hadoopy.stat, format='%b')
             self.isdir = hadoopy.isdir
             self.ls = hadoopy.ls
-            self.makedirs = hadoopy.mkdir
+            self.mkdir = hadoopy.mkdir
             self.remove = hadoopy.rmr
 
             # local imports are not available after the module hack at the end
@@ -137,6 +147,12 @@ try:
 
         def isfile(self, path):
             return self.__hadoop.stat(path, '%F') == 'regular file'
+
+        def permissions(self, path):
+            # import string
+            # tr = string.maketrans('rwx-', '1110')
+            # int("foob".translate(tr), 2)
+            raise NotImplementedError
 except:
     pass
 
@@ -145,6 +161,9 @@ class Chirp(StorageElement):
         super(Chirp, self).__init__(pfnprefix)
 
         self.__c = chirp.Client(server, timeout=10)
+
+        self.mkdir = self.__c.mkdir
+        self.remove = self.__c.rm
 
     def exists(self, path):
         try:
@@ -167,11 +186,8 @@ class Chirp(StorageElement):
             if f.path not in ('.', '..'):
                 yield os.path.join(path, f.path)
 
-    def makedirs(self, path):
-        self.__c.mkdir(path)
-
-    def remove(self, path):
-        self.__c.rm(path)
+    def permissions(self, path):
+        self.__c.stat(path).mode & 0777
 
 class SRM(StorageElement):
     def __init__(self, pfnprefix):
@@ -219,8 +235,12 @@ class SRM(StorageElement):
         for p in self.execute('ls', path).splitlines():
             yield os.path.join(path, p)
 
-    def makedirs(self, path):
+    def mkdir(self, path, mode=None):
         self.execute('mkdir -p', path)
+
+    def permissions(self, path):
+        output = self.execute('stat', path, True)
+        return int(output.splitlines()[2][9:13], 8)
 
     def remove(self, path):
         # FIXME safe is active because SRM does not care about directories.

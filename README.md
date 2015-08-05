@@ -184,12 +184,13 @@ of paths and URLs that all point to the same output directory.  Output
 files are then saved in sub-directories named after the task labels.
 
 Access to storage elements is defined by a list of access methods that is
-traversed until file access is successful.
+traversed until file access is successful. Here is an example for jobs at
+Notre Dame:
 
     storage:
-        use work queue for inputs: false   # default
-        use work queue for outputs: false  # default
-        disable input streaming: false     # default
+        use work queue for inputs: false   # default is false
+        use work queue for outputs: false  # default is false
+        disable input streaming: false     # default is false
 
         input:
           - hdfs:///store/user/<user>/<some input directory>

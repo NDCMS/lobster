@@ -1,20 +1,35 @@
 import glob
 import multiprocessing
 import os
+import random
 import re
+import string
 import subprocess
 import xml.dom.minidom
 
 from contextlib import contextmanager
 from functools import partial, wraps
 
+import Chirp as chirp
+
 logger = multiprocessing.get_logger()
 
+# Breaks a URL down into 3 parts: the protocol, a optional server, and
+# the path
+url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
+
 class StorageElement(object):
+    """Weird class to handle all needs of storage implementations.
+
+    This class can be used for file system operations after at least one of
+    its subclasses has been instantiated.
+
+    "One size fits nobody." (T. Pratchett)
+    """
     _defaults = []
     _systems = []
 
-    def __init__(self, lfn2pfn=None, pfn2lfn=None):
+    def __init__(self, pfnprefix=None):
         """Create or use a StorageElement abstraction.
 
         As a user, use with no parameters to access various storage
@@ -25,19 +40,17 @@ class StorageElement(object):
 
         Parameters
         ----------
-        lfn2pfn : tuple, optional
-            Contains a tuple out of a regexp and a replacement to perform
-            path transformations from LFN to PFN.
-        pfn2lfn : tuple, optional
-            Contains a tuple out of a regexp and a replacement to perform
-            path transformations from PFN to LFN.
+        pfnprefix : string, optional
+            The path prefix under which relative file names can be
+            accessed.
         """
         self.__master = False
 
-        if lfn2pfn is not None:
-            self._lfn2pfn = lfn2pfn
-            self._pfn2lfn = pfn2lfn
-            self._systems.append(self)
+        if pfnprefix is not None:
+            self._pfnprefix = pfnprefix
+            if not self._pfnprefix.endswith('/'):
+                self._pfnprefix += '/'
+            StorageElement._systems.append(self)
         else:
             self.__master = True
 
@@ -45,22 +58,32 @@ class StorageElement(object):
         if attr in self.__dict__ or not self.__master:
             return self.__dict__[attr]
 
-        def switch(path=None):
-            for imp in self._systems:
-                if imp.matches(path):
-                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path)))
-            raise AttributeError("no path resolution found for '{0}'".format(path))
+        def switch(path, *args):
+            lasterror = None
+            for imp in StorageElement._systems:
+                try:
+                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path), *args))
+                except (IOError, OSError) as e:
+                    lasterror = e
+            raise AttributeError("no path resolution found for '{0}'" +
+                    "\nlast error:\n{1}".format(path, lasterror))
         return switch
 
-    def matches(self, path):
-        return re.match(self._lfn2pfn[0], path) is not None
-
     def lfn2pfn(self, path):
-        return re.sub(*(list(self._lfn2pfn) + [path, 1]))
+        if path.startswith('/'):
+            p = os.path.join(self._pfnprefix, path[1:])
+        else:
+            p = os.path.join(self._pfnprefix, path)
+        m = url_re.match(p)
+        if m:
+            protocol, server, path = url_re.match(p).groups()
+            path = os.path.normpath(path)
+            return "{0}://{1}{2}/".format(protocol, server, path)
+        return os.path.normpath(p)
 
     def fixresult(self, res):
         def pfn2lfn(p):
-            return re.sub(*(list(self._pfn2lfn) + [p, 1]))
+            return p.replace(self._pfnprefix, '', 1)
 
         if isinstance(res, str):
             return pfn2lfn(res)
@@ -70,17 +93,24 @@ class StorageElement(object):
         except TypeError:
             return res
 
+    def makedirs(self, path):
+        if re.match(r'^..(?:/..)*$', path):
+            if len(path) > 2 + 100 * 3:
+                # fail for excessive path recursion
+                raise NotImplementedError
+            parent = os.path.join(path, '..')
+        elif path == '':
+            parent = '..'
+        else:
+            parent = os.path.dirname(path)
+        if not self.exists(parent):
+            self.makedirs(parent)
+        mode = self.permissions(parent)
+        self.mkdir(path, mode)
+
     @classmethod
     def reset(cls):
         cls._systems = []
-
-    @classmethod
-    def test(cls, path):
-        for system in cls._systems:
-            try:
-                list(system.ls(system.lfn2pfn(path)))
-            except:
-                list(system.ls(path))
 
     @classmethod
     def store(cls):
@@ -88,113 +118,141 @@ class StorageElement(object):
 
     @contextmanager
     def default(self):
-        tmp = self._systems
-        self._systems = self._defaults
+        tmp = StorageElement._systems
+        StorageElement._systems = self._defaults
         try:
             yield
         finally:
-            self._systems = tmp
+            StorageElement._systems = tmp
 
 class Local(StorageElement):
-    def __init__(self, lfn2pfn=('(.*)', r'\1'), pfn2lfn=('(.*)', r'\1')):
-        super(Local, self).__init__(lfn2pfn, pfn2lfn)
+    def __init__(self, pfnprefix=''):
+        super(Local, self).__init__(pfnprefix)
         self.exists = os.path.exists
         self.getsize = os.path.getsize
-        self.isdir = os.path.isdir
-        self.isfile = os.path.isfile
-        self.ls = glob.glob
-        self.makedirs = os.makedirs
-        self.remove = os.remove
+        self.isdir = self._guard(os.path.isdir)
+        self.isfile = self._guard(os.path.isfile)
 
-try:
-    import hadoopy
+    def _guard(self, method):
+        """Protect method against non-existent paths.
+        """
+        def guarded(path):
+            if not os.path.exists(path):
+                raise IOError()
+            return method(path)
+        return guarded
 
-    class Hadoop(StorageElement):
-        def __init__(self, lfn2pfn=('/hadoop(/.*)', r'\1'), pfn2lfn=('/(.*)', r'/hadoop/\1')):
-            super(Hadoop, self).__init__(lfn2pfn, pfn2lfn)
+    def ls(self, path):
+        for fn in os.listdir(path):
+            yield os.path.join(path, fn)
 
-            self.exists = hadoopy.exists
-            self.getsize = partial(hadoopy.stat, format='%b')
-            self.isdir = hadoopy.isdir
-            self.isfile = os.path.isfile
-            self.ls = hadoopy.ls
-            self.makedirs = hadoopy.mkdir
-            self.remove = hadoopy.rmr
+    def mkdir(self, path, mode=None):
+        os.mkdir(path)
+        if mode:
+            os.chmod(path, mode)
 
-            # local imports are not available after the module hack at the end
-            # of the file
-            self.__hadoop = hadoopy
+    def permissions(self, path):
+        return os.stat(path).st_mode & 0777
 
-        def isfile(self, path):
-            return self.__hadoop.stat(path, '%F') == 'regular file'
-except:
-    pass
+    def remove(self, path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
-class Chirp(StorageElement):
-    def __init__(self, server, chirppath, basepath):
-        super(Chirp, self).__init__((basepath, chirppath), (chirppath, basepath))
+class Hadoop(StorageElement):
+    def __init__(self, pfnprefix='/hadoop'):
+        super(Hadoop, self).__init__(pfnprefix)
 
-        self.__server = server
-        self.__sub = subprocess
-
-    def execute(self, *args, **kwargs):
-        cmd = ["chirp", "-t", "10", self.__server] + list(args)
-        p = self.__sub.Popen(
-                cmd,
-                stdout=self.__sub.PIPE,
-                stderr=self.__sub.PIPE,
-                stdin=self.__sub.PIPE)
-        p.wait()
-
-        if p.returncode != 0 and not kwargs.get("safe", False):
-            raise subprocess.CalledProcessError(p.returncode,
-                    " ".join(["chirp", self.__server] + list(args)))
-
+    def __execute(self, cmd, path, safe=False):
+        cmds = cmd.split()
+        args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + [path]
+        try:
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p.wait()
+            if p.returncode != 0 and not safe:
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
+                raise IOError(msg)
+        except OSError:
+            raise AttributeError("hadoop filesystem utilities not available")
         return p.stdout.read()
 
     def exists(self, path):
-        out = self.execute("stat", path)
-        return len(out.splitlines()) > 1
+        try:
+            self.__execute('stat', path)
+            return True
+        except IOError:
+            return False
 
     def getsize(self, path):
-        raise NotImplementedError
+        return int(self.__execute('stat %b', path))
 
     def isdir(self, path):
-        out = self.execute('stat', path)
-        return out.splitlines()[4].split() == ["nlink:", "0"]
+        return self.__execute('stat %F', path).strip() == 'directory'
 
     def isfile(self, path):
-        out = self.execute('stat', path)
-        return out.splitlines()[4].split() != ["nlink:", "0"]
+        return self.__execute('stat %F', path).strip() == 'regular file'
 
     def ls(self, path):
-        out = self.execute('ls', '-la', path)
-        for l in out.splitlines():
-            if l.startswith('d'):
-                continue
-            yield os.path.join(path, l.split(None, 9)[8])
+        for line in self.__execute('ls', path).splitlines()[1:]:
+            yield line.split(None, 7)[-1]
 
-    def makedirs(self, path):
-        self.execute('mkdir', '-p', path)
+    def mkdir(self, path, mode):
+        self.__execute('mkdir', path)
+        self.__execute('chmod ' + oct(mode), path)
+
+    def permissions(self, path):
+        output = self.__execute('ls -d', path).splitlines()[1].split(None, 1)[0]
+        tr = string.maketrans('rwx-', '1110')
+        # first character of output is either 'd' or '-' and needs to be
+        # removed
+        return int(output[1:].translate(tr), 2)
 
     def remove(self, path):
-        # FIXME remove does not work for directories
-        self.execute('rm', path)
+        self.__execute('rm', path)
+
+class Chirp(StorageElement):
+    def __init__(self, server, pfnprefix):
+        super(Chirp, self).__init__(pfnprefix)
+
+        self.__c = chirp.Client(server, timeout=10)
+
+        self.mkdir = self.__c.mkdir
+        self.remove = self.__c.rm
+
+    def exists(self, path):
+        try:
+            self.__c.stat(path)
+            return True
+        except IOError:
+            return False
+
+    def getsize(self, path):
+        return self.__c.stat(path).size
+
+    def isdir(self, path):
+        return len(self.__c.ls(path)) > 0
+
+    def isfile(self, path):
+        return len(self.__c.ls(path)) == 0
+
+    def ls(self, path):
+        for f in self.__c.ls(path):
+            if f.path not in ('.', '..'):
+                yield os.path.join(path, f.path)
+
+    def permissions(self, path):
+        self.__c.stat(path).mode & 0777
 
 class SRM(StorageElement):
-    def __init__(self, lfn2pfn=('srm://', 'srm://'), pfn2lfn=('srm://', 'srm://')):
-        super(SRM, self).__init__(lfn2pfn, pfn2lfn)
-
-        self.__stub = re.compile('^srm://[A-Za-z0-9:.\-/]+\?SFN=')
-
-        # local imports are not available after the module hack at the end
-        # of the file
-        self.__sub = subprocess
+    def __init__(self, pfnprefix):
+        super(SRM, self).__init__(pfnprefix)
 
     def execute(self, cmd, path, safe=False):
-        args = ['lcg-' + cmd, '-b', '-D', 'srmv2', path]
+        cmds = cmd.split()
+        args = ['gfal-' + cmds[0]] + cmds[1:] + [path]
         try:
-            p = self.__sub.Popen(args, stdout=self.__sub.PIPE, stderr=self.__sub.PIPE)
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
             p.wait()
             if p.returncode != 0 and not safe:
                 msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
@@ -203,157 +261,189 @@ class SRM(StorageElement):
             raise AttributeError("srm utilities not available")
         return p.stdout.read()
 
-    def strip(self, path):
-        return self.__stub.sub('', path)
-
     def exists(self, path):
         try:
-            self.execute('ls', path)
+            self.execute('stat', path)
             return True
         except:
             return False
 
     def getsize(self, path):
-        raise NotImplementedError
+        output = self.execute('stat', path, True)
+        return output.splitlines()[1].split()[1]
 
     def isdir(self, path):
-        return True
+        try:
+            output = self.execute('stat', path)
+            return 'directory' in output.splitlines()[1]
+        except:
+            return False
 
     def isfile(self, path):
-        return self.execute('ls', path, True).strip() == self.strip(path)
+        try:
+            output = self.execute('stat', path)
+            return 'regular file' in output.splitlines()[1]
+        except:
+            return False
 
     def ls(self, path):
-        pre = self.__stub.match(path).group(0)
         for p in self.execute('ls', path).splitlines():
-            yield pre + p
+            yield os.path.join(path, p)
 
-    def makedirs(self, path):
-        return True
+    def mkdir(self, path, mode=None):
+        self.execute('mkdir -p', path)
+
+    def permissions(self, path):
+        output = self.execute('stat', path, True)
+        try:
+            return int(output.splitlines()[2][9:13], 8)
+        except IndexError:
+            raise IOError
 
     def remove(self, path):
         # FIXME safe is active because SRM does not care about directories.
-        self.execute('del', path, safe=True)
+        self.execute('rm -r', path, safe=True)
 
 class StorageConfiguration(object):
+    """Container for storage element configuration.
+    """
+
+    # Map protocol shorthands to actual protocol names
+    __protocols = {
+            'srm': 'srmv2',
+            'root': 'xrootd'
+    }
+
+    # Matches CMS tiered computing site as found in
+    # /cvmfs/cms.cern.ch/SITECONF/
+    __site_re = re.compile(r'^T[0123]_(?:[A-Z]{2}_)?[A-Za-z0-9_\-]+$')
+
     def __init__(self, config):
-        self.__base = re.sub('([^/]$)', '\\1/', config.get('base', ''), 1)
-        self.__input = None
-        self.__output = None
-        self.__local = None
-        self.__hadoop = None
+        self.__input = map(self._expand_site, config.get('input', []))
+        self.__output = map(self._expand_site, config.get('output', []))
 
-        self._discover(config.get('site'))
+        self.__wq_inputs = config.get('use work queue for inputs', False)
+        self.__wq_outputs = config.get('use work queue for outputs', False)
 
-        if 'input' in config:
-            self.__input = re.sub('([^/]$)', '\\1/', config['input'], 1)
-        if 'output' in config:
-            self.__output = re.sub('([^/]$)', '\\1/', config['output'], 1)
+        self.__shuffle_inputs = config.get('shuffle inputs', False)
+        self.__shuffle_outputs = config.get('shuffle outputs', False)
 
-        if 'local' in config:
-            self.__local = re.sub('([^/]$)', '\\1/', config['local'], 1)
-        if 'hadoop' in config:
-            if 'local' in config:
-                self.__hadoop = self.__local.replace(config['hadoop'], '')
-            else:
-                raise KeyError("must specify both 'local' and 'hadoop' paths when activating native hadoop access.")
+        self.__no_streaming = config.get('disable input streaming', False)
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
 
-    def _find_match(self, doc, tag, protocol):
-        for e in doc.getElementsByTagName(tag):
-            if e.attributes["protocol"].value != protocol:
-                continue
-            if e.attributes.has_key('destination-match') and \
-                    not re.match(e.attributes['destination-match'].value, self.__site):
-                continue
-            if self.__base and len(self.__base) > 0 and \
-                    e.attributes.has_key('path-match') and \
-                    re.match(e.attributes['path-match'].value, self.__base) is None:
-                continue
+    def _find_match(self, protocol, site, path):
+        """Extracts the LFN to PFN translation from the SITECONF.
 
-            return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
-
-    def _discover(self, site):
-        if not site:
-            return
-
-        if len(self.__base) == 0:
-            raise KeyError("can't run CMS site discovery without 'base' path.")
-
-        self.__site = site
-
+        >>> StorageConfiguration({})._find_match('xrootd', 'T3_US_NotreDame', '/store/user/spam/ham/eggs')
+        (u'/+store/(.*)', u'root://xrootd.unl.edu//store/\\\\1')
+        """
         file = os.path.join('/cvmfs/cms.cern.ch/SITECONF', site, 'PhEDEx/storage.xml')
         doc = xml.dom.minidom.parse(file)
 
-        regexp, result = self._find_match(doc, "lfn-to-pfn", "xrootd")
-        self.__input = re.sub(regexp, result, self.__base)
-        regexp, result = self._find_match(doc, "lfn-to-pfn", "srmv2")
-        self.__output = re.sub(regexp, result, self.__base)
+        for e in doc.getElementsByTagName("lfn-to-pfn"):
+            if e.attributes["protocol"].value != protocol:
+                continue
+            if e.attributes.has_key('destination-match') and \
+                    not re.match(e.attributes['destination-match'].value, site):
+                continue
+            if path and len(path) > 0 and \
+                    e.attributes.has_key('path-match') and \
+                    re.match(e.attributes['path-match'].value, path) is None:
+                continue
 
-    @property
-    def path(self):
-        return self.__base
+            return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
+        raise AttributeError("No match found for protocol {0} at site {1}, using {2}".format(protocol, site, path))
+
+    def _expand_site(self, url):
+        """Expands a CMS site label in a url to the corresponding server.
+
+        >>> StorageConfiguration({})._expand_site('root://T3_US_NotreDame/store/user/spam/ham/eggs')
+        u'root://xrootd.unl.edu//store/user/spam/ham/eggs'
+        """
+        protocol, server, path = url_re.match(url).groups()
+
+        if self.__site_re.match(server) and protocol in self.__protocols:
+            regexp, result = self._find_match(self.__protocols[protocol], server, path)
+            return re.sub(regexp, result, path)
+
+        return "{0}://{1}{2}/".format(protocol, server, path)
 
     def transfer_inputs(self):
         """Indicates whether input files need to be transferred manually.
         """
-        return self.__input is None
+        return self.__wq_inputs
 
     def transfer_outputs(self):
         """Indicates whether output files need to be transferred manually.
         """
-        return self.__output is None
+        return self.__wq_outputs
 
-    def pfn(self, path):
-        if self.__local:
-            return path.replace(self.__base, self.__local)
+    def local(self, filename):
+        for url in self.__input + self.__output:
+            protocol, server, path = url_re.match(url).groups()
+
+            if protocol != 'file':
+                continue
+
+            fn = os.path.join(path, filename)
+            if os.path.isfile(fn):
+                return fn
         raise IOError("Can't create LFN without local storage access")
 
+    def _initialize(self, methods):
+        for url in methods:
+            protocol, server, path = url_re.match(url).groups()
+
+            if protocol == 'chirp':
+                try:
+                    Chirp(server, path)
+                except chirp.AuthenticationFailure:
+                    raise AttributeError("cannot access chirp server")
+            elif protocol == 'file':
+                Local(path)
+            elif protocol == 'hdfs':
+                try:
+                    Hadoop(path)
+                except NameError:
+                    raise NotImplementedError("hadoop support is missing on this system")
+            elif protocol == 'srm':
+                SRM(url)
+            else:
+                logger.debug("implementation of master access missing for URL {0}".format(url))
+
     def activate(self):
-        """Replaces default file system access methods with the ones
-        specified per configuration.
+        """Sets file system access methods.
+
+        Replaces default file system access methods with the ones specified
+        per configuration for input and output storage element access.
         """
+        StorageElement.reset()
+
+        self._initialize(self.__input)
+
         StorageElement.store()
         StorageElement.reset()
 
-        if self.__hadoop:
-            try:
-                Hadoop(lfn2pfn=(self.__hadoop, ''), pfn2lfn=('', self.__hadoop))
-            except NameError:
-                raise NotImplementedError("hadoop support is missing on this system")
-        if self.__local:
-            Local(lfn2pfn=(self.__base, self.__local), pfn2lfn=(self.__local, self.__base))
-        if self.__output:
-            if self.__output.startswith("srm://"):
-                SRM(lfn2pfn=(self.__base, self.__output), pfn2lfn=(self.__output, self.__base))
-            elif self.__output.startswith("chirp://"):
-                server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", self.__output).groups()
-                Chirp(server, path, self.__base)
-            StorageElement.test(self.__output.replace(self.__base, '', 1))
+        self._initialize(self.__output)
 
-
-    def preprocess(self, parameters, localdata):
-        """Adjust the input, output files within the parameters send with a task.
+    def preprocess(self, parameters, merge):
+        """Adjust the storage transfer parameters sent with a task.
 
         Parameters
         ----------
         parameters : dict
-            The task parameters to alter.  This should contain the keys
-            'output files' and 'mask', the latter with a subkey 'files'.
-        localdata : bool
-            Indicates whether input file translation is needed or not.
+            The task parameters to alter.  This method will add keys
+            'input', 'output', and 'disable streaming'.
+        merge : bool
+            Specify if this is a merging parameter set.
         """
-        if self.__output:
-            outputs = parameters['output files']
-            parameters['output files'] = [(src, tgt.replace(self.__base, self.__output)) for src, tgt in outputs]
-        if self.__input and localdata:
-            inputs = parameters['mask']['files']
-            parameters['mask']['files'] = [f.replace(self.__base, self.__input) for f in inputs]
+        if self.__shuffle_inputs:
+            random.shuffle(self.__input)
+        if self.__shuffle_outputs or (self.__shuffle_inputs and merge):
+            random.shuffle(self.__output)
 
-    def postprocess(self, report):
-        if self.__input:
-            infos = report['files']['info']
-            report['files']['info'] = dict((k.replace(self.__input, self.__base), v) for k, v in infos.items())
-            skipped = report['files']['skipped']
-            report['files']['skipped'] = [f.replace(self.__input, self.__base) for f in skipped]
+        parameters['input'] = self.__input if not merge else self.__output
+        parameters['output'] = self.__output
+        parameters['disable streaming'] = self.__no_streaming

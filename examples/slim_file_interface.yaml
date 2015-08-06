@@ -1,0 +1,99 @@
+id: <your id here>
+workdir: <your working directory here>
+## optional: to automatically update monitoring plots
+plotdir: <your plotting directory here>
+
+storage:
+    shuffle inputs: false              # default is false
+    shuffle outputs: false             # default is false
+    use work queue for inputs: false   # default is false
+    use work queue for outputs: false  # default is false
+    disable input streaming: false     # default is false
+
+    ## example settings for reading from/writing to ND
+    input:
+      - "hdfs:///store/user/<user>/<input directory>/"
+      - "file:///hadoop/store/user/<user>/<input directory>/"
+      - "root://ndcms.crc.nd.edu://store/user/<user>/<input directory>/"
+      - "srm://T3_US_NotreDame/store/user/<user>/<input directory>/"
+      - "chirp://earth.crc.nd.edu:9099/<input directory>/"
+
+    output:
+      - hdfs:///store/user/<user>/<output directory>
+      - file:///hadoop/store/user/<user>/<output directory>
+      - srm://T3_US_NotreDame/store/user/<user>/<output directory>
+      - chirp://earth.crc.nd.edu:9099/<output directory>
+
+## report jobs to the CMS dashboard (default is true)
+use dashboard: true
+
+## merge output files to this size
+merge size: 3.5G
+
+## delete intermediate files after merging (default is true)
+delete merged: true
+
+## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
+# bad exit codes: [1, 2]
+
+## optional: specify directories in CMSSW work area to omit from sandbox
+# sandbox blacklist: ['*DrawPlots*']
+
+# advanced:
+  ## start killing jobs with excessive runtimes after this many successful
+  ## jobs
+  # abort threshold: 10
+  ## define excessive runtime in multiples of the average runtime
+  # abort multiplier: 4
+  ## enables core dumps by overriding `ulimit` settings
+  # dump core: false
+  ## override automatic proxy renewal
+  # renew proxy: false
+  ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
+  # log level: 0
+  ## how many jobs to create and keep in the queue
+  # payload: 400
+
+## DBS instance to publish to
+# dbs instance: phys03
+## overwrite the username to use for publishing, in case it is different from the environment var $USER
+# publish user: username
+## specify sandbox instead of creating one at startup
+# recycle sandbox: path/to/sandbox.tar.bz2
+
+## task fields:
+##      required:
+##             label (string): label for this task
+##             outputs (list): output files to be collected
+##      must include one of the following:
+##              cmssw config (string): path to cmssw parameter set to call cmsRun on
+##              cmd (string): command to run
+##      optional:
+##              one of:
+##                      dataset (string): DBS dataset name of input files to run over
+##                      files (string): path to input files (wildcards accepted)
+##              one of:
+##                      events per job (int): number of events to process per job
+##                      lumis per job (int): lumis to process per job (default: 25)
+##              lumi mask (string): path to lumi mask to apply
+##              parameters (list of strings): parameters to pass to cmsRun
+##              extra inputs (list of strings): extra files needed to run the job
+##              publish label (string): label to include in the published dataset name
+##              output format (string): optional renaming of files, based on their basename and extension
+##                                      for example, "this_is_file_{id}_{base}.{ext}"
+
+## Set task default, applied to all tasks specified below, unless they
+## override certain options.
+task defaults:
+    cmssw config: slim.py
+    outputs: [output.root]
+    publish label: 'test'
+    ## Apply defaults only to tasks matching the labels in this list
+    matching:
+      - label: '^ttH*' # match all labels starting with "ttH"
+        events per job: 5000
+      # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
+      #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
+
+tasks:
+  - {label: ttH, files: '/ttH'}

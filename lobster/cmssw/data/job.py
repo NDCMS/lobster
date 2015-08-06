@@ -42,6 +42,35 @@ else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
 
+def run_subprocess(*args, **kwargs):
+    print
+    print ">>> executing"
+    print " ".join(*args)
+
+    retry = {}
+    if 'retry' in kwargs:
+        retry = dict(kwargs['retry'])
+        del kwargs['retry']
+
+    kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT})
+    p = subprocess.Popen(*args, **kwargs)
+    p.wait()
+
+    if p.returncode in retry:
+        print 'retrying...'
+        if retry[p.returncode] > 0:
+            retry[p.returncode] -= 1
+            kwargs['retry'] = retry
+            return run_subprocess(*args, **kwargs)
+
+    p.stdout = p.stdout.read() # save stdout in case it is needed by caller
+
+    print
+    print ">>> result is"
+    print p.stdout
+
+    return p
+
 def create_fjr(config, usage, outfile='report.xml'):
 
     report = FwkJobReport()
@@ -96,180 +125,270 @@ def check_execution(data, code):
         if data['job exit code'] == 0:
             data['job exit code'] = code
 
-def check_outputs(config):
-    """Check that chirp received the output files.
+def check_output(config, localname, remotename):
+    """Check that file has been transferred correctly.
+
+    If XrootD or Chirp are in the output access methods, tries
+    them in the order specified to compare the local and remote
+    file sizes. If they agree, return True; otherwise, return False.
     """
-    for localname, remotename in config['output files']:
-        if remotename.startswith("chirp://"):
-            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", remotename).groups()
-            size = os.path.getsize(localname)
-            p = subprocess.Popen([
-                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
-                server, "stat", path], stdout=subprocess.PIPE)
-            stdout = p.communicate()[0]
-            for l in stdout.splitlines():
-                if l.startswith('size:'):
-                    if int(l.split()[1]) != size:
-                        print "> size mismatch after transfer for " + localname
-                        return False
-                    break
+    def compare(stat, file):
+        size = os.path.getsize(file)
+        match = re.search("[Ss]ize:\s*([0-9]*)", stat)
+        if match:
+            if int(size) == int(match.groups()[0]):
+                return True
             else:
-                # size: is not in stdout
+                print ">>> size mismatch after transfer"
+                print "remote size: {0}".format(match.groups()[0])
+                print "local size: {0}".format(size)
                 return False
+        else:
+            return False
+
+    for output in config['output']:
+        if output.startswith('root://'):
+            server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+            timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
+            args = [
+                "timeout",
+                timeout,
+                "xrdfs",
+                server,
+                "stat",
+                os.path.join(path, remotename)
+            ]
+            p = run_subprocess(args, retry={53: 5})
+            return compare(p.stdout, localname)
+        elif output.startswith("chirp://"):
+            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+            args = [
+                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                server,
+                "stat",
+                os.path.join(path, remotename)
+            ]
+            p = run_subprocess(args)
+            return compare(p.stdout, localname)
+
     return True
 
 def copy_inputs(data, config, env):
     """Copies input files if desired.
 
-    Checks the passed configuration for transfer settings and modifies the
-    input file mask to point to transferred files, where appropriate.
-    Local access is checked first, followed by xrootd access, and finally,
-    attempting to transfer files via chirp.
+    Tries to access each input file via the specified access methods.
+    Access methods are traversed in the order specified until one is successful.
     """
+    if not config['mask']['files']:
+        return
+
     config['file map'] = {}
 
     files = list(config['mask']['files'])
     config['mask']['files'] = []
 
     for file in files:
-        # File is locally accessible
-        if os.path.exists(file) and os.access(file, os.R_OK) and not os.path.isdir(file):
-            filename = 'file:' + file
-            config['mask']['files'].append(filename)
-            config['file map'][filename] = file
-            continue
+        # use AAA to access data in, e.g., DBS
+        if len(config['input']) == 0:
+            config['mask']['files'].append(file)
+            config['file map'][file] = file
+            print ">>> AAA access to input file detected:"
+            print file
+            break
 
-        # File has been transferred via WQ
-        if os.path.exists(os.path.basename(file)):
-            filename = 'file:' + os.path.basename(file)
-            config['mask']['files'].append(filename)
-            config['file map'][filename] = file
-            continue
-
-        if file.startswith("chirp://"):
-            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", file).groups()
-
-            status = subprocess.call([
-                os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
-                "-a",
-                "globus",
-                "-d",
-                "all",
-                server,
-                path,
-                os.path.basename(path)], env=env)
-
-            if status == 0:
-                filename = 'file:' + os.path.basename(path)
+        for input in config['input']:
+            if os.path.exists(os.path.basename(file)):
+                filename = 'file:' + os.path.basename(file)
                 config['mask']['files'].append(filename)
                 config['file map'][filename] = file
-            else:
-                raise IOError("Could not transfer file {0}".format(cfile))
-            continue
 
-        # FIXME remove with xrootd test?
-        # add file if not local or in chirp and then hope that CMSSW can
-        # access it
-        config['mask']['files'].append(file)
-        config['file map'][file] = file
+                print ">>> WQ transfer of input file detected:"
+                print file
+                break
+            elif input.startswith('file://'):
+                if os.path.exists(file) and os.access(file, os.R_OK):
+                    filename = 'file:' + file
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+
+                    print ">>> local access to input file detected:"
+                    print file
+                    break
+            elif input.startswith('root://'):
+                server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
+                timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
+                args = [
+                    "timeout",
+                    timeout,
+                    "xrdfs",
+                    server,
+                    "ls",
+                    os.path.join(path, file)
+                ]
+
+                p = run_subprocess(args, retry={53: 5})
+                if p.returncode == 0:
+                    if config['disable streaming']:
+                        print ">>> streaming has been disabled, attempting stage-in"
+                        args = [
+                            "xrdcp",
+                            os.path.join(input, file),
+                            os.path.basename(file)
+                        ]
+
+                        p = run_subprocess(args)
+                        if p.returncode == 0:
+                            filename = 'file:' + os.path.basename(path)
+                            config['mask']['files'].append(filename)
+                            config['file map'][filename] = file
+                            break
+                    else:
+                        filename = os.path.join(input, file)
+                        config['mask']['files'].append(filename)
+                        config['file map'][filename] = file
+                        break
+            elif input.startswith('srm://'):
+                prg = []
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+                elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                    # FIXME gfal is very picky about its environment
+                    prg = [os.environ["LOBSTER_GFAL_COPY"]]
+
+                args = prg + [
+                    os.path.join(input, file),
+                    os.path.basename(file)
+                ]
+
+                pruned_env = dict(env)
+                for k in ['LD_LIBRARY_PATH', 'PATH']:
+                    pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+
+                p = run_subprocess(args, env=pruned_env)
+                if p.returncode == 0:
+                    filename = 'file:' + os.path.basename(file)
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+                    break
+            elif input.startswith("chirp://"):
+                server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
+                remotename = os.path.join(path, file)
+
+                args = [
+                    os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_get"),
+                    "-a",
+                    "globus",
+                    "-d",
+                    "all",
+                    server,
+                    remotename,
+                    os.path.basename(remotename)
+                ]
+                p = run_subprocess(args, env=env)
+                if p.returncode == 0:
+                    filename = 'file:' + os.path.basename(file)
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+                    break
+            else:
+                print '>>> skipping unhandled stage-in method: {0}'.format(input)
 
     if not config['mask']['files']:
-        data['stagein exit code'] = status
+        raise RuntimeError("no stage-in method succeeded")
 
-    print "--- modified input files:"
+    print ">>> modified input files:"
     for fn in config['mask']['files']:
         print fn
-    print "---"
 
 def copy_outputs(data, config, env):
     """Copy output files.
 
     If the job failed, delete output files, to avoid work_queue
-    transferring them.  Otherwise, if a chirp server is specified, transfer
-    output files out via chirp.  In any case, file sizes are added up and
-    inserted into the job data.
+    transferring them.  Otherwise, attempt stage-out methods in the order
+    specified in the config['storage']['output'] section of the user's
+    Lobster configuration. For successful jobs, file sizes are added up
+    and inserted into the job data.
     """
     outsize = 0
     outsize_bare = 0
 
-    files = list(config['output files'])
-    config['output files'] = []
+    transferred = []
+    for localname, remotename in config['output files']:
+        for output in config['output']:
+            # prevent stageout of data for failed jobs
+            if os.path.exists(localname) and data['cmssw exit code'] != 0:
+                os.remove(localname)
+                break
+            elif data['cmssw exit code'] != 0:
+                break
 
-    for localname, remotename in files:
-        # prevent stageout of data for failed jobs
-        if os.path.exists(localname) and data['cmssw exit code'] != 0:
-            os.remove(localname)
-            continue
-        elif data['cmssw exit code'] != 0:
-            continue
+            outsize += os.path.getsize(localname)
 
-        outsize += os.path.getsize(localname)
+            # using try just in case. Successful jobs should always
+            # have an existing Events::TTree though.
+            try:
+                outsize_bare += get_bare_size(localname)
+            except IOError as error:
+                print error
+                outsize_bare += os.path.getsize(localname)
 
-        # using try just in case. Successful jobs should always
-        # have an existing Events::TTree though.
-        try:
-            outsize_bare += get_bare_size(localname)
-        except IOError as error:
-            print error
-            outsize_bare += os.path.getsize(localname)
+            if output.startswith('file://'):
+                rn = os.path.join(output.replace('file://', ''), remotename)
+                if os.path.isdir(os.path.dirname(rn)):
+                    print ">>> local access detected"
+                    print ">>> attempting stage-out with:"
+                    print "shutil.copy2('{0}', '{1}')".format(localname, rn)
+                    try:
+                        shutil.copy2(localname, rn)
+                        if check_output(config, localname, remotename):
+                            transferred.append(localname)
+                            break
+                    except Exception as e:
+                        print e
+            elif output.startswith('srm://'):
+                prg = []
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+                elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                    # FIXME gfal is very picky about its environment
+                    prg = [os.environ["LOBSTER_GFAL_COPY"]]
 
-        if os.path.isdir(os.path.dirname(remotename)):
-            shutil.copy2(localname, remotename)
-        elif remotename.startswith("srm://"):
-            prg = []
-            if len(os.environ["LOBSTER_LCG_CP"]) > 0:
-                prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
-            elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
-                # FIXME gfal is very picky about its environment
-                prg = [os.environ["LOBSTER_GFAL_COPY"]]
+                args = prg + [
+                    "file://" + os.path.join(os.getcwd(), localname),
+                    os.path.join(output, remotename)
+                ]
+
+                pruned_env = dict(env)
+                for k in ['LD_LIBRARY_PATH', 'PATH']:
+                    pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+
+                p = run_subprocess(args, env=pruned_env)
+                if p.returncode == 0 and check_output(config, localname, remotename):
+                    transferred.append(localname)
+                    break
+            elif output.startswith("chirp://"):
+                server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+
+                args = [os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
+                        "-a",
+                        "globus",
+                        "-d",
+                        "all",
+                        localname,
+                        server,
+                        os.path.join(path, remotename)]
+                p = run_subprocess(args, env=env)
+                if p.returncode == 0 and check_output(config, localname, remotename):
+                    transferred.append(localname)
+                    break
             else:
-                raise RuntimeError("no stage-out method available")
+                print '>>> skipping unhandled stage-out method: {0}'.format(output)
 
-            args = prg + [
-                "file:///" + os.path.join(os.getcwd(), localname),
-                remotename
-            ]
-
-            print "--- staging-out with:"
-            print " ".join(args)
-            print "---"
-
-            pruned_env = dict(env)
-            for k in ['LD_LIBRARY_PATH', 'PATH']:
-                pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
-
-            p = subprocess.Popen(args, env=pruned_env, stderr=subprocess.PIPE)
-            p.wait()
-            if p.returncode != 0:
-                data['stageout exit code'] = p.returncode
-                raise IOError("Failed to transfer output file '{0}':\n{1}".format(localname, p.stderr.read()))
-            else:
-                print p.stderr.read()
-        if remotename.startswith("chirp://"):
-            server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", remotename).groups()
-
-            status = subprocess.call([os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp_put"),
-                                      "-a",
-                                      "globus",
-                                      "-d",
-                                      "all",
-                                      localname,
-                                      server,
-                                      path], env=env)
-            if status != 0:
-                data['stageout exit code'] = status
-                raise IOError("Failed to transfer output file '{0}'".format(localname))
-
-        config['output files'].append((localname, remotename))
+    if set([ln for ln, rn in config['output files']]) - set(transferred):
+        raise RuntimeError("no stage-out method succeeded")
 
     data['output size'] = outsize
     data['output bare size'] = outsize_bare
-
-    print "--- modified output files:"
-    for fn in config['output files']:
-        print fn
-    print "---"
-
 
 def edit_process_source(pset, config):
     """Edit parameter set for job.
@@ -290,9 +409,9 @@ def edit_process_source(pset, config):
         if want_summary:
             frag += sum_frag
 
-        print "--- config file fragment:"
+        print
+        print ">>> config file fragment:"
         print frag
-        print "---"
         fp.write(frag)
 
 def extract_info(config, data, report_filename):
@@ -444,10 +563,9 @@ prologue = config.get('prologue', [])
 epilogue = config.get('epilogue', [])
 
 if len(prologue) > 0:
-    print "--- prologue:"
+    print ">>> prologue:"
     with check_execution(data, 180):
         subprocess.check_call(prologue, env=env)
-    print "---"
 
 data['task timing info'][3] = int(datetime.now().strftime('%s'))
 
@@ -461,8 +579,9 @@ parameters = {
 apmonSend(taskid, monitorid, parameters)
 apmonFree()
 
-print "print config[]:"
-print config
+print
+print ">>> updated parameters are:"
+print json.dumps(config, sort_keys=True, indent=2)
 
 if cmsRun:
     #
@@ -480,9 +599,8 @@ else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
     cmd = '{0} {1} > executable.log 2>&1'.format(config['executable'], ' '.join([repr(str(arg)) for arg in args]))
 
-print "--- Running {0}".format(config['executable'])
+print ">>> running {0}".format(config['executable'])
 print cmd
-print "---"
 data['exe exit code'] = subprocess.call(cmd, shell=True, env=env)
 data['job exit code'] = data['exe exit code']
 
@@ -491,6 +609,7 @@ if cmsRun:
 else:
     create_fjr(config, usage)
 
+cputime = 0
 with check_execution(data, 190):
     cputime = extract_info(config, data, 'report.xml')
 
@@ -510,17 +629,17 @@ if cmsRun:
 data['task timing info'].append(now)
 
 if len(epilogue) > 0:
-    print "--- epilogue:"
+    print ">>> epilogue:"
     with check_execution(data, 199):
         subprocess.check_call(epilogue, env=env)
-    print "---"
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)
 
-if data['job exit code'] == 0 and not check_outputs(config):
+transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
+if data['job exit code'] == 0 and not transfer_success:
     data['job exit code'] = 211
     data['output size'] = 0
 

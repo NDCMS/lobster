@@ -27,13 +27,13 @@ class MetaInterface:
         self.__file_interface = FileInterface()
         self.__das_interface = DASInterface()
 
-    def get_info(self, cfg, base):
+    def get_info(self, cfg):
         info = None
         if 'dataset' in cfg:
             info = self.__das_interface.get_info(cfg)
         else:
             info = self.__file_interface.get_info(cfg)
-        info.path = os.path.join(base, cfg['label'])
+        info.path = cfg['label']
         return info
 
 class DASInterface:
@@ -128,11 +128,7 @@ class FileInterface:
                 for entry in files:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
-                        dset.files += [f for f in fs.ls(os.path.join(entry, '*'))]
-                    if fs.isfile(entry):
-                        dset.files += [f.strip() for f in open(entry).readlines()]
-                    elif isinstance(entry, str):
-                        dset.files += [f for f in fs.ls(os.path.join(entry))]
+                        dset.files += filter(fs.isfile, fs.ls(entry))
 
                 dset.total_lumis = len(dset.files)
 

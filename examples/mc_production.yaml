@@ -7,25 +7,29 @@ workdir: <your working directory here>
 plotdir: <your plotting directory here>
 
 storage:
-    base: /store/user/<user>/<output directory>
-    ## ND example settings
-    # hadoop: /store/user/<user>/<output directory>
-    # local: /hadoop/store/user/<user>/<output directory>
-    # input: "chirp://earth.crc.nd.edu:9099/<output directory>"
-    # output: "chirp://earth.crc.nd.edu:9099/<output directory>"
-    # input: "root://ndcms.crc.nd.edu//hadoop/store/user/<user>/<output directory>"
-    # output: "srm://ndcms.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/user/<user>/<output directory>"
-    ## CERN example settings
-    input: "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
-    output: "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
+    shuffle outputs: false             # default is false
+    use work queue for outputs: false  # default is false
 
-## report jobs to the CMS dashboard (default: true)
+    ## example settings for storing output at ND
+    output:
+      - hdfs:///store/user/<user>/<output directory>
+      - file:///hadoop/store/user/<user>/<output directory>
+      - srm://T3_US_NotreDame/store/user/<user>/<output directory>
+      - chirp://earth.crc.nd.edu:9099/<output directory>
+
+    # ## example settings for storing output at CERN
+    # output:
+    #   - "srm://srm-eoscms.cern.ch:8443/srm/v2/server?SFN=/eos/cms/store/user/<user>/<output directory>"
+    #   - "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
+
+
+## report jobs to the CMS dashboard (default is true)
 use dashboard: true
 
 ## merge output files to this size
 merge size: 3.5G
 
-## delete intermediate files after merging (default: true)
+## delete intermediate files after merging (default is true)
 delete merged: true
 
 ## optional: if a job exits with a code in this list, the host it ran on will be blacklisted

@@ -149,14 +149,11 @@ class JobHandler(object):
 
     def update_job(self, parameters, inputs, outputs, se):
         local = self._local or self._merge
-        se.preprocess(parameters, local)
+        se.preprocess(parameters, self._merge)
         if local and se.transfer_inputs():
-            inputs += [(se.pfn(f), os.path.basename(f), False) for id, f in self._files if f]
+            inputs += [(se.local(f), os.path.basename(f), False) for id, f in self._files if f]
         if se.transfer_outputs():
-            outputs += [(se.pfn(rf), os.path.basename(lf)) for lf, rf in self._outputs]
-
-    def update_report(self, report, se):
-        se.postprocess(report)
+            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self._outputs]
 
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):
@@ -265,7 +262,7 @@ class JobProvider(job.JobProvider):
 
                 logger.info("querying backend for {0}".format(label))
                 with fs.default():
-                    dataset_info = self.__interface.get_info(cfg, self._storage.path)
+                    dataset_info = self.__interface.get_info(cfg)
 
                 if 'filename transformation' in cfg:
                     match, sub = cfg['filename transformation']
@@ -299,7 +296,6 @@ class JobProvider(job.JobProvider):
         ids = []
 
         for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
-            sdir = os.path.join(self._storage.path, label)
             ids.append(id)
 
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
@@ -323,7 +319,7 @@ class JobProvider(job.JobProvider):
                 for job, _, _, _ in lumis:
                     report = self.get_report(label, job)
                     base, ext = os.path.splitext(self.outputs[label][0])
-                    input = os.path.join(sdir, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
+                    input = os.path.join(label, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
 
                     if os.path.isfile(report):
                         inreports.append(report)
@@ -387,7 +383,7 @@ class JobProvider(job.JobProvider):
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
-                handler.outputs.append((filename, os.path.join(self._storage.path, label, outname)))
+                handler.outputs.append((filename, os.path.join(label, outname)))
 
             outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
 
@@ -466,7 +462,6 @@ class JobProvider(job.JobProvider):
             try:
                 with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
                     data = json.load(f)
-                    handler.update_report(data, self._storage)
                     cache_start_size = data['cache']['start size']
                     cache_end_size = data['cache']['end size']
                     cache = data['cache']['type']

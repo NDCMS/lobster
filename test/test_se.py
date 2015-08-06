@@ -35,7 +35,7 @@ class TestSE(unittest.TestCase):
     def permissions(self, url):
         if not isinstance(url, list):
             url = [url]
-        url = [os.path.join(u, 'spam') for u in url]
+        url = [os.path.join(u, 'bacon') for u in url]
 
         s = se.StorageConfiguration({'output': url})
         s.activate()
@@ -44,7 +44,7 @@ class TestSE(unittest.TestCase):
         fs.makedirs('ham/eggs')
 
         parent = os.stat(self.workdir).st_mode
-        child = os.stat(os.path.join(self.workdir, 'spam/ham/eggs')).st_mode
+        child = os.stat(os.path.join(self.workdir, 'bacon/ham/eggs')).st_mode
 
         assert parent == child
 

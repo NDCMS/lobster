@@ -14,6 +14,10 @@ import Chirp as chirp
 
 logger = multiprocessing.get_logger()
 
+# Breaks a URL down into 3 parts: the protocol, a optional server, and
+# the path
+url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
+
 class StorageElement(object):
     """Weird class to handle all needs of storage implementations.
 
@@ -55,18 +59,27 @@ class StorageElement(object):
             return self.__dict__[attr]
 
         def switch(path, *args):
+            lasterror = None
             for imp in StorageElement._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path), *args))
-                except (IOError, OSError):
-                    pass
-            raise AttributeError("no path resolution found for '{0}'".format(path))
+                except (IOError, OSError) as e:
+                    lasterror = e
+            raise AttributeError("no path resolution found for '{0}'" +
+                    "\nlast error:\n{1}".format(path, lasterror))
         return switch
 
     def lfn2pfn(self, path):
         if path.startswith('/'):
-            return os.path.join(self._pfnprefix, path[1:])
-        return os.path.join(self._pfnprefix, path)
+            p = os.path.join(self._pfnprefix, path[1:])
+        else:
+            p = os.path.join(self._pfnprefix, path)
+        m = url_re.match(p)
+        if m:
+            protocol, server, path = url_re.match(p).groups()
+            path = os.path.normpath(path)
+            return "{0}://{1}{2}/".format(protocol, server, path)
+        return os.path.normpath(p)
 
     def fixresult(self, res):
         def pfn2lfn(p):
@@ -82,11 +95,14 @@ class StorageElement(object):
 
     def makedirs(self, path):
         if re.match(r'^..(?:/..)*$', path):
+            if len(path) > 2 + 100 * 3:
+                # fail for excessive path recursion
+                raise NotImplementedError
             parent = os.path.join(path, '..')
+        elif path == '':
+            parent = '..'
         else:
             parent = os.path.dirname(path)
-            if parent == '':
-                parent = '..'
         if not self.exists(parent):
             self.makedirs(parent)
         mode = self.permissions(parent)
@@ -301,9 +317,6 @@ class StorageConfiguration(object):
     # Matches CMS tiered computing site as found in
     # /cvmfs/cms.cern.ch/SITECONF/
     __site_re = re.compile(r'^T[0123]_(?:[A-Z]{2}_)?[A-Za-z0-9_\-]+$')
-    # Breaks a URL down into 3 parts: the protocol, a optional server, and
-    # the path
-    __url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
 
     def __init__(self, config):
         self.__input = map(self._expand_site, config.get('input', []))
@@ -349,7 +362,7 @@ class StorageConfiguration(object):
         >>> StorageConfiguration({})._expand_site('root://T3_US_NotreDame/store/user/spam/ham/eggs')
         u'root://xrootd.unl.edu//store/user/spam/ham/eggs'
         """
-        protocol, server, path = self.__url_re.match(url).groups()
+        protocol, server, path = url_re.match(url).groups()
 
         if self.__site_re.match(server) and protocol in self.__protocols:
             regexp, result = self._find_match(self.__protocols[protocol], server, path)
@@ -369,7 +382,7 @@ class StorageConfiguration(object):
 
     def local(self, filename):
         for url in self.__input + self.__output:
-            protocol, server, path = self.__url_re.match(url).groups()
+            protocol, server, path = url_re.match(url).groups()
 
             if protocol != 'file':
                 continue
@@ -381,7 +394,7 @@ class StorageConfiguration(object):
 
     def _initialize(self, methods):
         for url in methods:
-            protocol, server, path = self.__url_re.match(url).groups()
+            protocol, server, path = url_re.match(url).groups()
 
             if protocol == 'chirp':
                 try:

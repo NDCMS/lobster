@@ -92,16 +92,17 @@ def run(args):
             prevent_core=False,
             signal_map=signals):
 
+        level = max(1, config.get('advanced', {}).get('log level', 2)) * 10
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
-        fileh.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
+        fileh.setLevel(level)
 
         logger.addHandler(fileh)
-        logger.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
+        logger.setLevel(level)
 
         if args.foreground:
             console = logging.StreamHandler()
-            console.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
+            console.setLevel(level)
             console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
 

@@ -65,8 +65,7 @@ class StorageElement(object):
                     return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path), *args))
                 except (IOError, OSError) as e:
                     lasterror = e
-            raise AttributeError("no path resolution found for '{0}'" +
-                    "\nlast error:\n{1}".format(path, lasterror))
+            raise AttributeError("no resolution found for path '{0}' and method {1}: {2}".format(path, attr, lasterror))
         return switch
 
     def lfn2pfn(self, path):
@@ -105,6 +104,8 @@ class StorageElement(object):
             parent = os.path.dirname(path)
         if not self.exists(parent):
             self.makedirs(parent)
+        if self.exists(path):
+            return
         mode = self.permissions(parent)
         self.mkdir(path, mode)
 
@@ -242,7 +243,7 @@ class Chirp(StorageElement):
                 yield os.path.join(path, f.path)
 
     def permissions(self, path):
-        self.__c.stat(path).mode & 0777
+        return self.__c.stat(path).mode & 0777
 
 class SRM(StorageElement):
     def __init__(self, pfnprefix):

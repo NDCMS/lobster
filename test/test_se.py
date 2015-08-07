@@ -76,7 +76,7 @@ class TestChirp(TestSE):
     def setUp(self):
         fd, self.acl = tempfile.mkstemp()
         with os.fdopen(fd, 'w') as f:
-            f.write('unix:' + os.environ['USER'] + ' rl\n')
+            f.write('unix:' + os.environ['USER'] + ' rlwi\n')
         args=['chirp_server', '-p', '9666',
                 '--root=' + self.workdir,
                 '-a', 'unix', '-A', self.acl]

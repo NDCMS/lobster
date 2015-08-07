@@ -217,8 +217,6 @@ class Chirp(StorageElement):
         super(Chirp, self).__init__(pfnprefix)
 
         self.__c = chirp.Client(server, timeout=10)
-
-        self.mkdir = self.__c.mkdir
         self.remove = self.__c.rm
 
     def exists(self, path):
@@ -241,6 +239,11 @@ class Chirp(StorageElement):
         for f in self.__c.ls(path):
             if f.path not in ('.', '..'):
                 yield os.path.join(path, f.path)
+
+    def mkdir(self, path, mode=None):
+        self.__c.mkdir(path)
+        if mode:
+            self.__c.chmod(path, mode)
 
     def permissions(self, path):
         return self.__c.stat(path).mode & 0777

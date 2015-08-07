@@ -1,4 +1,13 @@
-# General
+# Concept
+
+Lobster executes workflows, specified in a configuration file, containing
+several jobs.  These jobs are broken down into tasks by a `JobProvider` (to
+be renamed), and executed on workers via Work Queue.
+
+Optional, CMS specific component that should be pluggable include:
+dashboard monitoring, `cmsRun` support, sandboxing.
+
+# Git Development
 
 Lobster development should follow a style similar to the [github
 workflow](http://scottchacon.com/2011/08/31/github-flow.html).  That is:
@@ -20,11 +29,13 @@ from the summary by an empty line:
 
 Non-descriptive summaries such as `Changed spam.py` should be avoided.
 
-# Concept
+# Testing
 
-Lobster executes workflows, specified in a configuration file, containing
-several jobs.  These jobs are broken down into tasks by a `JobProvider` (to
-be renamed), and executed on workers via Work Queue.
+Lobster uses `nose` to run unit tests, which can be found in the `test`
+directory.  It should be automatically installed as a python dependency.
+Some behavior can be tested with
 
-Optional, CMS specific component that should be pluggable include:
-dashboard monitoring, `cmsRun` support, sandboxing.
+    nosetests
+    nosetests test/test_se.py:TestHadoopPermissions
+
+where the latter executes one specific test case.

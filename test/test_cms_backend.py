@@ -2,6 +2,7 @@
 from lobster import cmssw
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.cmssw.job import JobHandler
+from lobster.cmssw.jobit import JobUpdate
 import os
 import shutil
 import tempfile
@@ -147,11 +148,15 @@ class TestSQLBackend(object):
         files_skipped = []
         events_written = 123
 
-        job_update, file_update, lumi_update = handler.get_jobit_info(False, files_info, files_skipped, events_written)
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
+                handler.get_jobit_info(False, files_info, files_skipped, events_written)
 
-        assert job_update == [0, 300, 123, 2]
+        assert jobits_processed == 4
+        assert events_read == 300
+        assert events_written == 123
+        assert status == 2
         assert file_update == [(220, 0, 1), (80, 0, 2)]
-        assert lumi_update == []
+        assert jobit_update == []
         # }}}
 
     def test_obtain(self):
@@ -186,13 +191,8 @@ class TestSQLBackend(object):
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 0
-        submissions = 0
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -203,9 +203,16 @@ class TestSQLBackend(object):
                         [],
                         100
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -241,22 +248,27 @@ class TestSQLBackend(object):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 123
-        submissions = 1
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         True,
                         {},
                         [],
                         0
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            exit_code=123,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status,
+            submissions=1)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -286,13 +298,8 @@ class TestSQLBackend(object):
             'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 123
-        submissions = 1
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         True,
                         {
@@ -304,9 +311,17 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            exit_code=123,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status,
+            submissions=1)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -337,13 +352,8 @@ class TestSQLBackend(object):
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 0
-        submissions = 1
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -352,9 +362,16 @@ class TestSQLBackend(object):
                         ['/test/1.root', '/test/2.root'],
                         50
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         skipped = list(
                 self.interface.db.execute(
@@ -404,13 +421,8 @@ class TestSQLBackend(object):
                     'test_uglier', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 0
-        submissions = 1
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -420,15 +432,23 @@ class TestSQLBackend(object):
                         ['/test/2.root'],
                         100
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status,
+            submissions=1)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         # grab another job
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -439,9 +459,14 @@ class TestSQLBackend(object):
                         [],
                         100
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update.events_read = events_read
+        job_update.events_written = events_written
+        job_update.id = id
+        job_update.jobits_processed = jobits_processed
+        job_update.status = status
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
@@ -501,7 +526,7 @@ class TestSQLBackend(object):
         times = [0] * 19
 
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -512,9 +537,16 @@ class TestSQLBackend(object):
                         [],
                         100
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -539,22 +571,25 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 1234
-        submissions = 0
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         True,
                         {},
                         [],
                         0
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            exit_code=1234,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -579,13 +614,8 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 0
-        submissions = 0
-        times = [0] * 19
-
         handler = JobHandler(id, label, files, lumis, None, True)
-        job_update, file_update, lumi_update = \
+        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
                         {
@@ -595,9 +625,16 @@ class TestSQLBackend(object):
                         ['/test/2.root'],
                         100
                         )
-        job_update = ['hostname', exit_code, submissions] + times + data + job_update + [id]
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
+        job_update = JobUpdate(
+            events_read=events_read,
+            events_written=events_written,
+            host='hostname',
+            id=id,
+            jobits_processed=jobits_processed,
+            status=status)
+
+        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select

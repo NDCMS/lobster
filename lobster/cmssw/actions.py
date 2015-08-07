@@ -26,6 +26,7 @@ class Actions(object):
         self.plotq = multiprocessing.Queue()
         self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))
         self.plotp.start()
+        logger.info('spawning process for automatic plotting with pid {0}'.format(self.plotp.pid))
 
         self.__last = datetime.datetime.now()
 

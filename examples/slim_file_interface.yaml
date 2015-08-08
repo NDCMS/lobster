@@ -14,7 +14,7 @@ storage:
     input:
       - "hdfs:///store/user/<user>/<input directory>/"
       - "file:///hadoop/store/user/<user>/<input directory>/"
-      - "root://ndcms.crc.nd.edu://store/user/<user>/<input directory>/"
+      - "root://ndcms.crc.nd.edu//store/user/<user>/<input directory>/"
       - "srm://T3_US_NotreDame/store/user/<user>/<input directory>/"
       - "chirp://earth.crc.nd.edu:9099/<input directory>/"
 

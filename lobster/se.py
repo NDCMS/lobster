@@ -372,6 +372,9 @@ class StorageConfiguration(object):
             regexp, result = self._find_match(self.__protocols[protocol], server, path)
             return re.sub(regexp, result, path)
 
+        if path.endswith('/'):
+            path = path[:-1]
+
         return "{0}://{1}{2}/".format(protocol, server, path)
 
     def transfer_inputs(self):

@@ -358,12 +358,22 @@ def copy_outputs(data, config, env):
             outsize += os.path.getsize(localname)
 
             # using try just in case. Successful jobs should always
-            # have an existing Events::TTree though.
+            # have an existing Events::TTree though. 
+            # Ha! Unless their output is not an EDM ROOT file, but
+            # some other kind of file.  Good thing you used a try!
             try:
                 outsize_bare += get_bare_size(localname)
             except IOError as error:
                 print error
-                outsize_bare += os.path.getsize(localname)
+
+                print 'Could not calculate size as EDM ROOT file, try treating as regular file.'
+
+                # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
+                try:
+                    outsize_bare += os.path.getsize(localname)
+                except OSError as error:
+                    print error
+                    print 'Could not get size of output file {0} (may not exist).  Not adding its size.'
 
             if output.startswith('file://'):
                 rn = os.path.join(output.replace('file://', ''), remotename)
@@ -637,11 +647,14 @@ if cmsRun:
     edit_process_source(pset_mod, config)
 
     cmd = ['cmsRun','-j','report.xml',pset_mod]
-    cmd.extend([repr(str(arg)) for arg in args])
+    cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = config['executable']
-    cmd.extend([repr(str(arg)) for arg in args])
+    cmd = [config['executable']]
+    cmd.extend([str(arg) for arg in args])
+
+    if config.get('append inputs to args',False):
+        cmd.extend([str(f) for f in config['mask']['files']])
 
 print ">>> running {0}".format(config['executable'])
 # Open a file handle for the executable log

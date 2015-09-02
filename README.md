@@ -117,6 +117,12 @@ CMS):
    jobs finish.  If all processing is already done, only merge jobs will
    run.  Valid units for this option are `K`, `k`, `M`, `m`, `G`, and `g`.
 
+   To merge standard ROOT files, use
+
+        non edm output: true
+
+   in the configuration of corresponding tasks.
+
 6. Starting workers --- see [below](#submitting-workers).
 
 7. Stopping lobster

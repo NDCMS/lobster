@@ -136,7 +136,6 @@ def check_output(config, localname, remotename):
     file sizes. If they agree, return True; otherwise, return False.
     """
     def compare(stat, file):
-
         # If there's no local file, there's nothing to compare
         if not os.path.isfile(file):
             return False
@@ -196,7 +195,6 @@ def copy_inputs(data, config, env):
     config['mask']['files'] = []
 
     for file in files:
-
         # If the file has been transferred by WQ, there's no need to
         # monkey around with the input list
         if os.path.exists(os.path.basename(file)):
@@ -206,7 +204,7 @@ def copy_inputs(data, config, env):
 
             print ">>> WQ transfer of input file detected:"
             print file
-            break
+            continue
 
         # When the config specifies no "input," this implies to use
         # AAA to access data in, e.g., DBS
@@ -215,7 +213,7 @@ def copy_inputs(data, config, env):
             config['file map'][file] = file
             print ">>> AAA access to input file detected:"
             print file
-            break
+            continue
 
         # Since we didn't find the file already here and we're not
         # using AAA, we need to go through the list of inputs and find
@@ -270,7 +268,6 @@ def copy_inputs(data, config, env):
                         break
                 else:
                     print ">>>> xrootd access to input file unavailable."
-                    
             elif input.startswith('srm://'):
                 print ">>> Trying srm access method:"
                 prg = []
@@ -322,7 +319,6 @@ def copy_inputs(data, config, env):
                     break
                 else:
                     print '>>>> Unable to copy input with Chirp'
-
             else:
                 print '>>> skipping unhandled stage-in method: {0}'.format(input)
 
@@ -358,7 +354,7 @@ def copy_outputs(data, config, env):
             outsize += os.path.getsize(localname)
 
             # using try just in case. Successful jobs should always
-            # have an existing Events::TTree though. 
+            # have an existing Events::TTree though.
             # Ha! Unless their output is not an EDM ROOT file, but
             # some other kind of file.  Good thing you used a try!
             try:
@@ -646,7 +642,7 @@ if cmsRun:
 
     edit_process_source(pset_mod, config)
 
-    cmd = ['cmsRun','-j','report.xml',pset_mod]
+    cmd = ['cmsRun', '-j', 'report.xml', pset_mod]
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -658,9 +654,9 @@ else:
 
 print ">>> running {0}".format(config['executable'])
 # Open a file handle for the executable log
-exeLogFile = open('executable.log','w')
-p = run_subprocess(cmd,stdout=exeLogFile,stderr=subprocess.STDOUT,env=env)
-exeLogFile.close()
+logfile = open('executable.log', 'w')
+p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
+logfile.close()
 data['exe exit code'] = p.returncode
 data['job exit code'] = data['exe exit code']
 

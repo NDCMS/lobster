@@ -247,7 +247,7 @@ class JobProvider(job.JobProvider):
             self.__events[label] = cfg.get('events per job', -1)
 
             # Record whether we'll be handling this output as non-EDM:
-            self.__non_edm_outputs[label] = cfg.get('non edm output',False)
+            self.__non_edm_outputs[label] = cfg.get('non edm output', False)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
@@ -312,7 +312,7 @@ class JobProvider(job.JobProvider):
             if merge:
                 if self.__non_edm_outputs[label]:
                     cmd = 'hadd'
-                    args = ['-f',self.outputs[label][0]]
+                    args = ['-f', self.outputs[label][0]]
                     cmssw_job = False
                     cms_config = None
                 else:

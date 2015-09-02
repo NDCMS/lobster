@@ -52,7 +52,10 @@ def run_subprocess(*args, **kwargs):
         retry = dict(kwargs['retry'])
         del kwargs['retry']
 
-    kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT})
+    if 'stdout' not in kwargs.keys():
+        kwargs['stdout'] = subprocess.PIPE
+    if 'stderr' not in kwargs.keys():
+        kwargs['stderr'] = subprocess.STDOUT
     p = subprocess.Popen(*args, **kwargs)
     p.wait()
 
@@ -63,11 +66,11 @@ def run_subprocess(*args, **kwargs):
             kwargs['retry'] = retry
             return run_subprocess(*args, **kwargs)
 
-    p.stdout = p.stdout.read() # save stdout in case it is needed by caller
-
-    print
-    print ">>> result is"
-    print p.stdout
+    if p.stdout:
+        p.stdout = p.stdout.read() # save stdout in case it is needed by caller
+        print
+        print ">>> result is"
+        print p.stdout
 
     return p
 
@@ -133,6 +136,10 @@ def check_output(config, localname, remotename):
     file sizes. If they agree, return True; otherwise, return False.
     """
     def compare(stat, file):
+        # If there's no local file, there's nothing to compare
+        if not os.path.isfile(file):
+            return False
+
         size = os.path.getsize(file)
         match = re.search("[Ss]ize:\s*([0-9]*)", stat)
         if match:
@@ -188,33 +195,44 @@ def copy_inputs(data, config, env):
     config['mask']['files'] = []
 
     for file in files:
-        # use AAA to access data in, e.g., DBS
+        # If the file has been transferred by WQ, there's no need to
+        # monkey around with the input list
+        if os.path.exists(os.path.basename(file)):
+            filename = 'file:' + os.path.basename(file)
+            config['mask']['files'].append(filename)
+            config['file map'][filename] = file
+
+            print ">>> WQ transfer of input file detected:"
+            print file
+            continue
+
+        # When the config specifies no "input," this implies to use
+        # AAA to access data in, e.g., DBS
         if len(config['input']) == 0:
             config['mask']['files'].append(file)
             config['file map'][file] = file
             print ">>> AAA access to input file detected:"
             print file
-            break
+            continue
 
+        # Since we didn't find the file already here and we're not
+        # using AAA, we need to go through the list of inputs and find
+        # one that will allow us to access the file
         for input in config['input']:
-            if os.path.exists(os.path.basename(file)):
-                filename = 'file:' + os.path.basename(file)
-                config['mask']['files'].append(filename)
-                config['file map'][filename] = file
-
-                print ">>> WQ transfer of input file detected:"
-                print file
-                break
-            elif input.startswith('file://'):
+            if input.startswith('file://'):
+                print ">>> Trying local access method:"
                 if os.path.exists(file) and os.access(file, os.R_OK):
                     filename = 'file:' + file
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
-                    print ">>> local access to input file detected:"
+                    print ">>>> local access to input file detected:"
                     print file
                     break
+                else:
+                    print ">>>> local access to input file unavailable."
             elif input.startswith('root://'):
+                print ">>> Trying xrootd access method:"
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
                 timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
@@ -229,7 +247,7 @@ def copy_inputs(data, config, env):
                 p = run_subprocess(args, retry={53: 5})
                 if p.returncode == 0:
                     if config['disable streaming']:
-                        print ">>> streaming has been disabled, attempting stage-in"
+                        print ">>>> streaming has been disabled, attempting stage-in"
                         args = [
                             "xrdcp",
                             os.path.join(input, file),
@@ -243,11 +261,15 @@ def copy_inputs(data, config, env):
                             config['file map'][filename] = file
                             break
                     else:
+                        print ">>>> will stream using xrootd instead of copying."
                         filename = os.path.join(input, file)
                         config['mask']['files'].append(filename)
                         config['file map'][filename] = file
                         break
+                else:
+                    print ">>>> xrootd access to input file unavailable."
             elif input.startswith('srm://'):
+                print ">>> Trying srm access method:"
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
@@ -266,11 +288,15 @@ def copy_inputs(data, config, env):
 
                 p = run_subprocess(args, env=pruned_env)
                 if p.returncode == 0:
+                    print '>>>> Successfully copied input with SRM:'
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
                     break
+                else:
+                    print '>>>> Unable to copy input with SRM'
             elif input.startswith("chirp://"):
+                print ">>> Trying chirp access method:"
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
                 remotename = os.path.join(path, file)
 
@@ -286,10 +312,13 @@ def copy_inputs(data, config, env):
                 ]
                 p = run_subprocess(args, env=env)
                 if p.returncode == 0:
+                    print '>>>> Successfully copied input with Chirp:'
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
                     break
+                else:
+                    print '>>>> Unable to copy input with Chirp'
             else:
                 print '>>> skipping unhandled stage-in method: {0}'.format(input)
 
@@ -326,11 +355,21 @@ def copy_outputs(data, config, env):
 
             # using try just in case. Successful jobs should always
             # have an existing Events::TTree though.
+            # Ha! Unless their output is not an EDM ROOT file, but
+            # some other kind of file.  Good thing you used a try!
             try:
                 outsize_bare += get_bare_size(localname)
             except IOError as error:
                 print error
-                outsize_bare += os.path.getsize(localname)
+
+                print 'Could not calculate size as EDM ROOT file, try treating as regular file.'
+
+                # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
+                try:
+                    outsize_bare += os.path.getsize(localname)
+                except OSError as error:
+                    print error
+                    print 'Could not get size of output file {0} (may not exist).  Not adding its size.'
 
             if output.startswith('file://'):
                 rn = os.path.join(output.replace('file://', ''), remotename)
@@ -565,7 +604,16 @@ epilogue = config.get('epilogue', [])
 if len(prologue) > 0:
     print ">>> prologue:"
     with check_execution(data, 180):
-        subprocess.check_call(prologue, env=env)
+        p = run_subprocess(prologue,env=env)
+
+        # Was originally a subprocess.check_call, but this has the
+        # potential to confuse log file output because print buffers
+        # differently from the underlying process.  Therefore, do what
+        # check_call would do and raise a CalledProcessError if we get
+        # a non-zero return code.
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError
+
 
 data['task timing info'][3] = int(datetime.now().strftime('%s'))
 
@@ -594,15 +642,26 @@ if cmsRun:
 
     edit_process_source(pset_mod, config)
 
-    cmd = 'cmsRun -j report.xml "{0}" {1} > executable.log 2>&1'.format(pset_mod, ' '.join([repr(str(arg)) for arg in args]))
+    cmd = ['cmsRun', '-j', 'report.xml', pset_mod]
+    cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = '{0} {1} > executable.log 2>&1'.format(config['executable'], ' '.join([repr(str(arg)) for arg in args]))
+    cmd = [config['executable']]
+    cmd.extend([str(arg) for arg in args])
+
+    if config.get('append inputs to args',False):
+        cmd.extend([str(f) for f in config['mask']['files']])
 
 print ">>> running {0}".format(config['executable'])
-print cmd
-data['exe exit code'] = subprocess.call(cmd, shell=True, env=env)
+# Open a file handle for the executable log
+logfile = open('executable.log', 'w')
+p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
+logfile.close()
+data['exe exit code'] = p.returncode
 data['job exit code'] = data['exe exit code']
+
+if p.returncode != 0:
+    print ">>> Executable return code != 0.  Check for errors!"
 
 if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
@@ -631,7 +690,15 @@ data['task timing info'].append(now)
 if len(epilogue) > 0:
     print ">>> epilogue:"
     with check_execution(data, 199):
-        subprocess.check_call(epilogue, env=env)
+        p = run_subprocess(epilogue,env=env)
+
+        # Was originally a subprocess.check_call, but this has the
+        # potential to confuse log file output because print buffers
+        # differently from the underlying process.  Therefore, do what
+        # check_call would do and raise a CalledProcessError if we get
+        # a non-zero return code.
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 

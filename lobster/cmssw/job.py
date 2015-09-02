@@ -193,6 +193,7 @@ class JobProvider(job.JobProvider):
         self.__events = {}
         self.__configs = {}
         self.__local = {}
+        self.__edm_outputs = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
@@ -244,6 +245,9 @@ class JobProvider(job.JobProvider):
 
             self.__local[label] = cfg.get('local', 'files' in cfg)
             self.__events[label] = cfg.get('events per job', -1)
+
+            # Record whether we'll be handling this output as EDM or not:
+            self.__edm_outputs[label] = cfg.get('edm output', True)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
@@ -306,9 +310,17 @@ class JobProvider(job.JobProvider):
                       ]
 
             if merge:
-                args = ['output=' + self.outputs[label][0]]
-                cmssw_job = True
-                cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
+                if not self.__edm_outputs[label]:
+                    cmd = 'hadd'
+                    args = ['-f', self.outputs[label][0]]
+                    cmssw_job = False
+                    cms_config = None
+                else:
+                    cmd = 'cmsRun'
+                    args = ['output=' + self.outputs[label][0]]
+                    cmssw_job = True
+                    cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
+
                 inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
                 inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True))
 
@@ -349,12 +361,14 @@ class JobProvider(job.JobProvider):
 
                 files = infiles
             else:
+                cmd = self.cmds[label]
                 args = [x for x in self.args[label] + [unique_arg] if x]
                 cmssw_job = self.__configs.has_key(label)
                 cms_config = None
                 prologue = self.config.get('prologue')
                 epilogue = None
                 if cmssw_job:
+                    cmd = 'cmsRun' 
                     cms_config = os.path.join(self.workdir, label, self.__configs[label])
 
             inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
@@ -403,9 +417,13 @@ class JobProvider(job.JobProvider):
                 'arguments': args,
                 'output files': handler.outputs,
                 'want summary': sum,
-                'executable': 'cmsRun' if cmssw_job else self.cmds[label],
+                'executable': cmd,
                 'pset': os.path.basename(cms_config) if cms_config else None
             }
+
+            if merge and not self.__edm_outputs[label]:
+                config['append inputs to args'] = True
+
             if prologue:
                 config['prologue'] = prologue
 

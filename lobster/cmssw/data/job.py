@@ -194,7 +194,7 @@ def copy_inputs(data, config, env):
             config['file map'][file] = file
             print ">>> AAA access to input file detected:"
             print file
-            break
+            continue
 
         for input in config['input']:
             if os.path.exists(os.path.basename(file)):

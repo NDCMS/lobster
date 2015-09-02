@@ -193,7 +193,7 @@ class JobProvider(job.JobProvider):
         self.__events = {}
         self.__configs = {}
         self.__local = {}
-        self.__non_edm_outputs = {}
+        self.__edm_outputs = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
@@ -246,8 +246,8 @@ class JobProvider(job.JobProvider):
             self.__local[label] = cfg.get('local', 'files' in cfg)
             self.__events[label] = cfg.get('events per job', -1)
 
-            # Record whether we'll be handling this output as non-EDM:
-            self.__non_edm_outputs[label] = cfg.get('non edm output', False)
+            # Record whether we'll be handling this output as EDM or not:
+            self.__edm_outputs[label] = cfg.get('edm output', True)
 
             if cms_config and not cfg.has_key('outputs'):
                 sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
@@ -310,7 +310,7 @@ class JobProvider(job.JobProvider):
                       ]
 
             if merge:
-                if self.__non_edm_outputs[label]:
+                if not self.__edm_outputs[label]:
                     cmd = 'hadd'
                     args = ['-f', self.outputs[label][0]]
                     cmssw_job = False
@@ -421,7 +421,7 @@ class JobProvider(job.JobProvider):
                 'pset': os.path.basename(cms_config) if cms_config else None
             }
 
-            if merge and self.__non_edm_outputs[label]:
+            if merge and not self.__edm_outputs[label]:
                 config['append inputs to args'] = True
 
             if prologue:

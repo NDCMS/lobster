@@ -117,11 +117,12 @@ CMS):
    jobs finish.  If all processing is already done, only merge jobs will
    run.  Valid units for this option are `K`, `k`, `M`, `m`, `G`, and `g`.
 
-   To merge standard ROOT files, use
+   By default, Lobster will assume that the outputs of a task are in EDM
+   format.  To merge non-EDM ROOT files, specify
 
-        non edm output: true
+        edm output: false
 
-   in the configuration of corresponding tasks.
+   for corresponding tasks.
 
 6. Starting workers --- see [below](#submitting-workers).
 

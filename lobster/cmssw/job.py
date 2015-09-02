@@ -250,13 +250,15 @@ class JobProvider(job.JobProvider):
             self.__edm_outputs[label] = cfg.get('edm output', True)
 
             if cms_config and not cfg.has_key('outputs'):
-                sys.argv = [sys.argv[0]] #To avoid problems loading configs that use the VarParsing module
-                with open(cms_config, 'r') as f:
+                # To avoid problems loading configs that use the VarParsing module
+                sys.argv = sys.argv[:1]
+                with open(util.findpath(self.basedirs, cms_config), 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
                     cfg_interface = CfgInterface(source.process)
-                    if hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'): #Possibility: make this mandatory?
+                    if hasattr(cfg_interface.data, 'GlobalTag') and hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'):
                         cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
                     for m in cfg_interface.data.outputModules:
+                        logger.info("workflow {0}: adding output file '{1}'".format(label, getattr(cfg_interface.data, m).fileName._value))
                         self.outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
 
             taskdir = os.path.join(self.workdir, label)

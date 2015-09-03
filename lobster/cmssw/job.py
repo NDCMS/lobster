@@ -251,7 +251,7 @@ class JobProvider(job.JobProvider):
 
             if cms_config and not cfg.has_key('outputs'):
                 # To avoid problems loading configs that use the VarParsing module
-                sys.argv = sys.argv[:1]
+                sys.argv = ["pacify_varparsing.py"]
                 with open(util.findpath(self.basedirs, cms_config), 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
                     cfg_interface = CfgInterface(source.process)

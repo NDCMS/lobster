@@ -258,8 +258,12 @@ class JobProvider(job.JobProvider):
                     if hasattr(cfg_interface.data, 'GlobalTag') and hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'):
                         cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
                     for m in cfg_interface.data.outputModules:
-                        logger.info("workflow {0}: adding output file '{1}'".format(label, getattr(cfg_interface.data, m).fileName._value))
-                        self.outputs[label].append(getattr(cfg_interface.data, m).fileName._value)
+                        self.outputs[label].append(getattr(cfg_interface.data, m).fileName.value())
+                    if hasattr(cfg_interface.data, 'TFileService'):
+                        self.outputs[label].append(cfg_interface.data.TFileService.fileName.value())
+                        self.__edm_outputs[label] = False
+
+                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self.outputs[label])))
 
             taskdir = os.path.join(self.workdir, label)
             if not util.checkpoint(self.workdir, label):

@@ -122,7 +122,9 @@ CMS):
 
         edm output: false
 
-   for corresponding tasks.
+   for corresponding tasks.  When detecting output files (no list of output
+   files present in the task configuration), this flag is set automatically
+   when a `TFileService` is present in the configuration.
 
 6. Starting workers --- see [below](#submitting-workers).
 

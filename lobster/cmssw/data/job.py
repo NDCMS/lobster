@@ -343,34 +343,33 @@ def copy_outputs(data, config, env):
 
     transferred = []
     for localname, remotename in config['output files']:
-        for output in config['output']:
-            # prevent stageout of data for failed jobs
-            if os.path.exists(localname) and data['cmssw exit code'] != 0:
-                os.remove(localname)
-                break
-            elif data['cmssw exit code'] != 0:
-                break
+        # prevent stageout of data for failed jobs
+        if os.path.exists(localname) and data['cmssw exit code'] != 0:
+            os.remove(localname)
+            break
+        elif data['cmssw exit code'] != 0:
+            break
 
-            outsize += os.path.getsize(localname)
+        outsize += os.path.getsize(localname)
 
-            # using try just in case. Successful jobs should always
-            # have an existing Events::TTree though.
-            # Ha! Unless their output is not an EDM ROOT file, but
-            # some other kind of file.  Good thing you used a try!
+        # using try just in case. Successful jobs should always
+        # have an existing Events::TTree though.
+        # Ha! Unless their output is not an EDM ROOT file, but
+        # some other kind of file.  Good thing you used a try!
+        try:
+            outsize_bare += get_bare_size(localname)
+        except IOError as error:
+            print error
+            print 'Could not calculate size as EDM ROOT file, try treating as regular file.'
+
+            # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
             try:
-                outsize_bare += get_bare_size(localname)
-            except IOError as error:
+                outsize_bare += os.path.getsize(localname)
+            except OSError as error:
                 print error
+                print 'Could not get size of output file {0} (may not exist).  Not adding its size.'
 
-                print 'Could not calculate size as EDM ROOT file, try treating as regular file.'
-
-                # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
-                try:
-                    outsize_bare += os.path.getsize(localname)
-                except OSError as error:
-                    print error
-                    print 'Could not get size of output file {0} (may not exist).  Not adding its size.'
-
+        for output in config['output']:
             if output.startswith('file://'):
                 rn = os.path.join(output.replace('file://', ''), remotename)
                 if os.path.isdir(os.path.dirname(rn)):

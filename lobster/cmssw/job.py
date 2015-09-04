@@ -563,9 +563,9 @@ class JobProvider(job.JobProvider):
 
         self.__dash.free()
 
-        for f in cleanup:
+        if len(cleanup) > 0:
             try:
-                fs.remove(f)
+                fs.remove(*cleanup)
             except (IOError, OSError):
                 pass
             except ValueError as e:

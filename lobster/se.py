@@ -58,11 +58,11 @@ class StorageElement(object):
         if attr in self.__dict__ or not self.__master:
             return self.__dict__[attr]
 
-        def switch(path, *args):
+        def switch(*args, **kwargs):
             lasterror = None
             for imp in StorageElement._systems:
                 try:
-                    return imp.fixresult(getattr(imp, attr)(imp.lfn2pfn(path), *args))
+                    return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
                     lasterror = e
             raise AttributeError("no resolution found for path '{0}' and method {1}: {2}".format(path, attr, lasterror))
@@ -107,7 +107,7 @@ class StorageElement(object):
         if self.exists(path):
             return
         mode = self.permissions(parent)
-        self.mkdir(path, mode)
+        self.mkdir(path, mode=mode)
 
     @classmethod
     def reset(cls):
@@ -155,23 +155,24 @@ class Local(StorageElement):
     def permissions(self, path):
         return os.stat(path).st_mode & 0777
 
-    def remove(self, path):
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+    def remove(self, *paths):
+        for path in paths:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 class Hadoop(StorageElement):
     def __init__(self, pfnprefix='/hadoop'):
         super(Hadoop, self).__init__(pfnprefix)
 
-    def __execute(self, cmd, path, safe=False):
+    def __execute(self, cmd, *paths, **kwargs):
         cmds = cmd.split()
-        args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + [path]
+        args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + list(paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             p.wait()
-            if p.returncode != 0 and not safe:
+            if p.returncode != 0 and not kwargs.get('safe', False):
                 msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
                 raise IOError(msg)
         except OSError:
@@ -209,15 +210,16 @@ class Hadoop(StorageElement):
         # removed
         return int(output[1:].translate(tr), 2)
 
-    def remove(self, path):
-        self.__execute('rm', path)
+    def remove(self, *paths):
+        while len(paths) != 0:
+            self.__execute('rm', *(paths[:50]))
+            paths = paths[50:]
 
 class Chirp(StorageElement):
     def __init__(self, server, pfnprefix):
         super(Chirp, self).__init__(pfnprefix)
 
         self.__c = chirp.Client(server, timeout=10)
-        self.remove = self.__c.rm
 
     def exists(self, path):
         try:
@@ -248,17 +250,21 @@ class Chirp(StorageElement):
     def permissions(self, path):
         return self.__c.stat(path).mode & 0777
 
+    def remove(self, *paths):
+        for path in paths:
+            self.__c.rm(path)
+
 class SRM(StorageElement):
     def __init__(self, pfnprefix):
         super(SRM, self).__init__(pfnprefix)
 
-    def execute(self, cmd, path, safe=False):
+    def execute(self, cmd, *paths, **kwargs):
         cmds = cmd.split()
-        args = ['gfal-' + cmds[0]] + cmds[1:] + [path]
+        args = ['gfal-' + cmds[0]] + cmds[1:] + list(*paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
             p.wait()
-            if p.returncode != 0 and not safe:
+            if p.returncode != 0 and not kwargs.get('safe', False):
                 msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
                 raise IOError(msg)
         except OSError:
@@ -305,8 +311,10 @@ class SRM(StorageElement):
             raise IOError
 
     def remove(self, path):
-        # FIXME safe is active because SRM does not care about directories.
-        self.execute('rm -r', path, safe=True)
+        while len(paths) != 0:
+            # FIXME safe is active because SRM does not care about directories.
+            self.execute('rm -r', *(paths[:50]), safe=True)
+            paths = paths[50:]
 
 class StorageConfiguration(object):
     """Container for storage element configuration.

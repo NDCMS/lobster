@@ -27,16 +27,16 @@ and install them by unpacking the tarball and adding the bin directory to
 your path.
 
     cd $HOME
-    wget http://ccl.cse.nd.edu/software/files/cctools-5.0.5-x86_64-redhat6.tar.gz
-    tar xvzf cctools-5.0.5-x86_64-redhat6.tar.gz
-    export PATH=$HOME/cctools-5.0.5-x86_64-redhat6/bin:$PATH
+    wget http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz
+    tar xvzf cctools-5.2.0-x86_64-redhat6.tar.gz
+    export PATH=$HOME/cctools-5.2.0-x86_64-redhat6/bin:$PATH
 
 or, for tcsh
 
     cd $HOME
-    wget http://ccl.cse.nd.edu/software/files/cctools-5.0.5-x86_64-redhat6.tar.gz
-    tar xvzf cctools-5.0.5-x86_64-redhat6.tar.gz
-    setenv PATH $HOME/cctools-5.0.5-x86_64-redhat6/bin:$PATH
+    wget http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz
+    tar xvzf cctools-5.2.0-x86_64-redhat6.tar.gz
+    setenv PATH $HOME/cctools-5.2.0-x86_64-redhat6/bin:$PATH
 
 ### Setuptools
 

@@ -63,6 +63,7 @@ Install lobster with
 and lobster will be installed as `~/.local/bin/lobster`.
 
 # Running lobster
+
 ## Basic procedure
 The following steps are necessary to run lobster (using grid resources for
 CMS):
@@ -89,7 +90,7 @@ CMS):
         wget --no-check-certificate \
             https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.yaml \
             https://raw.githubusercontent.com/matz-e/lobster/master/examples/mc_production.py
-            
+
     For more information on how to specify where the output files should be written,
     see [below](#storage-elements).
 

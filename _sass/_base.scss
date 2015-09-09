@@ -177,16 +177,21 @@ pre {
  * Banner
  */
 .banner {
-    width: 800px;
+    max-width: 800px;
     margin-right: auto;
     margin-left: auto;
     @extend %clearfix;
 
     @include media-query($on-laptop) {
-        width: 800px;
+        max-width: 800px;
         margin-right: auto;
         margin-left: auto;
     }
+}
+
+img.banner {
+    max-width: 100%;
+    height: auto;
 }
 
 .bottom-border {

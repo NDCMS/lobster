@@ -123,6 +123,12 @@
     padding-left: $spacing-unit / 2;
 }
 
+.footer-copyright {
+    color: $grey-color;
+    font-size: 12px;
+    text-align: center;
+}
+
 .footer-col-1 {
     width: -webkit-calc(35% - (#{$spacing-unit} / 2));
     width:         calc(35% - (#{$spacing-unit} / 2));

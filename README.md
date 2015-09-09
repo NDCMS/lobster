@@ -26,17 +26,14 @@ Cooperative Computing Lab](http://www3.nd.edu/~ccl/software/download.shtml)
 and install them by unpacking the tarball and adding the bin directory to
 your path.
 
-    cd $HOME
-    wget http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz
-    tar xvzf cctools-5.2.0-x86_64-redhat6.tar.gz
-    export PATH=$HOME/cctools-5.2.0-x86_64-redhat6/bin:$PATH
+    wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz|tar xvzf -
+    export PATH=$PWD/cctools-5.2.0-x86_64-redhat6/bin:$PATH
+    export PYTHONPATH=$PWD/cctools-5.2.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
 
-or, for tcsh
+For tcsh users, the last two lines must be replaced by:
 
-    cd $HOME
-    wget http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz
-    tar xvzf cctools-5.2.0-x86_64-redhat6.tar.gz
-    setenv PATH $HOME/cctools-5.2.0-x86_64-redhat6/bin:$PATH
+    setenv PATH $PWD/cctools-5.2.0-x86_64-redhat6/bin:$PATH
+    setenv PYTHONPATH $PWD/cctools-5.2.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
 
 ### Setuptools
 

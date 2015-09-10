@@ -260,7 +260,7 @@ class SRM(StorageElement):
 
     def execute(self, cmd, *paths, **kwargs):
         cmds = cmd.split()
-        args = ['gfal-' + cmds[0]] + cmds[1:] + list(*paths)
+        args = ['gfal-' + cmds[0]] + cmds[1:] + list(paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
             p.wait()
@@ -279,7 +279,7 @@ class SRM(StorageElement):
             return False
 
     def getsize(self, path):
-        output = self.execute('stat', path, True)
+        output = self.execute('stat', path)
         return output.splitlines()[1].split()[1]
 
     def isdir(self, path):
@@ -304,7 +304,7 @@ class SRM(StorageElement):
         self.execute('mkdir -p', path)
 
     def permissions(self, path):
-        output = self.execute('stat', path, True)
+        output = self.execute('stat', path)
         try:
             return int(output.splitlines()[2][9:13], 8)
         except IndexError:

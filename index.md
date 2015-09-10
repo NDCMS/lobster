@@ -18,5 +18,6 @@ requirements to the cluster or need for administrative privileges.
 
 # Availability
 
-The source code is available on [github](about:blank), and has been
-successfully used at both Notre Dame and CERN.
+The source code is available on
+[github](https://github.com/matz-e/lobster), and has been successfully used
+at both Notre Dame and CERN.

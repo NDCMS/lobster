@@ -7,6 +7,24 @@ be renamed), and executed on workers via Work Queue.
 Optional, CMS specific component that should be pluggable include:
 dashboard monitoring, `cmsRun` support, sandboxing.
 
+# Version increments
+
+When changing Lobster in a way that makes existing work directories
+incompatible with the current git master, the version number in `setup.py`
+should be increased.  Lobster will then refuse to resume old working
+directories, and the user can install a legacy version as a work around.
+
+# Testing
+
+Lobster uses `nose` to run unit tests, which can be found in the `test`
+directory.  It should be automatically installed as a python dependency.
+Some behavior can be tested with
+
+    nosetests
+    nosetests test/test_se.py:TestHadoopPermissions
+
+where the latter executes one specific test case.
+
 # Git Development
 
 Lobster development should follow a style similar to the [github
@@ -28,14 +46,3 @@ from the summary by an empty line:
     re-write of foo.py and bar.py.  Fixes #-1.
 
 Non-descriptive summaries such as `Changed spam.py` should be avoided.
-
-# Testing
-
-Lobster uses `nose` to run unit tests, which can be found in the `test`
-directory.  It should be automatically installed as a python dependency.
-Some behavior can be tested with
-
-    nosetests
-    nosetests test/test_se.py:TestHadoopPermissions
-
-where the latter executes one specific test case.

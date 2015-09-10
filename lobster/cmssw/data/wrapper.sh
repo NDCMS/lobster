@@ -120,11 +120,6 @@ if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_CO
 	slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
 	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el$slc-$(uname -m)/setup.sh
 
-	# HACK!  OSG certificates are broken...
-	echo '!!!!!HACK HACK HACK!!!!!'
-	export X509_VOMS_DIR=/cvmfs/grid.cern.ch/3.2.11-1/external/etc/grid-security/vomsdir
-	export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
-
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)
 fi

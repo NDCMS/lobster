@@ -10,7 +10,7 @@ import unittest
 class TestSE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        path = os.path.expandvars('/hadoop/store/user/matze/')
+        path = os.path.expandvars('/hadoop/store/user/' + os.environ['USER'] + '/')
         cls.workdir = tempfile.mkdtemp(prefix=path)
         os.chmod(cls.workdir, 0777)
         os.makedirs(os.path.join(cls.workdir, 'spam'))
@@ -68,9 +68,10 @@ class TestSRM(TestSE):
     def runTest(self):
         self.query('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
 
-class TestSRMPermissions(TestSE):
-    def runTest(self):
-        self.permissions('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
+# gfal-mkdir does not currently support setting permissions
+# class TestSRMPermissions(TestSE):
+#     def runTest(self):
+#         self.permissions('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
 
 class TestChirp(TestSE):
     def setUp(self):

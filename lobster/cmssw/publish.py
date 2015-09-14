@@ -12,11 +12,10 @@ import logging
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
-from ProdCommon.FwkJobRep.ReportParser import readJobReport
-from ProdCommon.FwkJobRep.SiteLocalConfig import SiteLocalConfig
-from ProdCommon.FwkJobRep.TrivialFileCatalog import readTFC
+from WMCore.FwkJobRep.ReportParser import readJobReport
+from WMCore.FwkJobRep.SiteLocalConfig import SiteLocalConfig
+from WMCore.FwkJobRep.TrivialFileCatalog import readTFC
 from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
-sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util

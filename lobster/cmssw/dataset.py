@@ -4,7 +4,6 @@ import os
 import sys
 from lobster import util, fs
 
-sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
 from dbs.apis.dbsClient import DbsApi
 from FWCore.PythonUtilities.LumiList import LumiList
 

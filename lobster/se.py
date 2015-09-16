@@ -59,11 +59,13 @@ class StorageElement(object):
             return self.__dict__[attr]
 
         def switch(*args, **kwargs):
+            logger.debug("resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
             lasterror = None
             for imp in StorageElement._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
+                    logger.debug("method {0} failed with {1}".format(imp, e))
                     lasterror = e
             raise AttributeError("no resolution found for path '{0}' and method {1}: {2}".format(path, attr, lasterror))
         return switch

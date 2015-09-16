@@ -17,7 +17,6 @@ import jobit
 from dataset import MetaInterface
 
 from FWCore.PythonUtilities.LumiList import LumiList
-from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
 
 import work_queue as wq
 
@@ -254,13 +253,13 @@ class JobProvider(job.JobProvider):
                 sys.argv = ["pacify_varparsing.py"]
                 with open(util.findpath(self.basedirs, cms_config), 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
-                    cfg_interface = CfgInterface(source.process)
-                    if hasattr(cfg_interface.data, 'GlobalTag') and hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'):
-                        cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
-                    for m in cfg_interface.data.outputModules:
-                        self.outputs[label].append(getattr(cfg_interface.data, m).fileName.value())
-                    if hasattr(cfg_interface.data, 'TFileService'):
-                        self.outputs[label].append(cfg_interface.data.TFileService.fileName.value())
+                    process = source.process
+                    if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
+                        cfg['global tag'] = process.GlobalTag.globaltag.value()
+                    for label, module in process.outputModules.items():
+                        self.outputs[label].append(module.fileName.value())
+                    if 'TFileService' in process.services:
+                        self.outputs[label].append(process.services['TFileService'].fileName.value())
                         self.__edm_outputs[label] = False
 
                     logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self.outputs[label])))

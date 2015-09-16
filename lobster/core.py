@@ -92,7 +92,7 @@ def run(args):
             prevent_core=False,
             signal_map=signals):
 
-        level = max(1, config.get('advanced', {}).get('log level', 2)) * 10
+        level = max(1, config.get('advanced', {}).get('log level', 2) + args.quiet - args.verbose) * 10
         fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
         fileh.setLevel(level)

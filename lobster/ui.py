@@ -8,6 +8,8 @@ from lobster.validate import validate
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
+    parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
+    parser.add_argument('--quiet', '-q', action='count', default=0, help='decrease verbosity')
     subparsers = parser.add_subparsers(title='commands')
 
     parser_run = subparsers.add_parser('process', help='process configuration')

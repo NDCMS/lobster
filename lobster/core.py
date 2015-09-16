@@ -152,6 +152,9 @@ def sprint(config, workdir, cmsjob):
     if util.checkpoint(workdir, 'KILLED') == 'PENDING':
         util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
+    # time in seconds to wait for WQ to return tasks
+    interval = 60
+
     jobits_left = 0
     successful_jobs = 0
 
@@ -224,7 +227,7 @@ def sprint(config, workdir, cmsjob):
 
         t = time.time()
         while hunger > 0:
-            jobs = job_src.obtain(50)
+            jobs = job_src.obtain(hunger)
 
             if jobs == None or len(jobs) == 0:
                 break
@@ -256,7 +259,8 @@ def sprint(config, workdir, cmsjob):
         creation_time += int((time.time() - t) * 1e6)
 
         job_src.update(queue)
-        task = queue.wait(300)
+        starttime = time.time()
+        task = queue.wait(interval)
         tasks = []
         while task:
             if task.return_status == 0:
@@ -265,8 +269,10 @@ def sprint(config, workdir, cmsjob):
                 logger.warning("blacklisting host {0} due to bad exit code from job {1}".format(task.hostname, task.tag))
                 queue.blacklist(task.hostname)
             tasks.append(task)
-            if queue.stats.tasks_complete > 0:
-                task = queue.wait(1)
+
+            remaining = int(starttime + interval - time.time())
+            if queue.stats.tasks_waiting > 0 and remaining > 0:
+                task = queue.wait(remaining)
             else:
                 task = None
         if len(tasks) > 0:

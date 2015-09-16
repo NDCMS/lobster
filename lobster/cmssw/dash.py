@@ -1,12 +1,10 @@
 import datetime
-# import getpass
-# import pwd
+import logging
 import os
 import subprocess
 
 from hashlib import sha1
 
-import apmon
 from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from lobster import util
@@ -95,7 +93,7 @@ class Monitor(DummyMonitor):
         apmonFree()
 
     def send(self, jobid, params):
-        apmonSend(self._taskid, jobid, params, apmon.Logger.ERROR, conf)
+        apmonSend(self._taskid, jobid, params, logging, conf)
 
     def register_run(self):
         self.send('TaskMeta', {

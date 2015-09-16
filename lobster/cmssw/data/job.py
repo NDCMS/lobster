@@ -79,23 +79,22 @@ def run_subprocess(*args, **kwargs):
 
     return p
 
-def calculate_alder32(config):
+def calculate_alder32(data):
     """Try to calculate checksums for output files.
     """
-    checksums = {}
-    totalevents = {}
 
-    for local, remote in config['output files']:
+    for fn in data['files']['output info'].keys():
+        checksum = '0'
         try:
-            p = subprocess.Popen(['edmFileUtil', '-a', local], stdout=subprocess.PIPE)
+            p = subprocess.Popen(['edmFileUtil', '-a', fn], stdout=subprocess.PIPE)
             stdout = p.communicate()[0]
 
             if p.returncode == 0:
-                checksums[os.path.basename(remote)] = stdout.split()[-2]
-                totalevents[os.path.basename(remote)] = stdout.split()[-6]
+                checksum = stdout.split()[-2]
+                events = stdout.split()[-6]
         except:
             pass
-    return (checksums, totalevents)
+        data['files']['output info'][fn]['adler32'] = checksum
 
 @contextmanager
 def check_execution(data, code):
@@ -453,20 +452,30 @@ def parse_fwk_report(config, data, report_filename):
 
     exit_code = report.getExitCode()
 
-    for file in report.getAllSkippedFiles():
-        filename = file['Lfn']
-        filename = config['file map'].get(filename, filename)
-        skipped.append(file['Lfn'])
+    for fn in report.getAllSkippedFiles():
+        fn = config['file map'].get(fn, fn)
+        skipped.append(fn)
 
+    outinfos = {}
     for file in report.getAllFiles():
+        pfn = file['pfn']
+        outinfos[pfn] = {
+                'runs': {},
+                'events': file['events'],
+        }
         written += int(file['events'])
+        for run in file['runs']:
+            try:
+                outinfos[pfn]['runs'][run.run].extend(run.lumis)
+            except KeyError:
+                outinfos[pfn]['runs'][run.run] = run.lumis
 
     for file in report.getAllInputFiles():
         filename = file['lfn'] if len(file['lfn']) > 0 else file['pfn']
         filename = config['file map'].get(filename, filename)
         file_lumis = []
         try:
-            for run in file['runs'].items():
+            for run in file['runs']:
                 for lumi in run.lumis:
                     file_lumis.append((run.run, lumi))
         except AttributeError:
@@ -478,6 +487,7 @@ def parse_fwk_report(config, data, report_filename):
     cputime = float(serialized['steps']['cmsrun']['performance']['cpu'].get('TotalJobCPU', '0'))
 
     data['files']['info'] = infos
+    data['files']['output info'] = outinfos
     data['files']['skipped'] = skipped
     data['events written'] = written
     data['cmssw exit code'] = exit_code
@@ -646,15 +656,16 @@ if cmsRun:
 
     with check_execution(data, 190):
         parse_fwk_report(config, data, 'report.xml')
+
+    calculate_alder32(data)
 else:
     data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
+    data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
     data['cpu time'] = usage.ru_stime
     data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
-
-data['files']['adler32'] = calculate_alder32(config)[0]
 
 now = int(datetime.now().strftime('%s'))
 firstevent = now

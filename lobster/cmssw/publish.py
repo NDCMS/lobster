@@ -13,13 +13,21 @@ from FWCore.PythonUtilities.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
 from WMCore.Storage.TrivialFileCatalog import readTFC
-from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
 from lobster.job import apply_matching
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw.jobit import JobitStore
+
+def hash_pset(fn):
+    p = subprocess.Popen(['edmConfigHash', fn], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+
+    if p.returncode != 0:
+        logging.error('cannot calculate hash for "{0}": {1}'.format(fn, err))
+
+    return out
 
 def check_migration(status):
     successful = False
@@ -334,7 +342,7 @@ def publish(args):
                         outfile.write(fix.format(tmp_path))
                         outfile.write(infile.read())
                 try:
-                    pset_hash = createPSetHash(tmp_path)[-32:]
+                    pset_hash = hash_pset(tmp_path)
                     db.update_pset_hash(pset_hash, label)
                 except:
                     logging.warning('error calculating the cmssw parameter set hash')

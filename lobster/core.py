@@ -144,7 +144,7 @@ def sprint(config, workdir, cmsjob):
     logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
         queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
 
-    payload = config.get('advanced', {}).get('payload', 400)
+    payload = config.get('advanced', {}).get('payload', 10)
     abort_active = False
     abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
     abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
@@ -223,7 +223,7 @@ def sprint(config, workdir, cmsjob):
                 stats.tasks_running,
                 stats.tasks_waiting))
 
-        hunger = max(payload - stats.tasks_waiting, 0)
+        hunger = max(payload + stats.total_workers_connected / 10 - stats.tasks_waiting, 0)
 
         t = time.time()
         while hunger > 0:

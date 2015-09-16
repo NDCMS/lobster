@@ -1,4 +1,5 @@
 from collections import defaultdict
+import math
 import multiprocessing
 import os
 import random
@@ -43,7 +44,7 @@ class JobitStore:
             pset_hash text default null,
             cfg text,
             uuid text,
-            jobsize text,
+            jobsize int,
             file_based int,
             empty_source int,
             jobits integer,
@@ -205,8 +206,18 @@ class JobitStore:
         if len(rows) == 0:
             return []
 
+        # calculate how many tasks we can create from all datasets, still
+        tasks_left = sum(int(math.ceil(remaining / float(jobsize)))
+            for _, _, remaining, jobsize, _ in rows)
+
+        # if total tasks left < requested tasks, make the tasks smaller to
+        # keep all workers occupied
+        taper = 1.
+        if tasks_left < num:
+            taper = float(tasks_left) / num
+
         dataset, dataset_id, remaining, jobsize, empty_source = random.choice(rows)
-        size = [int(jobsize)] * num
+        size = [int(max(math.ceil((taper * jobsize)), 1))] * num
 
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}

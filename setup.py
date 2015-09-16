@@ -22,6 +22,7 @@ setup(
     install_requires=[
         'argparse',
         'dbs',
+        'httplib2', # actually a WMCore dependency
         'jinja2',
         'nose',
         'pyyaml',

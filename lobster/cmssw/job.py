@@ -315,6 +315,17 @@ class JobProvider(job.JobProvider):
                       (self.parrot_lib, 'lib', None)
                       ]
 
+            # Files to make the job wrapper work without referencing WMCore
+            # from somewhere else
+            import WMCore
+            base = os.path.dirname(WMCore.__file__)
+            reqs = [
+                    "Services/Dashboard/DashboardAPI.pyc",
+                    "FwkJobReport"
+                    ]
+            for f in reqs:
+                inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
+
             if merge:
                 if not self.__edm_outputs[label]:
                     cmd = 'hadd'

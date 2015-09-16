@@ -431,7 +431,7 @@ class JobitStore:
         self.db.commit()
 
     def update_dataset_stats(self, label):
-        id, size, targettime = self.db.execute("select id, jobsize, jobruntime from datasets where label=?", (label,)).fetchone()[0]
+        id, size, targettime = self.db.execute("select id, jobsize, jobruntime from datasets where label=?", (label,)).fetchone()
 
         if targettime is not None:
             # Adjust jobsize based on time spend in prologue, processing, and

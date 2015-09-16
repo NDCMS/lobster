@@ -281,7 +281,7 @@ class JobProvider(job.JobProvider):
                     trafo = lambda s: s
 
                 logger.info("registering {0} in database".format(label))
-                self.__store.register(cfg, dataset_info, trafo)
+                self.__store.register(cfg, dataset_info, trafo, self.config.get('task runtime', None))
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
 
             elif os.path.exists(os.path.join(taskdir, 'running')):

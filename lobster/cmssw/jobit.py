@@ -45,6 +45,7 @@ class JobitStore:
             cfg text,
             uuid text,
             jobsize int,
+            jobruntime int default null,
             file_based int,
             empty_source int,
             jobits integer,
@@ -107,7 +108,7 @@ class JobitStore:
     def disconnect(self):
         self.db.close()
 
-    def register(self, dataset_cfg, dataset_info, filemap):
+    def register(self, dataset_cfg, dataset_info, filemap, taskruntime=None):
         label = dataset_cfg['label']
         unique_args = dataset_cfg.get('unique parameters', [None])
 
@@ -124,11 +125,12 @@ class JobitStore:
                        file_based,
                        empty_source,
                        jobsize,
+                       jobruntime,
                        jobits,
                        masked_lumis,
                        jobits_left,
                        events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', label),
                            label,
                            dataset_info.path,
@@ -140,6 +142,7 @@ class JobitStore:
                            dataset_info.file_based,
                            dataset_info.empty_source,
                            dataset_info.jobsize,
+                           taskruntime,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.masked_lumis,
                            dataset_info.total_lumis * len(unique_args),
@@ -428,6 +431,22 @@ class JobitStore:
         self.db.commit()
 
     def update_dataset_stats(self, label):
+        id, size, targettime = self.db.execute("select id, jobsize, jobruntime from datasets where label=?", (label,)).fetchone()[0]
+
+        if targettime is not None:
+            # Adjust jobsize based on time spend in prologue, processing, and
+            # epilogue.  Only do so when difference is > 10%
+            tasks, jobittime = self.db.execute("""
+                select
+                    count(*),
+                    avg((time_epilogue_end - time_stage_in_end) * 1. / jobits)
+                from jobs where status in (2, 6, 7, 8) and dataset=1 and type=0""").fetchone()
+
+            bettersize = int(math.ceil(targettime / jobittime))
+            if tasks > 10 and abs(float(bettersize - size) / size) > .1:
+                logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
+                self.db.execute("update datasets set jobsize=? where id=?", (bettersize, id))
+
         self.db.execute("""
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),

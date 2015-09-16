@@ -1,43 +1,41 @@
-import gzip
+import json
+import os
 import sys
-
-sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
-
-from IMProv.IMProvDoc import IMProvDoc
-from ProdCommon.FwkJobRep.ReportParser import readJobReport
-from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
 
 if len(sys.argv) < 3:
     print "usage: {0} output inputs...".format(sys.argv[0])
     sys.exit(1)
 
-merged = FwkJobReport()
-for r in sys.argv[2:]:
-    print "> merging {0}".format(r)
-    f = gzip.open(r)
-    for report in readJobReport(f):
-        merged.inputFiles += report.inputFiles
-        if len(merged.files) == 0:
-            merged.files = report.files
-        else:
-            for run, lumis in report.files[0]['Runs'].items():
-                try:
-                    merged.files[0]['Runs'][run] += lumis
-                except KeyError:
-                    merged.files[0]['Runs'][run] = lumis
-            events = int(merged.files[0]['TotalEvents']) + int(report.files[0]['TotalEvents'])
-            merged.files[0]['TotalEvents'] = str(events)
-    f.close()
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
 
-output = IMProvDoc("JobReports")
-output.addNode(merged.save())
+mergedfiles = data['files']['info']
+mergedkeys = dict((os.path.basename(k), k) for k in mergedfiles.keys())
 
-outname = sys.argv[1]
-if not outname.endswith('.gz'):
-    outname += '.gz'
+data['files']['info'] = {}
 
-outfile = gzip.open(outname, 'wb')
-outfile.write(output.makeDOMDocument().toprettyxml())
-outfile.close()
+for fn in sys.argv[2:]:
+    print ">> merging {0}".format(fn)
 
-sys.exit(0)
+    with open(fn, 'r') as f:
+        report = json.load(f)
+
+    outfiles = report['files']['adler32'].keys()
+    for ofn in outfiles:
+        if ofn in mergedkeys:
+            overwrite = mergedkeys[ofn]
+            break
+    else:
+        # This file must have been skipped?
+        print "> skipping report merge of " + fn
+        raise KeyError(fn)
+
+    for (ifn, (events, lumis)) in report['files']['info'].items():
+        try:
+            data['files']['info'][ifn][0] += events
+            data['files']['info'][ifn][1].extend(lumis)
+        except KeyError:
+            data['files']['info'][ifn] = [events, lumis]
+
+with open(sys.argv[1], 'w') as f:
+    json.dump(data, f, indent=2)

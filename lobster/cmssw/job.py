@@ -438,7 +438,7 @@ class JobProvider(job.JobProvider):
                 'pset': os.path.basename(cms_config) if cms_config else None
             }
 
-            if 'task runtime' in self.config:
+            if 'task runtime' in self.config and not merge:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
                 config['task runtime'] = self.config['task runtime'] + 10 * 60

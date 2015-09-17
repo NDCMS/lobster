@@ -152,8 +152,10 @@ def sprint(config, workdir, cmsjob):
     if util.checkpoint(workdir, 'KILLED') == 'PENDING':
         util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
-    # time in seconds to wait for WQ to return tasks
+    # time in seconds to wait for WQ to return tasks, with minimum wait
+    # time in case no more tasks are waiting
     interval = 60
+    interval_minimum = 10
 
     jobits_left = 0
     successful_jobs = 0
@@ -271,7 +273,7 @@ def sprint(config, workdir, cmsjob):
             tasks.append(task)
 
             remaining = int(starttime + interval - time.time())
-            if queue.stats.tasks_waiting > 0 and remaining > 0:
+            if (interval - remaining > interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
                 task = queue.wait(remaining)
             else:
                 task = None

@@ -18,8 +18,6 @@ version of the CC tools!
 Adjust your paths as follows:
 
     export PYTHONPATH=/afs/cern.ch/user/m/matze/src/cctools-002-b7289441-cvmfs-90fca639c-x86_64-redhat6/lib/python2.6/site-packages/:$PYTHONPATH
-    export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_11_1/external:$PYTHONPATH
-    export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_11_1/python:$PYTHONPATH
     export PATH=$PATH:/afs/cern.ch/user/m/matze/src/cctools-002-b7289441-cvmfs-90fca639c-x86_64-redhat6/bin
 
 ## Actually running

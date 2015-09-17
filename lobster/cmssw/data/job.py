@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import gzip
 import json
+import logging
 import os
 import re
 import resource
@@ -17,14 +18,10 @@ ROOT.gROOT.SetBatch(True)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gErrorIgnoreLevel = ROOT.kError
 
-sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_5/external')
-
 from ROOT import TFile
-from DashboardAPI import apmonSend, apmonFree
 from FWCore.PythonUtilities.LumiList import LumiList
-from ProdCommon.FwkJobRep.FwkJobReport import FwkJobReport
-from ProdCommon.FwkJobRep.PerformanceReport import PerformanceReport
-from ProdCommon.FwkJobRep.ReportParser import readJobReport
+from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+from WMCore.FwkJobReport.Report import Report
 
 
 fragment = """
@@ -41,6 +38,14 @@ if hasattr(process, 'options'):
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
+
+monalisa = {
+        'cms-jobmon.cern.ch:8884': {
+            'sys_monitoring': 0,
+            'general_info': 0,
+            'job_monitoring': 0
+        }
+}
 
 def run_subprocess(*args, **kwargs):
     print
@@ -74,45 +79,22 @@ def run_subprocess(*args, **kwargs):
 
     return p
 
-def create_fjr(config, usage, outfile='report.xml'):
-
-    report = FwkJobReport()
-    report.status = 0
-    checksums, events = calculate_alder32(config)
-
-    for local, remote in config['output files']:
-
-        file = report.newFile()
-        file.state = 'closed'
-        file['PFN'] = local
-        file['Checksum'] = checksums.get(os.path.basename(remote), None)
-        file['TotalEvents'] = events.get(os.path.basename(remote), 0)
-
-    jobcpu = {'TotalJobCPU': usage.ru_stime}
-    performance = PerformanceReport()
-    performance.addSummary("Timing", **jobcpu)
-    report.performance = performance
-
-    report.write(outfile)
-
-
-def calculate_alder32(config):
+def calculate_alder32(data):
     """Try to calculate checksums for output files.
     """
-    checksums = {}
-    totalevents = {}
 
-    for local, remote in config['output files']:
+    for fn in data['files']['output info'].keys():
+        checksum = '0'
         try:
-            p = subprocess.Popen(['edmFileUtil', '-a', local], stdout=subprocess.PIPE)
+            p = subprocess.Popen(['edmFileUtil', '-a', fn], stdout=subprocess.PIPE)
             stdout = p.communicate()[0]
 
             if p.returncode == 0:
-                checksums[os.path.basename(remote)] = stdout.split()[-2]
-                totalevents[os.path.basename(remote)] = stdout.split()[-6]
+                checksum = stdout.split()[-2]
+                events = stdout.split()[-6]
         except:
             pass
-    return (checksums, totalevents)
+        data['files']['output info'][fn]['adler32'] = checksum
 
 @contextmanager
 def check_execution(data, code):
@@ -452,7 +434,7 @@ def edit_process_source(pset, config):
         print frag
         fp.write(frag)
 
-def extract_info(config, data, report_filename):
+def parse_fwk_report(config, data, report_filename):
     """Extract job data from a framework report.
 
     Analyze the CMSSW job framework report to get the CMSSW exit code,
@@ -465,38 +447,47 @@ def extract_info(config, data, report_filename):
     written = 0
     eventsPerRun = 0
 
-    with open(report_filename) as f:
-        for report in readJobReport(f):
-            for error in report.errors:
-                code = error.get('ExitStatus', exit_code)
-                if exit_code == 0:
-                    exit_code = code
+    report = Report("cmsrun")
+    report.parse(report_filename)
 
-            for file in report.skippedFiles:
-                filename = file['Lfn']
-                filename = config['file map'].get(filename, filename)
-                skipped.append(file['Lfn'])
+    exit_code = report.getExitCode()
 
-            for file in report.files:
-                written += int(file['TotalEvents'])
+    for fn in report.getAllSkippedFiles():
+        fn = config['file map'].get(fn, fn)
+        skipped.append(fn)
 
-            for file in report.inputFiles:
-                filename = file['LFN'] if len(file['LFN']) > 0 else file['PFN']
-                filename = config['file map'].get(filename, filename)
-                file_lumis = []
-                try:
-                    for run, ls in file['Runs'].items():
-                        for lumi in ls:
-                            file_lumis.append((run, lumi))
-                except AttributeError:
-                    print 'Detected file-based job.'
-                infos[filename] = (int(file['EventsRead']), file_lumis)
-                eventsPerRun += infos[filename][0]
+    outinfos = {}
+    for file in report.getAllFiles():
+        pfn = file['pfn']
+        outinfos[pfn] = {
+                'runs': {},
+                'events': file['events'],
+        }
+        written += int(file['events'])
+        for run in file['runs']:
+            try:
+                outinfos[pfn]['runs'][run.run].extend(run.lumis)
+            except KeyError:
+                outinfos[pfn]['runs'][run.run] = run.lumis
 
-            timing = report.performance.summaries['Timing']
-            cputime = timing.get('TotalEventCPU', timing.get('TotalJobCPU', 0))
+    for file in report.getAllInputFiles():
+        filename = file['lfn'] if len(file['lfn']) > 0 else file['pfn']
+        filename = config['file map'].get(filename, filename)
+        file_lumis = []
+        try:
+            for run in file['runs']:
+                for lumi in run.lumis:
+                    file_lumis.append((run.run, lumi))
+        except AttributeError:
+            print 'Detected file-based job.'
+        infos[filename] = (int(file['events']), file_lumis)
+        eventsPerRun += infos[filename][0]
+
+    serialized = report.__to_json__(None)
+    cputime = float(serialized['steps']['cmsrun']['performance']['cpu'].get('TotalJobCPU', '0'))
 
     data['files']['info'] = infos
+    data['files']['output info'] = outinfos
     data['files']['skipped'] = skipped
     data['events written'] = written
     data['cmssw exit code'] = exit_code
@@ -504,8 +495,6 @@ def extract_info(config, data, report_filename):
     # events
     data['cpu time'] = cputime
     data['events per run'] = eventsPerRun
-
-    return cputime
 
 def extract_time(filename):
     """Load file contents as integer timestamp.
@@ -623,7 +612,7 @@ parameters = {
             'WNHostName': os.environ.get('HOSTNAME', '')
             }
 
-apmonSend(taskid, monitorid, parameters)
+apmonSend(taskid, monitorid, parameters, logging, monalisa)
 apmonFree()
 
 print
@@ -663,18 +652,20 @@ if p.returncode != 0:
     print ">>> Executable return code != 0.  Check for errors!"
 
 if cmsRun:
-    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'})
-else:
-    create_fjr(config, usage)
+    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)
 
-cputime = 0
-with check_execution(data, 190):
-    cputime = extract_info(config, data, 'report.xml')
+    with check_execution(data, 190):
+        parse_fwk_report(config, data, 'report.xml')
+
+    calculate_alder32(data)
+else:
+    data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
+    data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
+    data['cpu time'] = usage.ru_stime
+    data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
     data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
-
-data['files']['adler32'] = calculate_alder32(config)[0]
 
 now = int(datetime.now().strftime('%s'))
 firstevent = now
@@ -687,6 +678,9 @@ if cmsRun:
 data['task timing info'].append(now)
 
 if len(epilogue) > 0:
+    # Make data collected so far available to the epilogue
+    with open('report.json', 'w') as f:
+        json.dump(data, f, indent=2)
     print ">>> epilogue:"
     with check_execution(data, 199):
         p = run_subprocess(epilogue,env=env)
@@ -698,6 +692,8 @@ if len(epilogue) > 0:
         # a non-zero return code.
         if p.returncode != 0:
             raise subprocess.CalledProcessError
+    with open('report.json', 'r') as f:
+        data = json.load(f)
 
 data['task timing info'].append(int(datetime.now().strftime('%s')))
 
@@ -744,6 +740,7 @@ for filename in 'executable.log report.xml'.split():
                 zipf.writelines(f)
                 zipf.close()
 
+cputime = data['cpu time']
 total_time = data['task timing info'][-1] - data['task timing info'][0]
 exe_wc_time = data['task timing info'][-3] - data['task timing info'][3]
 job_exit_code = data['job exit code']
@@ -777,7 +774,7 @@ try:
 except:
     pass
 
-apmonSend(taskid, monitorid, parameters)
+apmonSend(taskid, monitorid, parameters, logging, monalisa)
 apmonFree()
 
 sys.exit(job_exit_code)

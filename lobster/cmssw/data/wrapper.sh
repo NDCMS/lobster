@@ -36,7 +36,7 @@ export LOBSTER_LCG_CP LOBSTER_GFAL_COPY
 LOBSTER_PROXY_INFO=$(command -v grid-proxy-init)
 
 unset PARROT_HELPER
-export PYTHONPATH=/cvmfs/cms.cern.ch/crab/CRAB_2_10_5_patch1/python/:$PYTHONPATH
+export PYTHONPATH=python:$PYTHONPATH
 
 if [ -z "$LD_LIBRARY_PATH" ]; then
 	export LD_LIBRARY_PATH=lib

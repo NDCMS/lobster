@@ -17,7 +17,6 @@ import jobit
 from dataset import MetaInterface
 
 from FWCore.PythonUtilities.LumiList import LumiList
-from ProdCommon.CMSConfigTools.ConfigAPI.CfgInterface import CfgInterface
 
 import work_queue as wq
 
@@ -254,13 +253,13 @@ class JobProvider(job.JobProvider):
                 sys.argv = ["pacify_varparsing.py"]
                 with open(util.findpath(self.basedirs, cms_config), 'r') as f:
                     source = imp.load_source('cms_config_source', cms_config, f)
-                    cfg_interface = CfgInterface(source.process)
-                    if hasattr(cfg_interface.data, 'GlobalTag') and hasattr(cfg_interface.data.GlobalTag.globaltag, 'value'):
-                        cfg['global tag'] = cfg_interface.data.GlobalTag.globaltag.value()
-                    for m in cfg_interface.data.outputModules:
-                        self.outputs[label].append(getattr(cfg_interface.data, m).fileName.value())
-                    if hasattr(cfg_interface.data, 'TFileService'):
-                        self.outputs[label].append(cfg_interface.data.TFileService.fileName.value())
+                    process = source.process
+                    if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
+                        cfg['global tag'] = process.GlobalTag.globaltag.value()
+                    for label, module in process.outputModules.items():
+                        self.outputs[label].append(module.fileName.value())
+                    if 'TFileService' in process.services:
+                        self.outputs[label].append(process.services['TFileService'].fileName.value())
                         self.__edm_outputs[label] = False
 
                     logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self.outputs[label])))
@@ -292,7 +291,7 @@ class JobProvider(job.JobProvider):
     def get_report(self, label, job):
         jobdir = self.get_jobdir(job, label, 'successful')
 
-        return os.path.join(jobdir, 'report.xml.gz')
+        return os.path.join(jobdir, 'report.json')
 
     def obtain(self, num=1):
         # FIXME allow for adjusting the number of LS per job
@@ -308,12 +307,27 @@ class JobProvider(job.JobProvider):
         for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
             ids.append(id)
 
+            jdir = self.create_jobdir(id, label, 'running')
+
+            outputs = []
             inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                       (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                       (self.parrot_bin, 'bin', None),
                       (self.parrot_lib, 'lib', None)
                       ]
+
+            # Files to make the job wrapper work without referencing WMCore
+            # from somewhere else
+            import WMCore
+            base = os.path.dirname(WMCore.__file__)
+            reqs = [
+                    "Services/Dashboard/DashboardAPI.pyc",
+                    "Services/Dashboard/apmon.pyc",
+                    "FwkJobReport"
+                    ]
+            for f in reqs:
+                inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
 
             if merge:
                 if not self.__edm_outputs[label]:
@@ -362,7 +376,7 @@ class JobProvider(job.JobProvider):
                 inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in inreports]
 
                 prologue = None
-                epilogue = ['python', 'merge_reports.py', 'report.xml.gz'] \
+                epilogue = ['python', 'merge_reports.py', 'report.json'] \
                         + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in inreports]
 
                 files = infiles
@@ -380,14 +394,13 @@ class JobProvider(job.JobProvider):
             inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
 
             if cmssw_job:
-                inputs.extend([(cms_config, os.path.basename(cms_config), True)])
+                inputs.append((cms_config, os.path.basename(cms_config), True))
+                outputs.append((os.path.join(jdir, 'report.xml.gz'), 'report.xml.gz'))
 
             if 'X509_USER_PROXY' in os.environ:
                 inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
             inputs += [(i, os.path.basename(i), True) for i in self.extra_inputs[label]]
-
-            jdir = self.create_jobdir(id, label, 'running')
 
             monitorid, syncid = self.__dash.register_job(id)
 
@@ -397,15 +410,13 @@ class JobProvider(job.JobProvider):
                 local=self.__local[label])
             files, lumis = handler.get_job_info()
 
-            stagein = []
-            outputs = []
             for filename in self.outputs[label]:
                 base, ext = os.path.splitext(filename)
                 outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
 
                 handler.outputs.append((filename, os.path.join(label, outname)))
 
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['report.xml.gz', 'executable.log.gz', 'report.json']])
+            outputs.extend([(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']])
 
             sum = self.config.get('cmssw summary', True)
 

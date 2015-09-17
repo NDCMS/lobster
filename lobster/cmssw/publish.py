@@ -3,7 +3,6 @@ import subprocess
 import time
 import sys
 import uuid
-from zlib import adler32
 import gzip
 import yaml
 import shutil
@@ -12,11 +11,8 @@ import logging
 
 from FWCore.PythonUtilities.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
-from ProdCommon.FwkJobRep.ReportParser import readJobReport
-from ProdCommon.FwkJobRep.SiteLocalConfig import SiteLocalConfig
-from ProdCommon.FwkJobRep.TrivialFileCatalog import readTFC
-from ProdCommon.MCPayloads.WorkflowTools import createPSetHash
-sys.path.insert(0, '/cvmfs/cms.cern.ch/crab/CRAB_2_10_2_patch2/external/dbs3client')
+from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
+from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
@@ -24,12 +20,14 @@ from lobster.job import apply_matching
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw.jobit import JobitStore
 
-def get_adler32(filename):
-    sum = 1L
-    with open(filename, 'rb') as file:
-        sum = adler32(file.read(1000000000), sum)
+def hash_pset(fn):
+    p = subprocess.Popen(['edmConfigHash', fn], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
 
-    return '%x' % (sum & 0xffffffffL)
+    if p.returncode != 0:
+        logging.error('cannot calculate hash for "{0}": {1}'.format(fn, err))
+
+    return out
 
 def check_migration(status):
     successful = False
@@ -206,8 +204,8 @@ class BlockDump(object):
        self.data['file_conf_list'].append(conf_dict)
 
     def add_file_parents(self, LFN, report):
-        for f in report.inputFiles:
-            parent = {'logical_file_name': LFN, 'parent_logical_file_name': f['LFN']}
+        for fn in report['files']['infos'].keys():
+            parent = {'logical_file_name': LFN, 'parent_logical_file_name': fn}
             if parent not in self.data['file_parent_list']:
                 self.data['file_parent_list'].append(parent)
 
@@ -223,9 +221,9 @@ class BlockDump(object):
             logging.warning("error calculating checksum")
 
         file_dict = {'check_sum': int(cksum),
-                     'file_lumi_list': lumi_dict_to_list(output['Runs']),
-                     'adler32': get_adler32(PFN),
-                     'event_count': int(output['TotalEvents']),
+                     'file_lumi_list': lumi_dict_to_list(output['runs']),
+                     'adler32': output['adler32'],
+                     'event_count': int(output['events']),
                      'file_type': output['FileType'],
                      'last_modified_by': self.username,
                      'logical_file_name': LFN,
@@ -344,7 +342,7 @@ def publish(args):
                         outfile.write(fix.format(tmp_path))
                         outfile.write(infile.read())
                 try:
-                    pset_hash = createPSetHash(tmp_path)[-32:]
+                    pset_hash = hash_pset(tmp_path)
                     db.update_pset_hash(pset_hash, label)
                 except:
                     logging.warning('error calculating the cmssw parameter set hash')
@@ -376,22 +374,28 @@ def publish(args):
                 logging.info('preparing DBS entry for %i job block: %s' % (len(chunk), block['block']['block_name']))
 
                 for job, merged_job in chunk:
-                    status = 'merged' if merged_job else 'successful'
                     id = merged_job if merged_job else job
-                    tag = 'merged_{0}'.format(merged_job) if merged_job else str(job)
 
                     f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
                     report = readJobReport(f)[0]
-                    PFN = os.path.join(stageout_path, report.files[0]['PFN'].replace('.root', '_%s.root' % tag))
+
+                    with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'report.json')) as f:
+                        report = json.load(f)
+                    with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'parameters.json')) as f:
+                        parameters = json.load(f)
+
+                    local, remote = parameters['output files'][0]
+                    PFN = os.path.join(stageout_path, os.path.basename(remote))
                     LFN = block.get_LFN(PFN)
                     matched_PFN = block.get_matched_PFN(PFN, LFN)
                     if not matched_PFN:
                         logging.warn('could not find expected output for job(s) {0}'.format(job))
                         missing.append(job)
                     else:
+                        fileinfo = report['files']['output info'][local]
                         logging.info('adding %s to block' % LFN)
                         block.add_file_config(LFN)
-                        block.add_file(LFN, report.files[0], job, merged_job)
+                        block.add_file(LFN, fileinfo, job, merged_job)
                         block.add_dataset_config()
                         if args.migrate_parents:
                             block.add_file_parents(LFN, report)

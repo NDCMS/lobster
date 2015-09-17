@@ -1,12 +1,11 @@
 import datetime
-# import getpass
-# import pwd
+import logging
 import os
 import subprocess
 
 from hashlib import sha1
 
-from DashboardAPI import apmonSend, apmonFree
+from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from lobster import util
 
@@ -33,6 +32,13 @@ status_map = {
     wq.WORK_QUEUE_TASK_CANCELED: ABORTED
 }
 
+conf = {
+        'cms-jobmon.cern.ch:8884': {
+            'sys_monitoring': 0,
+            'general_info': 0,
+            'job_monitoring': 0
+        }
+}
 
 class DummyMonitor(object):
     def __init__(self, workdir):
@@ -86,8 +92,11 @@ class Monitor(DummyMonitor):
     def free(self):
         apmonFree()
 
+    def send(self, jobid, params):
+        apmonSend(self._taskid, jobid, params, logging, conf)
+
     def register_run(self):
-        apmonSend(self._taskid, 'TaskMeta', {
+        self.send('TaskMeta', {
             'taskId': self._taskid,
             'jobId': 'TaskMeta',
             'tool': 'lobster',
@@ -109,7 +118,7 @@ class Monitor(DummyMonitor):
 
     def register_job(self, id):
         monitorid, syncid = self.generate_ids(id)
-        apmonSend(self._taskid, monitorid, {
+        self.send(monitorid, {
             'taskId': self._taskid,
             'jobId': monitorid,
             'sid': syncid,
@@ -136,7 +145,7 @@ class Monitor(DummyMonitor):
 
     def update_job(self, id, status):
         monitorid, syncid = self.generate_ids(id)
-        apmonSend(self._taskid, monitorid, {
+        self.send(monitorid, {
             'taskId': self._taskid,
             'jobId': monitorid,
             'sid': syncid,

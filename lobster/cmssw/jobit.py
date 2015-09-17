@@ -442,10 +442,11 @@ class JobitStore:
                     avg((time_epilogue_end - time_stage_in_end) * 1. / jobits)
                 from jobs where status in (2, 6, 7, 8) and dataset=1 and type=0""").fetchone()
 
-            bettersize = int(math.ceil(targettime / jobittime))
-            if tasks > 10 and abs(float(bettersize - size) / size) > .1:
-                logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
-                self.db.execute("update datasets set jobsize=? where id=?", (bettersize, id))
+            if tasks > 10:
+                bettersize = max(1, int(math.ceil(targettime / jobittime)))
+                if abs(float(bettersize - size) / size) > .1:
+                    logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
+                    self.db.execute("update datasets set jobsize=? where id=?", (bettersize, id))
 
         self.db.execute("""
             update datasets set

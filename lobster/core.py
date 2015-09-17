@@ -106,9 +106,9 @@ def run(args):
             console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
 
-        config['configdir'] = args.configdir
-        config['filename'] = args.configfile
-        config['startdir'] = args.startdir
+        config['base directory'] = args.configdir
+        config['base configuration'] = args.configfile
+        config['startup directory'] = args.startdir
 
         t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
         t.start()
@@ -225,7 +225,10 @@ def sprint(config, workdir, cmsjob):
                 stats.tasks_running,
                 stats.tasks_waiting))
 
-        hunger = max(payload + stats.total_workers_connected / 10 - stats.tasks_waiting, 0)
+        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
+        hunger = max(need - stats.tasks_waiting, 0)
+
+        logger.debug("feeding {0} jobs to work queue".format(hunger))
 
         t = time.time()
         while hunger > 0:

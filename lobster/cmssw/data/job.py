@@ -557,7 +557,6 @@ cmsRun = True if config['executable'] == 'cmsRun' else False
 
 data = {
     'files': {
-        'adler32': {},
         'info': {},
         'skipped': [],
     },

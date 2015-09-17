@@ -20,16 +20,6 @@ for fn in sys.argv[2:]:
     with open(fn, 'r') as f:
         report = json.load(f)
 
-    outfiles = report['files']['adler32'].keys()
-    for ofn in outfiles:
-        if ofn in mergedkeys:
-            overwrite = mergedkeys[ofn]
-            break
-    else:
-        # This file must have been skipped?
-        print "> skipping report merge of " + fn
-        raise KeyError(fn)
-
     for (ifn, (events, lumis)) in report['files']['info'].items():
         try:
             data['files']['info'][ifn][0] += events

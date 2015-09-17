@@ -423,7 +423,7 @@ def edit_process_source(pset, config):
     files = config['mask']['files']
     lumis = LumiList(compactList=config['mask']['lumis']).getVLuminosityBlockRange()
     want_summary = config['want summary']
-    runtime = config['task runtime']
+    runtime = config.get('task runtime')
 
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])

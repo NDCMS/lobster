@@ -207,24 +207,36 @@ class JobitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, jobits_left, jobsize, empty_source
+            select label, id, jobits_left, jobits_left * 1. / jobsize, jobsize, empty_source
             from datasets
             where jobits_left > 0""")]
         if len(rows) == 0:
             return []
 
         # calculate how many tasks we can create from all datasets, still
-        tasks_left = sum(int(math.ceil(remaining / float(jobsize)))
-            for _, _, remaining, jobsize, _ in rows)
+        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+        tasks = []
+
+        random.shuffle(rows)
 
         # if total tasks left < requested tasks, make the tasks smaller to
         # keep all workers occupied
-        taper = 1.
         if tasks_left < num:
             taper = float(tasks_left) / num
+            for dataset, dataset_id, jobits_left, ntasks, jobsize, empty_source in rows:
+                jobsize = max(math.ceil((taper * jobsize)), 1)
+                size = [int(jobsize)] * max(1, int(math.ceil(ntasks / taper)))
+                tasks.extend(self.__pop_jobits(size, dataset, dataset_id, empty_source))
+        else:
+            for dataset, dataset_id, jobits_left, ntasks, jobsize, empty_source in rows:
+                size = [int(jobsize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
+                tasks.extend(self.__pop_jobits(size, dataset, dataset_id, empty_source))
+        return tasks
 
-        dataset, dataset_id, remaining, jobsize, empty_source = random.choice(rows)
-        size = [int(max(math.ceil((taper * jobsize)), 1))] * num
+    def __pop_jobits(self, size, dataset, dataset_id, empty_source):
+        """Internal method to create jobs from a dataset
+        """
+        logger.debug("creating {0} task(s) for workflow {1}".format(len(size), dataset))
 
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}

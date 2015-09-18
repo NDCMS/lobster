@@ -28,9 +28,11 @@ MERGE = 1
 class JobitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
-        self.config = config
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
+
+        self.__failure_threshold = config.get("threshold for failure", 10)
+        self.__skipping_threshold = config.get("threshold for skipping", 10)
 
         # Use four databases: one for jobits, jobs, hosts, datasets each
         self.db.execute("""create table if not exists datasets(
@@ -53,6 +55,7 @@ class JobitStore:
             jobits_running int default 0,
             jobits_done int default 0,
             jobits_left int default 0,
+            jobits_paused int default 0,
             events int default 0,
             merged int default 0)""")
         self.db.execute("""create table if not exists jobs(
@@ -166,6 +169,7 @@ class JobitStore:
             lumi integer,
             file integer,
             status integer default 0,
+            failed integer default 0,
             arg text,
             foreign key(job) references jobs(id),
             foreign key(file) references files_{0}(id))""".format(label))
@@ -203,9 +207,9 @@ class JobitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, jobits - jobits_done - jobits_running, jobsize, empty_source
+            select label, id, jobits_left, jobsize, empty_source
             from datasets
-            where jobits_done + jobits_running < jobits""")]
+            where jobits_left > 0""")]
         if len(rows) == 0:
             return []
 
@@ -224,8 +228,10 @@ class JobitStore:
 
         fileinfo = list(self.db.execute("""select id, filename
                     from files_{0}
-                    where jobits_done + jobits_running < jobits
-                    order by skipped asc""".format(dataset)))
+                    where
+                        (jobits_done + jobits_running < jobits) and
+                        (skipped < ?)
+                    order by skipped asc""".format(dataset), (self.__skipping_threshold,)))
         files = [x for (x, y) in fileinfo]
         fileinfo = dict(fileinfo)
 
@@ -233,7 +239,7 @@ class JobitStore:
         for i in range(0, len(files), 40):
             chunk = files[i:i + 40]
             rows.extend(self.db.execute("""
-                select id, file, run, lumi, arg
+                select id, file, run, lumi, arg, failed
                 from jobits_{0}
                 where file in ({1}) and status not in (1, 2, 6, 7, 8)
                 """.format(dataset, ', '.join('?' for _ in chunk)), chunk))
@@ -249,23 +255,45 @@ class JobitStore:
         jobs = []
         current_size = 0
 
-        for id, file, run, lumi, arg in rows:
-            if (run, lumi) in all_lumis:
+        def insert_job(files, jobits, arg):
+            cur = self.db.cursor()
+            cur.execute("insert into jobs(dataset, status, type) values (?, 1, 0)", (dataset_id,))
+            job_id = cur.lastrowid
+
+            jobs.append((
+                str(job_id),
+                dataset,
+                [(id, fileinfo[id]) for id in files],
+                jobits,
+                arg,
+                empty_source,
+                False))
+
+        for id, file, run, lumi, arg, failed in rows:
+            if (run, lumi) in all_lumis or failed > self.__failure_threshold:
                 continue
 
             if current_size == 0:
                 if len(size) == 0:
                     break
-                cur = self.db.cursor()
-                cur.execute("insert into jobs(dataset, status, type) values (?, 1, 0)", (dataset_id,))
-                job_id = cur.lastrowid
+
+            if failed == self.__failure_threshold:
+                insert_job([file], [(id, file, run, lumi)], arg)
+                continue
 
             if lumi > 0:
                 all_lumis.add((run, lumi))
                 for (ls_id, ls_file, ls_run, ls_lumi) in self.db.execute("""
-                        select id, file, run, lumi
-                        from jobits_{0}
-                        where run=? and lumi=? and status not in (1, 2, 6, 7, 8)""".format(dataset), (run, lumi)):
+                        select
+                            id, file, run, lumi
+                        from
+                            jobits_{0}
+                        where
+                            run=? and
+                            lumi=? and
+                            status not in (1, 2, 6, 7, 8) and
+                            failed < ?""".format(dataset),
+                        (run, lumi, self.__failure_threshold)):
                     jobits.append((ls_id, ls_file, ls_run, ls_lumi))
                     files.add(ls_file)
             else:
@@ -275,14 +303,7 @@ class JobitStore:
             current_size += 1
 
             if current_size == size[0]:
-                jobs.append((
-                    str(job_id),
-                    dataset,
-                    [(id, fileinfo[id]) for id in files],
-                    jobits,
-                    arg,
-                    empty_source,
-                    False))
+                insert_job(files, jobits, arg)
 
                 files = set()
                 jobits = []
@@ -291,14 +312,7 @@ class JobitStore:
                 size.pop(0)
 
         if current_size > 0:
-            jobs.append((
-                str(job_id),
-                dataset,
-                [(id, fileinfo[id]) for id in files],
-                jobits,
-                arg,
-                empty_source,
-                False))
+            insert_job(files, jobits, arg)
 
         dataset_update = []
         file_update = defaultdict(int)
@@ -452,16 +466,20 @@ class JobitStore:
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
                 jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
-                jobits_left=(select count(*) from jobits_{0} where status not in (1, 2, 6, 7, 8))
-            where label=?""".format(label), (label,))
+                jobits_paused=
+                    (select count(*) from jobits_{0} where failed > ?) +
+                    ifnull((select sum(jobits - jobits_done) from files_{0} where skipped >= ?), 0),
+                jobits_left=jobits - (jobits_running + jobits_done + jobits_paused)
+            where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label))
 
     def merged(self):
         unmerged = self.db.execute("select count(*) from datasets where merged <> 1").fetchone()[0]
         return unmerged == 0
 
     def unfinished_jobits(self):
-        cur = self.db.execute("select sum(jobits - jobits_done) from datasets")
-        return cur.fetchone()[0]
+        cur = self.db.execute("select sum(jobits - jobits_done - jobits_paused) from datasets")
+        res = cur.fetchone()[0]
+        return 0 if res is None else res
 
     def running_jobits(self):
         cur = self.db.execute("select sum(jobits_running) from datasets")
@@ -492,11 +510,11 @@ class JobitStore:
             return []
 
         rows = self.db.execute("""
-            select label, id, jobits_done == jobits
+            select label, id, jobits_done + jobits_paused == jobits
             from datasets
             where
                 merged <> 1 and
-                jobits_done * 10 >= jobits
+                (jobits_done + jobits_paused) * 10 >= jobits
                 and (select count(*) from jobs where dataset=datasets.id and status=2) > 0
         """).fetchall()
 

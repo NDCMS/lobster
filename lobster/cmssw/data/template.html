@@ -178,10 +178,10 @@
 				});
 				$("a#mergeprof").bind('click', function() {
 					src_replace("img.merge", "-hist", "-prof");
-					$("span#mergehist.right").removeClass("depressed");
-					$("span#mergehist.right").addClass("pressed");
 					$("span#mergehist.left").removeClass("pressed");
 					$("span#mergehist.left").addClass("depressed");
+					$("span#mergehist.right").removeClass("depressed");
+					$("span#mergehist.right").addClass("pressed");
 					return false;
 				});
 
@@ -248,9 +248,10 @@
 				<th>events</th>
 				<th>events read</th>
 				<th>events written</th>
-                <th>total lumis</th>
-                <th>unmasked lumis</th>
-                <th>lumis written</th>
+				<th>total lumis</th>
+				<th>unmasked lumis</th>
+				<th>lumis written</th>
+				<th>lumis failed</th>
 				<th>progress</th>
                 {% if jsons|length > 0 %}<th>json</th>{% endif %}
 			</tr>
@@ -342,8 +343,7 @@
 		</div>
 		<div style="margin-left:410px;">
 			<p>
-				<span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
-				<!-- <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span> -->
+				<span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
 				<span id="mergemore" class="button depressed"><a href="#" id="mergemore">show timeline breakdown</a></span>
 			</p>
 			<div class="merge more"><ul class="img-list">

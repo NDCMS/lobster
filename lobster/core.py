@@ -228,7 +228,7 @@ def sprint(config, workdir, cmsjob):
         need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("feeding {0} jobs to work queue".format(hunger))
+        logger.debug("trying to feed {0} jobs to work queue".format(hunger))
 
         t = time.time()
         while hunger > 0:

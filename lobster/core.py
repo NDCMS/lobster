@@ -106,9 +106,9 @@ def run(args):
             console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
 
-        config['base directory'] = args.configdir
-        config['base configuration'] = args.configfile
-        config['startup directory'] = args.startdir
+        config['configdir'] = args.configdir
+        config['filename'] = args.configfile
+        config['startdir'] = args.startdir
 
         t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
         t.start()

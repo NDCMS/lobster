@@ -558,6 +558,7 @@ cmsRun = True if config['executable'] == 'cmsRun' else False
 data = {
     'files': {
         'info': {},
+        'output info': {},
         'skipped': [],
     },
     'cache': {

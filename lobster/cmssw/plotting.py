@@ -239,6 +239,7 @@ class Plotter(object):
                     jobits + masked_lumis,
                     jobits,
                     jobits_done,
+                    jobits_paused,
                     '' || round(
                             jobits_done * 100.0 / jobits,
                         1) || ' %'
@@ -252,6 +253,7 @@ class Plotter(object):
                     sum(jobits + masked_lumis),
                     sum(jobits),
                     sum(jobits_done),
+                    sum(jobits_paused),
                     '' || round(
                             sum(jobits_done) * 100.0 / sum(jobits),
                         1) || ' %'

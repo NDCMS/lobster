@@ -35,8 +35,20 @@ delete merged: true
 ## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
 # bad exit codes: [1, 2]
 
+## path to CMSSW release needed to run executable (default read from $LOCALRT)
+# sandbox release top: /path/to/release
+
+## specify sandbox instead of creating one at startup
+# recycle sandbox: /path/to/sandbox.tar.bz2
+
 ## optional: specify directories in CMSSW work area to omit from sandbox
 # sandbox blacklist: ['*DrawPlots*']
+
+## DBS instance to publish to
+# dbs instance: phys03
+
+## overwrite the username to use for publishing, in case it is different from the environment var $USER
+# publish user: username
 
 advanced:
   ## start killing jobs with excessive runtimes after this many successful
@@ -50,13 +62,6 @@ advanced:
   log level: 0
   ## how many jobs to create and keep in the queue
   # payload: 400
-
-## DBS instance to publish to
-# dbs instance: phys03
-## overwrite the username to use for publishing, in case it is different from the environment var $USER
-# publish user: username
-## specify sandbox instead of creating one at startup
-# recycle sandbox: path/to/sandbox.tar.bz2
 
 task defaults:
     cmssw config: mc_production.py

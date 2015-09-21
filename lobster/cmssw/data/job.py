@@ -32,11 +32,15 @@ process.Timing = cms.Service("Timing",
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
 """
 
-sum_frag = """
+sum_fragment = """
 if hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
+"""
+
+runtime_fragment = """
+process.maxSecondsUntilRampdown = cms.untracked.PSet(input = cms.untracked.int32({time}))
 """
 
 monalisa = {
@@ -419,6 +423,7 @@ def edit_process_source(pset, config):
     files = config['mask']['files']
     lumis = LumiList(compactList=config['mask']['lumis']).getVLuminosityBlockRange()
     want_summary = config['want summary']
+    runtime = config.get('task runtime')
 
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])
@@ -427,7 +432,9 @@ def edit_process_source(pset, config):
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({0})".format([str(l) for l in lumis])
         if want_summary:
-            frag += sum_frag
+            frag += sum_fragment
+        if runtime:
+            frag += runtime_fragment.format(time=runtime)
 
         print
         print ">>> config file fragment:"
@@ -550,7 +557,6 @@ cmsRun = True if config['executable'] == 'cmsRun' else False
 
 data = {
     'files': {
-        'adler32': {},
         'info': {},
         'output info': {},
         'skipped': [],

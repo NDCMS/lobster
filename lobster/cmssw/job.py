@@ -222,8 +222,8 @@ class JobProvider(job.JobProvider):
 
         if not util.checkpoint(self.workdir, 'sandbox'):
             blacklist = self.config.get('sandbox blacklist', [])
-            cmssw_version = sandbox.package(os.environ['LOCALRT'], self.__sandbox,
-                                            blacklist, self.config.get('recycle sandbox'))
+            cmssw_version = sandbox.package(self.config.get('sandbox release top', os.environ['LOCALRT']),
+                                            self.__sandbox, blacklist, self.config.get('recycle sandbox'))
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
             util.register_checkpoint(self.workdir, 'sandbox cmssw version', cmssw_version)
             self.__dash = monitor(self.workdir)
@@ -281,7 +281,7 @@ class JobProvider(job.JobProvider):
                     trafo = lambda s: s
 
                 logger.info("registering {0} in database".format(label))
-                self.__store.register(cfg, dataset_info, trafo)
+                self.__store.register(cfg, dataset_info, trafo, self.config.get('task runtime', None))
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
 
             elif os.path.exists(os.path.join(taskdir, 'running')):
@@ -437,6 +437,11 @@ class JobProvider(job.JobProvider):
                 'executable': cmd,
                 'pset': os.path.basename(cms_config) if cms_config else None
             }
+
+            if 'task runtime' in self.config and not merge:
+                # cap task runtime at desired runtime + 10 minutes grace
+                # period (CMSSW 7.4 and higher only)
+                config['task runtime'] = self.config['task runtime'] + 10 * 60
 
             if merge and not self.__edm_outputs[label]:
                 config['append inputs to args'] = True

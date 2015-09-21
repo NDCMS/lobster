@@ -222,8 +222,8 @@ class JobProvider(job.JobProvider):
 
         if not util.checkpoint(self.workdir, 'sandbox'):
             blacklist = self.config.get('sandbox blacklist', [])
-            cmssw_version = sandbox.package(os.environ['LOCALRT'], self.__sandbox,
-                                            blacklist, self.config.get('recycle sandbox'))
+            cmssw_version = sandbox.package(self.config.get('sandbox release top', os.environ['LOCALRT']),
+                                            self.__sandbox, blacklist, self.config.get('recycle sandbox'))
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
             util.register_checkpoint(self.workdir, 'sandbox cmssw version', cmssw_version)
             self.__dash = monitor(self.workdir)

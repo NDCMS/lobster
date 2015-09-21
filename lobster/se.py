@@ -65,7 +65,7 @@ class StorageElement(object):
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
                     lasterror = e
-            raise AttributeError("no resolution found for path '{0}' and method {1}: {2}".format(path, attr, lasterror))
+            raise AttributeError("no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch
 
     def lfn2pfn(self, path):

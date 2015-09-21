@@ -641,13 +641,13 @@ if cmsRun:
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = [config['executable']]
+    cmd = config['executable'].split()
     cmd.extend([str(arg) for arg in args])
 
     if config.get('append inputs to args', False):
         cmd.extend([str(f) for f in config['mask']['files']])
 
-print ">>> running {0}".format(config['executable'])
+print ">>> running {0}".format(' '.join(cmd))
 # Open a file handle for the executable log
 with open('executable.log', 'w') as logfile:
     p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)

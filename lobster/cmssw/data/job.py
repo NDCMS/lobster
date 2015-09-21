@@ -552,6 +552,7 @@ data = {
     'files': {
         'adler32': {},
         'info': {},
+        'output info': {},
         'skipped': [],
     },
     'cache': {

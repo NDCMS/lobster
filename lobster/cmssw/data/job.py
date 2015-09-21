@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import resource
+import shlex
 import shutil
 import subprocess
 import sys
@@ -641,22 +642,22 @@ if cmsRun:
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = [config['executable']]
+    if isinstance(cmd, basestring):
+        cmd = shlex.split(config['executable'])
     cmd.extend([str(arg) for arg in args])
 
-    if config.get('append inputs to args',False):
+    if config.get('append inputs to args', False):
         cmd.extend([str(f) for f in config['mask']['files']])
 
-print ">>> running {0}".format(config['executable'])
+print ">>> running {0}".format(' '.join(cmd))
 # Open a file handle for the executable log
-logfile = open('executable.log', 'w')
-p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
-logfile.close()
+with open('executable.log', 'w') as logfile:
+    p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
 data['exe exit code'] = p.returncode
 data['job exit code'] = data['exe exit code']
 
 if p.returncode != 0:
-    print ">>> Executable return code != 0.  Check for errors!"
+    print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)
@@ -690,7 +691,7 @@ if len(epilogue) > 0:
         json.dump(data, f, indent=2)
     print ">>> epilogue:"
     with check_execution(data, 199):
-        p = run_subprocess(epilogue,env=env)
+        p = run_subprocess(epilogue, env=env)
 
         # Was originally a subprocess.check_call, but this has the
         # potential to confuse log file output because print buffers

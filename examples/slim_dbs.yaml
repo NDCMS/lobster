@@ -12,6 +12,7 @@ storage:
     output:
       - hdfs:///store/user/<user>/<output directory>
       - file:///hadoop/store/user/<user>/<output directory>
+      - root://ndcms.crc.nd.edu//store/user/<user>/<input directory>
       - srm://T3_US_NotreDame/store/user/<user>/<output directory>
       - chirp://earth.crc.nd.edu:9099/<output directory>
 

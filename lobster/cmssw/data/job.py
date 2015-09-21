@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import resource
+import shlex
 import shutil
 import subprocess
 import sys
@@ -641,7 +642,8 @@ if cmsRun:
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = config['executable'].split()
+    if isinstance(cmd, basestring):
+        cmd = shlex.split(config['executable'])
     cmd.extend([str(arg) for arg in args])
 
     if config.get('append inputs to args', False):

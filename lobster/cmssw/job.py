@@ -234,6 +234,8 @@ class JobProvider(job.JobProvider):
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
 
+        update_config = False
+
         for cfg in self.config['tasks']:
             label = cfg['label']
             cfg['basedirs'] = self.basedirs
@@ -249,6 +251,9 @@ class JobProvider(job.JobProvider):
             self.__edm_outputs[label] = cfg.get('edm output', True)
 
             if cms_config and not cfg.has_key('outputs'):
+                # Save determined outputs to the configuration in the
+                # working directory.
+                update_config = True
                 # To avoid problems loading configs that use the VarParsing module
                 sys.argv = ["pacify_varparsing.py"]
                 with open(util.findpath(self.basedirs, cms_config), 'r') as f:
@@ -261,6 +266,9 @@ class JobProvider(job.JobProvider):
                     if 'TFileService' in process.services:
                         self.outputs[label].append(process.services['TFileService'].fileName.value())
                         self.__edm_outputs[label] = False
+
+                    cfg['edm output'] = self.__edm_outputs[label]
+                    cfg['outputs'] = self.outputs[label]
 
                     logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self.outputs[label])))
 
@@ -287,6 +295,9 @@ class JobProvider(job.JobProvider):
             elif os.path.exists(os.path.join(taskdir, 'running')):
                 for id in self.get_jobids(label):
                     self.move_jobdir(id, label, 'failed')
+
+        if update_config:
+            self.save_configuration()
 
     def get_report(self, label, job):
         jobdir = self.get_jobdir(job, label, 'successful')

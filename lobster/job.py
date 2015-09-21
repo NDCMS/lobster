@@ -9,6 +9,7 @@ import gzip
 import sqlite3
 import subprocess
 import time
+import yaml
 
 from functools import partial
 from hashlib import sha1
@@ -17,7 +18,9 @@ from lobster import fs, se, util
 logger = multiprocessing.get_logger()
 
 def apply_matching(config):
-    defaults = config.get('task defaults', {})
+    if 'task defaults' not in config:
+        return config
+    defaults = config['task defaults']
     matching = defaults.get('matching', [])
     configs = []
 
@@ -40,13 +43,14 @@ def apply_matching(config):
         configs.append(cfg)
 
     config['tasks'] = configs
+    del config['task defaults']
 
     return config
 
 class JobProvider(object):
     def __init__(self, config):
         self.config = config
-        self.basedirs = [config['configdir'], config['startdir']]
+        self.basedirs = [config['base directory'], config['startup directory']]
         self.workdir = config.get('workdir', os.getcwd())
         self._storage = se.StorageConfiguration(config['storage'])
         self._storage.activate()
@@ -96,7 +100,7 @@ class JobProvider(object):
                         msg = 'stageout directory is not empty: {0}'
                         raise IOError(msg.format(fs.__getattr__('lfn2pfn')(label)))
 
-                shutil.copy(self.config['filename'], os.path.join(self.workdir, 'lobster_config.yaml'))
+                self.save_configuration()
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -108,6 +112,10 @@ class JobProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
+
+    def save_configuration(self):
+        with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
+            yaml.dump(self.config, f, default_flow_style=False)
 
     def get_jobdir(self, jobid, label='', status='running'):
         # See id2dir for job id formatting in filesystem paths

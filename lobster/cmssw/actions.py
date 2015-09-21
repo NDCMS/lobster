@@ -23,7 +23,7 @@ class Actions(object):
             logger.info('plots in {0} will be updated automatically'.format(config['plotdir']))
             if 'foremen logs' in config:
                 logger.info('foremen logs will be included from: {0}'.format(', '.join(config['foremen logs'])))
-            plotter = Plotter(config['filename'], config['plotdir'])
+            plotter = Plotter(config['workdir'], config['plotdir'])
 
             def plotf(q):
                 while q.get() not in ('stop', None):

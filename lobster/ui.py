@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import os
+import yaml
 
 from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
@@ -51,15 +52,25 @@ def boil():
 
     args = parser.parse_args()
 
+    # If the working directory specified in the configuration already
+    # exists, we should try to resume from it.
+    if os.path.isfile(args.checkpoint):
+        with open(args.checkpoint) as f:
+            workdir = yaml.load(f)['workdir']
+        configfile = os.path.join(workdir, 'lobster_config.yaml')
+        if os.path.isdir(workdir) and os.path.isfile(configfile):
+            args.checkpoint = workdir
+
     if os.path.isdir(args.checkpoint):
-        args.resume = True
         configfile = os.path.join(args.checkpoint, 'lobster_config.yaml')
         if not os.path.isfile(configfile):
             parser.error('the working directory specified does not contain a configuration')
         args.configfile = os.path.abspath(configfile)
     else:
-        args.resume = False
         args.configfile = os.path.abspath(args.checkpoint)
+
+    with open(args.configfile) as f:
+        args.workdir = yaml.load(f)['workdir']
 
     args.configdir = os.path.dirname(args.configfile)
     args.startdir = os.getcwd()

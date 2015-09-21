@@ -655,7 +655,7 @@ data['exe exit code'] = p.returncode
 data['job exit code'] = data['exe exit code']
 
 if p.returncode != 0:
-    print ">>> Executable return code != 0.  Check for errors!"
+    print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)

@@ -207,14 +207,15 @@ def copy_inputs(data, config, env):
         # one that will allow us to access the file
         for input in config['input']:
             if input.startswith('file://'):
+                path = os.path.join(input.replace('file://', '', 1), file)
                 print ">>> Trying local access method:"
-                if os.path.exists(file) and os.access(file, os.R_OK):
-                    filename = 'file:' + file
+                if os.path.exists(path) and os.access(path, os.R_OK):
+                    filename = 'file:' + path
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
                     print ">>>> local access to input file detected:"
-                    print file
+                    print path
                     break
                 else:
                     print ">>>> local access to input file unavailable."

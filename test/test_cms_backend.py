@@ -206,10 +206,14 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 7
@@ -253,10 +257,14 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -299,10 +307,14 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -355,10 +367,15 @@ class TestSQLBackend(object):
 
         assert status == [(3,)]
 
-        (jr, jd, jl, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, jobits_left, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, jl, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                jobits_left,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 2
@@ -425,10 +442,15 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, jl, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, jobits_left, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, jl, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                jobits_left,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 13
@@ -449,10 +471,14 @@ class TestSQLBackend(object):
 
         assert job_lumis == None
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 3
         assert jd == 0
@@ -489,10 +515,14 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 3
@@ -525,10 +555,14 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -564,10 +598,15 @@ class TestSQLBackend(object):
 
         self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, lumi_update)]})
 
-        (jr, jd, jl, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, jobits_left, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, jl, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                jobits_left,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
         assert jr == 0
         assert jd == 2

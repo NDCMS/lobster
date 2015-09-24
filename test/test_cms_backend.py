@@ -166,12 +166,15 @@ class TestSQLBackend(object):
                     'test_obtain', lumis=20, filesize=2.2, jobsize=3))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        (jr, jd, er, ew) = self.interface.db.execute(
-                "select jobits_running, jobits_done, (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id), (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id) from datasets where label=?",
-                (label,)
-                ).fetchone()
+        (jr, jd, er, ew) = self.interface.db.execute("""
+            select
+                jobits_running,
+                jobits_done,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+            from datasets where label=?""",
+            (label,)).fetchone()
 
-        print jr
         assert jr == 4
         assert jd == 0
         assert er in (0, None)

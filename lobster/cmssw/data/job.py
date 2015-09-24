@@ -67,7 +67,7 @@ def run_subprocess(*args, **kwargs):
     if 'stderr' not in kwargs.keys():
         kwargs['stderr'] = subprocess.STDOUT
     p = subprocess.Popen(*args, **kwargs)
-    p.wait()
+    out, err = p.communicate()
 
     if p.returncode in retry:
         print 'retrying...'
@@ -76,8 +76,12 @@ def run_subprocess(*args, **kwargs):
             kwargs['retry'] = retry
             return run_subprocess(*args, **kwargs)
 
+    # Set to the result of communicate, otherwise caller will not receive
+    # any output.
+    p.stdout = out
+    p.stderr = err
+
     if p.stdout:
-        p.stdout = p.stdout.read() # save stdout in case it is needed by caller
         print
         print ">>> result is"
         print p.stdout

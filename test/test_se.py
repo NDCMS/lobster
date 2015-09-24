@@ -10,7 +10,7 @@ import unittest
 class TestSE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        path = os.path.expandvars('/hadoop/store/user/' + os.environ['USER'] + '/')
+        path = os.path.expandvars('/hadoop/store/user/' + os.environ.get('CMSUSER', os.environ['USER']) + '/')
         cls.workdir = tempfile.mkdtemp(prefix=path)
         os.chmod(cls.workdir, 0777)
         os.makedirs(os.path.join(cls.workdir, 'spam'))

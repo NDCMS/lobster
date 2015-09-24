@@ -63,7 +63,6 @@ class TestSQLBackend(object):
         # {{{
         info = DatasetInfo()
         info.total_events = lumi_events * lumis
-        info.total_lumis = lumis
         info.jobsize = jobsize
         info.path = ''
 
@@ -105,6 +104,8 @@ class TestSQLBackend(object):
             info.event_counts[f] = file_events
             info.lumis[f] = file_lumis
             info.files.append(f)
+
+        info.total_lumis = len(sum([info.lumis[f] for f in info.files], []))
 
         cfg = {
                 'dataset': '/Test',

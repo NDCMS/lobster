@@ -66,6 +66,7 @@ class JobitStore:
             dataset int,
             published_file_block text,
             status int default 0,
+            failed int default 0,
             exit_code int,
             submissions int default 0,
             jobits int default 0,
@@ -375,6 +376,7 @@ class JobitStore:
         for ((dset, jobit_source), updates) in jobinfos.items():
             file_updates = []
             jobit_updates = []
+            jobit_fail_updates = []
             jobit_generic_updates = []
 
             for (job_update, file_update, jobit_update) in updates:
@@ -387,6 +389,9 @@ class JobitStore:
                     jobit_status = SUCCESSFUL if job_update[-2] == FAILED else MERGED
                 else:
                     jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
+
+                if job_update[-2] == FAILED:
+                    jobit_fail_updates.append((job_update[-1],))
 
                 jobit_updates += jobit_update
                 # the last entry in the job_update is the id
@@ -403,6 +408,13 @@ class JobitStore:
                 status=?
                 where id=?""".format(jobit_source),
                 jobit_updates)
+
+            # increment failed counter
+            if len(jobit_fail_updates) > 0:
+                self.db.executemany("""update {0} set
+                    failed=failed + 1
+                    where job=?""".format(jobit_source),
+                    jobit_fail_updates)
 
             # update files in the dataset
             if len(file_updates) > 0:

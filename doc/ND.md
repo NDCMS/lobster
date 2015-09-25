@@ -7,13 +7,15 @@ your setup might be needed.
 
 Use `work_queue` etc from the CC lab:
 
-    export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/cctools-019-c3f12736-cvmfs-40cf5bba/x86_64/redhat6/lib/python2.6/site-packages
-    export PATH=/afs/crc.nd.edu/group/ccl/software/cctools-019-c3f12736-cvmfs-40cf5bba/x86_64/redhat6/bin:$PATH
+    cctools=cctools-021-d15a0ffd-cvmfs-40cf5bba
+    export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
+    export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 
 or, for `tcsh` users,
 
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/cctools-019-c3f12736-cvmfs-40cf5bba/x86_64/redhat6/lib/python2.6/site-packages
-    setenv PATH /afs/crc.nd.edu/group/ccl/software/cctools-019-c3f12736-cvmfs-40cf5bba/x86_64/redhat6/bin:${PATH}
+    setenv cctools cctools-021-d15a0ffd-cvmfs-40cf5bba
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}
 
 These statements are best put into your shell startup scripts.  Test the
 cctools with

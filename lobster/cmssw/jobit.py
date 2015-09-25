@@ -504,6 +504,16 @@ class JobitStore:
         unmerged = self.db.execute("select count(*) from datasets where merged <> 1").fetchone()[0]
         return unmerged == 0
 
+    def estimate_tasks_left(self):
+        rows = [xs for xs in self.db.execute("""
+            select label, id, jobits_left, jobits_left * 1. / jobsize, jobsize, empty_source
+            from datasets
+            where jobits_left > 0""")]
+        if len(rows) == 0:
+            return 0
+
+        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+
     def unfinished_jobits(self):
         cur = self.db.execute("select sum(jobits - jobits_done - jobits_paused) from datasets")
         res = cur.fetchone()[0]

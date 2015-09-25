@@ -613,5 +613,8 @@ class JobProvider(job.JobProvider):
         exclude_states = ( dash.DONE, dash.WAITING_RETRIEVAL )
         self.__update_dashboard(queue, exclude_states)
 
+    def tasks_left(self):
+        return self.__store.estimate_tasks_left()
+
     def work_left(self):
         return self.__store.unfinished_jobits()

@@ -357,6 +357,9 @@ class JobProvider(job.JobProvider):
             try:
                 with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
                     data = json.load(f)
+                    job_update.cache = data['cache']['type']
+                    job_update.cache_end_size = data['cache']['end size']
+                    job_update.cache_start_size = data['cache']['start size']
                     job_update.time_wrapper_start = data['task timing']['time wrapper start']
                     job_update.time_wrapper_ready = data['task timing']['time wrapper ready']
                     job_update.time_stage_in_end = data['task timing']['time stage in end']
@@ -368,11 +371,6 @@ class JobProvider(job.JobProvider):
                     job_update.time_epilogue_end = data['task timing']['time epilogue end']
                     job_update.time_stage_out_end = data['task timing']['time stage out end']
                     job_update.time_cpu = data['cpu time']
-                    job_update.cache_start_size = data['cache']['start size']
-                    job_update.cache_end_size = data['cache']['end size']
-                    job_update.cache = data['cache']['type']
-                    # input_protocol = data['input']['protocol']
-                    # output_protocol = data['output']['protocol']
                     if handler.cmssw_job:
                         files_info = data['files']['info']
                         files_skipped = data['files']['skipped']
@@ -403,7 +401,15 @@ class JobProvider(job.JobProvider):
             jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)
 
+            job_update.bytes_received = task.total_bytes_received
+            job_update.bytes_sent = task.total_bytes_sent
+            job_update.events_read = events_read
+            job_update.events_written = events_written
+            job_update.exit_code = exit_code
             job_update.host = util.verify_string(task.hostname)
+            job_update.id = task.tag
+            job_update.jobits_processed = jobits_processed
+            job_update.status = status
             job_update.submissions = task.total_submissions
             job_update.time_submit = task.submit_time / 1000000
             job_update.time_transfer_in_start = task.send_input_start / 1000000
@@ -413,14 +419,6 @@ class JobProvider(job.JobProvider):
             job_update.time_retrieved = task.finish_time / 1000000
             job_update.time_on_worker = task.cmd_execution_time / 1000000
             job_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
-            job_update.bytes_received = task.total_bytes_received
-            job_update.bytes_sent = task.total_bytes_sent
-            job_update.exit_code = exit_code
-            job_update.jobits_processed = jobits_processed
-            job_update.events_read = events_read
-            job_update.events_written = events_written
-            job_update.status = status
-            job_update.id = task.tag
 
             wflow = self.workflows[handler.dataset]
             if failed:

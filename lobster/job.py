@@ -80,9 +80,7 @@ class JobProvider(object):
         self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
             label = cfg['label']
-            self.extra_inputs[label] = map(
-                    partial(util.findpath, self.basedirs),
-                    cfg.get('extra inputs', []))
+            self.extra_inputs[label] = self._copy_inputs(label, cfg)
             self.outputs[label] = cfg.get('outputs', [])
             self.args[label] = cfg.get('parameters', [])
             self.outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
@@ -112,6 +110,36 @@ class JobProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
+
+    def _copy_inputs(self, label, cfg, overwrite=False):
+        """Make a copy of extra input files.
+
+        Takes a task configuration, and will look for `extra inputs`, a
+        list of files that will be copied and paths in the configuration
+        fixes.
+
+        Already present files will not be overwritten unless specified.
+        """
+        if 'extra inputs' not in cfg:
+            return []
+
+        def copy_file(fn):
+            source = os.path.abspath(util.findpath(self.basedirs, fn))
+            target = os.path.join(self.workdir, label, os.path.basename(fn))
+
+            if not os.path.exists(target) or overwrite:
+                if os.path.isfile(source):
+                    shutil.copy(source, target)
+                elif os.path.isdir(source):
+                    shutil.copytree(source, target)
+                else:
+                    raise NotImplementedError
+
+            return target
+
+        cfg['extra inputs'] = map(copy_file, cfg['extra inputs'])
+
+        return cfg['extra inputs']
 
     def save_configuration(self):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:

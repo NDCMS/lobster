@@ -1,0 +1,66 @@
+id: <your id here>
+workdir: <your working directory here>
+## optional: to automatically update monitoring plots
+plotdir: <your plotting directory here>
+
+storage:
+    use work queue for inputs:  true  # default is false
+    use work queue for outputs: true  # default is false
+
+    input:
+      - file:///afs/crc.nd.edu/user/m/mwolf3/Public/lobster
+
+    output:
+      - file:///tmp/lobster_example
+
+## report jobs to the CMS dashboard (default is true)
+use dashboard: true
+
+## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
+# bad exit codes: [1, 2]
+
+## optional: specify directories in CMSSW work area to omit from sandbox
+# sandbox blacklist: ['*DrawPlots*']
+
+# advanced:
+  ## start killing jobs with excessive runtimes after this many successful
+  ## jobs
+  # abort threshold: 10
+  ## define excessive runtime in multiples of the average runtime
+  # abort multiplier: 4
+  ## enables core dumps by overriding `ulimit` settings
+  # dump core: false
+  ## override automatic proxy renewal
+  # renew proxy: false
+  ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
+  # log level: 0
+  ## how many jobs to create and keep in the queue
+  # payload: 400
+
+## task fields:
+##      required:
+##             label (string): label for this task
+##             outputs (list): output files to be collected
+##      must include one of the following:
+##              cmssw config (string): path to cmssw parameter set to call cmsRun on
+##              cmd (string): command to run
+##      optional:
+##              one of:
+##                      dataset (string): DBS dataset name of input files to run over
+##                      files (string): path to input files (wildcards accepted)
+##              one of:
+##                      events per job (int): number of events to process per job
+##                      lumis per job (int): lumis to process per job (default: 25)
+##              lumi mask (string): path to lumi mask to apply
+##              parameters (list of strings): parameters to pass to cmsRun
+##              extra inputs (list of strings): extra files needed to run the job
+##              publish label (string): label to include in the published dataset name
+##              output format (string): optional renaming of files, based on their basename and extension
+##                                      for example, "this_is_file_{id}_{base}.{ext}"
+
+tasks:
+  - label: something
+    cmd: "custom_command.sh -o foo.txt -a custom_command.txt"
+    extra inputs: [custom_command.txt]
+    output: [foo.txt]
+    files: inputs

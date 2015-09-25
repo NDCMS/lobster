@@ -579,7 +579,7 @@ data = {
     'events written': 0,
     'output size': 0,
     'output bare size': 0,
-    'task timing info': [None] * 7,
+    'task timing': {},
     'events per run': 0
 }
 
@@ -590,7 +590,7 @@ env['X509_USER_PROXY'] = 'proxy'
 with check_execution(data, 179):
     copy_inputs(data, config, env)
 
-data['task timing info'][2] = int(datetime.now().strftime('%s'))
+data['task timing']['time stage in end'] = int(datetime.now().strftime('%s'))
 
 # Dashboard does not like Unicode, just ASCII encoding
 monitorid = str(config['monitoring']['monitorid'])
@@ -616,7 +616,7 @@ if prologue and len(prologue) > 0:
             raise subprocess.CalledProcessError
 
 
-data['task timing info'][3] = int(datetime.now().strftime('%s'))
+data['task timing']['time prologue end'] = int(datetime.now().strftime('%s'))
 
 parameters = {
             'ExeStart': str(config['executable']),
@@ -681,17 +681,22 @@ else:
     data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
-    data['task timing info'][:2] = [extract_time('t_wrapper_start'), extract_time('t_wrapper_ready')]
+    data['task timing']['time wrapper start'] = extract_time('t_wrapper_start')
+    data['task timing']['time wrapper ready'] = extract_time('t_wrapper_ready')
 
 now = int(datetime.now().strftime('%s'))
 firstevent = now
 
 if cmsRun:
     with check_execution(data, 192):
-        data['task timing info'][4:] = extract_cmssw_times('executable.log', now)
-        firstevent = data['task timing info'][6]
+        frequest, fopen, fprocess = extract_cmssw_times('executable.log', now)
+        data['task timing']['time file requested'] = frequest
+        data['task timing']['time file opened'] = fopen
+        data['task timing']['time file processing'] = fprocess
 
-data['task timing info'].append(now)
+        firstevent = fprocess
+
+data['task timing']['time processing end'] = now
 
 if epilogue and len(epilogue) > 0:
     # Make data collected so far available to the epilogue
@@ -711,7 +716,7 @@ if epilogue and len(epilogue) > 0:
     with open('report.json', 'r') as f:
         data = json.load(f)
 
-data['task timing info'].append(int(datetime.now().strftime('%s')))
+data['task timing']['time epilogue end'] = int(datetime.now().strftime('%s'))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)
@@ -721,7 +726,7 @@ if data['job exit code'] == 0 and not transfer_success:
     data['job exit code'] = 211
     data['output size'] = 0
 
-data['task timing info'].append(int(datetime.now().strftime('%s')))
+data['task timing']['time stage out end'] = int(datetime.now().strftime('%s'))
 
 if 'PARROT_ENABLED' in os.environ:
     cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
@@ -757,8 +762,8 @@ for filename in 'executable.log report.xml'.split():
                 zipf.close()
 
 cputime = data['cpu time']
-total_time = data['task timing info'][-1] - data['task timing info'][0]
-exe_wc_time = data['task timing info'][-3] - data['task timing info'][3]
+total_time = data['task timing']['time stage out end'] - data['task timing']['time wrapper start']
+exe_time = data['task timing']['time stage out end'] - data['task timing']['time prologue end']
 job_exit_code = data['job exit code']
 stageout_exit_code = data['stageout exit code']
 events_per_run = data['events per run']
@@ -771,7 +776,7 @@ print "Reporting ExeExitCode", str(exe_exit_code)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
 
 parameters = {
-            'ExeTime': str(exe_wc_time),
+            'ExeTime': str(exe_time),
             'ExeExitCode': str(exe_exit_code),
             'JobExitCode': str(job_exit_code),
             'JobExitReason': '',

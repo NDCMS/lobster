@@ -187,6 +187,7 @@ class JobProvider(job.JobProvider):
                 # Save determined outputs to the configuration in the
                 # working directory.
                 update_config = True
+
                 # To avoid problems loading configs that use the VarParsing module
                 sys.argv = ["pacify_varparsing.py"]
                 with open(util.findpath(self.basedirs, wflow.pset), 'r') as f:
@@ -356,16 +357,16 @@ class JobProvider(job.JobProvider):
             try:
                 with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
                     data = json.load(f)
-                    job_update.time_wrapper_start = data['task timing info'][0]
-                    job_update.time_wrapper_ready = data['task timing info'][1]
-                    job_update.time_stage_in_end = data['task timing info'][2]
-                    job_update.time_prologue_end = data['task timing info'][3]
-                    job_update.time_file_requested = data['task timing info'][4]
-                    job_update.time_file_opened = data['task timing info'][5]
-                    job_update.time_file_processing = data['task timing info'][6]
-                    job_update.time_processing_end = data['task timing info'][7]
-                    job_update.time_epilogue_end = data['task timing info'][8]
-                    job_update.time_stage_out_end = data['task timing info'][9]
+                    job_update.time_wrapper_start = data['task timing']['time wrapper start']
+                    job_update.time_wrapper_ready = data['task timing']['time wrapper ready']
+                    job_update.time_stage_in_end = data['task timing']['time stage in end']
+                    job_update.time_prologue_end = data['task timing']['time prologue end']
+                    job_update.time_file_requested = data['task timing']['time file requested']
+                    job_update.time_file_opened = data['task timing']['time file opened']
+                    job_update.time_file_processing = data['task timing']['time file processing']
+                    job_update.time_processing_end = data['task timing']['time processing end']
+                    job_update.time_epilogue_end = data['task timing']['time epilogue end']
+                    job_update.time_stage_out_end = data['task timing']['time stage out end']
                     job_update.time_cpu = data['cpu time']
                     job_update.cache_start_size = data['cache']['start size']
                     job_update.cache_end_size = data['cache']['end size']

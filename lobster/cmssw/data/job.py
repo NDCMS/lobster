@@ -647,8 +647,11 @@ if cmsRun:
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cmd = config['executable']
     if isinstance(cmd, basestring):
-        cmd = shlex.split(config['executable'])
+        cmd = shlex.split(cmd)
+    if os.path.isfile(cmd[0]):
+        cmd[0] = os.path.join(os.getcwd(), cmd[0])
     cmd.extend([str(arg) for arg in args])
 
     if config.get('append inputs to args', False):

@@ -7,7 +7,7 @@ from lobster import util, fs
 from dbs.apis.dbsClient import DbsApi
 from FWCore.PythonUtilities.LumiList import LumiList
 
-class DatasetInfo():
+class DatasetInfo(object):
     def __init__(self):
         self.event_counts = defaultdict(int)
         self.file_based = False
@@ -20,6 +20,10 @@ class DatasetInfo():
         self.total_lumis = 0
         self.unmasked_lumis = 0
         self.masked_lumis = 0
+
+    def __repr__(self):
+        descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
+        return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
 
 class MetaInterface:
     def __init__(self):

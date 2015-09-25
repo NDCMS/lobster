@@ -489,7 +489,11 @@ class JobitStore:
         self.db.execute("""
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
-                jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
+                jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8))
+            where label=?""".format(label), (label,))
+
+        self.db.execute("""
+            update datasets set
                 jobits_paused=
                     (select count(*) from jobits_{0} where failed > ?) +
                     ifnull((select sum(jobits - jobits_done) from files_{0} where skipped >= ?), 0),

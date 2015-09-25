@@ -128,6 +128,10 @@ class JobProvider(object):
             target = os.path.join(self.workdir, label, os.path.basename(fn))
 
             if not os.path.exists(target) or overwrite:
+                if not os.path.exists(os.path.dirname(target)):
+                    os.makedirs(os.path.dirname(target))
+
+                logger.debug("copying '{0}' to '{1}'".format(source, target))
                 if os.path.isfile(source):
                     shutil.copy(source, target)
                 elif os.path.isdir(source):

@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import resource
+import shlex
 import shutil
 import subprocess
 import sys
@@ -66,7 +67,7 @@ def run_subprocess(*args, **kwargs):
     if 'stderr' not in kwargs.keys():
         kwargs['stderr'] = subprocess.STDOUT
     p = subprocess.Popen(*args, **kwargs)
-    p.wait()
+    out, err = p.communicate()
 
     if p.returncode in retry:
         print 'retrying...'
@@ -75,8 +76,12 @@ def run_subprocess(*args, **kwargs):
             kwargs['retry'] = retry
             return run_subprocess(*args, **kwargs)
 
+    # Set to the result of communicate, otherwise caller will not receive
+    # any output.
+    p.stdout = out
+    p.stderr = err
+
     if p.stdout:
-        p.stdout = p.stdout.read() # save stdout in case it is needed by caller
         print
         print ">>> result is"
         print p.stdout
@@ -206,14 +211,15 @@ def copy_inputs(data, config, env):
         # one that will allow us to access the file
         for input in config['input']:
             if input.startswith('file://'):
+                path = os.path.join(input.replace('file://', '', 1), file)
                 print ">>> Trying local access method:"
-                if os.path.exists(file) and os.access(file, os.R_OK):
-                    filename = 'file:' + file
+                if os.path.exists(path) and os.access(path, os.R_OK):
+                    filename = 'file:' + path
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
                     print ">>>> local access to input file detected:"
-                    print file
+                    print path
                     break
                 else:
                     print ">>>> local access to input file unavailable."
@@ -641,22 +647,22 @@ if cmsRun:
     cmd.extend([str(arg) for arg in args])
 else:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = [config['executable']]
+    if isinstance(cmd, basestring):
+        cmd = shlex.split(config['executable'])
     cmd.extend([str(arg) for arg in args])
 
-    if config.get('append inputs to args',False):
+    if config.get('append inputs to args', False):
         cmd.extend([str(f) for f in config['mask']['files']])
 
-print ">>> running {0}".format(config['executable'])
+print ">>> running {0}".format(' '.join(cmd))
 # Open a file handle for the executable log
-logfile = open('executable.log', 'w')
-p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
-logfile.close()
+with open('executable.log', 'w') as logfile:
+    p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
 data['exe exit code'] = p.returncode
 data['job exit code'] = data['exe exit code']
 
 if p.returncode != 0:
-    print ">>> Executable return code != 0.  Check for errors!"
+    print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)
@@ -690,7 +696,7 @@ if len(epilogue) > 0:
         json.dump(data, f, indent=2)
     print ">>> epilogue:"
     with check_execution(data, 199):
-        p = run_subprocess(epilogue,env=env)
+        p = run_subprocess(epilogue, env=env)
 
         # Was originally a subprocess.check_call, but this has the
         # potential to confuse log file output because print buffers

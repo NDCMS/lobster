@@ -98,8 +98,7 @@ class JobHandler(object):
         file_update = []
         jobit_update = []
 
-        jobits_processed = 0
-        jobits_missed = 0
+        jobits_processed = len(self._jobits)
 
         for (id, file) in self._files:
             file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
@@ -113,24 +112,21 @@ class JobHandler(object):
 
             events_read += read
 
-            if not failed:
+            if failed:
+                jobits_processed = 0
+            else:
                 if skipped:
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         jobit_update.append((jobit.FAILED, lumi_id))
-                        jobits_missed += 1
+                        jobits_processed -= 1
                 elif not self._file_based:
                     file_lumis = set(map(tuple, files_info[file][1]))
                     for (lumi_id, lumi_file, r, l) in file_jobits:
                         if (r, l) not in file_lumis:
                             jobit_update.append((jobit.FAILED, lumi_id))
-                            jobits_missed += 1
+                            jobits_processed -= 1
 
             file_update.append((read, 1 if skipped else 0, id))
-
-        if not self._file_based:
-            jobits_missed = len(self._jobits) if failed else jobits_missed
-        else:
-            jobits_missed = len(self._files) - len(files_info.keys())
 
         if failed:
             events_written = 0
@@ -143,7 +139,7 @@ class JobHandler(object):
             # FIXME not correct
             jobits_missed = 0
 
-        return [jobits_missed, events_read, events_written, status], \
+        return jobits_processed, events_read, events_written, status, \
                 file_update, jobit_update
 
     def update_job(self, parameters, inputs, outputs, se):
@@ -498,33 +494,37 @@ class JobProvider(job.JobProvider):
                 f.write(task.output)
                 f.close()
 
+            job_update = jobit.JobUpdate()
             files_info = {}
             files_skipped = []
-            events_written = 0
-            task_times = [None] * 10
             cmssw_exit_code = None
-            cputime = 0
-            outsize = 0
-            outsize_bare = 0
-            cache_start_size = 0
-            cache_end_size = 0
-            cache = None
-
+            events_written = 0
             try:
                 with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
                     data = json.load(f)
-                    cache_start_size = data['cache']['start size']
-                    cache_end_size = data['cache']['end size']
-                    cache = data['cache']['type']
-                    task_times = data['task timing info']
+                    job_update.time_wrapper_start = data['task timing info'][0]
+                    job_update.time_wrapper_ready = data['task timing info'][1]
+                    job_update.time_stage_in_end = data['task timing info'][2]
+                    job_update.time_prologue_end = data['task timing info'][3]
+                    job_update.time_file_requested = data['task timing info'][4]
+                    job_update.time_file_opened = data['task timing info'][5]
+                    job_update.time_file_processing = data['task timing info'][6]
+                    job_update.time_processing_end = data['task timing info'][7]
+                    job_update.time_epilogue_end = data['task timing info'][8]
+                    job_update.time_stage_out_end = data['task timing info'][9]
+                    job_update.time_cpu = data['cpu time']
+                    job_update.cache_start_size = data['cache']['start size']
+                    job_update.cache_end_size = data['cache']['end size']
+                    job_update.cache = data['cache']['type']
+                    # input_protocol = data['input']['protocol']
+                    # output_protocol = data['output']['protocol']
                     if handler.cmssw_job:
                         files_info = data['files']['info']
                         files_skipped = data['files']['skipped']
                         events_written = data['events written']
                         cmssw_exit_code = data['cmssw exit code']
-                        cputime = data['cpu time']
-                        outsize = data['output size']
-                        outsize_bare = data['output bare size']
+                        job_update.bytes_output = data['output size']
+                        job_update.bytes_bare_output = data['output bare size']
             except (ValueError, EOFError, IOError) as e:
                 failed = True
                 logger.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -544,33 +544,27 @@ class JobProvider(job.JobProvider):
 
             logger.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
 
-            times = [
-                    task.submit_time / 1000000,
-                    task.send_input_start / 1000000,
-                    task.send_input_finish / 1000000
-                    ] + task_times + [
-                    task.receive_output_start / 1000000,
-                    task.receive_output_finish / 1000000,
-                    task.finish_time / 1000000,
-                    task.cmd_execution_time / 1000000,
-                    task.total_cmd_execution_time / 1000000,
-                    cputime
-                    ]
-            data = [
-                    cache_start_size,
-                    cache_end_size,
-                    cache,
-                    task.total_bytes_received,
-                    task.total_bytes_sent,
-                    outsize,
-                    outsize_bare
-                    ]
-
-            job_update, file_update, jobit_update = \
+            jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)
 
-            job_update = [util.verify_string(task.hostname), exit_code, task.total_submissions] \
-                    + times + data + job_update + [task.tag]
+            job_update.host = util.verify_string(task.hostname)
+            job_update.submissions = task.total_submissions
+            job_update.time_submit = task.submit_time / 1000000
+            job_update.time_transfer_in_start = task.send_input_start / 1000000
+            job_update.time_transfer_in_end = task.send_input_finish / 1000000
+            job_update.time_transfer_out_start = task.receive_output_start / 1000000
+            job_update.time_transfer_out_end = task.receive_output_finish / 1000000
+            job_update.time_retrieved = task.finish_time / 1000000
+            job_update.time_on_worker = task.cmd_execution_time / 1000000
+            job_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
+            job_update.bytes_received = task.total_bytes_received
+            job_update.bytes_sent = task.total_bytes_sent
+            job_update.exit_code = exit_code
+            job_update.jobits_processed = jobits_processed
+            job_update.events_read = events_read
+            job_update.events_written = events_written
+            job_update.status = status
+            job_update.id = task.tag
 
             if failed:
                 faildir = self.move_jobdir(handler.id, handler.dataset, 'failed')
@@ -623,6 +617,9 @@ class JobProvider(job.JobProvider):
         # so skipping it for now.
         exclude_states = ( dash.DONE, dash.WAITING_RETRIEVAL )
         self.__update_dashboard(queue, exclude_states)
+
+    def tasks_left(self):
+        return self.__store.estimate_tasks_left()
 
     def work_left(self):
         return self.__store.unfinished_jobits()

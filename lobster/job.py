@@ -199,6 +199,9 @@ class JobProvider(object):
     def update(self, queue):
         raise NotImplementedError
 
+    def tasks_left(self):
+        raise NotImplementedError
+
     def work_left(self):
         raise NotImplementedError
 

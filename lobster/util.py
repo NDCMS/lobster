@@ -1,12 +1,71 @@
 # vim: set fileencoding=utf-8 :
 
+import collections
 import os
-import yaml
 import subprocess
+import yaml
 
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
+
+
+def record(cls, *fields, **defaults):
+    """
+    Returns a class which is reminiscent of a namedtuple, except
+    that it is mutable and accepts default values as keyword
+    arguments. The optional `default` argument sets a
+    universal default.
+
+    >>> Point = record('Point', 'x', 'y', 'z')
+    >>> p = Point(x=6, y=28, z=496)
+    >>> p
+    Point(x=6, y=28, z=496)
+    >>> Point = record('Point', 'x', 'y', 'z', x=1, default=3.14)
+    >>> p = Point()
+    >>> p
+    Point(x=1, y=3.14, z=3.14)
+    >>> p.sql_fragment()
+    'x=?, y=?, z=?'
+
+    """
+
+    class Record(collections.MutableSequence):
+        def __init__(self, *args, **kwargs):
+            if 'default' in defaults:
+                for field in fields:
+                    setattr(self, field, defaults['default'])
+            for field, value in defaults.items():
+                setattr(self, field, value)
+            for field, value in kwargs.items():
+                setattr(self, field, value)
+            for field, value in zip(fields, args):
+                setattr(self, field, value)
+
+        def __len__(self):
+            return len(fields)
+
+        def __getitem__(self, index):
+            return getattr(self, fields[index])
+
+        def __setitem__(self, index, value):
+            setattr(self, fields[index], value)
+
+        def __delitem__(self, position):
+            raise NotImplementedError
+
+        def __repr__(self):
+            descriptions = ['{0}={1}'.format(f, getattr(self, f)) for f in fields]
+            return '{0}({1})'.format(cls, ', '.join(descriptions))
+
+        def insert(self, index, value):
+            self[index] = value
+
+        @classmethod
+        def sql_fragment(self, start=0, stop=len(fields)):
+            return ', '.join(['{0}=?'.format(f) for f in fields[start:stop]])
+
+    return Record
 
 def id2dir(id):
     # Currently known limitations on the number of entries in a

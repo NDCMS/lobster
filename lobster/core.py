@@ -157,6 +157,7 @@ def sprint(config, workdir, cmsjob):
     interval = 60
     interval_minimum = 10
 
+    jobs_left = 0
     jobits_left = 0
     successful_jobs = 0
 
@@ -181,7 +182,11 @@ def sprint(config, workdir, cmsjob):
     bad_exitcodes = job_src.bad_exitcodes
 
     while not job_src.done():
+        jobs_left = job_src.tasks_left()
         jobits_left = job_src.work_left()
+
+        queue.specify_num_tasks_left(jobs_left)
+
         stats = queue.stats_hierarchy
 
         with open(os.path.join(workdir, "lobster_stats.log"), "a") as statsfile:

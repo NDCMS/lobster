@@ -6,6 +6,8 @@ import random
 import sqlite3
 import uuid
 
+from lobster import util
+
 logger = multiprocessing.get_logger()
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
@@ -24,6 +26,43 @@ MERGED = 8
 # Job type
 PROCESS = 0
 MERGE = 1
+
+JobUpdate = util.record('JobUpdate',
+                'host',
+                'exit_code',
+                'submissions',
+                'time_submit',
+                'time_transfer_in_start',
+                'time_transfer_in_end',
+                'time_wrapper_start',
+                'time_wrapper_ready',
+                'time_stage_in_end',
+                'time_prologue_end',
+                'time_file_requested',
+                'time_file_opened',
+                'time_file_processing',
+                'time_processing_end',
+                'time_epilogue_end',
+                'time_stage_out_end',
+                'time_transfer_out_start',
+                'time_transfer_out_end',
+                'time_retrieved',
+                'time_on_worker',
+                'time_total_on_worker',
+                'time_cpu',
+                'cache_start_size',
+                'cache_end_size',
+                'cache',
+                'bytes_received',
+                'bytes_sent',
+                'bytes_output',
+                'bytes_bare_output',
+                'jobits_processed',
+                'events_read',
+                'events_written',
+                'status',
+                'id',
+                default=0)
 
 class JobitStore:
     def __init__(self, config):
@@ -386,16 +425,15 @@ class JobitStore:
                 # jobits either fail or are successful
                 # FIXME this should really go into the job handler
                 if jobit_source == 'jobs':
-                    jobit_status = SUCCESSFUL if job_update[-2] == FAILED else MERGED
+                    jobit_status = SUCCESSFUL if job_update.status == FAILED else MERGED
                 else:
-                    jobit_status = FAILED if job_update[-2] == FAILED else SUCCESSFUL
+                    jobit_status = FAILED if job_update.status == FAILED else SUCCESSFUL
 
                 if job_update[-2] == FAILED:
                     jobit_fail_updates.append((job_update[-1],))
 
                 jobit_updates += jobit_update
-                # the last entry in the job_update is the id
-                jobit_generic_updates.append((jobit_status, job_update[-1]))
+                jobit_generic_updates.append((jobit_status, job_update.id))
 
             # update all jobits of the jobs
             self.db.executemany("""update {0} set
@@ -426,42 +464,8 @@ class JobitStore:
                     where id=?""".format(dset),
                     file_updates)
 
-        self.db.executemany("""update jobs set
-            host=?,
-            exit_code=?,
-            submissions=?,
-            time_submit=?,
-            time_transfer_in_start=?,
-            time_transfer_in_end=?,
-            time_wrapper_start=?,
-            time_wrapper_ready=?,
-            time_stage_in_end=?,
-            time_prologue_end=?,
-            time_file_requested=?,
-            time_file_opened=?,
-            time_file_processing=?,
-            time_processing_end=?,
-            time_epilogue_end=?,
-            time_stage_out_end=?,
-            time_transfer_out_start=?,
-            time_transfer_out_end=?,
-            time_retrieved=?,
-            time_on_worker=?,
-            time_total_on_worker=?,
-            time_cpu=?,
-            cache_start_size=?,
-            cache_end_size=?,
-            cache=?,
-            bytes_received=?,
-            bytes_sent=?,
-            bytes_output=?,
-            bytes_bare_output=?,
-            jobits_processed=(jobits - ?),
-            events_read=?,
-            events_written=?,
-            status=?
-            where id=?""",
-            job_updates)
+        query = "update jobs set {0} where id=?".format(JobUpdate.sql_fragment(stop=-1))
+        self.db.executemany(query, job_updates)
 
         for label, _ in jobinfos.keys():
             self.update_dataset_stats(label)

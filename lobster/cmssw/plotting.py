@@ -134,7 +134,11 @@ class Plotter(object):
                 time_retrieved,
                 time_on_worker,
                 time_total_on_worker,
-                type
+                type,
+                memory_resident,
+                memory_virtual,
+                memory_swap,
+                workdir_footprint
             from jobs
             where status=3 and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
@@ -147,7 +151,11 @@ class Plotter(object):
                     ('t_retrieved', 'i4'),
                     ('t_goodput', 'i8'),
                     ('t_allput', 'i8'),
-                    ('type', 'i4')
+                    ('type', 'i4'),
+                    ('memory_resident', 'i4'),
+                    ('memory_virtual', 'i4'),
+                    ('memory_swap', 'i4'),
+                    ('workdir_footprint', 'i4')
                     ])
 
         success_jobs = np.array(db.execute("""
@@ -185,7 +193,11 @@ class Plotter(object):
             bytes_sent,
             bytes_output,
             type,
-            cache
+            cache,
+            memory_resident,
+            memory_virtual,
+            memory_swap,
+            workdir_footprint
             from jobs
             where status in (2, 6, 7, 8) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
@@ -223,7 +235,11 @@ class Plotter(object):
                     ('b_sent', 'i4'),
                     ('b_output', 'i4'),
                     ('type', 'i4'),
-                    ('cache', 'i4')
+                    ('cache', 'i4'),
+                    ('memory_resident', 'i4'),
+                    ('memory_virtual', 'i4'),
+                    ('memory_swap', 'i4'),
+                    ('workdir_footprint', 'i4')
                     ])
 
         summary_data = list(db.execute("""
@@ -751,12 +767,6 @@ class Plotter(object):
                 label=['running']
         )
 
-        self.plot(
-                [(stats[:,headers['timestamp']], np.divide(stats[:,headers['total_memory']], stats[:,headers['total_cores']]))],
-                'Avg memory / core', 'memory-per-core',
-                modes=[Plotter.PLOT|Plotter.TIME]
-        )
-
         sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
         received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
         created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
@@ -827,12 +837,12 @@ class Plotter(object):
                 }
                 codes, split_jobs = split_by_column(jobs, 'status')
 
-                datasets += [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in split_jobs]
+                datasets += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in split_jobs]
                 colors += [code_map[code][1] for code in codes]
                 labels += [code_map[code][0] for code in codes]
 
             if len(failed_jobs) > 0:
-                datasets += [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in [failed_jobs]]
+                datasets += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in [failed_jobs]]
                 colors += ['red']
                 labels += ['failed']
 
@@ -959,6 +969,23 @@ class Plotter(object):
                         label=[cache_map[x][0] for x in cache]
                     )
 
+                self.plot(
+                    [
+                        # FIXME: hack below is required because WQ occasionally reports bogus values
+                        (jobs['t_retrieved'][jobs['memory_resident'] < 1e5], jobs['memory_resident'][jobs['memory_resident'] < 1e5]),
+                        (jobs['t_retrieved'][jobs['memory_virtual'] < 1e5], jobs['memory_virtual'][jobs['memory_virtual'] < 1e5]),
+                        (jobs['t_retrieved'], jobs['memory_swap'])
+                    ],
+                    'memory [MB]', prefix + 'memory',
+                    label=['resident', 'virtual', 'swap']
+                )
+
+                self.plot(
+                    [(jobs['t_retrieved'], jobs['workdir_footprint'])],
+                    'working directory footprint [MB]', prefix + 'workdir-footprint',
+                )
+
+
         if len(failed_jobs) > 0:
             logs = self.savelogs(failed_jobs)
 
@@ -976,6 +1003,22 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=map(str, fail_labels)
             )
+
+            self.plot(
+                [
+                    (failed_jobs['t_retrieved'], failed_jobs['memory_resident']),
+                    (failed_jobs['t_retrieved'], failed_jobs['memory_virtual']),
+                    (failed_jobs['t_retrieved'], failed_jobs['memory_swap'])
+                ],
+                'memory [MB]', 'failed-memory',
+                label=['resident', 'virtual', 'swap']
+            )
+
+            self.plot(
+                [(failed_jobs['t_retrieved'], failed_jobs['workdir_footprint'])],
+                'working directory footprint [MB]', 'failed-workdir-footprint',
+            )
+
         else:
             logs = None
 

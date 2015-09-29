@@ -40,8 +40,11 @@ JobUpdate = util.record('JobUpdate',
                 'events_read',
                 'events_written',
                 'host',
-                'id',
                 'jobits_processed',
+                'limits_exceeded',
+                'memory_resident',
+                'memory_swap',
+                'memory_virtual',
                 'status',
                 'submissions',
                 'time_submit',
@@ -63,6 +66,9 @@ JobUpdate = util.record('JobUpdate',
                 'time_on_worker',
                 'time_total_on_worker',
                 'time_cpu',
+                'workdir_footprint',
+                'workdir_num_files',
+                'id',
                 default=0)
 
 class JobitStore:
@@ -74,7 +80,6 @@ class JobitStore:
         self.__failure_threshold = config.get("threshold for failure", 10)
         self.__skipping_threshold = config.get("threshold for skipping", 10)
 
-        # Use four databases: one for jobits, jobs, hosts, datasets each
         self.db.execute("""create table if not exists datasets(
             cfg text,
             dataset text,
@@ -116,6 +121,10 @@ class JobitStore:
             job int,
             jobits int default 0,
             jobits_processed int default 0,
+            limits_exceeded text,
+            memory_resident int,
+            memory_virtual int,
+            memory_swap int,
             published_file_block text,
             status int default 0,
             submissions int default 0,
@@ -139,6 +148,8 @@ class JobitStore:
             time_total_on_worker int,
             time_cpu int,
             type int,
+            workdir_footprint int,
+            workdir_num_files int,
             foreign key(dataset) references datasets(id))""")
 
         self.db.commit()

@@ -409,6 +409,10 @@ class JobProvider(job.JobProvider):
             job_update.host = util.verify_string(task.hostname)
             job_update.id = task.tag
             job_update.jobits_processed = jobits_processed
+            job_update.limits_exceeded = task.resources_measured.limits_exceeded
+            job_update.memory_resident = task.resources_measured.resident_memory
+            job_update.memory_swap = task.resources_measured.swap_memory
+            job_update.memory_virtual = task.resources_measured.virtual_memory
             job_update.status = status
             job_update.submissions = task.total_submissions
             job_update.time_submit = task.submit_time / 1000000
@@ -419,6 +423,8 @@ class JobProvider(job.JobProvider):
             job_update.time_retrieved = task.finish_time / 1000000
             job_update.time_on_worker = task.cmd_execution_time / 1000000
             job_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
+            job_update.workdir_footprint = task.resources_measured.workdir_footprint
+            job_update.workdir_num_files = task.resources_measured.workdir_num_files
 
             wflow = self.workflows[handler.dataset]
             if failed:

@@ -429,8 +429,8 @@ class JobitStore:
                 else:
                     jobit_status = FAILED if job_update.status == FAILED else SUCCESSFUL
 
-                if job_update[-2] == FAILED:
-                    jobit_fail_updates.append((job_update[-1],))
+                if job_update.status == FAILED:
+                    jobit_fail_updates.append((job_update.id,))
 
                 jobit_updates += jobit_update
                 jobit_generic_updates.append((jobit_status, job_update.id))

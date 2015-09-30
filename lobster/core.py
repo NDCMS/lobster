@@ -33,15 +33,11 @@ class ShortPathFormatter(logging.Formatter):
 
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
-    with open(args.configfile) as configfile:
-        config = yaml.load(configfile)
-
-    workdir = config['workdir']
+    workdir = args.config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 def run(args):
-    with open(args.configfile) as configfile:
-        config = yaml.load(configfile)
+    config = args.config
 
     workdir = config['workdir']
     if not os.path.exists(workdir):
@@ -105,10 +101,6 @@ def run(args):
             console.setLevel(level)
             console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
             logger.addHandler(console)
-
-        config['configdir'] = args.configdir
-        config['filename'] = args.configfile
-        config['startdir'] = args.startdir
 
         t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
         t.start()

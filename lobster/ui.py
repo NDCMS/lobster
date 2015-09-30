@@ -54,26 +54,35 @@ def boil():
 
     args = parser.parse_args()
 
-    # If the working directory specified in the configuration already
-    # exists, we should try to resume from it.
     if os.path.isfile(args.checkpoint):
-        with open(args.checkpoint) as f:
-            workdir = yaml.load(f)['workdir']
-        configfile = os.path.join(workdir, 'lobster_config.yaml')
-        if os.path.isdir(workdir) and os.path.isfile(configfile):
-            args.checkpoint = workdir
-
-    if os.path.isdir(args.checkpoint):
-        configfile = os.path.join(args.checkpoint, 'lobster_config.yaml')
-        if not os.path.isfile(configfile):
-            parser.error('the working directory specified does not contain a configuration')
-        args.configfile = os.path.abspath(configfile)
+        configfile = args.checkpoint
+        if util.checkpoint(os.path.dirname(configfile), 'version'):
+            # If we are resuming, the working directory might have been moved.
+            # Thus check checkpoint of configfile directory!
+            workdir = os.path.dirname(configfile)
+        else:
+            # Otherwise load the working directory from the configuration
+            # and use the configuration file stored there (if available)
+            with open(configfile) as f:
+                workdir = yaml.load(f)['workdir']
+            fn = os.path.join(workdir, 'lobster_config.yaml')
+            if os.path.isdir(workdir) and os.path.isfile(fn):
+                configfile = fn
     else:
-        args.configfile = os.path.abspath(args.checkpoint)
+        # Load configuration from working directory passed to us
+        workdir = args.checkpoint
+        configfile = os.path.join(workdir, 'lobster_config.yaml')
+        if not os.path.isfile(configfile):
+            parser.error("the working directory '{0}' does not contain a configuration".format(workdir))
 
-    with open(args.configfile) as f:
-        args.workdir = yaml.load(f)['workdir']
+    with open(configfile) as f:
+        args.config = yaml.load(f)
+    args.config['workdir'] = workdir
 
-    args.configdir = os.path.dirname(args.configfile)
-    args.startdir = os.getcwd()
+    if configfile == args.checkpoint:
+        # This is the original configuration file!
+        args.config['base directory'] = os.path.dirname(configfile)
+        args.config['base configuration'] = configfile
+        args.config['startup directory'] = os.getcwd()
+
     args.func(args)

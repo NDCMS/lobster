@@ -82,11 +82,8 @@ class Plotter(object):
     PLOT = 4
     PROF = 8
 
-    def __init__(self, workdir, outdir=None):
-        with open(os.path.join(workdir, 'lobster_config.yaml')) as f:
-            config = yaml.load(f)
-
-        self.__workdir = workdir
+    def __init__(self, config, outdir=None):
+        self.__workdir = config['workdir']
 
         util.verify(self.__workdir)
         self.__id = config['id']
@@ -982,5 +979,5 @@ def plot(args):
     logger.setLevel(logging.INFO)
     logger.addHandler(console)
 
-    p = Plotter(args.workdir, args.outdir)
+    p = Plotter(args.config, args.outdir)
     p.make_plots(args.xmin, args.xmax, args.foreman_list)

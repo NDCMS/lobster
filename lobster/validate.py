@@ -7,8 +7,7 @@ from lobster import cmssw, fs, se
 from lobster.job import apply_matching
 
 def validate(args):
-    with open(args.configfile) as configfile:
-        config = yaml.load(configfile)
+    config = args.config
 
     logger = multiprocessing.get_logger()
 

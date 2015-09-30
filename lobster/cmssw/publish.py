@@ -273,10 +273,7 @@ class BlockDump(object):
         self.data[key] = value
 
 def publish(args):
-    with open(args.configfile) as f:
-        config = yaml.load(f)
-
-    config = apply_matching(config)
+    config = apply_matching(args.config)
 
     if len(args.datasets) == 0:
         args.datasets = [task['label'] for task in config.get('tasks', [])]

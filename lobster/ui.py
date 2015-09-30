@@ -82,8 +82,8 @@ def boil():
 
     if configfile == args.checkpoint:
         # This is the original configuration file!
-        args.config['base directory'] = os.path.dirname(configfile)
-        args.config['base configuration'] = configfile
-        args.config['startup directory'] = os.getcwd()
+        args.config['base directory'] = os.path.abspath(os.path.dirname(configfile))
+        args.config['base configuration'] = os.path.abspath(configfile)
+        args.config['startup directory'] = os.path.abspath(os.getcwd())
 
     args.func(args)

@@ -6,6 +6,7 @@ from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
 from lobster.core import kill, run
 from lobster.validate import validate
+from lobster import util
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')

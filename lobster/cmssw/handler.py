@@ -42,14 +42,6 @@ class TaskHandler(object):
     def jobdir(self):
         return self._jobdir
 
-    @jobdir.setter
-    def jobdir(self, dir):
-        self._jobdir = dir
-
-    @property
-    def file_based(self):
-        return self._file_based
-
     @property
     def input_files(self):
         return list(set([filename for (id, filename) in self._files if filename]))

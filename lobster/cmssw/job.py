@@ -10,145 +10,16 @@ import subprocess
 import sys
 
 from lobster import fs, job, util
+from lobster.cmssw import TaskHandler
 import dash
 import sandbox
 
 import jobit
 from dataset import MetaInterface
 
-from FWCore.PythonUtilities.LumiList import LumiList
-
 import work_queue as wq
 
 logger = multiprocessing.get_logger()
-
-class JobHandler(object):
-    """
-    Handles mapping of lumi sections to files etc.
-    """
-
-    def __init__(
-            self, id, dataset, files, lumis, jobdir,
-            cmssw_job=True, empty_source=False, merge=False, local=False):
-        self._id = id
-        self._dataset = dataset
-        self._files = [(id, file) for id, file in files]
-        self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
-        self._jobits = lumis
-        self._jobdir = jobdir
-        self._outputs = []
-        self._merge = merge
-        self._cmssw_job = cmssw_job
-        self._empty_source = empty_source
-        self._local = local
-
-    @property
-    def cmssw_job(self):
-        return self._cmssw_job
-
-    @property
-    def dataset(self):
-        return self._dataset
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def jobdir(self):
-        return self._jobdir
-
-    @jobdir.setter
-    def jobdir(self, dir):
-        self._jobdir = dir
-
-    @property
-    def outputs(self):
-        return self._outputs
-
-    @property
-    def file_based(self):
-        return self._file_based
-
-    @property
-    def jobit_source(self):
-        return 'jobs' if self._merge else 'jobits_' + self._dataset
-
-    @property
-    def merge(self):
-        return self._merge
-
-    @outputs.setter
-    def outputs(self, files):
-        self._outputs = files
-
-    def get_job_info(self):
-        lumis = set([(run, lumi) for (id, file, run, lumi) in self._jobits])
-        files = set([filename for (id, filename) in self._files if filename])
-
-        if self._file_based:
-            lumis = None
-        else:
-            lumis = LumiList(lumis=lumis)
-
-        return files, lumis
-
-    def get_jobit_info(self, failed, files_info, files_skipped, events_written):
-        events_read = 0
-        file_update = []
-        jobit_update = []
-
-        jobits_processed = len(self._jobits)
-
-        for (id, file) in self._files:
-            file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
-
-            skipped = False
-            read = 0
-            if self._cmssw_job:
-                if not self._empty_source:
-                    skipped = file in files_skipped or file not in files_info
-                    read = 0 if failed or skipped else files_info[file][0]
-
-            events_read += read
-
-            if failed:
-                jobits_processed = 0
-            else:
-                if skipped:
-                    for (lumi_id, lumi_file, r, l) in file_jobits:
-                        jobit_update.append((jobit.FAILED, lumi_id))
-                        jobits_processed -= 1
-                elif not self._file_based:
-                    file_lumis = set(map(tuple, files_info[file][1]))
-                    for (lumi_id, lumi_file, r, l) in file_jobits:
-                        if (r, l) not in file_lumis:
-                            jobit_update.append((jobit.FAILED, lumi_id))
-                            jobits_processed -= 1
-
-            file_update.append((read, 1 if skipped else 0, id))
-
-        if failed:
-            events_written = 0
-            status = jobit.FAILED
-        else:
-            status = jobit.SUCCESSFUL
-
-        if self._merge:
-            file_update = []
-            # FIXME not correct
-            jobits_missed = 0
-
-        return jobits_processed, events_read, events_written, status, \
-                file_update, jobit_update
-
-    def update_job(self, parameters, inputs, outputs, se):
-        local = self._local or self._merge
-        se.preprocess(parameters, self._merge)
-        if local and se.transfer_inputs():
-            inputs += [(se.local(f), os.path.basename(f), False) for id, f in self._files if f]
-        if se.transfer_outputs():
-            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self._outputs]
 
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):
@@ -184,14 +55,32 @@ class JobProvider(job.JobProvider):
                 logger.error('merging disabled due to malformed size {0}'.format(orig))
 
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
-
-        self.__events = {}
-        self.__configs = {}
-        self.__local = {}
-        self.__edm_outputs = {}
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
         self.__store = jobit.JobitStore(self.config)
+
+        self._inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
+                (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
+                (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
+                (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True),
+                (self.parrot_bin, 'bin', None),
+                (self.parrot_lib, 'lib', None),
+                ]
+
+        # Files to make the job wrapper work without referencing WMCore
+        # from somewhere else
+        import WMCore
+        base = os.path.dirname(WMCore.__file__)
+        reqs = [
+                "Services/Dashboard/DashboardAPI.pyc",
+                "Services/Dashboard/apmon.pyc",
+                "FwkJobReport"
+                ]
+        for f in reqs:
+            self._inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
+
+        if 'X509_USER_PROXY' in os.environ:
+            self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
         if not util.checkpoint(self.workdir, 'executable'):
             # We can actually have more than one exe name (one per task label)
@@ -232,63 +121,46 @@ class JobProvider(job.JobProvider):
 
         update_config = False
 
-        for cfg in self.config['tasks']:
-            label = cfg['label']
-            cfg['basedirs'] = self.basedirs
+        for label, wflow in self.workflows.items():
+            # FIXME this needs to be in the Workflow class!
+            if wflow.pset:
+                 shutil.copy(util.findpath(self.basedirs, wflow.pset), os.path.join(wflow.workdir, os.path.basename(wflow.pset)))
 
-            cms_config = cfg.get('cmssw config')
-            if cms_config:
-                self.__configs[label] = os.path.basename(cms_config)
-
-            self.__local[label] = cfg.get('local', 'files' in cfg)
-            self.__events[label] = cfg.get('events per job', -1)
-
-            # Record whether we'll be handling this output as EDM or not:
-            self.__edm_outputs[label] = cfg.get('edm output', True)
-
-            if cms_config and not cfg.has_key('outputs'):
+            if wflow.pset and not wflow.outputs:
+                wflow.outputs = []
                 # Save determined outputs to the configuration in the
                 # working directory.
                 update_config = True
                 # To avoid problems loading configs that use the VarParsing module
                 sys.argv = ["pacify_varparsing.py"]
-                with open(util.findpath(self.basedirs, cms_config), 'r') as f:
-                    source = imp.load_source('cms_config_source', cms_config, f)
+                with open(util.findpath(self.basedirs, wflow.pset), 'r') as f:
+                    source = imp.load_source('cms_config_source', wflow.pset, f)
                     process = source.process
                     if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
                         cfg['global tag'] = process.GlobalTag.globaltag.value()
                     for label, module in process.outputModules.items():
-                        self.outputs[label].append(module.fileName.value())
+                        wflow.outputs.append(module.fileName.value())
                     if 'TFileService' in process.services:
-                        self.outputs[label].append(process.services['TFileService'].fileName.value())
-                        self.__edm_outputs[label] = False
+                        wflow.outputs.append(process.services['TFileService'].fileName.value())
+                        wflow.edm_output = False
 
-                    cfg['edm output'] = self.__edm_outputs[label]
-                    cfg['outputs'] = self.outputs[label]
+                    self.config['tasks'][label]['edm output'] = wflow.edm_output
+                    self.config['tasks'][label]['outputs'] = wflow.outputs
 
-                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self.outputs[label])))
+                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(wflow.outputs)))
 
-            taskdir = os.path.join(self.workdir, label)
             if not util.checkpoint(self.workdir, label):
-                if cms_config:
-                    shutil.copy(util.findpath(self.basedirs, cms_config), os.path.join(taskdir, os.path.basename(cms_config)))
+                if wflow.pset:
+                    shutil.copy(util.findpath(self.basedirs, wflow.pset), os.path.join(wflow.workdir, os.path.basename(wflow.pset)))
 
                 logger.info("querying backend for {0}".format(label))
                 with fs.default():
-                    dataset_info = self.__interface.get_info(cfg)
-
-                if 'filename transformation' in cfg:
-                    match, sub = cfg['filename transformation']
-                    def trafo(filename):
-                        return re.sub(match, sub, filename)
-                else:
-                    trafo = lambda s: s
+                    dataset_info = self.__interface.get_info(wflow.config)
 
                 logger.info("registering {0} in database".format(label))
-                self.__store.register(cfg, dataset_info, trafo, self.config.get('task runtime', None))
+                self.__store.register(wflow.config, dataset_info, self.config.get('task runtime', None))
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
-
-            elif os.path.exists(os.path.join(taskdir, 'running')):
+            elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_jobids(label):
                     self.move_jobdir(id, label, 'failed')
 
@@ -312,53 +184,45 @@ class JobProvider(job.JobProvider):
         ids = []
 
         for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
+            wflow = self.workflows[label]
             ids.append(id)
 
             jdir = self.create_jobdir(id, label, 'running')
+            inputs = list(self._inputs)
+            inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
+            outputs = [(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']]
 
-            outputs = []
-            inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
-                      (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
-                      (self.parrot_bin, 'bin', None),
-                      (self.parrot_lib, 'lib', None)
-                      ]
+            monitorid, syncid = self.__dash.register_job(id)
 
-            # Files to make the job wrapper work without referencing WMCore
-            # from somewhere else
-            import WMCore
-            base = os.path.dirname(WMCore.__file__)
-            reqs = [
-                    "Services/Dashboard/DashboardAPI.pyc",
-                    "Services/Dashboard/apmon.pyc",
-                    "FwkJobReport"
-                    ]
-            for f in reqs:
-                inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
+            config = {
+                'mask': {
+                    'files': None,
+                    'lumis': None,
+                    'events': None
+                },
+                'monitoring': {
+                    'monitorid': monitorid,
+                    'syncid': syncid,
+                    'taskid': self.taskid
+                },
+                'arguments': None,
+                'output files': None,
+                'want summary': self.config.get('cmssw summary', True),
+                'executable': None,
+                'pset': None,
+                'prologue': self.config.get('prologue'),
+                'epilogue': None
+            }
 
             if merge:
-                if not self.__edm_outputs[label]:
-                    cmd = 'hadd'
-                    args = ['-f', self.outputs[label][0]]
-                    cmssw_job = False
-                    cms_config = None
-                else:
-                    cmd = 'cmsRun'
-                    args = ['output=' + self.outputs[label][0]]
-                    cmssw_job = True
-                    cms_config = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
-
-                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
-                inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True))
-
                 missing = []
                 infiles = []
                 inreports = []
 
                 for job, _, _, _ in lumis:
                     report = self.get_report(label, job)
-                    base, ext = os.path.splitext(self.outputs[label][0])
-                    input = os.path.join(label, self.outputformats[label].format(base=base, ext=ext[1:], id=job))
+                    base, ext = os.path.splitext(wflow.outputs[0])
+                    input = os.path.join(label, wflow.outputformats.format(base=base, ext=ext[1:], id=job))
 
                     if os.path.isfile(report):
                         inreports.append(report)
@@ -380,90 +244,33 @@ class JobProvider(job.JobProvider):
                     # running jobs is going to be messed up.
                     logger.debug("skipping job {0} with only one input file!".format(id))
 
-                inputs += [(r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in inreports]
-
-                prologue = None
-                epilogue = ['python', 'merge_reports.py', 'report.json'] \
-                        + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in inreports]
+                # takes care of the fields set to None in config
+                wflow.adjust(config, jdir, inputs, outputs, merge, reports=inreports)
 
                 files = infiles
             else:
-                cmd = self.cmds[label]
-                args = [x for x in self.args[label] + [unique_arg] if x]
-                cmssw_job = self.__configs.has_key(label)
-                cms_config = None
-                prologue = self.config.get('prologue')
-                epilogue = None
-                if cmssw_job:
-                    cmd = 'cmsRun' 
-                    cms_config = os.path.join(self.workdir, label, self.__configs[label])
+                # takes care of the fields set to None in config
+                wflow.adjust(config, jdir, inputs, outputs, merge, unique=unique_arg)
 
-            inputs.extend([(os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True)])
-
-            if cmssw_job:
-                inputs.append((cms_config, os.path.basename(cms_config), True))
-                outputs.append((os.path.join(jdir, 'report.xml.gz'), 'report.xml.gz'))
-
-            if 'X509_USER_PROXY' in os.environ:
-                inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
-
-            inputs += [(i, os.path.basename(i), True) for i in self.extra_inputs[label]]
-
-            monitorid, syncid = self.__dash.register_job(id)
-
-            handler = JobHandler(
-                id, label, files, lumis, jdir, cmssw_job, empty_source,
+            handler = TaskHandler(
+                id, label, files, lumis, list(wflow.outputs(id)),
+                jdir, wflow.pset is not None, empty_source,
                 merge=merge,
-                local=self.__local[label])
-            files, lumis = handler.get_job_info()
-
-            for filename in self.outputs[label]:
-                base, ext = os.path.splitext(filename)
-                outname = self.outputformats[label].format(base=base, ext=ext[1:], id=id)
-
-                handler.outputs.append((filename, os.path.join(label, outname)))
-
-            outputs.extend([(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']])
-
-            sum = self.config.get('cmssw summary', True)
-
-            config = {
-                'mask': {
-                    'files': list(files),
-                    'lumis': lumis.getCompactList() if lumis else None,
-                    'events': -1 if merge else self.__events[label],
-                },
-                'monitoring': {
-                    'monitorid': monitorid,
-                    'syncid': syncid,
-                    'taskid': self.taskid
-                },
-                'arguments': args,
-                'output files': handler.outputs,
-                'want summary': sum,
-                'executable': cmd,
-                'pset': os.path.basename(cms_config) if cms_config else None
-            }
+                local=wflow.local)
 
             if 'task runtime' in self.config and not merge:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
                 config['task runtime'] = self.config['task runtime'] + 10 * 60
 
-            if merge and not self.__edm_outputs[label]:
-                config['append inputs to args'] = True
-
-            if prologue:
-                config['prologue'] = prologue
-
-            if epilogue:
-                config['epilogue'] = epilogue
-
-            handler.update_job(config, inputs, outputs, self._storage)
+            # set input/output transfer parameters
+            self._storage.preprocess(config, merge)
+            # adjust file and lumi information in config, add task specific
+            # input/output files
+            handler.adjust(config, inputs, outputs, self._storage)
 
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
-            inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
 
             cmd = 'sh wrapper.sh python job.py parameters.json'
 

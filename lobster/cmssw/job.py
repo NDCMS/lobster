@@ -375,7 +375,7 @@ class JobProvider(job.JobProvider):
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
                 if handler.merge and self.config.get('delete merged', True):
-                    files, _ = handler.get_job_info()
+                    files = handler.input_files
                     cleanup += files
                 self.move_jobdir(handler.id, handler.dataset, 'successful')
 

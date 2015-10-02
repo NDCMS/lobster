@@ -51,6 +51,10 @@ class TaskHandler(object):
         return self._file_based
 
     @property
+    def input_files(self):
+        return list(set([filename for (id, filename) in self._files if filename]))
+
+    @property
     def jobit_source(self):
         return 'jobs' if self._merge else 'jobits_' + self._dataset
 
@@ -114,7 +118,7 @@ class TaskHandler(object):
         if se.transfer_outputs():
             outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self._outputs]
 
-        parameters['mask']['files'] = list(set([filename for (id, filename) in self._files if filename]))
+        parameters['mask']['files'] = self.input_files
         parameters['output files'] = self._outputs
         if not self._file_based and not self._merge:
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._jobits]))

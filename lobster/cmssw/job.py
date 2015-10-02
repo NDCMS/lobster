@@ -126,8 +126,8 @@ class JobProvider(job.JobProvider):
             if wflow.pset:
                  shutil.copy(util.findpath(self.basedirs, wflow.pset), os.path.join(wflow.workdir, os.path.basename(wflow.pset)))
 
-            if wflow.pset and not wflow.outputs:
-                wflow.outputs = []
+            if wflow.pset and not wflow._outputs:
+                wflow._outputs = []
                 # Save determined outputs to the configuration in the
                 # working directory.
                 update_config = True
@@ -139,15 +139,15 @@ class JobProvider(job.JobProvider):
                     if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
                         cfg['global tag'] = process.GlobalTag.globaltag.value()
                     for label, module in process.outputModules.items():
-                        wflow.outputs.append(module.fileName.value())
+                        wflow._outputs.append(module.fileName.value())
                     if 'TFileService' in process.services:
-                        wflow.outputs.append(process.services['TFileService'].fileName.value())
+                        wflow._outputs.append(process.services['TFileService'].fileName.value())
                         wflow.edm_output = False
 
-                    self.config['tasks'][label]['edm output'] = wflow.edm_output
-                    self.config['tasks'][label]['outputs'] = wflow.outputs
+                    wflow.config['edm output'] = wflow.edm_output
+                    wflow.config['outputs'] = wflow._outputs
 
-                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(wflow.outputs)))
+                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(wflow._outputs)))
 
             if not util.checkpoint(self.workdir, label):
                 if wflow.pset:

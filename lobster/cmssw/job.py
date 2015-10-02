@@ -221,15 +221,11 @@ class JobProvider(job.JobProvider):
 
                 for job, _, _, _ in lumis:
                     report = self.get_report(label, job)
-                    base, ext = os.path.splitext(wflow.outputs[0])
-                    input = os.path.join(label, wflow.outputformats.format(base=base, ext=ext[1:], id=job))
+                    _, infile = list(wflow.outputs(job))[0]
 
                     if os.path.isfile(report):
                         inreports.append(report)
-                        infiles.append((job, input))
-                        # FIXME we can also read files locally
-                        # if not self.__chirp and not self.__xrootd:
-                            # inputs.append((input, os.path.basename(input), False))
+                        infiles.append((job, infile))
                     else:
                         missing.append(job)
 

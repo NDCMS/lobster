@@ -76,8 +76,8 @@ class JobProvider(object):
 
         self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
-            cfg['extra inputs'] = self._copy_inputs(cfg)
             wflow = Workflow(self.workdir, cfg)
+            wflow.copy_inputs(self.basedirs)
             self.workflows[wflow.label] = wflow
 
             taskdir = os.path.join(self.workdir, wflow.label)
@@ -104,40 +104,6 @@ class JobProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
-
-    def _copy_inputs(self, cfg, overwrite=False):
-        """Make a copy of extra input files.
-
-        Takes a task configuration, and will look for `extra inputs`, a
-        list of files that will be copied and paths in the configuration
-        fixes.
-
-        Already present files will not be overwritten unless specified.
-        """
-        if 'extra inputs' not in cfg:
-            return []
-
-        def copy_file(fn):
-            source = os.path.abspath(util.findpath(self.basedirs, fn))
-            target = os.path.join(self.workdir, cfg['label'], os.path.basename(fn))
-
-            if not os.path.exists(target) or overwrite:
-                if not os.path.exists(os.path.dirname(target)):
-                    os.makedirs(os.path.dirname(target))
-
-                logger.debug("copying '{0}' to '{1}'".format(source, target))
-                if os.path.isfile(source):
-                    shutil.copy(source, target)
-                elif os.path.isdir(source):
-                    shutil.copytree(source, target)
-                else:
-                    raise NotImplementedError
-
-            return target
-
-        cfg['extra inputs'] = map(copy_file, cfg['extra inputs'])
-
-        return cfg['extra inputs']
 
     def save_configuration(self):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:

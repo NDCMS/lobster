@@ -17,6 +17,36 @@ class Workflow(object):
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
 
+    def copy_inputs(self, basedirs, overwrite=False):
+        """Make a copy of extra input files.
+
+        Already present files will not be overwritten unless specified.
+        """
+        if 'extra inputs' not in self.config:
+            return []
+
+        def copy_file(fn):
+            source = os.path.abspath(util.findpath(basedirs, fn))
+            target = os.path.join(self.workdir, os.path.basename(fn))
+
+            if not os.path.exists(target) or overwrite:
+                if not os.path.exists(os.path.dirname(target)):
+                    os.makedirs(os.path.dirname(target))
+
+                logger.debug("copying '{0}' to '{1}'".format(source, target))
+                if os.path.isfile(source):
+                    shutil.copy(source, target)
+                elif os.path.isdir(source):
+                    shutil.copytree(source, target)
+                else:
+                    raise NotImplementedError
+
+            return target
+
+        files = map(copy_file, self.config['extra inputs'])
+        self.config['extra inputs'] = files
+        self.extra_inputs = files
+
     def outputs(self, id):
         for fn in self._outputs:
             base, ext = os.path.splitext(fn)

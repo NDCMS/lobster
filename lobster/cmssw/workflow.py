@@ -1,5 +1,7 @@
 import os
 
+from lobster import fs
+
 class Workflow(object):
     def __init__(self, workdir, config):
         self.config = config
@@ -46,6 +48,20 @@ class Workflow(object):
         files = map(copy_file, self.config['extra inputs'])
         self.config['extra inputs'] = files
         self.extra_inputs = files
+
+    def create(self):
+        # Working directory for workflow
+        # TODO Should we really check if this already exists?  IMO that
+        # constitutes an error, since we really should create the workflow!
+        if not os.path.exists(self.workdir):
+            os.makedirs(self.workdir)
+        # Create the stageout directory
+        if not fs.exists(self.label):
+            fs.makedirs(self.label)
+        else:
+            if len(list(fs.ls(self.label))) > 0:
+                msg = 'stageout directory is not empty: {0}'
+                raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
 
     def outputs(self, id):
         for fn in self._outputs:

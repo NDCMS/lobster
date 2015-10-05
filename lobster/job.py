@@ -13,7 +13,7 @@ import yaml
 
 from functools import partial
 from hashlib import sha1
-from lobster import fs, se, util
+from lobster import se, util
 from lobster.cmssw import Workflow
 
 logger = multiprocessing.get_logger()
@@ -79,20 +79,11 @@ class JobProvider(object):
             wflow = Workflow(self.workdir, cfg)
             wflow.copy_inputs(self.basedirs)
             self.workflows[wflow.label] = wflow
-
-            taskdir = os.path.join(self.workdir, wflow.label)
             if create:
-                if not os.path.exists(taskdir):
-                    os.makedirs(taskdir)
-                # create the stageout directory
-                if not fs.exists(wflow.label):
-                    fs.makedirs(wflow.label)
-                else:
-                    if len(list(fs.ls(wflow.label))) > 0:
-                        msg = 'stageout directory is not empty: {0}'
-                        raise IOError(msg.format(fs.__getattr__('lfn2pfn')(wflow.label)))
+                wflow.create()
 
-                self.save_configuration()
+        if create:
+            self.save_configuration()
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):

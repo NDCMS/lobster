@@ -151,7 +151,7 @@ class JobitStore:
     def disconnect(self):
         self.db.close()
 
-    def register(self, dataset_cfg, dataset_info, filemap, taskruntime=None):
+    def register(self, dataset_cfg, dataset_info, taskruntime=None):
         label = dataset_cfg['label']
         unique_args = dataset_cfg.get('unique parameters', [None])
 
@@ -214,18 +214,18 @@ class JobitStore:
             foreign key(job) references jobs(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
-        for file in dataset_info.files:
-            file_lumis = len(dataset_info.lumis[file])
+        for fn in dataset_info.files:
+            file_lumis = len(dataset_info.lumis[fn])
             cur.execute(
                     """insert into files_{0}(jobits, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
                         file_lumis * len(unique_args),
-                        dataset_info.event_counts[file],
-                        filemap(file),
-                        dataset_info.filesizes[file]))
+                        dataset_info.event_counts[fn],
+                        fn,
+                        dataset_info.filesizes[fn]))
             file_id = cur.lastrowid
 
             for arg in unique_args:
-                columns = [(file_id, run, lumi, arg) for (run, lumi) in dataset_info.lumis[file]]
+                columns = [(file_id, run, lumi, arg) for (run, lumi) in dataset_info.lumis[fn]]
                 self.db.executemany("insert into jobits_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), columns)
 
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))

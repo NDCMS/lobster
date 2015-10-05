@@ -13,7 +13,8 @@ import yaml
 
 from functools import partial
 from hashlib import sha1
-from lobster import fs, se, util
+from lobster import se, util
+from lobster.cmssw import Workflow
 
 logger = multiprocessing.get_logger()
 
@@ -60,11 +61,7 @@ class JobProvider(object):
         self.parrot_bin = os.path.join(self.workdir, 'bin')
         self.parrot_lib = os.path.join(self.workdir, 'lib')
 
-        self.extra_inputs = {}
-        self.args = {}
-        self.outputs = {}
-        self.outputformats = {}
-        self.cmds = {}
+        self.workflows = {}
         self.bad_exitcodes = config.get('bad exit codes', [])
 
         create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
@@ -79,26 +76,14 @@ class JobProvider(object):
 
         self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
-            label = cfg['label']
-            self.extra_inputs[label] = self._copy_inputs(label, cfg)
-            self.outputs[label] = cfg.get('outputs', [])
-            self.args[label] = cfg.get('parameters', [])
-            self.outputformats[label] = cfg.get("output format", "{base}_{id}.{ext}")
-            self.cmds[label] = cfg.get('cmd')
-
-            taskdir = os.path.join(self.workdir, label)
+            wflow = Workflow(self.workdir, cfg)
+            wflow.copy_inputs(self.basedirs)
+            self.workflows[wflow.label] = wflow
             if create:
-                if not os.path.exists(taskdir):
-                    os.makedirs(taskdir)
-                # create the stageout directory
-                if not fs.exists(label):
-                    fs.makedirs(label)
-                else:
-                    if len(list(fs.ls(label))) > 0:
-                        msg = 'stageout directory is not empty: {0}'
-                        raise IOError(msg.format(fs.__getattr__('lfn2pfn')(label)))
+                wflow.create()
 
-                self.save_configuration()
+        if create:
+            self.save_configuration()
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -110,40 +95,6 @@ class JobProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
-
-    def _copy_inputs(self, label, cfg, overwrite=False):
-        """Make a copy of extra input files.
-
-        Takes a task configuration, and will look for `extra inputs`, a
-        list of files that will be copied and paths in the configuration
-        fixes.
-
-        Already present files will not be overwritten unless specified.
-        """
-        if 'extra inputs' not in cfg:
-            return []
-
-        def copy_file(fn):
-            source = os.path.abspath(util.findpath(self.basedirs, fn))
-            target = os.path.join(self.workdir, label, os.path.basename(fn))
-
-            if not os.path.exists(target) or overwrite:
-                if not os.path.exists(os.path.dirname(target)):
-                    os.makedirs(os.path.dirname(target))
-
-                logger.debug("copying '{0}' to '{1}'".format(source, target))
-                if os.path.isfile(source):
-                    shutil.copy(source, target)
-                elif os.path.isdir(source):
-                    shutil.copytree(source, target)
-                else:
-                    raise NotImplementedError
-
-            return target
-
-        cfg['extra inputs'] = map(copy_file, cfg['extra inputs'])
-
-        return cfg['extra inputs']
 
     def save_configuration(self):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:

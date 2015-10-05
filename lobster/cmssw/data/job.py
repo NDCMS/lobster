@@ -602,7 +602,7 @@ args = config['arguments']
 prologue = config.get('prologue', [])
 epilogue = config.get('epilogue', [])
 
-if len(prologue) > 0:
+if prologue and len(prologue) > 0:
     print ">>> prologue:"
     with check_execution(data, 180):
         p = run_subprocess(prologue,env=env)
@@ -693,7 +693,7 @@ if cmsRun:
 
 data['task timing info'].append(now)
 
-if len(epilogue) > 0:
+if epilogue and len(epilogue) > 0:
     # Make data collected so far available to the epilogue
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)

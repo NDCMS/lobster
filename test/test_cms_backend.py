@@ -1,8 +1,8 @@
 # vim: foldmethod=marker
-from lobster import cmssw
+from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
-from lobster.cmssw.job import JobHandler
-from lobster.cmssw.jobit import JobUpdate
+from lobster.cmssw.handler import TaskHandler
+from lobster.cmssw.jobit import JobUpdate, JobitStore
 import os
 import shutil
 import tempfile
@@ -28,7 +28,7 @@ class TestSQLBackend(object):
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
-        cls.interface = cmssw.JobitStore({
+        cls.interface = JobitStore({
             'workdir': cls.workdir,
             'stageout location': cls.workdir,
             'id': 'test',
@@ -58,7 +58,7 @@ class TestSQLBackend(object):
                 'cmssw config': ''
         }
 
-        return cfg, info, lambda x: x
+        return cfg, info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, jobsize=5):
         # {{{
@@ -115,12 +115,12 @@ class TestSQLBackend(object):
                 'cmssw config': ''
         }
 
-        return cfg, info, lambda x: x
+        return cfg, info
         # }}}
 
     def test_create_datasets(self):
         # {{{
-        cfg, info, _ = self.create_dbs_dataset('test', 100, 11, 2.2, 3)
+        cfg, info = self.create_dbs_dataset('test', 100, 11, 2.2, 3)
 
         total = 0
 
@@ -139,7 +139,7 @@ class TestSQLBackend(object):
                     'test_handler', lumis=11, filesize=2.2, jobsize=3))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(123, 'test_handler', files, lumis, 'test', True)
+        handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
 
         files_info = {
                 u'/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
@@ -194,7 +194,7 @@ class TestSQLBackend(object):
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
@@ -251,7 +251,7 @@ class TestSQLBackend(object):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
 
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
@@ -301,7 +301,7 @@ class TestSQLBackend(object):
             'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         True,
@@ -355,7 +355,7 @@ class TestSQLBackend(object):
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
@@ -424,7 +424,7 @@ class TestSQLBackend(object):
                     'test_uglier', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
@@ -450,7 +450,7 @@ class TestSQLBackend(object):
         # grab another job
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
@@ -496,9 +496,10 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        job_files, job_lumis = JobHandler(id, label, files, lumis, None, True).get_job_info()
+        parameters = {'mask': {'lumis': None}}
+        TaskHandler(id, label, files, lumis, None, True).adjust(parameters, [], [], se.StorageConfiguration({}))
 
-        assert job_lumis == None
+        assert parameters['mask']['lumis'] == None
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -528,7 +529,7 @@ class TestSQLBackend(object):
         submissions = 0
         times = [0] * 19
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,
@@ -574,7 +575,7 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         True,
@@ -617,7 +618,7 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = JobHandler(id, label, files, lumis, None, True)
+        handler = TaskHandler(id, label, files, lumis, None, True)
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                 handler.get_jobit_info(
                         False,

@@ -328,9 +328,12 @@ class JobProvider(job.JobProvider):
                         cmssw_exit_code = data['cmssw exit code']
                         job_update.bytes_output = data['output size']
                         job_update.bytes_bare_output = data['output bare size']
-            except (ValueError, EOFError, IOError) as e:
+            except (ValueError, EOFError) as e:
                 failed = True
                 logger.error("error processing {0}:\n{1}".format(task.tag, e))
+            except IOError as e:
+                failed = True
+                logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
             if task.result in [wq.WORK_QUEUE_RESULT_STDOUT_MISSING,
                     wq.WORK_QUEUE_RESULT_SIGNAL,

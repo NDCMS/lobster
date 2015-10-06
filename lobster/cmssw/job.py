@@ -2,7 +2,7 @@ from collections import defaultdict
 import gzip
 import imp
 import json
-import multiprocessing
+import logging
 import os
 import re
 import shutil
@@ -19,7 +19,7 @@ from dataset import MetaInterface
 
 import work_queue as wq
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.cmssw.job')
 
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):

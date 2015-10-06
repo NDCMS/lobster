@@ -2,7 +2,6 @@ import daemon
 import datetime
 import logging
 import logging.handlers
-import multiprocessing
 import os
 import resource
 import signal
@@ -18,18 +17,7 @@ from pkg_resources import get_distribution
 
 import work_queue as wq
 
-logger = multiprocessing.get_logger()
-
-
-class ShortPathFormatter(logging.Formatter):
-    def format(self, record):
-        if len(record.pathname) > 40:
-            record.pathname = '...' + record.pathname[-37:]
-        # FIXME at some point, Formatter is a new-style class and we can
-        # use super
-        # return super(ShortPathFormatter, self).format(record)
-        return logging.Formatter.format(self, record)
-
+logger = logging.getLogger('lobster.core')
 
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
@@ -42,6 +30,8 @@ def run(args):
     workdir = config['workdir']
     if not os.path.exists(workdir):
         os.makedirs(workdir)
+
+    if not util.checkpoint(workdir, "version"):
         util.register_checkpoint(workdir, "version", get_distribution('Lobster').version)
     else:
         util.verify(workdir)
@@ -60,20 +50,18 @@ def run(args):
                 try:
                     cred.ManualRenewCredential()
                 except Exception as e:
-                    print("could not renew proxy")
+                    logger.error("could not renew proxy")
                     sys.exit(1)
             else:
-                print("please renew your proxy")
+                logger.error("please renew your proxy")
                 sys.exit(1)
 
-    print "Saving log to {0}".format(os.path.join(workdir, 'lobster.log'))
-
     if not args.foreground:
-        ttyfile = open(os.path.join(workdir, 'lobster.err'), 'a')
-        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'lobster.err'))
+        ttyfile = open(os.path.join(workdir, 'process.err'), 'a')
+        logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'process.err')))
 
     if config.get('advanced', {}).get('dump core', False):
-        print "Setting core dump size to unlimited"
+        logger.info("setting core dump size to unlimited")
         resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     signals = daemon.daemon.make_default_signal_map()
@@ -83,25 +71,11 @@ def run(args):
             detach_process=not args.foreground,
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
+            files_preserve=[args.preserve],
             working_directory=workdir,
             pidfile=util.get_lock(workdir, args.force),
             prevent_core=False,
             signal_map=signals):
-
-        level = max(1, config.get('advanced', {}).get('log level', 2) + args.quiet - args.verbose) * 10
-        fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, 'lobster.log'), maxBytes=500e6, backupCount=10)
-        fileh.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
-        fileh.setLevel(level)
-
-        logger.addHandler(fileh)
-        logger.setLevel(level)
-
-        if args.foreground:
-            console = logging.StreamHandler()
-            console.setLevel(level)
-            console.setFormatter(ShortPathFormatter("%(asctime)s [%(levelname)5s] - %(pathname)-40s %(lineno)4d: %(message)s"))
-            logger.addHandler(console)
-
         t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
         t.start()
         t.join()

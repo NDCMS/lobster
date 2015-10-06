@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import logging
 import os
 import yaml
 
@@ -7,6 +8,8 @@ from lobster.cmssw.publish import publish
 from lobster.core import kill, run
 from lobster.validate import validate
 from lobster import util
+
+logger = logging.getLogger('lobster')
 
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
@@ -79,6 +82,29 @@ def boil():
     with open(configfile) as f:
         args.config = yaml.load(f)
     args.config['workdir'] = workdir
+
+    # Handle logging for everything in only one place!
+    level = max(1, args.config.get('advanced', {}).get('log level', 2) + args.quiet - args.verbose) * 10
+    logger.setLevel(level)
+
+    formatter = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    if args.func in (run, publish):
+        fn = ('process' if args.func == run else 'publish') + '.log'
+        logger.info("saving log to {0}".format(os.path.join(workdir, fn)))
+        if not os.path.isdir(workdir):
+            os.makedirs(workdir)
+        fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, fn), maxBytes=500e6, backupCount=10)
+        fileh.setFormatter(formatter)
+        args.preserve = fileh.stream
+        logger.addHandler(fileh)
+
+        if not args.foreground:
+            logger.removeHandler(console)
 
     if configfile == args.checkpoint:
         # This is the original configuration file!

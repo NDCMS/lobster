@@ -1,11 +1,11 @@
-import multiprocessing
 import re
 import os
 import datetime
 import itertools
-import shutil
+import logging
 import glob
 import gzip
+import shutil
 import sqlite3
 import subprocess
 import time
@@ -16,7 +16,7 @@ from hashlib import sha1
 from lobster import se, util
 from lobster.cmssw import Workflow
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.job')
 
 def apply_matching(config):
     if 'task defaults' not in config:

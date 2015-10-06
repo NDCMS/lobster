@@ -1,6 +1,6 @@
 from collections import defaultdict
+import logging
 import math
-import multiprocessing
 import os
 import random
 import sqlite3
@@ -8,7 +8,7 @@ import uuid
 
 from lobster import util
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.jobit')
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...

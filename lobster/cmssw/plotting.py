@@ -30,7 +30,7 @@ matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
 matplotlib.rc('font', **{'sans-serif' : 'Liberation Sans', 'family' : 'sans-serif'})
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.plotting')
 
 def reduce(a, idx, interval):
     quant = a[:,idx]
@@ -974,10 +974,5 @@ class Plotter(object):
             ).encode('utf-8'))
 
 def plot(args):
-    console = logging.StreamHandler()
-    console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(pathname)s %(lineno)d: %(message)s"))
-    logger.setLevel(logging.INFO)
-    logger.addHandler(console)
-
     p = Plotter(args.config, args.outdir)
     p.make_plots(args.xmin, args.xmax, args.foreman_list)

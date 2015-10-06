@@ -1,9 +1,10 @@
 import datetime
+import logging
 import multiprocessing
 
 from lobster.cmssw.plotting import Plotter
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.actions')
 
 class DummyQueue(object):
     def start(*args):

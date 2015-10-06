@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8 :
 
 import collections
+import logging
 import os
 import subprocess
 import yaml
@@ -9,6 +10,7 @@ from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
+logger = logging.getLogger('lobster.util')
 
 def record(cls, *fields, **defaults):
     """
@@ -169,7 +171,7 @@ def get_lock(workdir, force=False):
         pidfile.acquire()
     except AlreadyLocked:
         if not force:
-            print "Another instance of lobster is accessing {0}".format(workdir)
+            logger.error("another instance of lobster is accessing {0}".format(workdir))
             raise
     pidfile.break_lock()
     return pidfile

@@ -262,7 +262,13 @@
             <tr class="tasksummary{{ loop.cycle('', ' alt') }}">
             {% endif %}
                 {% for cell in row %}
-                <td{% if row == summary[-1] %} class="footer"{% endif %}>{{ cell }}</td>
+                <td{% if row == summary[-1] %} class="footer"{% endif %}>
+                    {% if cell == row[-2] and cell > 0 and row != summary[-1] %}
+                        <a href="logs/{{row[0]}}">{{cell}}</a>
+                    {% else %}
+                        {{ cell }}
+                    {% endif %}
+                </td>
                     {% if cell == row[-1] and jsons|length > 0%}
                         {% if row == summary[-1] %}
                         <td class="footer"></td>

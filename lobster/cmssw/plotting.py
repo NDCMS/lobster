@@ -21,6 +21,7 @@ import matplotlib.dates as dates
 import numpy as np
 
 from lobster import util
+from lobster.cmssw import jobit
 
 from FWCore.PythonUtilities.LumiList import LumiList
 
@@ -70,7 +71,6 @@ def unpack(source, target):
             input = gzip.open(source, 'rb')
             output.writelines(input)
             input.close()
-        logger.info("unpacked into {0}".format(target))
     except IOError:
         logger.error("cannot unpack {0}".format(source))
         return False
@@ -84,6 +84,7 @@ class Plotter(object):
 
     def __init__(self, config, outdir=None):
         self.__workdir = config['workdir']
+        self.__store = jobit.JobitStore(config)
 
         util.verify(self.__workdir)
         self.__id = config['id']
@@ -348,13 +349,14 @@ class Plotter(object):
         return res
 
     def savelogs(self, failed_jobs, samples=5):
-        logdir = os.path.join(self.__plotdir, 'logs')
-        if not os.path.exists(logdir):
-            os.makedirs(logdir)
-
         pool = multiprocessing.Pool(processes=10)
         work = []
         codes = {}
+
+        logdir = os.path.join(self.__plotdir, 'logs')
+        if os.path.exists(logdir):
+            shutil.rmtree(logdir)
+        os.makedirs(logdir)
 
         for exit_code, jobs in zip(*split_by_column(failed_jobs[['id', 'exit_code']], 'exit_code')):
             codes[exit_code] = [len(jobs), {}]
@@ -383,6 +385,38 @@ class Plotter(object):
         for (code, id, file, res) in work:
             if not res.get():
                 codes[code][1][id].remove(file)
+
+        work = []
+        for label, _, _, _, _, _, _, paused, _ in self.__store.dataset_status()[1:]:
+            if paused == 0:
+                continue
+
+            failed = self.__store.failed_jobits(label)
+            skipped = self.__store.skipped_files(label)
+
+            for id in failed:
+                source = os.path.join(self.__workdir, label, 'failed', util.id2dir(id))
+                target = os.path.join(self.__plotdir, 'logs', label, 'failed')
+                if os.path.exists(target):
+                    shutil.rmtree(target)
+                os.makedirs(target)
+
+                files = []
+                for l in ['executable.log.gz', 'job.log.gz']:
+                    s = os.path.join(source, l)
+                    t = os.path.join(target, str(id) + "_" + l[:-3])
+                    if os.path.exists(s):
+                        work.append(pool.apply_async(unpack, [s, t]))
+
+            if len(skipped) > 0:
+                outname = os.path.join(self.__plotdir, 'logs', label, 'skipped_files.txt')
+                if not os.path.isdir(os.path.dirname(outname)):
+                    os.makedirs(os.path.dirname(outname))
+                with open(outname, 'w') as f:
+                    f.write('\n'.join(skipped))
+        for res in work:
+            res.get()
+
         pool.close()
         pool.join()
 

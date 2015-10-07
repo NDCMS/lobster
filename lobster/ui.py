@@ -7,6 +7,7 @@ from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
 from lobster.core import kill, run
 from lobster.validate import validate
+from lobster.status import status
 from lobster import util
 
 logger = logging.getLogger('lobster')
@@ -43,6 +44,9 @@ def boil():
     parser_validate.add_argument('--delete-merged', action='store_true', dest='delete_merged', default=False,
             help='remove intermediate files that have been merged')
     parser_validate.set_defaults(func=validate)
+
+    parser_status = subparsers.add_parser('status', help='show a workflow status summary')
+    parser_status.set_defaults(func=status)
 
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
     parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')

@@ -11,7 +11,7 @@ import time
 import traceback
 import yaml
 
-from lobster import cmssw, job, util
+from lobster import cmssw, job, status, util
 
 from pkg_resources import get_distribution
 
@@ -81,6 +81,12 @@ def run(args):
         t.join()
 
         logger.info("lobster terminated")
+
+        try:
+            # Fails if something with working directory creation went wrong
+            status.status(args)
+        except:
+            pass
 
 def sprint(config, workdir, cmsjob):
     if cmsjob:

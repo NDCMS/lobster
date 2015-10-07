@@ -100,34 +100,6 @@ class JobProvider(object):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
             yaml.dump(self.config, f, default_flow_style=False)
 
-    def get_jobdir(self, jobid, label='', status='running'):
-        # See id2dir for job id formatting in filesystem paths
-        return os.path.normpath(os.path.join(self.workdir, label, status, util.id2dir(jobid)))
-
-    def create_jobdir(self, jobid, label, status='running'):
-        jdir = self.get_jobdir(jobid, label, status)
-        if not os.path.isdir(jdir):
-            os.makedirs(jdir)
-        return jdir
-
-    def move_jobdir(self, jobid, label, status, oldstatus='running'):
-        """Moves a job parameter/log directory from one status directory to
-        another.
-
-        Returns the new directory.
-        """
-        # See above for job id splitting.  Moves directories and removes
-        # old empty directories.
-        old = self.get_jobdir(jobid, label, oldstatus)
-        new = self.get_jobdir(jobid, label, status)
-        parent = os.path.dirname(new)
-        if not os.path.isdir(parent):
-            os.makedirs(parent)
-        shutil.move(old, parent)
-        if len(os.listdir(os.path.dirname(old))) == 0:
-            os.removedirs(os.path.dirname(old))
-        return new
-
     def get_jobids(self, label, status='running'):
         # Iterates over the job directories and returns all jobids found
         # therein.

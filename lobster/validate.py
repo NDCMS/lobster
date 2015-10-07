@@ -1,6 +1,5 @@
 import os
 import logging
-import yaml
 
 from lobster import cmssw, fs, se
 from lobster.job import apply_matching

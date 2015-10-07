@@ -3,6 +3,7 @@
 import collections
 import logging
 import os
+import shutil
 import subprocess
 import yaml
 
@@ -175,3 +176,27 @@ def get_lock(workdir, force=False):
             raise
     pidfile.break_lock()
     return pidfile
+
+def taskdir(workdir, taskid, status='running'):
+    tdir = os.path.normpath(os.path.join(workdir, status, id2dir(taskid)))
+    if not os.path.isdir(tdir):
+        os.makedirs(tdir)
+    return tdir
+
+def move(workdir, taskid, status, oldstatus='running'):
+    """Moves a job parameter/log directory from one status directory to
+    another.
+
+    Returns the new directory.
+    """
+    # See above for job id splitting.  Moves directories and removes
+    # old empty directories.
+    old = os.path.normpath(os.path.join(workdir, oldstatus, id2dir(taskid)))
+    new = os.path.normpath(os.path.join(workdir, status, id2dir(taskid)))
+    parent = os.path.dirname(new)
+    if not os.path.isdir(parent):
+        os.makedirs(parent)
+    shutil.move(old, parent)
+    if len(os.listdir(os.path.dirname(old))) == 0:
+        os.removedirs(os.path.dirname(old))
+    return new

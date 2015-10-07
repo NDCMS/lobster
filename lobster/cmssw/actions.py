@@ -40,9 +40,9 @@ class Actions(object):
     def __del__(self):
         self.plotq.put('stop')
 
-    def take(self):
+    def take(self, force=False):
         now = datetime.datetime.now()
-        if (now - self.__last).seconds > 15 * 60:
+        if (now - self.__last).seconds > 15 * 60 or force:
             self.plotq.put('plot')
             self.__last = now
 

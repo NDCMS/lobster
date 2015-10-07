@@ -280,3 +280,5 @@ def sprint(config, workdir, cmsjob):
             actions.take()
     if jobits_left == 0:
         logger.info("no more work left to do")
+        if actions:
+            actions.take(True)

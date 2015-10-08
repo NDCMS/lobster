@@ -2,7 +2,7 @@ from collections import defaultdict
 import gzip
 import imp
 import json
-import multiprocessing
+import logging
 import os
 import re
 import shutil
@@ -19,7 +19,7 @@ from dataset import MetaInterface
 
 import work_queue as wq
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.cmssw.job')
 
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):
@@ -162,15 +162,13 @@ class JobProvider(job.JobProvider):
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_jobids(label):
-                    self.move_jobdir(id, label, 'failed')
+                    util.move(wflow.workdir, id, 'failed')
 
         if update_config:
             self.save_configuration()
 
     def get_report(self, label, job):
-        jobdir = self.get_jobdir(job, label, 'successful')
-
-        return os.path.join(jobdir, 'report.json')
+        return os.path.join(self.workdir, label, 'successful', util.id2dir(job), 'report.json')
 
     def obtain(self, num=1):
         # FIXME allow for adjusting the number of LS per job
@@ -187,7 +185,7 @@ class JobProvider(job.JobProvider):
             wflow = self.workflows[label]
             ids.append(id)
 
-            jdir = self.create_jobdir(id, label, 'running')
+            jdir = util.taskdir(wflow.workdir, id)
             inputs = list(self._inputs)
             inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
             outputs = [(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']]
@@ -328,9 +326,12 @@ class JobProvider(job.JobProvider):
                         cmssw_exit_code = data['cmssw exit code']
                         job_update.bytes_output = data['output size']
                         job_update.bytes_bare_output = data['output bare size']
-            except (ValueError, EOFError, IOError) as e:
+            except (ValueError, EOFError) as e:
                 failed = True
                 logger.error("error processing {0}:\n{1}".format(task.tag, e))
+            except IOError as e:
+                failed = True
+                logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
             if task.result in [wq.WORK_QUEUE_RESULT_STDOUT_MISSING,
                     wq.WORK_QUEUE_RESULT_SIGNAL,
@@ -369,15 +370,16 @@ class JobProvider(job.JobProvider):
             job_update.status = status
             job_update.id = task.tag
 
+            wflow = self.workflows[handler.dataset]
             if failed:
-                faildir = self.move_jobdir(handler.id, handler.dataset, 'failed')
+                faildir = util.move(wflow.workdir, handler.id, 'failed')
                 logger.info("parameters and logs can be found in {0}".format(faildir))
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
                 if handler.merge and self.config.get('delete merged', True):
                     files = handler.input_files
                     cleanup += files
-                self.move_jobdir(handler.id, handler.dataset, 'successful')
+                util.move(wflow.workdir, handler.id, 'successful')
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 

@@ -1,6 +1,6 @@
 from collections import defaultdict
+import logging
 import math
-import multiprocessing
 import os
 import random
 import sqlite3
@@ -8,7 +8,7 @@ import uuid
 
 from lobster import util
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.jobit')
 
 # FIXME these are hardcoded in some SQL statements below.  SQLite does not
 # seem to have the concept of variables...
@@ -542,6 +542,23 @@ class JobitStore:
 
         return cur.fetchone()
 
+    def dataset_status(self):
+        cursor = self.db.execute("""
+            select
+                label,
+                events,
+                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                jobits + masked_lumis,
+                jobits,
+                jobits_done,
+                jobits_paused,
+                '' || round(
+                        jobits_done * 100.0 / jobits,
+                    1) || ' %'
+            from datasets""")
+        return ["label events read written jobits unmasked done paused percent".split()] + list(cursor)
+
     def pop_unmerged_jobs(self, bytes, num=1):
         """Create merging jobs.
 
@@ -700,7 +717,6 @@ class JobitStore:
 
     def failed_jobs(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
-
         cur = self.db.execute("""select id, type
             from jobs
             where status in (3, 4) and dataset=?
@@ -708,10 +724,18 @@ class JobitStore:
 
         return cur
 
+    def failed_jobits(self, label):
+        tasks = self.db.execute("select job from jobits_{0} where failed > ?".format(label), (self.__failure_threshold,))
+        return [xs[0] for xs in tasks]
+
     def running_jobs(self):
         cur = self.db.execute("select id from jobs where status=1")
         for (v,) in cur:
             yield v
+
+    def skipped_files(self, label):
+        files = self.db.execute("select filename from files_{0} where skipped > ?".format(label), (self.__skipping_threshold,))
+        return [xs[0] for xs in files]
 
     def update_pset_hash(self, pset_hash, dataset):
         self.db.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))
@@ -732,4 +756,3 @@ class JobitStore:
         self.db.executemany("update jobs set status=2 where job=?", [(job,) for job in jobs])
 
         self.db.commit()
-

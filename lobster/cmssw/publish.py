@@ -20,6 +20,8 @@ from lobster.job import apply_matching
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw.jobit import JobitStore
 
+logger = logging.getLogger('lobster.publish.')
+
 def hash_pset(fn):
     p = subprocess.Popen(['edmConfigHash', fn], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
@@ -283,29 +285,17 @@ def publish(args):
     publish_instance = config.get('dbs instance', 'phys03')
     published = {'dataset': '', 'dbs instance': publish_instance}
 
-    print "Saving log to {0}".format(os.path.join(workdir, 'publish.log'))
     if not args.foreground:
         ttyfile = open(os.path.join(workdir, 'publish.err'), 'a')
-        print "Saving stderr and stdout to {0}".format(os.path.join(workdir, 'publish.err'))
+        logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'publish.err')))
 
     with daemon.DaemonContext(
             detach_process=not args.foreground,
             stdout=sys.stdout if args.foreground else ttyfile,
             stderr=sys.stderr if args.foreground else ttyfile,
+            files_preserve=[args.preserve],
             working_directory=workdir,
             pidfile=util.get_lock(workdir)):
-        logging.basicConfig(
-                datefmt="%Y-%m-%d %H:%M:%S",
-                format="%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s",
-                level=config.get('advanced', {}).get('log level', 2) * 10,
-                filename=os.path.join(workdir, 'publish.log'))
-
-        if args.foreground:
-            console = logging.StreamHandler()
-            console.setLevel(config.get('advanced', {}).get('log level', 2) * 10)
-            console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(filename)s %(lineno)d: %(message)s"))
-            logging.getLogger('').addHandler(console)
-
         db = JobitStore(config)
         das_interface = MetaInterface()
 
@@ -329,8 +319,8 @@ def publish(args):
 
             dset = dset.strip('/').split('/')[0]
             if not pset_hash or pset_hash == 'None':
-                logging.info('the parameter set hash has not been calculated')
-                logging.info('calculating parameter set hash now (may take a few minutes)')
+                logger.info('the parameter set hash has not been calculated')
+                logger.info('calculating parameter set hash now (may take a few minutes)')
                 cfg_path = os.path.join(workdir, label, os.path.basename(cfg))
                 tmp_path = cfg_path.replace('.py', '_tmp.py')
                 with open(cfg_path, 'r') as infile:
@@ -342,7 +332,7 @@ def publish(args):
                     pset_hash = hash_pset(tmp_path)
                     db.update_pset_hash(pset_hash, label)
                 except:
-                    logging.warning('error calculating the cmssw parameter set hash')
+                    logger.warning('error calculating the cmssw parameter set hash')
                 os.remove(tmp_path)
 
             block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
@@ -351,24 +341,24 @@ def publish(args):
                 try:
                     dbs['local'].insertAcquisitionEra({'acquisition_era_name': user})
                 except Exception, ex:
-                    logging.warn(ex)
+                    logger.warn(ex)
             try:
                 dbs['local'].insertPrimaryDataset(block.data['primds'])
                 dbs['local'].insertDataset(block.data['dataset'])
             except Exception, ex:
-                logging.warn(ex)
+                logger.warn(ex)
                 raise
 
             jobs = db.finished_jobs(label)
 
             first_job = 0
             inserted = False
-            logging.info('found %d successful %s jobs to publish' % (len(jobs), label))
+            logger.info('found %d successful %s jobs to publish' % (len(jobs), label))
             missing = []
             while first_job < len(jobs):
                 block.reset()
                 chunk = jobs[first_job:first_job+args.block_size]
-                logging.info('preparing DBS entry for %i job block: %s' % (len(chunk), block['block']['block_name']))
+                logger.info('preparing DBS entry for %i job block: %s' % (len(chunk), block['block']['block_name']))
 
                 for job, merged_job in chunk:
                     id = merged_job if merged_job else job
@@ -386,11 +376,11 @@ def publish(args):
                     LFN = block.get_LFN(PFN)
                     matched_PFN = block.get_matched_PFN(PFN, LFN)
                     if not matched_PFN:
-                        logging.warn('could not find expected output for job(s) {0}'.format(job))
+                        logger.warn('could not find expected output for job(s) {0}'.format(job))
                         missing.append(job)
                     else:
                         fileinfo = report['files']['output info'][local]
-                        logging.info('adding %s to block' % LFN)
+                        logger.info('adding %s to block' % LFN)
                         block.add_file_config(LFN)
                         block.add_file(LFN, fileinfo, job, merged_job)
                         block.add_dataset_config()
@@ -406,9 +396,9 @@ def publish(args):
                         inserted = True
                         dbs['local'].insertBulkBlock(block.data)
                         db.update_published(block.get_publish_update())
-                        logging.info('block inserted: %s' % block['block']['block_name'])
+                        logger.info('block inserted: %s' % block['block']['block_name'])
                     except HTTPError, e:
-                        logging.critical(e)
+                        logger.critical(e)
 
                 first_job += args.block_size
 
@@ -419,10 +409,10 @@ def publish(args):
                 json = os.path.join(workdir, label, 'published.json')
                 lumis.writeJSON(json)
 
-                logging.info('publishing dataset %s complete' % label)
-                logging.info('json file of published runs and lumis saved to %s' % json)
+                logger.info('publishing dataset %s complete' % label)
+                logger.info('json file of published runs and lumis saved to %s' % json)
 
             if len(missing) > 0:
                 template = "the following job(s) have not been published because their output could not be found: {0}"
-                logging.warning(template.format(", ".join(map(str, missing))))
+                logger.warning(template.format(", ".join(map(str, missing))))
 

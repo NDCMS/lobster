@@ -1,10 +1,10 @@
 import fnmatch
-import multiprocessing
+import logging
 import os
 import shutil
 import tarfile
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.sandbox')
 
 def dontpack(fn):
     res = ('/.' in fn and not '/.SCRAM' in fn) or '/CVS/' in fn

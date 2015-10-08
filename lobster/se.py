@@ -1,5 +1,5 @@
 import glob
-import multiprocessing
+import logging
 import os
 import random
 import re
@@ -12,7 +12,7 @@ from functools import partial, wraps
 
 import Chirp as chirp
 
-logger = multiprocessing.get_logger()
+logger = logging.getLogger('lobster.se')
 
 # Breaks a URL down into 3 parts: the protocol, a optional server, and
 # the path

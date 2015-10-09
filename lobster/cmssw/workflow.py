@@ -85,7 +85,7 @@ class Workflow(object):
                 params['append inputs to args'] = True
             else:
                 cmd = 'hadd'
-                args = ['-f', self.outputs[0]]
+                args = ['-f', self._outputs[0]]
                 pset = None
 
             params['prologue'] = None

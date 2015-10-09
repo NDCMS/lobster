@@ -81,6 +81,8 @@ def run(args):
         t.join()
 
         logger.info("lobster terminated")
+        if not args.foreground:
+            logger.info("stderr and stdout saved in {0}".format(os.path.join(workdir, 'process.err')))
 
         try:
             # Fails if something with working directory creation went wrong

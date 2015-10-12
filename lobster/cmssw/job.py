@@ -171,8 +171,6 @@ class JobProvider(job.JobProvider):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(job), 'report.json')
 
     def obtain(self, num=1):
-        # FIXME allow for adjusting the number of LS per job
-
         jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('merge size', -1), 10), {}) \
                 + self.retry(self.__store.pop_jobits, (num,), {})
         if not jobinfos or len(jobinfos) == 0:

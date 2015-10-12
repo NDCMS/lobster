@@ -406,9 +406,6 @@ class JobitStore:
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
                 db.execute("update jobits_{0} set status=2 where status=7".format(label))
                 self.update_dataset_stats(label)
-
-        db.commit()
-
         return ids
 
     @retry(stop_max_attempt_number=10)

@@ -235,7 +235,6 @@ class JobitStore:
 
         self.db.commit()
 
-    @retry(stop_max_attempt_number=10)
     def pop_jobits(self, num=1):
         """
         Create a predetermined number of jobs.  The task these are
@@ -275,6 +274,7 @@ class JobitStore:
                 tasks.extend(self.__pop_jobits(size, dataset, dataset_id, empty_source))
         return tasks
 
+    @retry(stop_max_attempt_number=10)
     def __pop_jobits(self, size, dataset, dataset_id, empty_source):
         """Internal method to create jobs from a dataset
         """

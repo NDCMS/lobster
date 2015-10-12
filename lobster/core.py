@@ -94,9 +94,12 @@ def sprint(config, workdir, cmsjob):
     if cmsjob:
         job_src = cmssw.JobProvider(config)
         actions = cmssw.Actions(config)
+        from ProdCommon.Credential.CredentialAPI import CredentialAPI
+        credentials = CredentialAPI({'credential': 'Proxy'})
     else:
         job_src = job.SimpleJobProvider(config)
         actions = None
+        credentials = None
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -111,7 +114,6 @@ def sprint(config, workdir, cmsjob):
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-
 
     cores = config.get('cores per job', 1)
     logger.info("starting queue as {0}".format(queue.name))
@@ -218,6 +220,13 @@ def sprint(config, workdir, cmsjob):
             if jobs == None or len(jobs) == 0:
                 break
 
+            expiry = None
+            if credentials:
+                left = credentials.getTimeLeft()
+                if left < 4 * 3600:
+                    logger.warn("less than 4 hours left in proxy lifetime!")
+                expiry = int(time.time()) + left
+
             hunger -= len(jobs)
             for cores, cmd, id, inputs, outputs in jobs:
                 task = wq.Task(cmd)
@@ -241,6 +250,8 @@ def sprint(config, workdir, cmsjob):
                 for (local, remote) in outputs:
                     task.specify_output_file(str(local), str(remote))
 
+                if expiry:
+                    task.specify_end_time(expiry)
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 

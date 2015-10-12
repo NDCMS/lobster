@@ -29,9 +29,9 @@ class ReleaseSummary(object):
 
     flags = {
             wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",
-            wq.WORK_QUEUE_RESULT_SIGNAL: "received signal",
+            wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",
             wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",
-            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "timed out"
+            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out"
     }
 
     def __init__(self):

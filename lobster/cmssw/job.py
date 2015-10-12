@@ -171,8 +171,8 @@ class JobProvider(job.JobProvider):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(job), 'report.json')
 
     def obtain(self, num=1):
-        jobinfos = self.retry(self.__store.pop_unmerged_jobs, (self.config.get('merge size', -1), 10), {}) \
-                + self.retry(self.__store.pop_jobits, (num,), {})
+        jobinfos = self.__store.pop_unmerged_jobs(self.config.get('merge size', -1), 10) \
+                + self.__store.pop_jobits(num)
         if not jobinfos or len(jobinfos) == 0:
             return None
 
@@ -228,7 +228,7 @@ class JobProvider(job.JobProvider):
                 if len(missing) > 0:
                     template = "the following have been marked as failed because their output could not be found: {0}"
                     logger.warning(template.format(", ".join(map(str, missing))))
-                    self.retry(self.__store.update_missing, (missing,), {})
+                    self.__store.update_missing(missing)
 
                 if len(infiles) <= 1:
                     # FIXME report these back to the database and then skip
@@ -396,7 +396,7 @@ class JobProvider(job.JobProvider):
                 logger.error("error removing {0}:\n{1}".format(task.tag, e))
 
         if len(jobs) > 0:
-            self.retry(self.__store.update_jobits, (jobs,), {})
+            self.__store.update_jobits(jobs)
 
     def terminate(self):
         for id in self.__store.running_jobs():

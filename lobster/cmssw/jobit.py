@@ -493,16 +493,17 @@ class JobitStore:
         self.db.execute("""
             update datasets set
                 jobits_running=(select count(*) from jobits_{0} where status in (1, 7)),
-                jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8))
-            where label=?""".format(label), (label,))
+                jobits_done=(select count(*) from jobits_{0} where status in (2, 6, 8)),
+                jobits_paused=(select count(*) from jobits_{0}
+                        where
+                            (failed > ? or file in (select id from files_{0} where skipped >= ?))
+                            and status in (0, 3, 4))
+            where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label,))
 
         self.db.execute("""
             update datasets set
-                jobits_paused=
-                    (select count(*) from jobits_{0} where failed > ?) +
-                    ifnull((select sum(jobits - jobits_done) from files_{0} where skipped >= ?), 0),
                 jobits_left=jobits - (jobits_running + jobits_done + jobits_paused)
-            where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label))
+            where label=?""".format(label), (label,))
 
     def merged(self):
         unmerged = self.db.execute("select count(*) from datasets where merged <> 1").fetchone()[0]

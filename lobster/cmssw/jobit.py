@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import random
+from retrying import retry
 import sqlite3
 import uuid
 
@@ -273,6 +274,7 @@ class JobitStore:
                 tasks.extend(self.__pop_jobits(size, dataset, dataset_id, empty_source))
         return tasks
 
+    @retry(stop_max_attempt_number=10)
     def __pop_jobits(self, size, dataset, dataset_id, empty_source):
         """Internal method to create jobs from a dataset
         """
@@ -404,11 +406,9 @@ class JobitStore:
                 db.execute("update jobits_{0} set status=4 where status=1".format(label))
                 db.execute("update jobits_{0} set status=2 where status=7".format(label))
                 self.update_dataset_stats(label)
-
-        db.commit()
-
         return ids
 
+    @retry(stop_max_attempt_number=10)
     def update_jobits(self, jobinfos):
         job_updates = []
 
@@ -559,6 +559,7 @@ class JobitStore:
             from datasets""")
         return ["label events read written jobits unmasked done paused percent".split()] + list(cursor)
 
+    @retry(stop_max_attempt_number=10)
     def pop_unmerged_jobs(self, bytes, num=1):
         """Create merging jobs.
 
@@ -742,6 +743,7 @@ class JobitStore:
 
         self.db.commit()
 
+    @retry(stop_max_attempt_number=10)
     def update_missing(self, jobs):
         for job, dataset in self.db.execute("""select jobs.id,
             datasets.label

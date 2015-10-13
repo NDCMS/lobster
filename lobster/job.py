@@ -127,17 +127,3 @@ class JobProvider(object):
 
     def work_left(self):
         raise NotImplementedError
-
-    def retry(self, fct, args, kwargs, attempts=10):
-        while attempts > 0:
-            attempts -= 1
-
-            try:
-                return fct(*args, **kwargs)
-            except sqlite3.OperationalError:
-                logger.critical("failed to perform SQL operation.  {0} attempts remaining.".format(attempts))
-                if attempts <= 0:
-                    raise
-                time.sleep(1)
-
-

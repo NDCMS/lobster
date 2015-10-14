@@ -82,11 +82,11 @@ class Workflow(object):
             if self.edm_output:
                 args = ['output=' + self._outputs[0]]
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
-                params['append inputs to args'] = True
             else:
                 cmd = 'hadd'
                 args = ['-f', self._outputs[0]]
                 pset = None
+                params['append inputs to args'] = True
 
             params['prologue'] = None
             params['epilogue'] = ['python', 'merge_reports.py', 'report.json'] \

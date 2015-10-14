@@ -84,7 +84,7 @@ class Workflow(object):
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
             else:
                 cmd = 'hadd'
-                args = ['-f', self._outputs[0]]
+                args = ['-n', '0', '-f', self._outputs[0]]
                 pset = None
                 params['append inputs to args'] = True
 

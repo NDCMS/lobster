@@ -19,6 +19,8 @@ def boil():
     subparsers = parser.add_subparsers(title='commands')
 
     parser_run = subparsers.add_parser('process', help='process configuration')
+    parser_run.add_argument('--finalize', action='store_true', default=False,
+            help='do not process any additional data; wrap project up by merging everything')
     parser_run.add_argument('--foreground', action='store_true', default=False,
             help='do not daemonize; run in the foreground instead')
     parser_run.add_argument('-f', '--force', action='store_true', default=False,
@@ -109,6 +111,10 @@ def boil():
 
         if not args.foreground:
             logger.removeHandler(console)
+
+        if args.func == run and args.finalize:
+            args.config['threshold for failure'] = 0
+            args.config['threshold for skipping'] = 0
 
     if configfile == args.checkpoint:
         # This is the original configuration file!

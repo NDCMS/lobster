@@ -331,10 +331,7 @@ class JobProvider(job.JobProvider):
                 failed = True
                 logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
-            if task.result in [wq.WORK_QUEUE_RESULT_STDOUT_MISSING,
-                    wq.WORK_QUEUE_RESULT_SIGNAL,
-                    wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION,
-                    wq.WORK_QUEUE_RESULT_TASK_TIMEOUT]:
+            if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
                 exit_code = task.result
                 failed = True
             elif cmssw_exit_code not in (None, 0):

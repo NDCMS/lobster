@@ -123,6 +123,8 @@ def sprint(config, workdir, cmsjob):
     abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
     abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
 
+    wq_max_retries = config.get('advanced', {}).get('wq max tries', 10)
+
     if util.checkpoint(workdir, 'KILLED') == 'PENDING':
         util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
@@ -223,6 +225,7 @@ def sprint(config, workdir, cmsjob):
                 task = wq.Task(cmd)
                 task.specify_tag(id)
                 task.specify_cores(cores)
+                task.specify_max_retries(wq_max_retries)
                 # temporary work-around?
                 # task.specify_memory(1000)
                 # task.specify_disk(4000)

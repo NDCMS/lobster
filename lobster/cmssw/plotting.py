@@ -731,9 +731,6 @@ class Plotter(object):
         success_jobs = good_jobs[good_jobs['type'] == 0]
         merge_jobs = good_jobs[good_jobs['type'] == 1]
 
-        failed_processing = failed_jobs[failed_jobs['type'] == 0]
-        failed_merging = failed_jobs[failed_jobs['type'] == 1]
-
         foremen_names = self.make_foreman_plots()
 
         self.plot(
@@ -916,7 +913,7 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
-            for prefix, jobs, failures in [('good-', success_jobs, failed_processing), ('merge-', merge_jobs, failed_merging)]:
+            for prefix, jobs in [('good-', success_jobs), ('merge-', merge_jobs)]:
                 if len(jobs) == 0:
                     continue
 

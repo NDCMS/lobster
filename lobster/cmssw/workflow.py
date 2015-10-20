@@ -7,6 +7,7 @@ class Workflow(object):
         self.config = config
         self.label = config['label']
         self.workdir = os.path.join(workdir, self.label)
+        self.runtime = config.get('task runtime')
 
         self.cmd = config.get('cmd', 'cmsRun')
         self.extra_inputs = config.get('extra inputs', [])
@@ -96,9 +97,12 @@ class Workflow(object):
 
             if unique:
                 args.append(unique)
-
             if pset:
                 pset = os.path.join(self.workdir, pset)
+            if self.runtime:
+                # cap task runtime at desired runtime + 10 minutes grace
+                # period (CMSSW 7.4 and higher only)
+                params['task runtime'] = self.runtime + 10 * 60
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))

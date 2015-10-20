@@ -12,6 +12,11 @@ from lobster import util
 
 logger = logging.getLogger('lobster')
 
+def check_deprecated(config):
+    if 'task runtime' in config:
+        logger.error("parameter 'task runtime' is now specified per workflow'")
+        sys.exit(1)
+
 def boil():
     parser = ArgumentParser(description='A job submission tool for CMS')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
@@ -121,5 +126,7 @@ def boil():
         args.config['base directory'] = os.path.abspath(os.path.dirname(configfile))
         args.config['base configuration'] = os.path.abspath(configfile)
         args.config['startup directory'] = os.path.abspath(os.getcwd())
+
+    check_deprecated(args.config)
 
     args.func(args)

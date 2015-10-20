@@ -14,6 +14,11 @@ incompatible with the current git master, the version number in `setup.py`
 should be increased.  Lobster will then refuse to resume old working
 directories, and the user can install a legacy version as a work around.
 
+# Configuration changes
+
+When configuration options change, users should be notified by the method
+`check_deprecated` in [`ui.py`](lobster/ui.py).
+
 # Testing
 
 Lobster uses `nose` to run unit tests, which can be found in the `test`

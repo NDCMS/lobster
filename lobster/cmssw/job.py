@@ -158,7 +158,7 @@ class JobProvider(job.JobProvider):
                     dataset_info = self.__interface.get_info(wflow.config)
 
                 logger.info("registering {0} in database".format(label))
-                self.__store.register(wflow.config, dataset_info, self.config.get('task runtime', None))
+                self.__store.register(wflow.config, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_jobids(label):
@@ -250,11 +250,6 @@ class JobProvider(job.JobProvider):
                 merge=merge,
                 local=wflow.local)
 
-            if 'task runtime' in self.config and not merge:
-                # cap task runtime at desired runtime + 10 minutes grace
-                # period (CMSSW 7.4 and higher only)
-                config['task runtime'] = self.config['task runtime'] + 10 * 60
-
             # set input/output transfer parameters
             self._storage.preprocess(config, merge)
             # adjust file and lumi information in config, add task specific
@@ -267,8 +262,11 @@ class JobProvider(job.JobProvider):
             cmd = 'sh wrapper.sh python job.py parameters.json'
 
             cores = 1 if merge else self.config.get('cores per job', 1)
+            runtime = None
+            if 'task runtime' in config:
+                runtime = config['task runtime'] + 15 * 60
 
-            tasks.append((cores, cmd, id, inputs, outputs))
+            tasks.append((runtime, cores, cmd, id, inputs, outputs))
 
             self.__jobhandlers[id] = handler
 

@@ -221,11 +221,13 @@ def sprint(config, workdir, cmsjob):
                 break
 
             hunger -= len(jobs)
-            for cores, cmd, id, inputs, outputs in jobs:
+            for runtime, cores, cmd, id, inputs, outputs in jobs:
                 task = wq.Task(cmd)
                 task.specify_tag(id)
                 task.specify_cores(cores)
                 task.specify_max_retries(wq_max_retries)
+                if runtime:
+                    task.specify_running_time(runtime)
                 # temporary work-around?
                 # task.specify_memory(1000)
                 # task.specify_disk(4000)

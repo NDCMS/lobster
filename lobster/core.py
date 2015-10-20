@@ -161,6 +161,7 @@ def sprint(config, workdir, cmsjob):
         jobs_left = job_src.tasks_left()
         jobits_left = job_src.work_left()
 
+        logger.debug("expecting {0} tasks, still".format(jobs_left))
         queue.specify_num_tasks_left(jobs_left)
 
         stats = queue.stats_hierarchy

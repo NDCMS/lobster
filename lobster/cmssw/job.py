@@ -28,10 +28,16 @@ class ReleaseSummary(object):
     """
 
     flags = {
-            wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",
-            wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",
-            wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",
-            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out"
+            wq.WORK_QUEUE_RESULT_INPUT_MISSING: "missing input",                # 1
+            wq.WORK_QUEUE_RESULT_OUTPUT_MISSING: "missing output",              # 2
+            wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",                   # 4
+            wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",                     # 8
+            wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",    # 16
+            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out",                      # 32
+            wq.WORK_QUEUE_RESULT_UNKNOWN: "unclassified error",                 # 64
+            wq.WORK_QUEUE_RESULT_FORSAKEN: "unrelated error",                   # 128
+            wq.WORK_QUEUE_RESULT_MAX_RETRIES: "exceed # retries",               # 256
+            wq.WORK_QUEUE_RESULT_TASK_MAX_RUNTIME: "exceeded runtime"           # 512
     }
 
     def __init__(self):
@@ -381,9 +387,9 @@ class JobProvider(job.JobProvider):
                 logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
             if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
-                exit_code = task.result
+                exit_code = 100000 + task.result
                 failed = True
-                summary.wq(exit_code, task.tag)
+                summary.wq(task.result, task.tag)
             elif cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
                 if exit_code > 0:

@@ -7,13 +7,13 @@ your setup might be needed.
 
 Use `work_queue` etc from the CC lab:
 
-    cctools=cctools-030-33be9b17-cvmfs-40cf5bba
+    cctools=cctools-031-f7665c71-cvmfs-40cf5bba
     export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
     export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 
 or, for `tcsh` users,
 
-    setenv cctools-030-33be9b17-cvmfs-40cf5bba
+    setenv cctools-031-f7665c71-cvmfs-40cf5bba
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}
 

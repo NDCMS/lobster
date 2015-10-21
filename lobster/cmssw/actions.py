@@ -38,7 +38,9 @@ class Actions(object):
         self.__last = datetime.datetime.now()
 
     def __del__(self):
+        logger.info('shutting down process for automatic plotting with pid {0}'.format(self.plotp.pid))
         self.plotq.put('stop')
+        self.plotp.join()
 
     def take(self, force=False):
         now = datetime.datetime.now()

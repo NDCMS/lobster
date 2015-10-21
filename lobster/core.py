@@ -213,7 +213,7 @@ def sprint(config, workdir, cmsjob):
         need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("total cores available (committed): {0:02} ({1:02})".format(stats.total_cores, stats.committed_cores))
+        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
         logger.debug("trying to feed {0} jobs to work queue".format(hunger))
 
         expiry = None

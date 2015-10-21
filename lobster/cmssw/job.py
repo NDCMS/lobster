@@ -386,7 +386,7 @@ class JobProvider(job.JobProvider):
                 failed = True
                 logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
-            if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
+            if not task.return_status and task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
                 exit_code = 100000 + task.result
                 failed = True
                 summary.wq(task.result, task.tag)

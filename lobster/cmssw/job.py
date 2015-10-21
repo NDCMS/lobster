@@ -37,7 +37,7 @@ class ReleaseSummary(object):
             wq.WORK_QUEUE_RESULT_UNKNOWN: "unclassified error",                 # 64
             wq.WORK_QUEUE_RESULT_FORSAKEN: "unrelated error",                   # 128
             wq.WORK_QUEUE_RESULT_MAX_RETRIES: "exceed # retries",               # 256
-            wq.WORK_QUEUE_RESULT_TASK_MAX_RUNTIME: "exceeded runtime"           # 512
+            wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME: "exceeded runtime"          # 512
     }
 
     def __init__(self):

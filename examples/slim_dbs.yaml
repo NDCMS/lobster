@@ -82,7 +82,11 @@ delete merged: true
 ##              extra inputs (list of strings): extra files needed to run the job
 ##              publish label (string): label to include in the published dataset name
 ##              output format (string): optional renaming of files, based on their basename and extension
-##                                      for example, "this_is_file_{id}_{base}.{ext}"
+##                      for example, "this_is_file_{id}_{base}.{ext}"
+##             task runtime (int): number of seconds the tasks should run
+##                      for.  Two grace periods are applied: 10 minutes for
+##                      CMSSW to stop processing (only 7_4_X and higher),
+##                      and 15 additional minutes until the task is killed.
 
 ## Set task default, applied to all tasks specified below, unless they
 ## override certain options.

@@ -241,7 +241,7 @@ def sprint(config, workdir, cmsjob):
                 task.specify_cores(cores)
                 task.specify_max_retries(wq_max_retries)
                 if runtime:
-                    task.specify_running_time(runtime)
+                    task.specify_running_time(runtime * 10**6)
                 # temporary work-around?
                 # task.specify_memory(1000)
                 # task.specify_disk(4000)
@@ -261,7 +261,7 @@ def sprint(config, workdir, cmsjob):
                     task.specify_output_file(str(local), str(remote))
 
                 if expiry:
-                    task.specify_end_time(expiry)
+                    task.specify_end_time(expiry * 10**6)
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 

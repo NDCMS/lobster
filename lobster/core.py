@@ -94,9 +94,12 @@ def sprint(config, workdir, cmsjob):
     if cmsjob:
         job_src = cmssw.JobProvider(config)
         actions = cmssw.Actions(config)
+        from ProdCommon.Credential.CredentialAPI import CredentialAPI
+        credentials = CredentialAPI({'credential': 'Proxy'})
     else:
         job_src = job.SimpleJobProvider(config)
         actions = None
+        credentials = None
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -111,7 +114,6 @@ def sprint(config, workdir, cmsjob):
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-
 
     cores = config.get('cores per job', 1)
     logger.info("starting queue as {0}".format(queue.name))
@@ -211,8 +213,19 @@ def sprint(config, workdir, cmsjob):
         need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
+        logger.debug("total cores available (committed): {0:02} ({1:02})".format(stats.total_cores, stats.committed_cores))
         logger.debug("trying to feed {0} jobs to work queue".format(hunger))
+
+        expiry = None
+        if credentials and hunger > 0:
+            left = credentials.getTimeLeft()
+            if left == 0:
+                logger.error("proxy expired!")
+                job_src.terminate()
+                break
+            elif left < 4 * 3600:
+                logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
+            expiry = int(time.time()) + left
 
         t = time.time()
         while hunger > 0:
@@ -247,6 +260,8 @@ def sprint(config, workdir, cmsjob):
                 for (local, remote) in outputs:
                     task.specify_output_file(str(local), str(remote))
 
+                if expiry:
+                    task.specify_end_time(expiry)
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 

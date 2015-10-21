@@ -21,6 +21,56 @@ import work_queue as wq
 
 logger = logging.getLogger('lobster.cmssw.job')
 
+class ReleaseSummary(object):
+    """Summary of returned tasks.
+
+    Prints a user-friendly summary of which tasks returned with what exit code/status.
+    """
+
+    flags = {
+            wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",
+            wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",
+            wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",
+            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out"
+    }
+
+    def __init__(self):
+        self.__exe = {}
+        self.__wq = {}
+        self.__taskdirs = {}
+
+    def exe(self, status, taskid):
+        try:
+            self.__exe[status].append(taskid)
+        except KeyError:
+            self.__exe[status] = [taskid]
+
+    def wq(self, status, taskid):
+        for flag in ReleaseSummary.flags.keys():
+            if status & flag:
+                try:
+                    self.__wq[flag].append(taskid)
+                except KeyError:
+                    self.__wq[flag] = [taskid]
+
+    def dir(self, taskid, taskdir):
+        self.__taskdirs[taskid] = taskdir
+
+    def __str__(self):
+        s = "received the following task(s):\n"
+        for status in sorted(self.__exe.keys()):
+            s += "returned with status {0}: {1}\n".format(status, ", ".join(self.__exe[status]))
+            if status != 0:
+                s += "parameters and logs in:\n\t{0}\n".format(
+                        "\n\t".join([self.__taskdirs[t] for t in self.__exe[status]]))
+        for flag in sorted(self.__wq.keys()):
+            s += "failed due to {0}: {1}\nparameters and logs in:\n\t{2}\n".format(
+                    ReleaseSummary.flags[flag],
+                    ", ".join(self.__wq[flag]),
+                    "\n\t".join([self.__taskdirs[t] for t in self.__wq[flag]]))
+        # Trim final newline
+        return s[:-1]
+
 class JobProvider(job.JobProvider):
     def __init__(self, config, interval=300):
         super(JobProvider, self).__init__(config)
@@ -279,6 +329,7 @@ class JobProvider(job.JobProvider):
     def release(self, tasks):
         cleanup = []
         jobs = defaultdict(list)
+        summary = ReleaseSummary()
         for task in tasks:
             failed = (task.return_status != 0)
 
@@ -332,14 +383,15 @@ class JobProvider(job.JobProvider):
             if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
                 exit_code = task.result
                 failed = True
+                summary.wq(exit_code, task.tag)
             elif cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
                 if exit_code > 0:
                     failed = True
+                summary.exe(exit_code, task.tag)
             else:
                 exit_code = task.return_status
-
-            logger.info("job {0} returned with exit code {1}".format(task.tag, exit_code))
+                summary.exe(exit_code, task.tag)
 
             jobits_processed, events_read, events_written, status, file_update, jobit_update = \
                     handler.get_jobit_info(failed, files_info, files_skipped, events_written)
@@ -366,7 +418,7 @@ class JobProvider(job.JobProvider):
             wflow = self.workflows[handler.dataset]
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')
-                logger.info("parameters and logs can be found in {0}".format(faildir))
+                summary.dir(str(handler.id), faildir)
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
                 if handler.merge and self.config.get('delete merged', True):
@@ -391,6 +443,7 @@ class JobProvider(job.JobProvider):
                 logger.error("error removing {0}:\n{1}".format(task.tag, e))
 
         if len(jobs) > 0:
+            logger.info(summary)
             self.__store.update_jobits(jobs)
 
     def terminate(self):

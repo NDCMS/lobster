@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import logging
 import os
+import sys
 import yaml
 
 from lobster.cmssw.plotting import plot

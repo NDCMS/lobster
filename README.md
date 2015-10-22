@@ -56,9 +56,27 @@ the step above to your login script.
 
 # Setup
 
+It is recommended to use lobster in a `virtualenv`, which is used to keep
+all dependencies of lobster within one directory and not interfere with
+other python packages and their dependencies (e.g. CRAB3):
+
+    pip install --user virtualenv
+    virtualenv ~/.lobster
+
+And activate the `virtualenv`.  This step has to be done every time lobster
+is run, to set the right paths for dependencies:
+
+    . ~/.lobster/bin/activate
+
+To exit the `virtualenv`, use:
+
+    deactivate
+
+and proceed with a clean environment again.
+
 Install lobster with
 
-    pip install --user https://github.com/matz-e/lobster/tarball/master
+    pip install https://github.com/matz-e/lobster/tarball/master
 
 and lobster will be installed as `~/.local/bin/lobster`.
 

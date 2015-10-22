@@ -811,7 +811,6 @@ class Plotter(object):
                 label=['evicted', 'idled out', 'fast aborted']
         )
 
-
         if len(good_jobs) > 0 or len(failed_jobs) > 0:
             self.make_pie(
                     [

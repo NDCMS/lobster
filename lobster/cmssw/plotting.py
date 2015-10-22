@@ -302,6 +302,9 @@ class Plotter(object):
 
         stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
         stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
+        stats[:,headers['total_workers_lost']] = np.maximum(stats[:,headers['total_workers_lost']] - np.roll(stats[:,headers['total_workers_lost']], 1, 0), 0)
+        stats[:,headers['total_workers_idled_out']] = np.maximum(stats[:,headers['total_workers_idled_out']] - np.roll(stats[:,headers['total_workers_idled_out']], 1, 0), 0)
+        stats[:,headers['total_workers_fast_aborted']] = np.maximum(stats[:,headers['total_workers_fast_aborted']] - np.roll(stats[:,headers['total_workers_fast_aborted']], 1, 0), 0)
 
         if 'total_create_time' in headers:
             # these are attributes present in the lobster stats log, but
@@ -796,6 +799,18 @@ class Plotter(object):
                 modes=[Plotter.HIST|Plotter.TIME],
                 label=['joined', 'removed']
         )
+
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_lost']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_idled_out']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_fast_aborted']]),
+                ],
+                'Workers', 'worker-deaths',
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['evicted', 'idled out', 'fast aborted']
+        )
+
 
         if len(good_jobs) > 0 or len(failed_jobs) > 0:
             self.make_pie(

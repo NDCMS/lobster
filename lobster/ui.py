@@ -4,6 +4,15 @@ import os
 import sys
 import yaml
 
+# FIXME pycurl shipping with CMSSW is too old to harmonize with modern DBS!
+rm = []
+for f in sys.path:
+    if 'pycurl' in f:
+        rm.append(f)
+print rm
+for f in rm:
+    sys.path.remove(f)
+
 from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
 from lobster.core import kill, run

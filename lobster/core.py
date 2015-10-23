@@ -40,15 +40,15 @@ def run(args):
     if config.get('type', 'cmssw') == 'cmssw':
         cmsjob = True
 
-        from ProdCommon.Credential.CredentialAPI import CredentialAPI
-        cred = CredentialAPI({'credential': 'Proxy'})
-        if cred.checkCredential(Time=60):
+        from WMCore.Credential.Proxy import Proxy
+        cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
+        if cred.check():
             if not 'X509_USER_PROXY' in os.environ:
-                os.environ['X509_USER_PROXY'] = cred.credObj.getUserProxy()
+                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
         else:
             if config.get('advanced', {}).get('renew proxy', True):
                 try:
-                    cred.ManualRenewCredential()
+                    cred.renew()
                 except Exception as e:
                     logger.error("could not renew proxy")
                     sys.exit(1)
@@ -94,12 +94,12 @@ def sprint(config, workdir, cmsjob):
     if cmsjob:
         job_src = cmssw.JobProvider(config)
         actions = cmssw.Actions(config)
-        from ProdCommon.Credential.CredentialAPI import CredentialAPI
-        credentials = CredentialAPI({'credential': 'Proxy'})
+        from WMCore.Credential.Proxy import Proxy
+        proxy = Proxy({'logger': logger})
     else:
         job_src = job.SimpleJobProvider(config)
         actions = None
-        credentials = None
+        proxy = None
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -217,8 +217,8 @@ def sprint(config, workdir, cmsjob):
         logger.debug("trying to feed {0} jobs to work queue".format(hunger))
 
         expiry = None
-        if credentials and hunger > 0:
-            left = credentials.getTimeLeft()
+        if proxy and hunger > 0:
+            left = proxy.getTimeLeft()
             if left == 0:
                 logger.error("proxy expired!")
                 job_src.terminate()

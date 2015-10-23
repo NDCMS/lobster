@@ -21,10 +21,10 @@ setup(
     ]},
     install_requires=[
         'argparse',
-        'dbs',
         'httplib2', # actually a WMCore dependency
         'jinja2',
         'nose',
+        'pycurl',
         'pyyaml',
         'python-daemon',
         'python-dateutil',
@@ -33,7 +33,6 @@ setup(
         'WMCore'
     ],
     dependency_links = [
-        'git+https://github.com/dmwm/DBS@DBS_3_2_114#egg=dbs-3.2.114',
         'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'
     ],
     entry_points={

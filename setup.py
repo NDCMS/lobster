@@ -29,6 +29,7 @@ setup(
         'python-daemon',
         'python-dateutil',
         'pytz',
+        'requests',
         'retrying',
         'WMCore'
     ],

@@ -1,7 +1,11 @@
 from collections import defaultdict
 import math
 import os
+import re
+import requests
+import shutil
 import sys
+import tempfile
 from lobster import util, fs
 
 from dbs.apis.dbsClient import DbsApi
@@ -43,12 +47,32 @@ class DASInterface:
     def __init__(self):
         self.__apis = {}
         self.__dsets = {}
+        self.__cache = tempfile.mkdtemp()
+
+    def __del__(self):
+        shutil.rmtree(self.__cache)
+
+    def __get_mask(self, url):
+        if not re.match(r'https?://', url):
+            return util.findpath(cfg['basedirs'], url)
+
+        fn = os.path.basename(url)
+        cached = os.path.join(self.__cache, fn)
+        if not os.path.isfile(cached):
+            r = requests.get(url)
+            if not r.ok:
+                raise IOError("unable to retrieve '{0}'".format(url))
+            with open(cached, 'w') as f:
+                f.write(r.text)
+        return cached
 
     def get_info(self, cfg):
         dataset = cfg['dataset']
         if dataset not in self.__dsets:
             instance = cfg.get('dbs instance', 'global')
-            mask = util.findpath(cfg['basedirs'], cfg['lumi mask']) if cfg.get('lumi mask') else None
+            mask = cfg.get('lumi mask')
+            if mask:
+                mask = self.__get_mask(mask)
             file_based = cfg.get('file based', False)
             res = self.query_database(dataset, instance, mask, file_based)
 

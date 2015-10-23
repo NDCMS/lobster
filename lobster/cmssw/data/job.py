@@ -13,6 +13,13 @@ import shutil
 import subprocess
 import sys
 import traceback
+
+sys.path.append('python')
+
+from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+from WMCore.FwkJobReport.Report import Report
+
 import ROOT
 
 ROOT.gROOT.SetBatch(True)
@@ -20,10 +27,6 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gErrorIgnoreLevel = ROOT.kError
 
 from ROOT import TFile
-from FWCore.PythonUtilities.LumiList import LumiList
-from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
-from WMCore.FwkJobReport.Report import Report
-
 
 fragment = """
 import FWCore.ParameterSet.Config as cms

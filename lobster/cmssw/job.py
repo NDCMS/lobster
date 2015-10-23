@@ -128,9 +128,20 @@ class JobProvider(job.JobProvider):
         import WMCore
         base = os.path.dirname(WMCore.__file__)
         reqs = [
-                "Services/Dashboard/DashboardAPI.pyc",
-                "Services/Dashboard/apmon.pyc",
-                "FwkJobReport"
+                "__init__.py",
+                "__init__.pyc",
+                "Algorithms",
+                "Configuration.py",
+                "Configuration.pyc",
+                "DataStructs",
+                "FwkJobReport",
+                "Services/__init__.py",
+                "Services/__init__.pyc",
+                "Services/Dashboard",
+                "WMException.py",
+                "WMException.pyc",
+                "WMExceptions.py",
+                "WMExceptions.pyc"
                 ]
         for f in reqs:
             self._inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))

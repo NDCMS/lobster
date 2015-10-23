@@ -39,7 +39,7 @@ For tcsh users, the last two lines must be replaced by:
 
 Install the python `setuptools`, if not already present, with
 
-    wget https://bootstrap.pypa.io/get-pip.py; python get-pip.py --user
+    wget -O - https://bootstrap.pypa.io/get-pip.py|python - --user
 
 This installs pip in your `~/.local` directory. Note that lobster and any further python
 dependencies will also be installed there. In order to access these executables, add them
@@ -61,7 +61,7 @@ all dependencies of lobster within one directory and not interfere with
 other python packages and their dependencies (e.g. CRAB3):
 
     pip install --user virtualenv
-    virtualenv ~/.lobster
+    virtualenv --system-site-packages ~/.lobster
 
 And activate the `virtualenv`.  This step has to be done every time lobster
 is run, to set the right paths for dependencies:
@@ -78,7 +78,26 @@ Install lobster with
 
     pip install https://github.com/matz-e/lobster/tarball/master
 
-and lobster will be installed as `~/.local/bin/lobster`.
+and lobster will be installed as `~/.lobster/bin/lobster`.  The
+`virtualenv` will but the executable into the `PATH` variable.  When
+installing from a local git checkout, use
+
+    git clone git@github.com:matz-e/lobster.git
+    cd lobster
+    python setup.py install
+
+to obtain most dependencies.  Notice the lack of `--user`, as this should
+not be used when working within a `virtualenv`.
+
+A last dependency is DBS, which is not packaged to be installed via
+`setuptools`:
+
+    git clone git@github.com:dmwm/DBS.git /tmp/delete
+    cd /tmp/delete
+    python setup.py install_system -s dbs-client
+    python setup.py install_system -s pycurl-client
+    cd -
+    rm -rf /tmp/delete
 
 # Running lobster
 

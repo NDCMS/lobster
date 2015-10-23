@@ -146,6 +146,7 @@ def sprint(config, workdir, cmsjob):
         statsfile.write(
                 "#timestamp " +
                 "total_workers_connected total_workers_joined total_workers_removed " +
+                "total_workers_lost total_workers_idled_out total_workers_fast_aborted " +
                 "workers_busy workers_idle " +
                 "tasks_running " +
                 "total_send_time total_receive_time " +
@@ -176,6 +177,9 @@ def sprint(config, workdir, cmsjob):
                     stats.total_workers_connected,
                     stats.total_workers_joined,
                     stats.total_workers_removed,
+                    stats.total_workers_lost,
+                    stats.total_workers_idled_out,
+                    stats.total_workers_fast_aborted,
                     stats.workers_busy,
                     stats.workers_idle,
                     stats.tasks_running,

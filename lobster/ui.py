@@ -9,7 +9,6 @@ rm = []
 for f in sys.path:
     if 'pycurl' in f:
         rm.append(f)
-print rm
 for f in rm:
     sys.path.remove(f)
 

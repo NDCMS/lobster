@@ -44,6 +44,7 @@ class ReleaseSummary(object):
         self.__exe = {}
         self.__wq = {}
         self.__taskdirs = {}
+        self.__monitors = []
 
     def exe(self, status, taskid):
         try:
@@ -62,6 +63,9 @@ class ReleaseSummary(object):
     def dir(self, taskid, taskdir):
         self.__taskdirs[taskid] = taskdir
 
+    def monitor(self, taskid):
+        self.__monitors.append(taskid)
+
     def __str__(self):
         s = "received the following task(s):\n"
         for status in sorted(self.__exe.keys()):
@@ -74,6 +78,8 @@ class ReleaseSummary(object):
                     ReleaseSummary.flags[flag],
                     ", ".join(self.__wq[flag]),
                     "\n\t".join([self.__taskdirs[t] for t in self.__wq[flag]]))
+        if self.__monitors:
+            s += "resource monitoring unavailable for the following tasks: {0}\n".format(", ".join(self.__monitors))
         # Trim final newline
         return s[:-1]
 
@@ -420,10 +426,6 @@ class JobProvider(job.JobProvider):
             job_update.host = util.verify_string(task.hostname)
             job_update.id = task.tag
             job_update.jobits_processed = jobits_processed
-            job_update.limits_exceeded = task.resources_measured.limits_exceeded
-            job_update.memory_resident = task.resources_measured.resident_memory
-            job_update.memory_swap = task.resources_measured.swap_memory
-            job_update.memory_virtual = task.resources_measured.virtual_memory
             job_update.status = status
             job_update.submissions = task.total_submissions
             job_update.time_submit = task.submit_time / 1000000
@@ -434,8 +436,15 @@ class JobProvider(job.JobProvider):
             job_update.time_retrieved = task.finish_time / 1000000
             job_update.time_on_worker = task.cmd_execution_time / 1000000
             job_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
-            job_update.workdir_footprint = task.resources_measured.workdir_footprint
-            job_update.workdir_num_files = task.resources_measured.workdir_num_files
+            try:
+                job_update.workdir_num_files = task.resources_measured.workdir_num_files
+                job_update.workdir_footprint = task.resources_measured.workdir_footprint
+                job_update.limits_exceeded = task.resources_measured.limits_exceeded
+                job_update.memory_resident = task.resources_measured.resident_memory
+                job_update.memory_swap = task.resources_measured.swap_memory
+                job_update.memory_virtual = task.resources_measured.virtual_memory
+            except AttributeError:
+                summary.monitor(task.tag)
 
             wflow = self.workflows[handler.dataset]
             if failed:

@@ -582,7 +582,18 @@ data = {
     'events written': 0,
     'output size': 0,
     'output bare size': 0,
-    'task timing': {},
+    'task timing': {
+        'time stage in end': None,
+        'time prologue end': None,
+        'time wrapper start': None,
+        'time wrapper end': None,
+        'time file requested': None,
+        'time file opened': None,
+        'time file processing': None,
+        'time processing end': None,
+        'time epilogue end': None,
+        'time stage out end': None,
+    },
     'events per run': 0
 }
 

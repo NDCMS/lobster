@@ -583,16 +583,16 @@ data = {
     'output size': 0,
     'output bare size': 0,
     'task timing': {
-        'time stage in end': None,
-        'time prologue end': None,
-        'time wrapper start': None,
-        'time wrapper end': None,
-        'time file requested': None,
-        'time file opened': None,
-        'time file processing': None,
-        'time processing end': None,
-        'time epilogue end': None,
-        'time stage out end': None,
+        'stage in end': None,
+        'prologue end': None,
+        'wrapper start': None,
+        'wrapper end': None,
+        'file requested': None,
+        'file opened': None,
+        'file processing': None,
+        'processing end': None,
+        'epilogue end': None,
+        'stage out end': None,
     },
     'events per run': 0
 }
@@ -604,7 +604,7 @@ env['X509_USER_PROXY'] = 'proxy'
 with check_execution(data, 179):
     copy_inputs(data, config, env)
 
-data['task timing']['time stage in end'] = int(datetime.now().strftime('%s'))
+data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
 
 # Dashboard does not like Unicode, just ASCII encoding
 monitorid = str(config['monitoring']['monitorid'])
@@ -630,7 +630,7 @@ if prologue and len(prologue) > 0:
             raise subprocess.CalledProcessError
 
 
-data['task timing']['time prologue end'] = int(datetime.now().strftime('%s'))
+data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
 parameters = {
             'ExeStart': str(config['executable']),
@@ -695,8 +695,8 @@ else:
     data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
-    data['task timing']['time wrapper start'] = extract_time('t_wrapper_start')
-    data['task timing']['time wrapper ready'] = extract_time('t_wrapper_ready')
+    data['task timing']['wrapper start'] = extract_time('t_wrapper_start')
+    data['task timing']['wrapper ready'] = extract_time('t_wrapper_ready')
 
 now = int(datetime.now().strftime('%s'))
 firstevent = now
@@ -704,13 +704,13 @@ firstevent = now
 if cmsRun:
     with check_execution(data, 192):
         frequest, fopen, fprocess = extract_cmssw_times('executable.log', now)
-        data['task timing']['time file requested'] = frequest
-        data['task timing']['time file opened'] = fopen
-        data['task timing']['time file processing'] = fprocess
+        data['task timing']['file requested'] = frequest
+        data['task timing']['file opened'] = fopen
+        data['task timing']['file processing'] = fprocess
 
         firstevent = fprocess
 
-data['task timing']['time processing end'] = now
+data['task timing']['processing end'] = now
 
 if epilogue and len(epilogue) > 0:
     # Make data collected so far available to the epilogue
@@ -730,7 +730,7 @@ if epilogue and len(epilogue) > 0:
     with open('report.json', 'r') as f:
         data = json.load(f)
 
-data['task timing']['time epilogue end'] = int(datetime.now().strftime('%s'))
+data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)
@@ -740,7 +740,7 @@ if data['job exit code'] == 0 and not transfer_success:
     data['job exit code'] = 211
     data['output size'] = 0
 
-data['task timing']['time stage out end'] = int(datetime.now().strftime('%s'))
+data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
 
 if 'PARROT_ENABLED' in os.environ:
     cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
@@ -776,8 +776,8 @@ for filename in 'executable.log report.xml'.split():
                 zipf.close()
 
 cputime = data['cpu time']
-total_time = data['task timing']['time stage out end'] - data['task timing']['time wrapper start']
-exe_time = data['task timing']['time stage out end'] - data['task timing']['time prologue end']
+total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']
+exe_time = data['task timing']['stage out end'] - data['task timing']['prologue end']
 job_exit_code = data['job exit code']
 stageout_exit_code = data['stageout exit code']
 events_per_run = data['events per run']

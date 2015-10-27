@@ -4,6 +4,7 @@ import logging
 import os
 import work_queue as wq
 
+from lobster import util
 from lobster.cmssw import jobit
 
 from WMCore.DataStructs.LumiList import LumiList
@@ -134,16 +135,16 @@ class TaskHandler(object):
             task_update.cache = data['cache']['type']
             task_update.cache_end_size = data['cache']['end size']
             task_update.cache_start_size = data['cache']['start size']
-            task_update.time_wrapper_start = data['task timing']['time wrapper start']
-            task_update.time_wrapper_ready = data['task timing']['time wrapper ready']
-            task_update.time_stage_in_end = data['task timing']['time stage in end']
-            task_update.time_prologue_end = data['task timing']['time prologue end']
-            task_update.time_file_requested = data['task timing']['time file requested']
-            task_update.time_file_opened = data['task timing']['time file opened']
-            task_update.time_file_processing = data['task timing']['time file processing']
-            task_update.time_processing_end = data['task timing']['time processing end']
-            task_update.time_epilogue_end = data['task timing']['time epilogue end']
-            task_update.time_stage_out_end = data['task timing']['time stage out end']
+            task_update.time_wrapper_start = data['task timing']['wrapper start']
+            task_update.time_wrapper_ready = data['task timing']['wrapper ready']
+            task_update.time_stage_in_end = data['task timing']['stage in end']
+            task_update.time_prologue_end = data['task timing']['prologue end']
+            task_update.time_file_requested = data['task timing']['file requested']
+            task_update.time_file_opened = data['task timing']['file opened']
+            task_update.time_file_processing = data['task timing']['file processing']
+            task_update.time_processing_end = data['task timing']['processing end']
+            task_update.time_epilogue_end = data['task timing']['epilogue end']
+            task_update.time_stage_out_end = data['task timing']['stage out end']
             task_update.time_cpu = data['cpu time']
             if self._cmssw_job:
                 files_info = data['files']['info']

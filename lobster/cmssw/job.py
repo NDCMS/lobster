@@ -1,5 +1,4 @@
 from collections import defaultdict
-import gzip
 import imp
 import json
 import logging
@@ -355,96 +354,10 @@ class JobProvider(job.JobProvider):
         jobs = defaultdict(list)
         summary = ReleaseSummary()
         for task in tasks:
-            failed = (task.return_status != 0)
-
-            handler = self.__jobhandlers[task.tag]
-
             self.__dash.update_job(task.tag, dash.DONE)
 
-            if task.output:
-                f = gzip.open(os.path.join(handler.jobdir, 'job.log.gz'), 'wb')
-                f.write(task.output)
-                f.close()
-
-            job_update = jobit.JobUpdate()
-            files_info = {}
-            files_skipped = []
-            cmssw_exit_code = None
-            events_written = 0
-            try:
-                with open(os.path.join(handler.jobdir, 'report.json'), 'r') as f:
-                    data = json.load(f)
-                    job_update.cache = data['cache']['type']
-                    job_update.cache_end_size = data['cache']['end size']
-                    job_update.cache_start_size = data['cache']['start size']
-                    job_update.time_wrapper_start = data['task timing']['time wrapper start']
-                    job_update.time_wrapper_ready = data['task timing']['time wrapper ready']
-                    job_update.time_stage_in_end = data['task timing']['time stage in end']
-                    job_update.time_prologue_end = data['task timing']['time prologue end']
-                    job_update.time_file_requested = data['task timing']['time file requested']
-                    job_update.time_file_opened = data['task timing']['time file opened']
-                    job_update.time_file_processing = data['task timing']['time file processing']
-                    job_update.time_processing_end = data['task timing']['time processing end']
-                    job_update.time_epilogue_end = data['task timing']['time epilogue end']
-                    job_update.time_stage_out_end = data['task timing']['time stage out end']
-                    job_update.time_cpu = data['cpu time']
-                    if handler.cmssw_job:
-                        files_info = data['files']['info']
-                        files_skipped = data['files']['skipped']
-                        events_written = data['events written']
-                        cmssw_exit_code = data['cmssw exit code']
-                        job_update.bytes_output = data['output size']
-                        job_update.bytes_bare_output = data['output bare size']
-            except (ValueError, EOFError) as e:
-                failed = True
-                logger.error("error processing {0}:\n{1}".format(task.tag, e))
-            except IOError as e:
-                failed = True
-                logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
-
-            if not task.return_status and task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
-                exit_code = 100000 + task.result
-                failed = True
-                summary.wq(task.result, task.tag)
-            elif cmssw_exit_code not in (None, 0):
-                exit_code = cmssw_exit_code
-                if exit_code > 0:
-                    failed = True
-                summary.exe(exit_code, task.tag)
-            else:
-                exit_code = task.return_status
-                summary.exe(exit_code, task.tag)
-
-            jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                    handler.get_jobit_info(failed, files_info, files_skipped, events_written)
-
-            job_update.bytes_received = task.total_bytes_received
-            job_update.bytes_sent = task.total_bytes_sent
-            job_update.events_read = events_read
-            job_update.events_written = events_written
-            job_update.exit_code = exit_code
-            job_update.host = util.verify_string(task.hostname)
-            job_update.id = task.tag
-            job_update.jobits_processed = jobits_processed
-            job_update.status = status
-            job_update.submissions = task.total_submissions
-            job_update.time_submit = task.submit_time / 1000000
-            job_update.time_transfer_in_start = task.send_input_start / 1000000
-            job_update.time_transfer_in_end = task.send_input_finish / 1000000
-            job_update.time_transfer_out_start = task.receive_output_start / 1000000
-            job_update.time_transfer_out_end = task.receive_output_finish / 1000000
-            job_update.time_retrieved = task.finish_time / 1000000
-            job_update.time_on_worker = task.cmd_execution_time / 1000000
-            job_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
-            try:
-                job_update.workdir_num_files = task.resources_measured.workdir_num_files
-                job_update.workdir_footprint = task.resources_measured.workdir_footprint
-                job_update.limits_exceeded = task.resources_measured.limits_exceeded
-                job_update.memory_resident = task.resources_measured.resident_memory
-                job_update.memory_swap = task.resources_measured.swap_memory
-                job_update.memory_virtual = task.resources_measured.virtual_memory
-            except AttributeError:
-                summary.monitor(task.tag)
+            handler = self.__jobhandlers[task.tag]
+            failed, task_update, file_update, jobit_update = handler.process(task, summary)
 
             wflow = self.workflows[handler.dataset]
             if failed:
@@ -459,7 +372,7 @@ class JobProvider(job.JobProvider):
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 
-            jobs[(handler.dataset, handler.jobit_source)].append((job_update, file_update, jobit_update))
+            jobs[(handler.dataset, handler.jobit_source)].append((task_update, file_update, jobit_update))
 
             del self.__jobhandlers[task.tag]
 

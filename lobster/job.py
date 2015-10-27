@@ -76,8 +76,7 @@ class JobProvider(object):
 
         self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
-            wflow = Workflow(self.workdir, cfg)
-            wflow.copy_inputs(self.basedirs)
+            wflow = Workflow(self.workdir, cfg, self.basedirs)
             self.workflows[wflow.label] = wflow
             if create:
                 wflow.create()

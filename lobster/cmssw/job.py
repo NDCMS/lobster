@@ -1,12 +1,8 @@
 from collections import defaultdict
-import imp
 import json
 import logging
 import os
-import re
 import shutil
-import subprocess
-import sys
 
 from lobster import fs, job, util
 from lobster.cmssw import TaskHandler
@@ -87,7 +83,6 @@ class JobProvider(job.JobProvider):
         super(JobProvider, self).__init__(config)
 
         self.bad_exitcodes += [169]
-        self.__interval = interval  # seconds
         self.__dash = None
         self.__dash_checker = dash.JobStateChecker(interval)
 
@@ -191,41 +186,8 @@ class JobProvider(job.JobProvider):
             for id in self.__store.reset_jobits():
                 self.__dash.update_job(id, dash.ABORTED)
 
-        update_config = False
-
         for label, wflow in self.workflows.items():
-            # FIXME this needs to be in the Workflow class!
-            if wflow.pset:
-                 shutil.copy(util.findpath(self.basedirs, wflow.pset), os.path.join(wflow.workdir, os.path.basename(wflow.pset)))
-
-            if wflow.pset and not wflow._outputs:
-                wflow._outputs = []
-                # Save determined outputs to the configuration in the
-                # working directory.
-                update_config = True
-
-                # To avoid problems loading configs that use the VarParsing module
-                sys.argv = ["pacify_varparsing.py"]
-                with open(util.findpath(self.basedirs, wflow.pset), 'r') as f:
-                    source = imp.load_source('cms_config_source', wflow.pset, f)
-                    process = source.process
-                    if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
-                        cfg['global tag'] = process.GlobalTag.globaltag.value()
-                    for label, module in process.outputModules.items():
-                        wflow._outputs.append(module.fileName.value())
-                    if 'TFileService' in process.services:
-                        wflow._outputs.append(process.services['TFileService'].fileName.value())
-                        wflow.edm_output = False
-
-                    wflow.config['edm output'] = wflow.edm_output
-                    wflow.config['outputs'] = wflow._outputs
-
-                    logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(wflow._outputs)))
-
             if not util.checkpoint(self.workdir, label):
-                if wflow.pset:
-                    shutil.copy(util.findpath(self.basedirs, wflow.pset), os.path.join(wflow.workdir, os.path.basename(wflow.pset)))
-
                 logger.info("querying backend for {0}".format(label))
                 with fs.default():
                     dataset_info = self.__interface.get_info(wflow.config)
@@ -236,9 +198,6 @@ class JobProvider(job.JobProvider):
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_jobids(label):
                     util.move(wflow.workdir, id, 'failed')
-
-        if update_config:
-            self.save_configuration()
 
     def get_report(self, label, job):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(job), 'report.json')

@@ -1,9 +1,15 @@
+import imp
+import logging
 import os
+import shutil
+import sys
 
-from lobster import fs
+from lobster import fs, util
+
+logger = logging.getLogger('lobster.cmssw.workflow')
 
 class Workflow(object):
-    def __init__(self, workdir, config):
+    def __init__(self, workdir, config, basedirs):
         self.config = config
         self.label = config['label']
         self.workdir = os.path.join(workdir, self.label)
@@ -20,11 +26,22 @@ class Workflow(object):
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
 
+        self.copy_inputs(basedirs)
+        if self.pset and not self._outputs:
+            self.determine_outputs(basedirs)
+
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.
 
-        Already present files will not be overwritten unless specified.
+        Includes CMSSW parameter set if specified.  Already present files
+        will not be overwritten unless specified.
         """
+        if not os.path.exists(self.workdir):
+            os.makedirs(self.workdir)
+
+        if self.pset:
+            shutil.copy(util.findpath(basedirs, self.pset), os.path.join(self.workdir, os.path.basename(self.pset)))
+
         if 'extra inputs' not in self.config:
             return []
 
@@ -49,6 +66,32 @@ class Workflow(object):
         files = map(copy_file, self.config['extra inputs'])
         self.config['extra inputs'] = files
         self.extra_inputs = files
+
+    def determine_outputs(self, basedirs):
+        """Determine output files for CMSSW jobs.
+        """
+        self._outputs = []
+        # Save determined outputs to the configuration in the
+        # working directory.
+        update_config = True
+
+        # To avoid problems loading configs that use the VarParsing module
+        sys.argv = [os.path.basename(self.pset)] + self.args
+        with open(util.findpath(basedirs, self.pset), 'r') as f:
+            source = imp.load_source('cms_config_source', self.pset, f)
+            process = source.process
+            if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
+                self.config['global tag'] = process.GlobalTag.globaltag.value()
+            for label, module in process.outputModules.items():
+                self._outputs.append(module.fileName.value())
+            if 'TFileService' in process.services:
+                self._outputs.append(process.services['TFileService'].fileName.value())
+                self.edm_output = False
+
+            self.config['edm output'] = self.edm_output
+            self.config['outputs'] = self._outputs
+
+            logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self._outputs)))
 
     def create(self):
         # Working directory for workflow

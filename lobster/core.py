@@ -12,6 +12,7 @@ import traceback
 import yaml
 
 from lobster import cmssw, job, status, util
+from lobster.job import JobProvider
 
 from pkg_resources import get_distribution
 
@@ -91,13 +92,12 @@ def run(args):
             pass
 
 def sprint(config, workdir, cmsjob):
+    job_src = JobProvider(config)
     if cmsjob:
-        job_src = cmssw.JobProvider(config)
         actions = cmssw.Actions(config)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logger})
     else:
-        job_src = job.SimpleJobProvider(config)
         actions = None
         proxy = None
 

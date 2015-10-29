@@ -22,6 +22,7 @@ logger = logging.getLogger('lobster.core')
 
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
+    logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
     workdir = args.config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 

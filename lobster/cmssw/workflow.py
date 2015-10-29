@@ -1,6 +1,7 @@
 import os
+import shutil
 
-from lobster import fs
+from lobster import fs, util
 
 class Workflow(object):
     def __init__(self, workdir, config):

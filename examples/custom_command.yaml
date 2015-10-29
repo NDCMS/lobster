@@ -22,6 +22,13 @@ use dashboard: true
 ## optional: specify directories in CMSSW work area to omit from sandbox
 # sandbox blacklist: ['*DrawPlots*']
 
+## Retry accessing files only 10 times.  Requires CMSSW to be set up to
+## skip input files when not accessible.
+# threshold for skipping: 10
+## Quit retrying jobits after 11 times.  After 10 failures, jobits are run
+## once isolated by themselves.
+# threshold for failure: 10
+
 # advanced:
   ## start killing jobs with excessive runtimes after this many successful
   ## jobs
@@ -57,6 +64,12 @@ use dashboard: true
 ##              publish label (string): label to include in the published dataset name
 ##              output format (string): optional renaming of files, based on their basename and extension
 ##                                      for example, "this_is_file_{id}_{base}.{ext}"
+##              task runtime (int): seconds of task runtime.  CMSSW (7_4_X
+##                                  or greater) will run for an addiotional
+##                                  10 minutes, and after further 15
+##                                  minutes, tasks will be killed.  Lobster
+##                                  will try to adjust jobits per tasks to
+##                                  match the desired runtime.
 
 tasks:
   - label: something

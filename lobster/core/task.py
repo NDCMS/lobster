@@ -5,7 +5,7 @@ import os
 import work_queue as wq
 
 from lobster import util
-from lobster.cmssw import jobit
+import jobit
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -181,7 +181,7 @@ class TaskHandler(object):
         exit_code = task.return_status
         failed = (exit_code != 0)
 
-        task_update = jobit.JobUpdate()
+        task_update = jobit.TaskUpdate()
 
         # Save wrapper output
         if task.output:

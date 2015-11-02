@@ -6,7 +6,7 @@ import sys
 
 from lobster import fs, util
 
-logger = logging.getLogger('lobster.cmssw.workflow')
+logger = logging.getLogger('lobster.workflow')
 
 class Workflow(object):
     def __init__(self, workdir, config, basedirs):

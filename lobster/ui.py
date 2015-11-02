@@ -12,11 +12,11 @@ for f in sys.path:
 for f in rm:
     sys.path.remove(f)
 
-from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
-from lobster.core import kill, run
-from lobster.validate import validate
+from lobster.process import kill, run
+from lobster.plotting import plot
 from lobster.status import status
+from lobster.validate import validate
 from lobster import util
 
 logger = logging.getLogger('lobster')

@@ -11,8 +11,8 @@ import time
 import traceback
 import yaml
 
-from lobster import cmssw, job, status, util
-from lobster.job import JobProvider
+from lobster import actions, status, util
+from lobster.core.source import TaskProvider
 
 from pkg_resources import get_distribution
 
@@ -93,13 +93,13 @@ def run(args):
             pass
 
 def sprint(config, workdir, cmsjob):
-    job_src = JobProvider(config)
+    task_src = TaskProvider(config)
     if cmsjob:
-        actions = cmssw.Actions(config)
+        action = actions.Actions(config)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logger})
     else:
-        actions = None
+        action = None
         proxy = None
 
     logger.info("using wq from {0}".format(wq.__file__))
@@ -160,11 +160,11 @@ def sprint(config, workdir, cmsjob):
                 "total_cores " +
                 "jobits_left\n")
 
-    bad_exitcodes = job_src.bad_exitcodes
+    bad_exitcodes = task_src.bad_exitcodes
 
-    while not job_src.done():
-        jobs_left = job_src.tasks_left()
-        jobits_left = job_src.work_left()
+    while not task_src.done():
+        jobs_left = task_src.tasks_left()
+        jobits_left = task_src.work_left()
 
         logger.debug("expecting {0} tasks, still".format(jobs_left))
         queue.specify_num_tasks_left(jobs_left)
@@ -204,7 +204,7 @@ def sprint(config, workdir, cmsjob):
 
             # let the job source shut down gracefully
             logger.info("terminating job source")
-            job_src.terminate()
+            task_src.terminate()
             logger.info("terminating gracefully")
             break
 
@@ -227,7 +227,7 @@ def sprint(config, workdir, cmsjob):
             left = proxy.getTimeLeft()
             if left == 0:
                 logger.error("proxy expired!")
-                job_src.terminate()
+                task_src.terminate()
                 break
             elif left < 4 * 3600:
                 logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
@@ -235,7 +235,7 @@ def sprint(config, workdir, cmsjob):
 
         t = time.time()
         while hunger > 0:
-            jobs = job_src.obtain(hunger)
+            jobs = task_src.obtain(hunger)
 
             if jobs == None or len(jobs) == 0:
                 break
@@ -271,7 +271,7 @@ def sprint(config, workdir, cmsjob):
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 
-        job_src.update(queue)
+        task_src.update(queue)
         starttime = time.time()
         task = queue.wait(interval)
         tasks = []
@@ -291,7 +291,7 @@ def sprint(config, workdir, cmsjob):
         if len(tasks) > 0:
             try:
                 t = time.time()
-                job_src.release(tasks)
+                task_src.release(tasks)
                 destruction_time += int((time.time() - t) * 1e6)
             except:
                 tb = traceback.format_exc()
@@ -305,9 +305,9 @@ def sprint(config, workdir, cmsjob):
             queue.activate_fast_abort(abort_multiplier)
 
         # recurring actions are triggered here
-        if actions:
-            actions.take()
+        if action:
+            action.take()
     if jobits_left == 0:
         logger.info("no more work left to do")
-        if actions:
-            actions.take(True)
+        if action:
+            action.take(True)

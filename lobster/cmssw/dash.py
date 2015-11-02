@@ -158,9 +158,9 @@ class Monitor(DummyMonitor):
             })
 
 
-class JobStateChecker(object):
+class TaskStateChecker(object):
     """
-    Check the job state  at a given time interval
+    Check the task state  at a given time interval
     """
 
     def __init__(self, interval):

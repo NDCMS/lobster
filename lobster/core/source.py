@@ -2,14 +2,11 @@ import datetime
 import glob
 import gzip
 import json
-import itertools
 import logging
 import os
 import re
 import shutil
-import sqlite3
 import subprocess
-import time
 import work_queue as wq
 import yaml
 
@@ -18,14 +15,14 @@ from functools import partial
 from hashlib import sha1
 
 from lobster import fs, se, util
-from lobster.cmssw import TaskHandler
-from lobster.cmssw import Workflow
-from lobster.cmssw import sandbox
-from lobster.cmssw import jobit
-from lobster.cmssw import dash
 from lobster.cmssw.dataset import MetaInterface
+from lobster.cmssw import dash
+from lobster.cmssw import sandbox
+from lobster.core import jobit
+from lobster.core import TaskHandler
+from lobster.core import Workflow
 
-logger = logging.getLogger('lobster.job')
+logger = logging.getLogger('lobster.source')
 
 def apply_matching(config):
     if 'task defaults' not in config:
@@ -119,7 +116,7 @@ class ReleaseSummary(object):
         # Trim final newline
         return s[:-1]
 
-class JobProvider(object):
+class TaskProvider(object):
     def __init__(self, config, interval=300):
         self.config = config
         self.basedirs = [config['base directory'], config['startup directory']]
@@ -136,7 +133,7 @@ class JobProvider(object):
         self.bad_exitcodes = config.get('bad exit codes', [169])
 
         self.__dash = None
-        self.__dash_checker = dash.JobStateChecker(interval)
+        self.__dash_checker = dash.TaskStateChecker(interval)
 
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
         self.__jobhandlers = {}

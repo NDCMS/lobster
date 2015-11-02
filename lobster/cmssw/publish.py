@@ -16,9 +16,9 @@ from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
-from lobster.job import apply_matching
+from lobster.core.jobit import JobitStore
+from lobster.core.source import apply_matching
 from lobster.cmssw.dataset import MetaInterface
-from lobster.cmssw.jobit import JobitStore
 
 logger = logging.getLogger('lobster.publish.')
 

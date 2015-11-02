@@ -24,11 +24,11 @@ PUBLISHED = 6
 MERGING = 7
 MERGED = 8
 
-# Job type
+# Task type
 PROCESS = 0
 MERGE = 1
 
-JobUpdate = util.record('JobUpdate',
+TaskUpdate = util.record('TaskUpdate',
                 'bytes_bare_output',
                 'bytes_output',
                 'bytes_received',
@@ -475,7 +475,7 @@ class JobitStore:
                         where id=?""".format(dset),
                         file_updates)
 
-            query = "update jobs set {0} where id=?".format(JobUpdate.sql_fragment(stop=-1))
+            query = "update jobs set {0} where id=?".format(TaskUpdate.sql_fragment(stop=-1))
             self.db.executemany(query, job_updates)
 
             for label, _ in jobinfos.keys():

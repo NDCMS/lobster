@@ -1,8 +1,9 @@
 import os
 import logging
 
-from lobster import cmssw, fs, se
-from lobster.job import apply_matching
+from lobster import fs, se
+from lobster.core.jobit import JobitStore
+from lobster.core.source import apply_matching
 
 def validate(args):
     config = args.config
@@ -10,7 +11,7 @@ def validate(args):
     logger = logging.getLogger('lobster.validate')
 
     config = apply_matching(config)
-    store = cmssw.jobit.JobitStore(config)
+    store = JobitStore(config)
     storage = se.StorageConfiguration(config['storage'])
     storage.activate()
 

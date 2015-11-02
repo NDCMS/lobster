@@ -21,7 +21,7 @@ import matplotlib.dates as dates
 import numpy as np
 
 from lobster import util
-from lobster.cmssw import jobit
+from lobster.core import jobit
 
 from WMCore.DataStructs.LumiList import LumiList
 

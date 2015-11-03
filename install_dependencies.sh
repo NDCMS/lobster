@@ -8,3 +8,4 @@ git clone git@github.com:dmwm/DBS.git "$dir"
 	python setup.py install_system -s pycurl-client
 )
 rm -rf "$dir"
+pip install 'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'

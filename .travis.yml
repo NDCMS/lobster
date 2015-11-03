@@ -15,3 +15,5 @@ addons:
   apt:
     packages:
       - swig
+notifications:
+  slack: ndlobster:KTPb95b6ZKyFZiNvsPp723HS

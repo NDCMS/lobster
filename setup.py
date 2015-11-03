@@ -27,7 +27,7 @@ setup(
         'nose',
         'pycurl',
         'pyyaml',
-        'pytohn-cjson', # actually a DBS dependency
+        'python-cjson', # actually a DBS dependency
         'python-daemon',
         'python-dateutil',
         'pytz',

@@ -13,6 +13,8 @@ class TestSE(unittest.TestCase):
         path = os.path.expandvars(
                 os.environ.get('LOBSTER_STORAGE', '/hadoop/store/user/') +
                 os.environ.get('LOBSTER_USER', os.environ['USER']) + '/')
+        if not os.path.exists(path):
+            os.makedirs(path)
         cls.workdir = tempfile.mkdtemp(prefix=path)
         os.chmod(cls.workdir, 0777)
         os.makedirs(os.path.join(cls.workdir, 'spam'))

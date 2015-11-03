@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/matz-e/lobster.svg?branch=master)](https://travis-ci.org/matz-e/lobster)
+
 **See special instructions to run at [Notre Dame](doc/ND.md), and
 at [CERN](doc/CERN.md).**
 

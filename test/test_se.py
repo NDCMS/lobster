@@ -2,6 +2,7 @@
 from lobster.cmssw import dataset
 from lobster import fs, se
 import os
+import random
 import shutil
 import subprocess
 import tempfile
@@ -84,7 +85,8 @@ class TestChirp(TestSE):
         fd, self.acl = tempfile.mkstemp()
         with os.fdopen(fd, 'w') as f:
             f.write('unix:' + os.environ['USER'] + ' rlwi\n')
-        args=['chirp_server', '-p', '9666',
+        self.port = str(random.randrange(9000, 10000))
+        args=['chirp_server', '-p', self.port,
                 '--root=' + self.workdir,
                 '-a', 'unix', '-A', self.acl]
         self.p = subprocess.Popen(args)
@@ -94,11 +96,11 @@ class TestChirp(TestSE):
         self.p.terminate()
 
     def runTest(self):
-        self.query('chirp://localhost:9666')
+        self.query('chirp://localhost:' + self.port)
 
 class TestChirpPermissions(TestChirp):
     def runTest(self):
-        self.permissions('chirp://localhost:9666')
+        self.permissions('chirp://localhost:' + self.port)
 
 class TestFailure(TestSE):
     def runTest(self):

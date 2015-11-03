@@ -9,7 +9,7 @@ import shutil
 import daemon
 import logging
 
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
 from WMCore.Storage.TrivialFileCatalog import readTFC

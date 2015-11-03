@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 
 class DummyInterface(object):
     def update_jobits(self, data):

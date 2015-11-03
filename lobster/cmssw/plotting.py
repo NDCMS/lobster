@@ -23,7 +23,7 @@ import numpy as np
 from lobster import util
 from lobster.cmssw import jobit
 
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 
 matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('figure', figsize=(8, 1.5))

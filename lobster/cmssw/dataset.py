@@ -9,7 +9,7 @@ import tempfile
 from lobster import util, fs
 
 from dbs.apis.dbsClient import DbsApi
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 
 class DatasetInfo(object):
     def __init__(self):

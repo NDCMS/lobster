@@ -17,7 +17,15 @@ git clone https://github.com/dmwm/DBS.git "$dir"
 rm -rf "$dir"
 pip install 'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'
 
+if [ -z "$BUILD_CCTOOLS" ]; then
+	exit 0
+fi
+
 (
-	cd $VIRTUAL_ENV
-	wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.3-x86_64-redhat7.tar.gz|tar xvzf - --strip-components=1
+	cd $VIRTUAL_ENV/src
+	wget -O - http://ccl.cse.nd.edu/software/files/cctools-current-source.tar.gz|tar xzf -
+	cd cctools*source
+	./configure --prefix $VIRTUAL_ENV
+	make
+	make install
 )

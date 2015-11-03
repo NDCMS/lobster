@@ -5,7 +5,7 @@ python:
 install:
   - ./install_dependencies.sh
   - python setup.py install
-before_script:
-  - uname -a
+# before_script:
+#   - uname -a
 script:
   - nosetests

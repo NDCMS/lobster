@@ -21,13 +21,13 @@ setup(
     ]},
     install_requires=[
         'argparse',
-        'cjson', # actually a DBS dependency
         'httplib2', # actually a WMCore dependency
         'jinja2',
         'matplotlib',
         'nose',
         'pycurl',
         'pyyaml',
+        'pytohn-cjson', # actually a DBS dependency
         'python-daemon',
         'python-dateutil',
         'pytz',

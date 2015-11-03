@@ -94,11 +94,11 @@ class TestChirp(TestSE):
         self.p.terminate()
 
     def runTest(self):
-        self.query('chirp://earth.crc.nd.edu:9666')
+        self.query('chirp://localhost:9666')
 
 class TestChirpPermissions(TestChirp):
     def runTest(self):
-        self.permissions('chirp://earth.crc.nd.edu:9666')
+        self.permissions('chirp://localhost:9666')
 
 class TestFailure(TestSE):
     def runTest(self):

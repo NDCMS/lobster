@@ -1,3 +1,4 @@
+sudo: false  # use containers with travis
 language: python
 python:
   - "2.7"

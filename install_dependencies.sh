@@ -8,7 +8,7 @@ fi
 echo "running on '$(uname -a)'"
 
 dir=$(mktemp -d)
-git clone git@github.com:dmwm/DBS.git "$dir"
+git clone https://github.com/dmwm/DBS.git "$dir"
 (
 	cd "$dir"
 	python setup.py install_system -s dbs-client

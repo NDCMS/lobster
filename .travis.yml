@@ -6,7 +6,7 @@ install:
   - BUILD_CCTOOLS=1 ./install_dependencies.sh
   - pip install .
 before_script:
-  - export LOBSTER_STORAGE=./test_storage/
+  - export LOBSTER_STORAGE=$PWD/test_storage/
   - export LOBSTER_SKIP_HADOOP=1
   - export LOBSTER_SKIP_SRM=1
 script:

@@ -9,3 +9,7 @@ install:
 #   - uname -a
 script:
   - nosetests
+addons:
+  apt:
+    packages:
+      - swig

@@ -23,6 +23,7 @@ setup(
         'argparse',
         'httplib2', # actually a WMCore dependency
         'jinja2',
+        'matplotlib',
         'nose',
         'pycurl',
         'pyyaml',

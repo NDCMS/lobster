@@ -4,8 +4,6 @@ python:
   - "2.7"
 install:
   - ./install_dependencies.sh
-  - pip install matplotlib
-  - pip install numpy
   - pip install .
 # before_script:
 #   - uname -a

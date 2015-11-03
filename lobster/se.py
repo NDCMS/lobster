@@ -345,6 +345,7 @@ class StorageConfiguration(object):
         self.__shuffle_outputs = config.get('shuffle outputs', False)
 
         self.__no_streaming = config.get('disable input streaming', False)
+        self.__no_fast_stagein = config.get('disable stage-in acceleration', False)
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
@@ -466,3 +467,5 @@ class StorageConfiguration(object):
         parameters['input'] = self.__input if not merge else self.__output
         parameters['output'] = self.__output
         parameters['disable streaming'] = self.__no_streaming
+        if not self.__no_fast_stagein:
+            parameters['accelerate stage-in'] = 3

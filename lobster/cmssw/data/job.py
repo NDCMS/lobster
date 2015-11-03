@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime
 import gzip
@@ -188,6 +189,9 @@ def copy_inputs(data, config, env):
     files = list(config['mask']['files'])
     config['mask']['files'] = []
 
+    fast_track = False
+    successes = defaultdict(int)
+
     for file in files:
         # If the file has been transferred by WQ, there's no need to
         # monkey around with the input list
@@ -239,8 +243,7 @@ def copy_inputs(data, config, env):
                     os.path.join(path, file)
                 ]
 
-                p = run_subprocess(args, retry={53: 5})
-                if p.returncode == 0:
+                if fast_track or run_subprocess(args, retry={53: 5}).returncode == 0:
                     if config['disable streaming']:
                         print ">>>> streaming has been disabled, attempting stage-in"
                         args = [
@@ -316,6 +319,17 @@ def copy_inputs(data, config, env):
                     print '>>>> Unable to copy input with Chirp'
             else:
                 print '>>> skipping unhandled stage-in method: {0}'.format(input)
+        else:
+            print '>>> no stage out method succeeded for: {0}'.format(file)
+            successes[input] -= 1
+        successes[input] += 1
+
+        if config.get('accelerate stage-in', 0) > 0 and not fast_track:
+            method, count = max(successes.items(), key=lambda (x, y): y)
+            if count > config['accelerate stage-in']:
+                print ">>> Bypassing further access checks and using '{0}' for input".format(method)
+                config['input'] = [method]
+                fast_track = True
 
     if not config['mask']['files']:
         raise RuntimeError("no stage-in method succeeded")

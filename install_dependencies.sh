@@ -25,6 +25,7 @@ fi
 	cd $VIRTUAL_ENV/src
 	wget -O - http://ccl.cse.nd.edu/software/files/cctools-current-source.tar.gz|tar xzf -
 	cd cctools*source
+	sed -i 's/\(config_perl_path\)=auto/\1=no/' ./configure
 	./configure --prefix $VIRTUAL_ENV
 	make
 	make install

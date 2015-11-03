@@ -19,5 +19,5 @@ pip install 'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.pa
 
 (
 	cd $VIRTUAL_ENV
-	wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.3-x86_64-redhat7.tar.gz|tar xzf -
+	wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.3-x86_64-redhat7.tar.gz|tar xvzf - --strip-components=1
 )

@@ -10,7 +10,9 @@ import unittest
 class TestSE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        path = os.path.expandvars('/hadoop/store/user/' + os.environ.get('CMSUSER', os.environ['USER']) + '/')
+        path = os.path.expandvars(
+                os.environ.get('LOBSTER_STORAGE', '/hadoop/store/user/') +
+                os.environ.get('LOBSTER_USER', os.environ['USER']) + '/')
         cls.workdir = tempfile.mkdtemp(prefix=path)
         os.chmod(cls.workdir, 0777)
         os.makedirs(os.path.join(cls.workdir, 'spam'))
@@ -56,22 +58,24 @@ class TestLocalPermissions(TestSE):
     def runTest(self):
         self.permissions('file://' + self.workdir)
 
-class TestHadoop(TestSE):
-    def runTest(self):
-        self.query('hdfs://' + self.workdir.replace('/hadoop', '', 1))
+if 'LOBSTER_SKIP_HADOOP' not in os.environ:
+    class TestHadoop(TestSE):
+        def runTest(self):
+            self.query('hdfs://' + self.workdir.replace('/hadoop', '', 1))
 
-class TestHadoopPermissions(TestSE):
-    def runTest(self):
-        self.permissions('hdfs://' + self.workdir.replace('/hadoop', '', 1))
+    class TestHadoopPermissions(TestSE):
+        def runTest(self):
+            self.permissions('hdfs://' + self.workdir.replace('/hadoop', '', 1))
 
-class TestSRM(TestSE):
-    def runTest(self):
-        self.query('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
+if 'LOBSTER_SKIP_SRM' not in os.environ:
+    class TestSRM(TestSE):
+        def runTest(self):
+            self.query('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
 
-# gfal-mkdir does not currently support setting permissions
-# class TestSRMPermissions(TestSE):
-#     def runTest(self):
-#         self.permissions('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
+    # gfal-mkdir does not currently support setting permissions
+    # class TestSRMPermissions(TestSE):
+    #     def runTest(self):
+    #         self.permissions('srm://T3_US_NotreDame' + self.workdir.replace('/hadoop', '', 1))
 
 class TestChirp(TestSE):
     def setUp(self):

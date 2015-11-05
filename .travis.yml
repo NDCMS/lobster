@@ -1,8 +1,19 @@
+sudo: false  # use containers with travis
 language: python
 python:
   - "2.7"
 install:
+  - BUILD_CCTOOLS=1 ./install_dependencies.sh
   - pip install .
-  - ./install_dependencies.sh
+before_script:
+  - export LOBSTER_STORAGE=$PWD/test_storage/
+  - export LOBSTER_SKIP_HADOOP=1
+  - export LOBSTER_SKIP_SRM=1
 script:
   - nosetests
+addons:
+  apt:
+    packages:
+      - swig
+notifications:
+  slack: ndlobster:KTPb95b6ZKyFZiNvsPp723HS

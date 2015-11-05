@@ -1,6 +1,6 @@
 from lobster.cmssw import jobit
 
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 
 class TaskHandler(object):
     """

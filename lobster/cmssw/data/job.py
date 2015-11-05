@@ -16,7 +16,7 @@ import traceback
 
 sys.path.append('python')
 
-from FWCore.PythonUtilities.LumiList import LumiList
+from WMCore.DataStructs.LumiList import LumiList
 from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
 from WMCore.FwkJobReport.Report import Report
 

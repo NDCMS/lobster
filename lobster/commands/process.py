@@ -11,7 +11,8 @@ import time
 import traceback
 import yaml
 
-from lobster import actions, status, util
+from lobster import actions, util
+from lobster.commands.status import status
 from lobster.core.source import TaskProvider
 
 from pkg_resources import get_distribution

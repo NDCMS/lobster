@@ -1,11 +1,12 @@
 import logging
 import os
-from lobster import cmssw, util
+from lobster import util
+from lobster.core import jobit
 
 def status(args):
     config = args.config
     logger = logging.getLogger('lobster.status')
-    store = cmssw.jobit.JobitStore(config)
+    store = jobit.JobitStore(config)
 
     data = store.dataset_status()
 

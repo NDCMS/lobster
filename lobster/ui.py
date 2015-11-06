@@ -13,10 +13,10 @@ for f in rm:
     sys.path.remove(f)
 
 from lobster.cmssw.publish import publish
-from lobster.process import kill, run
-from lobster.plotting import plot
-from lobster.status import status
-from lobster.validate import validate
+from lobster.commands.process import kill, run
+from lobster.commands.plot import plot
+from lobster.commands.status import status
+from lobster.commands.validate import validate
 from lobster import util
 
 logger = logging.getLogger('lobster')

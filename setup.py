@@ -17,7 +17,7 @@ setup(
         'core/data/siteconfig/PhEDEx/storage.xml',
         'core/data/merge_cfg.py',
         'core/data/merge_reports.py'
-        'data/template.html',
+        'commands/data/template.html',
     ]},
     install_requires=[
         'argparse',

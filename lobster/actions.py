@@ -2,7 +2,7 @@ import datetime
 import logging
 import multiprocessing
 
-from lobster.plotting import Plotter
+from lobster.commands.plot import Plotter
 
 logger = logging.getLogger('lobster.actions')
 

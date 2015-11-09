@@ -53,6 +53,8 @@ class StorageElement(object):
             StorageElement._systems.append(self)
         else:
             self.__master = True
+            self.__file__ = __file__
+            self.__name__ = 'fs'
 
     def __getattr__(self, attr):
         if attr in self.__dict__ or not self.__master:

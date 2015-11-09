@@ -5,16 +5,16 @@ at [CERN](doc/CERN.md).**
 
 # Installation
 
-Lobster requires Python 2.6 or greater (but not Python 3).  CMSSW also uses
+Lobster requires Python 2.7 or greater (but not Python 3).  CMSSW also uses
 Python.  Since you will probably be using Lobster and CMSSW together, you
 should make sure that you do `cmsenv` from a CMSSW release in which you
 will be using Lobster before running the installation.  (Any release
-`5_3_X` or newer should set up an appropriate version of Python.)  After
+`7_4_X` or newer should set up an appropriate version of Python.)  After
 you run `cmsenv`, to check your python version, use
 
     python -V
 
-If the version you see is older than Python 2.6, you'll want to get help
+If the version you see is older than Python 2.7, you'll want to get help
 from an expert.  Also, if you switch to a release with a signficantly newer
 version of Python than you used to install Lobster, you may have to re-run
 the Lobster installation instructions below.
@@ -39,13 +39,13 @@ For tcsh users, the last two lines must be replaced by:
 
 ### Setuptools
 
-Install the python `setuptools`, if not already present, with
+Install the python package manager `pip`, if not already present (may also
+be installed as `pip2.7`), with
 
     wget -O - https://bootstrap.pypa.io/get-pip.py|python - --user
 
-This installs pip in your `~/.local` directory. Note that lobster and any further python
-dependencies will also be installed there. In order to access these executables, add them
-to your path with
+This installs pip in your `~/.local` directory. In order to access these
+executables, add them to your path with
 
     export PATH=$PATH:$HOME/.local/bin
 
@@ -78,28 +78,16 @@ and proceed with a clean environment again.
 
 Install lobster with
 
+    wget -O - https://raw.githubusercontent.com/matz-e/lobster/master/install_dependencies.sh|sh -
     pip install https://github.com/matz-e/lobster/tarball/master
 
-and lobster will be installed as `~/.lobster/bin/lobster`.  The
-`virtualenv` will but the executable into the `PATH` variable.  When
-installing from a local git checkout, use
+and lobster will be installed into the `virtualenv`.  When installing from
+a local git checkout, use
 
     git clone git@github.com:matz-e/lobster.git
     cd lobster
+    ./install_dependencies.sh
     python setup.py install
-
-to obtain most dependencies.  Notice the lack of `--user`, as this should
-not be used when working within a `virtualenv`.
-
-A last dependency is DBS, which is not packaged to be installed via
-`setuptools`:
-
-    git clone git@github.com:dmwm/DBS.git /tmp/delete
-    cd /tmp/delete
-    python setup.py install_system -s dbs-client
-    python setup.py install_system -s pycurl-client
-    cd -
-    rm -rf /tmp/delete
 
 # Running lobster
 

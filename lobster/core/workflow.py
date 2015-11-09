@@ -91,7 +91,7 @@ class Workflow(object):
             self.config['edm output'] = self.edm_output
             self.config['outputs'] = self._outputs
 
-            logger.info("workflow {0}: adding output file(s) '{1}'".format(label, ', '.join(self._outputs)))
+            logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self._outputs)))
 
     def create(self):
         # Working directory for workflow

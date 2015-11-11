@@ -1,8 +1,8 @@
 # vim: foldmethod=marker
 from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
-from lobster.cmssw.handler import TaskHandler
-from lobster.cmssw.jobit import JobUpdate, JobitStore
+from lobster.core.task import TaskHandler
+from lobster.core.jobit import TaskUpdate, JobitStore
 import os
 import shutil
 import tempfile
@@ -148,8 +148,9 @@ class TestSQLBackend(object):
         files_skipped = []
         events_written = 123
 
+        update = TaskUpdate()
         jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(False, files_info, files_skipped, events_written)
+                handler.get_jobit_info(False, update, files_info, files_skipped, events_written)
 
         assert jobits_processed == 4
         assert events_read == 300
@@ -207,7 +208,7 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             host='hostname',
@@ -215,7 +216,7 @@ class TestSQLBackend(object):
             jobits_processed=jobits_processed,
             status=status)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -261,7 +262,7 @@ class TestSQLBackend(object):
                         0
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             exit_code=123,
@@ -271,7 +272,7 @@ class TestSQLBackend(object):
             status=status,
             submissions=1)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -314,7 +315,7 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             exit_code=123,
@@ -324,7 +325,7 @@ class TestSQLBackend(object):
             status=status,
             submissions=1)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -366,7 +367,7 @@ class TestSQLBackend(object):
                         50
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             host='hostname',
@@ -374,7 +375,7 @@ class TestSQLBackend(object):
             jobits_processed=jobits_processed,
             status=status)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         skipped = list(
                 self.interface.db.execute(
@@ -436,7 +437,7 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             host='hostname',
@@ -445,7 +446,7 @@ class TestSQLBackend(object):
             status=status,
             submissions=1)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         # grab another job
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
@@ -463,13 +464,13 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update.events_read = events_read
-        job_update.events_written = events_written
-        job_update.id = id
-        job_update.jobits_processed = jobits_processed
-        job_update.status = status
+        task_update.events_read = events_read
+        task_update.events_written = events_written
+        task_update.id = id
+        task_update.jobits_processed = jobits_processed
+        task_update.status = status
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
@@ -542,7 +543,7 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             host='hostname',
@@ -550,7 +551,7 @@ class TestSQLBackend(object):
             jobits_processed=jobits_processed,
             status=status)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -584,7 +585,7 @@ class TestSQLBackend(object):
                         0
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             exit_code=1234,
@@ -593,7 +594,7 @@ class TestSQLBackend(object):
             jobits_processed=jobits_processed,
             status=status)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -630,7 +631,7 @@ class TestSQLBackend(object):
                         100
                         )
 
-        job_update = JobUpdate(
+        task_update = TaskUpdate(
             events_read=events_read,
             events_written=events_written,
             host='hostname',
@@ -638,7 +639,7 @@ class TestSQLBackend(object):
             jobits_processed=jobits_processed,
             status=status)
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(job_update, file_update, jobit_update)]})
+        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select

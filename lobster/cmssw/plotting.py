@@ -608,7 +608,7 @@ class Plotter(object):
                         ha="center", transform=ax.transAxes, backgroundcolor='white')
 
             if 'label' in kwargs:
-                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
+                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7}, numpoints=1)
 
             self.pickle(filename, data)
             self.saveimg(filename)

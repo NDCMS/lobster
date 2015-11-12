@@ -133,8 +133,8 @@ def boil():
                 args.config['threshold for failure'] = 0
                 args.config['threshold for skipping'] = 0
             if args.increase_thresholds:
-                args.config['threshold for failure'] = args.config.get('threshold for failure', 10) + args.increase_thresholds
-                args.config['threshold for skipping'] = args.config.get('threshold for skipping', 10) + args.increase_thresholds
+                args.config['threshold for failure'] = args.config.get('threshold for failure', 30) + args.increase_thresholds
+                args.config['threshold for skipping'] = args.config.get('threshold for skipping', 30) + args.increase_thresholds
                 with open(os.path.join(workdir, 'lobster_config.yaml'), 'w') as f:
                     yaml.dump(args.config, f, default_flow_style=False)
 

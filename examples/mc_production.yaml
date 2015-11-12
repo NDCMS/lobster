@@ -54,12 +54,12 @@ delete merged: true
 ## overwrite the username to use for publishing, in case it is different from the environment var $USER
 # publish user: username
 
-## Retry accessing files only 10 times.  Requires CMSSW to be set up to
+## Retry accessing files only 30 times.  Requires CMSSW to be set up to
 ## skip input files when not accessible.
-# threshold for skipping: 10
-## Quit retrying jobits after 11 times.  After 10 failures, jobits are run
+# threshold for skipping: 30
+## Quit retrying jobits after 31 times.  After 30 failures, jobits are run
 ## once isolated by themselves.
-# threshold for failure: 10
+# threshold for failure: 30
 
 advanced:
   ## start killing jobs with excessive runtimes after this many successful

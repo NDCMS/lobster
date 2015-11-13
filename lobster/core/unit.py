@@ -93,8 +93,8 @@ class UnitStore:
             units_left int default 0,
             units_paused int default 0,
             units_running int default 0,
-            jobruntime int default null,
-            jobsize int,
+            taskruntime int default null,
+            tasksize int,
             label text,
             masked_lumis int default 0,
             merged int default 0,
@@ -103,7 +103,7 @@ class UnitStore:
             publish_label text,
             release text,
             uuid text)""")
-        self.db.execute("""create table if not exists jobs(
+        self.db.execute("""create table if not exists tasks(
             bytes_bare_output int default 0,
             bytes_output int default 0,
             bytes_received int,
@@ -118,7 +118,7 @@ class UnitStore:
             exit_code int,
             failed int default 0,
             host text,
-            job int,
+            task int,
             units int default 0,
             units_processed int default 0,
             limits_exceeded text,
@@ -155,7 +155,7 @@ class UnitStore:
         self.db.commit()
 
         try:
-            cur = self.db.execute("select max(id) from jobs")
+            cur = self.db.execute("select max(id) from tasks")
             count = int(cur.fetchone()[0])
         except:
             pass
@@ -179,8 +179,8 @@ class UnitStore:
                        uuid,
                        file_based,
                        empty_source,
-                       jobsize,
-                       jobruntime,
+                       tasksize,
+                       taskruntime,
                        units,
                        masked_lumis,
                        units_left,
@@ -196,7 +196,7 @@ class UnitStore:
                            self.uuid,
                            dataset_info.file_based,
                            dataset_info.empty_source,
-                           dataset_info.jobsize,
+                           dataset_info.tasksize,
                            taskruntime,
                            dataset_info.total_lumis * len(unique_args),
                            dataset_info.masked_lumis,
@@ -216,14 +216,14 @@ class UnitStore:
 
         cur.execute("""create table if not exists units_{0}(
             id integer primary key autoincrement,
-            job integer,
+            task integer,
             run integer,
             lumi integer,
             file integer,
             status integer default 0,
             failed integer default 0,
             arg text,
-            foreign key(job) references jobs(id),
+            foreign key(task) references tasks(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
         for fn in dataset_info.files:
@@ -248,18 +248,18 @@ class UnitStore:
 
     def pop_units(self, num=1):
         """
-        Create a predetermined number of jobs.  The task these are
+        Create a predetermined number of tasks.  The task these are
         created for is drawn randomly from all unfinished tasks.
 
         Arguments:
-            num: the number of jobs to be created (default 1)
+            num: the number of tasks to be created (default 1)
         Returns:
             a list containing an id, dataset label, file information (id,
             filename), lumi information (id, file id, run, lumi)
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / jobsize, jobsize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
             from datasets
             where units_left > 0""")]
         if len(rows) == 0:
@@ -275,19 +275,19 @@ class UnitStore:
         # keep all workers occupied
         if tasks_left < num:
             taper = float(tasks_left) / num
-            for dataset, dataset_id, units_left, ntasks, jobsize, empty_source in rows:
-                jobsize = max(math.ceil((taper * jobsize)), 1)
-                size = [int(jobsize)] * max(1, int(math.ceil(ntasks / taper)))
+            for dataset, dataset_id, units_left, ntasks, tasksize, empty_source in rows:
+                tasksize = max(math.ceil((taper * tasksize)), 1)
+                size = [int(tasksize)] * max(1, int(math.ceil(ntasks / taper)))
                 tasks.extend(self.__pop_units(size, dataset, dataset_id, empty_source))
         else:
-            for dataset, dataset_id, units_left, ntasks, jobsize, empty_source in rows:
-                size = [int(jobsize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
+            for dataset, dataset_id, units_left, ntasks, tasksize, empty_source in rows:
+                size = [int(tasksize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
                 tasks.extend(self.__pop_units(size, dataset, dataset_id, empty_source))
         return tasks
 
     @retry(stop_max_attempt_number=10)
     def __pop_units(self, size, dataset, dataset_id, empty_source):
-        """Internal method to create jobs from a dataset
+        """Internal method to create tasks from a dataset
         """
         logger.debug("creating {0} task(s) for workflow {1}".format(len(size), dataset))
 
@@ -310,24 +310,24 @@ class UnitStore:
                     where file in ({1}) and status not in (1, 2, 6, 7, 8)
                     """.format(dataset, ', '.join('?' for _ in chunk)), chunk))
 
-            # files and lumis for individual jobs
+            # files and lumis for individual tasks
             files = set()
             units = []
 
             # lumi veto to avoid duplicated processing
             all_lumis = set()
 
-            # job container and current job size
-            jobs = []
+            # task container and current task size
+            tasks = []
             current_size = 0
 
-            def insert_job(files, units, arg):
+            def insert_task(files, units, arg):
                 cur = self.db.cursor()
-                cur.execute("insert into jobs(dataset, status, type) values (?, 1, 0)", (dataset_id,))
-                job_id = cur.lastrowid
+                cur.execute("insert into tasks(dataset, status, type) values (?, 1, 0)", (dataset_id,))
+                task_id = cur.lastrowid
 
-                jobs.append((
-                    str(job_id),
+                tasks.append((
+                    str(task_id),
                     dataset,
                     [(id, fileinfo[id]) for id in files],
                     units,
@@ -344,7 +344,7 @@ class UnitStore:
                         break
 
                 if failed == self.__failure_threshold:
-                    insert_job([file], [(id, file, run, lumi)], arg)
+                    insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 
                 if lumi > 0:
@@ -369,7 +369,7 @@ class UnitStore:
                 current_size += 1
 
                 if current_size == size[0]:
-                    insert_job(files, units, arg)
+                    insert_task(files, units, arg)
 
                     files = set()
                     units = []
@@ -378,17 +378,17 @@ class UnitStore:
                     size.pop(0)
 
             if current_size > 0:
-                insert_job(files, units, arg)
+                insert_task(files, units, arg)
 
             dataset_update = []
             file_update = defaultdict(int)
-            job_update = defaultdict(int)
+            task_update = defaultdict(int)
             unit_update = []
 
-            for (job, label, files, units, arg, empty_source, merge) in jobs:
+            for (task, label, files, units, arg, empty_source, merge) in tasks:
                 dataset_update += units
-                job_update[job] = len(units)
-                unit_update += [(job, id) for (id, file, run, lumi) in units]
+                task_update[task] = len(units)
+                unit_update += [(task, id) for (id, file, run, lumi) in units]
                 for (id, filename) in files:
                     file_update[id] += len(filter(lambda tpl: tpl[1] == id, units))
 
@@ -398,19 +398,19 @@ class UnitStore:
 
             self.db.executemany("update files_{0} set units_running=(units_running + ?) where id=?".format(dataset),
                     [(v, k) for (k, v) in file_update.items()])
-            self.db.executemany("update jobs set units=? where id=?",
-                    [(v, k) for (k, v) in job_update.items()])
-            self.db.executemany("update units_{0} set status=1, job=? where id=?".format(dataset),
+            self.db.executemany("update tasks set units=? where id=?",
+                    [(v, k) for (k, v) in task_update.items()])
+            self.db.executemany("update units_{0} set status=1, task=? where id=?".format(dataset),
                     unit_update)
 
-            return jobs if len(unit_update) > 0 else []
+            return tasks if len(unit_update) > 0 else []
 
     def reset_units(self):
         with self.db as db:
-            ids = [id for (id,) in db.execute("select id from jobs where status=1")]
+            ids = [id for (id,) in db.execute("select id from tasks where status=1")]
             db.execute("update datasets set units_running=0, merged=0")
-            db.execute("update jobs set status=4 where status=1")
-            db.execute("update jobs set status=2 where status=7")
+            db.execute("update tasks set status=4 where status=1")
+            db.execute("update tasks set status=2 where status=7")
             for (label, dset_id) in db.execute("select label, id from datasets"):
                 db.execute("update files_{0} set units_running=0".format(label))
                 db.execute("update units_{0} set status=4 where status=1".format(label))
@@ -419,37 +419,37 @@ class UnitStore:
         return ids
 
     @retry(stop_max_attempt_number=10)
-    def update_units(self, jobinfos):
-        job_updates = []
+    def update_units(self, taskinfos):
+        task_updates = []
 
         with self.db:
-            for ((dset, unit_source), updates) in jobinfos.items():
+            for ((dset, unit_source), updates) in taskinfos.items():
                 file_updates = []
                 unit_updates = []
                 unit_fail_updates = []
                 unit_generic_updates = []
 
-                for (job_update, file_update, unit_update) in updates:
-                    job_updates.append(job_update)
+                for (task_update, file_update, unit_update) in updates:
+                    task_updates.append(task_update)
                     file_updates += file_update
 
                     # units either fail or are successful
-                    # FIXME this should really go into the job handler
-                    if unit_source == 'jobs':
-                        unit_status = SUCCESSFUL if job_update.status == FAILED else MERGED
+                    # FIXME this should really go into the task handler
+                    if unit_source == 'tasks':
+                        unit_status = SUCCESSFUL if task_update.status == FAILED else MERGED
                     else:
-                        unit_status = FAILED if job_update.status == FAILED else SUCCESSFUL
+                        unit_status = FAILED if task_update.status == FAILED else SUCCESSFUL
 
-                    if job_update.status == FAILED:
-                        unit_fail_updates.append((job_update.id,))
+                    if task_update.status == FAILED:
+                        unit_fail_updates.append((task_update.id,))
 
                     unit_updates += unit_update
-                    unit_generic_updates.append((unit_status, job_update.id))
+                    unit_generic_updates.append((unit_status, task_update.id))
 
-                # update all units of the jobs
+                # update all units of the tasks
                 self.db.executemany("""update {0} set
                     status=?
-                    where job=?""".format(unit_source),
+                    where task=?""".format(unit_source),
                     unit_generic_updates)
 
                 # update selected, missed units
@@ -462,7 +462,7 @@ class UnitStore:
                 if len(unit_fail_updates) > 0:
                     self.db.executemany("""update {0} set
                         failed=failed + 1
-                        where job=?""".format(unit_source),
+                        where task=?""".format(unit_source),
                         unit_fail_updates)
 
                 # update files in the dataset
@@ -475,29 +475,29 @@ class UnitStore:
                         where id=?""".format(dset),
                         file_updates)
 
-            query = "update jobs set {0} where id=?".format(TaskUpdate.sql_fragment(stop=-1))
-            self.db.executemany(query, job_updates)
+            query = "update tasks set {0} where id=?".format(TaskUpdate.sql_fragment(stop=-1))
+            self.db.executemany(query, task_updates)
 
-            for label, _ in jobinfos.keys():
+            for label, _ in taskinfos.keys():
                 self.update_dataset_stats(label)
 
     def update_dataset_stats(self, label):
-        id, size, targettime = self.db.execute("select id, jobsize, jobruntime from datasets where label=?", (label,)).fetchone()
+        id, size, targettime = self.db.execute("select id, tasksize, taskruntime from datasets where label=?", (label,)).fetchone()
 
         if targettime is not None:
-            # Adjust jobsize based on time spend in prologue, processing, and
+            # Adjust tasksize based on time spend in prologue, processing, and
             # epilogue.  Only do so when difference is > 10%
             tasks, unittime = self.db.execute("""
                 select
                     count(*),
                     avg((time_epilogue_end - time_stage_in_end) * 1. / units)
-                from jobs where status in (2, 6, 7, 8) and dataset=1 and type=0""").fetchone()
+                from tasks where status in (2, 6, 7, 8) and dataset=1 and type=0""").fetchone()
 
             if tasks > 10:
                 bettersize = max(1, int(math.ceil(targettime / unittime)))
                 if abs(float(bettersize - size) / size) > .1:
                     logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
-                    self.db.execute("update datasets set jobsize=? where id=?", (bettersize, id))
+                    self.db.execute("update datasets set tasksize=? where id=?", (bettersize, id))
 
         self.db.execute("""
             update datasets set
@@ -520,7 +520,7 @@ class UnitStore:
 
     def estimate_tasks_left(self):
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / jobsize, jobsize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
             from datasets
             where units_left > 0""")]
         if len(rows) == 0:
@@ -557,8 +557,8 @@ class UnitStore:
             select
                 label,
                 events,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 units + masked_lumis,
                 units,
                 units_done,
@@ -569,10 +569,10 @@ class UnitStore:
             from datasets""")
         return ["label events read written units unmasked done paused percent".split()] + list(cursor)
 
-    def pop_unmerged_jobs(self, bytes, num=1):
-        """Create merging jobs.
+    def pop_unmerged_tasks(self, bytes, num=1):
+        """Create merging tasks.
 
-        This creates `num` merge jobs with a maximal size of `bytes`.
+        This creates `num` merge tasks with a maximal size of `bytes`.
         """
 
         if bytes <= 0:
@@ -584,7 +584,7 @@ class UnitStore:
             where
                 merged <> 1 and
                 (units_done + units_paused) * 10 >= units
-                and (select count(*) from jobs where dataset=datasets.id and status=2) > 0
+                and (select count(*) from tasks where dataset=datasets.id and status=2) > 0
         """).fetchall()
 
         if len(rows) == 0:
@@ -595,45 +595,45 @@ class UnitStore:
 
         res = []
         for dset, dset_id, complete in rows:
-            res.extend(self.__pop_unmerged_jobs(dset, dset_id, complete, bytes, num))
+            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, bytes, num))
             if len(res) > num:
                 break
         return res
 
     @retry(stop_max_attempt_number=10)
-    def __pop_unmerged_jobs(self, dataset, dset_id, units_complete, bytes, num=1):
+    def __pop_unmerged_tasks(self, dataset, dset_id, units_complete, bytes, num=1):
         """Internal method to merge tasks
         """
 
-        logger.debug("trying to merge jobs from {0}".format(dataset))
+        logger.debug("trying to merge tasks from {0}".format(dataset))
 
         class Merge(object):
-            def __init__(self, job, units, size, maxsize):
-                self.jobs = [job]
+            def __init__(self, task, units, size, maxsize):
+                self.tasks = [task]
                 self.units = units
                 self.size = size
                 self.maxsize = maxsize
             def __cmp__(self, other):
                 return cmp(self.size, other.size)
-            def add(self, job, units, size):
+            def add(self, task, units, size):
                 if self.size + size > self.maxsize:
                     return False
                 self.size += size
                 self.units += units
-                self.jobs.append(job)
+                self.tasks.append(task)
                 return True
             def left(self):
                 return self.maxsize - self.size
 
         with self.db:
-            # Select the finished processing jobs from the task
+            # Select the finished processing tasks from the task
             rows = self.db.execute("""
                 select id, units, bytes_bare_output
-                from jobs
+                from tasks
                 where status=? and dataset=? and type=0
                 order by bytes_bare_output desc""", (SUCCESSFUL, dset_id)).fetchall()
 
-            # If we don't have enough rows, or the smallest two jobs can't be
+            # If we don't have enough rows, or the smallest two tasks can't be
             # merge, set this up so that the loop below is not evaluted and we
             # skip to the check if the merge for this dataset is complete for
             # the given maximum size.
@@ -643,20 +643,20 @@ class UnitStore:
                 minsize = rows[-1][1]
 
             candidates = []
-            for job, units, size in rows:
-                # Try to add the current job to a merge, in increasing order of
+            for task, units, size in rows:
+                # Try to add the current task to a merge, in increasing order of
                 # size left
                 for merge in reversed(sorted(candidates)):
-                    if merge.add(job, units, size):
+                    if merge.add(task, units, size):
                         break
                 else:
                     # If we're too large to merge, we're skipped
                     if size + minsize <= bytes:
-                        candidates.append(Merge(job, units, size, bytes))
+                        candidates.append(Merge(task, units, size, bytes))
 
             merges = []
             for merge in reversed(sorted(candidates)):
-                if len(merge.jobs) == 1:
+                if len(merge.tasks) == 1:
                     continue
                 # For one iteration only: merge if we are either close enough
                 # to the target size (TODO maybe this threshold should be
@@ -665,10 +665,10 @@ class UnitStore:
                 if units_complete or merge.size >= bytes * 0.9:
                     merges.append(merge)
 
-            logger.debug("created {0} merge jobs".format(len(merges)))
+            logger.debug("created {0} merge tasks".format(len(merges)))
 
             if len(merges) == 0 and units_complete:
-                rows = self.db.execute("""select count(*) from jobs where status=1 and dataset=?""", (dset_id,)).fetchone()
+                rows = self.db.execute("""select count(*) from tasks where status=1 and dataset=?""", (dset_id,)).fetchone()
                 if rows[0] == 0:
                     logger.debug("fully merged {0}".format(dataset))
                     self.db.execute("""update datasets set merged=1 where id=?""", (dset_id,))
@@ -679,76 +679,76 @@ class UnitStore:
             for merge in merges:
                 merge_id = self.db.execute("""
                     insert into
-                    jobs(dataset, units, status, type)
+                    tasks(dataset, units, status, type)
                     values (?, ?, ?, ?)""", (dset_id, merge.units, ASSIGNED, MERGE)).lastrowid
-                logger.debug("inserted merge job {0} with jobs {1}".format(merge_id, ", ".join(map(str, merge.jobs))))
-                res += [(str(merge_id), dataset, [], [(id, None, -1, -1) for id in merge.jobs], "", False, True)]
-                merge_update += [(merge_id, id) for id in merge.jobs]
+                logger.debug("inserted merge task {0} with tasks {1}".format(merge_id, ", ".join(map(str, merge.tasks))))
+                res += [(str(merge_id), dataset, [], [(id, None, -1, -1) for id in merge.tasks], "", False, True)]
+                merge_update += [(merge_id, id) for id in merge.tasks]
 
-            self.db.executemany("update jobs set status=7, job=? where id=?", merge_update)
+            self.db.executemany("update tasks set status=7, task=? where id=?", merge_update)
             self.update_dataset_stats(dataset)
 
             return res
 
     def update_published(self, block):
-        unmerged = [(name, job) for (name, job, merge_job) in block]
-        merged = [(name, merge_job) for (name, job, merge_job) in block]
-        unit_update = [job for (name, job, merge_job) in block]
+        unmerged = [(name, task) for (name, task, merge_task) in block]
+        merged = [(name, merge_task) for (name, task, merge_task) in block]
+        unit_update = [task for (name, task, merge_task) in block]
 
         with self.db:
-            self.db.executemany("""update jobs
+            self.db.executemany("""update tasks
                 set status=6,
                 published_file_block=?
                 where id=?""", unmerged)
 
-            self.db.executemany("""update jobs
+            self.db.executemany("""update tasks
                 set status=6,
                 published_file_block=?
-                where job=?""", unmerged)
+                where task=?""", unmerged)
 
-            for job, dataset in self.db.execute("""select jobs.id,
+            for task, dataset in self.db.execute("""select tasks.id,
                 datasets.label
-                from jobs, datasets
-                where jobs.id in ({0})
-                and jobs.dataset=datasets.id""".format(", ".join(unit_update))):
-                self.db.execute("update units_{0} set status=6 where job=?".format(dataset), (job,))
+                from tasks, datasets
+                where tasks.id in ({0})
+                and tasks.dataset=datasets.id""".format(", ".join(unit_update))):
+                self.db.execute("update units_{0} set status=6 where task=?".format(dataset), (task,))
 
-    def successful_jobs(self, label):
+    def successful_tasks(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
         cur = self.db.execute("""
             select id, type
-            from jobs
+            from tasks
             where status=2 and dataset=?
             """, (dset_id,))
 
         return cur
 
-    def merged_jobs(self, label):
+    def merged_tasks(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
 
         cur = self.db.execute("""select id, type
-            from jobs
+            from tasks
             where status=8 and dataset=?
             """, (dset_id,))
 
         return cur
 
-    def failed_jobs(self, label):
+    def failed_tasks(self, label):
         dset_id = self.db.execute("select id from datasets where label=?", (label,)).fetchone()[0]
         cur = self.db.execute("""select id, type
-            from jobs
+            from tasks
             where status in (3, 4) and dataset=?
             """, (dset_id,))
 
         return cur
 
     def failed_units(self, label):
-        tasks = self.db.execute("select job from units_{0} where failed > ?".format(label), (self.__failure_threshold,))
+        tasks = self.db.execute("select task from units_{0} where failed > ?".format(label), (self.__failure_threshold,))
         return [xs[0] for xs in tasks]
 
-    def running_jobs(self):
-        cur = self.db.execute("select id from jobs where status=1")
+    def running_tasks(self):
+        cur = self.db.execute("select id from tasks where status=1")
         for (v,) in cur:
             yield v
 
@@ -761,16 +761,16 @@ class UnitStore:
             conn.execute("update datasets set pset_hash=? where label=?", (pset_hash, dataset))
 
     @retry(stop_max_attempt_number=10)
-    def update_missing(self, jobs):
+    def update_missing(self, tasks):
         with self.db:
-            for job, dataset in self.db.execute("""select jobs.id,
+            for task, dataset in self.db.execute("""select tasks.id,
                 datasets.label
-                from jobs, datasets
-                where jobs.id in ({0})
-                and jobs.dataset=datasets.id""".format(", ".join(map(str, jobs)))):
-                self.db.execute("update units_{0} set status=3 where job=?".format(dataset), (job,))
+                from tasks, datasets
+                where tasks.id in ({0})
+                and tasks.dataset=datasets.id""".format(", ".join(map(str, tasks)))):
+                self.db.execute("update units_{0} set status=3 where task=?".format(dataset), (task,))
 
-            # update jobs to be failed
-            self.db.executemany("update jobs set status=3 where id=?", [(job,) for job in jobs])
-            # reset merged jobs from merging
-            self.db.executemany("update jobs set status=2 where job=?", [(job,) for job in jobs])
+            # update tasks to be failed
+            self.db.executemany("update tasks set status=3 where id=?", [(task,) for task in tasks])
+            # reset merged tasks from merging
+            self.db.executemany("update tasks set status=2 where task=?", [(task,) for task in tasks])

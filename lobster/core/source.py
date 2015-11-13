@@ -136,7 +136,7 @@ class TaskProvider(object):
         self.__dash_checker = dash.TaskStateChecker(interval)
 
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
-        self.__jobhandlers = {}
+        self.__taskhandlers = {}
         self.__interface = MetaInterface()
         self.__store = unit.UnitStore(self.config)
 
@@ -187,7 +187,7 @@ class TaskProvider(object):
         else:
             self.__dash = monitor(self.workdir)
             for id in self.__store.reset_units():
-                self.__dash.update_job(id, dash.ABORTED)
+                self.__dash.update_task(id, dash.ABORTED)
 
         self.config = apply_matching(self.config)
         for cfg in self.config['tasks']:
@@ -204,7 +204,7 @@ class TaskProvider(object):
                 self.__store.register(wflow.config, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
-                for id in self.get_jobids(wflow.label):
+                for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
 
         if create:
@@ -225,12 +225,12 @@ class TaskProvider(object):
         self._inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
-                (os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True),
+                (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),
                 (self.parrot_lib, 'lib', None),
                 ]
 
-        # Files to make the job wrapper work without referencing WMCore
+        # Files to make the task wrapper work without referencing WMCore
         # from somewhere else
         import WMCore
         base = os.path.dirname(WMCore.__file__)
@@ -285,26 +285,26 @@ class TaskProvider(object):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
             yaml.dump(self.config, f, default_flow_style=False)
 
-    def get_jobids(self, label, status='running'):
-        # Iterates over the job directories and returns all jobids found
+    def get_taskids(self, label, status='running'):
+        # Iterates over the task directories and returns all taskids found
         # therein.
         parent = os.path.join(self.workdir, label, status)
         for d in glob.glob(os.path.join(parent, '*', '*')):
             yield int(os.path.relpath(d, parent).replace(os.path.sep, ''))
 
-    def get_report(self, label, job):
-        return os.path.join(self.workdir, label, 'successful', util.id2dir(job), 'report.json')
+    def get_report(self, label, task):
+        return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, num=1):
-        jobinfos = self.__store.pop_unmerged_jobs(self.config.get('merge size', -1), 10) \
+        taskinfos = self.__store.pop_unmerged_tasks(self.config.get('merge size', -1), 10) \
                 + self.__store.pop_units(num)
-        if not jobinfos or len(jobinfos) == 0:
+        if not taskinfos or len(taskinfos) == 0:
             return None
 
         tasks = []
         ids = []
 
-        for (id, label, files, lumis, unique_arg, empty_source, merge) in jobinfos:
+        for (id, label, files, lumis, unique_arg, empty_source, merge) in taskinfos:
             wflow = self.workflows[label]
             ids.append(id)
 
@@ -313,7 +313,7 @@ class TaskProvider(object):
             inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
             outputs = [(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']]
 
-            monitorid, syncid = self.__dash.register_job(id)
+            monitorid, syncid = self.__dash.register_task(id)
 
             config = {
                 'mask': {
@@ -340,15 +340,15 @@ class TaskProvider(object):
                 infiles = []
                 inreports = []
 
-                for job, _, _, _ in lumis:
-                    report = self.get_report(label, job)
-                    _, infile = list(wflow.outputs(job))[0]
+                for task, _, _, _ in lumis:
+                    report = self.get_report(label, task)
+                    _, infile = list(wflow.outputs(task))[0]
 
                     if os.path.isfile(report):
                         inreports.append(report)
-                        infiles.append((job, infile))
+                        infiles.append((task, infile))
                     else:
-                        missing.append(job)
+                        missing.append(task)
 
                 if len(missing) > 0:
                     template = "the following have been marked as failed because their output could not be found: {0}"
@@ -357,9 +357,9 @@ class TaskProvider(object):
 
                 if len(infiles) <= 1:
                     # FIXME report these back to the database and then skip
-                    # them.  Without failing these job ids, accounting of
-                    # running jobs is going to be messed up.
-                    logger.debug("skipping job {0} with only one input file!".format(id))
+                    # them.  Without failing these task ids, accounting of
+                    # running tasks is going to be messed up.
+                    logger.debug("skipping task {0} with only one input file!".format(id))
 
                 # takes care of the fields set to None in config
                 wflow.adjust(config, jdir, inputs, outputs, merge, reports=inreports)
@@ -384,18 +384,18 @@ class TaskProvider(object):
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
 
-            cmd = 'sh wrapper.sh python job.py parameters.json'
+            cmd = 'sh wrapper.sh python task.py parameters.json'
 
-            cores = 1 if merge else self.config.get('cores per job', 1)
+            cores = 1 if merge else self.config.get('cores per task', 1)
             runtime = None
             if 'task runtime' in config:
                 runtime = config['task runtime'] + 15 * 60
 
             tasks.append((runtime, cores, cmd, id, inputs, outputs))
 
-            self.__jobhandlers[id] = handler
+            self.__taskhandlers[id] = handler
 
-        logger.info("creating job(s) {0}".format(", ".join(map(str, ids))))
+        logger.info("creating task(s) {0}".format(", ".join(map(str, ids))))
 
         self.__dash.free()
 
@@ -403,12 +403,12 @@ class TaskProvider(object):
 
     def release(self, tasks):
         cleanup = []
-        jobs = defaultdict(list)
+        update = defaultdict(list)
         summary = ReleaseSummary()
         for task in tasks:
-            self.__dash.update_job(task.tag, dash.DONE)
+            self.__dash.update_task(task.tag, dash.DONE)
 
-            handler = self.__jobhandlers[task.tag]
+            handler = self.__taskhandlers[task.tag]
             failed, task_update, file_update, unit_update = handler.process(task, summary)
 
             wflow = self.workflows[handler.dataset]
@@ -422,11 +422,11 @@ class TaskProvider(object):
                     cleanup += files
                 util.move(wflow.workdir, handler.id, 'successful')
 
-            self.__dash.update_job(task.tag, dash.RETRIEVED)
+            self.__dash.update_task(task.tag, dash.RETRIEVED)
 
-            jobs[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
+            update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
 
-            del self.__jobhandlers[task.tag]
+            del self.__taskhandlers[task.tag]
 
         self.__dash.free()
 
@@ -438,13 +438,13 @@ class TaskProvider(object):
             except ValueError as e:
                 logger.error("error removing {0}:\n{1}".format(task.tag, e))
 
-        if len(jobs) > 0:
+        if len(update) > 0:
             logger.info(summary)
-            self.__store.update_units(jobs)
+            self.__store.update_units(update)
 
     def terminate(self):
-        for id in self.__store.running_jobs():
-            self.__dash.update_job(str(id), dash.CANCELLED)
+        for id in self.__store.running_tasks():
+            self.__dash.update_task(str(id), dash.CANCELLED)
 
     def done(self):
         left = self.__store.unfinished_units()
@@ -456,7 +456,7 @@ class TaskProvider(object):
         try:
             self.__dash_checker.update_dashboard_states(self.__dash, queue, exclude_states)
         except:
-            logger.warning("Could not update job states to dashboard")
+            logger.warning("Could not update task states to dashboard")
 
     def update(self, queue):
         # update dashboard status for all unfinished tasks.

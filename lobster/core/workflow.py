@@ -21,7 +21,7 @@ class Workflow(object):
         self._outputs = config.get('outputs')
         self.outputformat = config.get("output format", "{base}_{id}.{ext}")
 
-        self.events_per_task = config.get('events per job', -1)
+        self.events_per_task = config.get('events per task', -1)
         self.pset = config.get('cmssw config')
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
@@ -68,7 +68,7 @@ class Workflow(object):
         self.extra_inputs = files
 
     def determine_outputs(self, basedirs):
-        """Determine output files for CMSSW jobs.
+        """Determine output files for CMSSW tasks.
         """
         self._outputs = []
         # Save determined outputs to the configuration in the
@@ -120,7 +120,7 @@ class Workflow(object):
 
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
-            inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'job.py'), 'job.py', True))
+            inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))
             inputs.extend((r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in reports)
 
             if self.edm_output:

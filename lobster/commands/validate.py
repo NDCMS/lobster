@@ -25,28 +25,28 @@ def validate(args):
         files = set(fs.ls(label))
         delete = []
 
-        for job, job_type in store.failed_jobs(label):
+        for task, task_type in store.failed_tasks(label):
             for output in cfg['outputs']:
                 base, ext = os.path.splitext(output)
                 filename = os.path.join(
                         label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
+                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
 
                 if filename in files:
-                    logger.info("found output from failed job: {0}".format(filename))
+                    logger.info("found output from failed task: {0}".format(filename))
                     stats[label][0] += 1
                     if not args.dry_run:
                         delete.append(filename)
 
-        for job, job_type in store.merged_jobs(label):
+        for task, task_type in store.merged_tasks(label):
             for output in cfg['outputs']:
                 base, ext = os.path.splitext(output)
                 filename = os.path.join(
                         label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
+                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
 
                 if filename in files:
-                    logger.info("found output from intermediate merged job: {0}".format(filename))
+                    logger.info("found output from intermediate merged task: {0}".format(filename))
                     stats[label][1] += 1
                     if not args.dry_run and args.delete_merged:
                         delete.append(filename)
@@ -54,16 +54,16 @@ def validate(args):
         for fn in delete:
             fs.remove(fn)
 
-        for job, job_type in store.successful_jobs(label):
+        for task, task_type in store.successful_tasks(label):
             for output in cfg['outputs']:
                 base, ext = os.path.splitext(output)
                 filename = os.path.join(
                         label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=job))
+                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
 
                 if filename not in files:
-                    missing.append(job)
-                    logger.warning('output file is missing for {0}'.format(job))
+                    missing.append(task)
+                    logger.warning('output file is missing for {0}'.format(task))
 
     logger.info('finished validating')
     if sum(sum(stats.values(), [])) == 0:

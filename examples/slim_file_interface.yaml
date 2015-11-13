@@ -25,7 +25,7 @@ storage:
       - srm://T3_US_NotreDame/store/user/<user>/<output directory>
       - chirp://earth.crc.nd.edu:9099/<output directory>
 
-## report jobs to the CMS dashboard (default is true)
+## report tasks to the CMS dashboard (default is true)
 use dashboard: true
 
 ## merge output files to this size
@@ -34,7 +34,7 @@ merge size: 3.5G
 ## delete intermediate files after merging (default is true)
 delete merged: true
 
-## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
+## optional: if a task exits with a code in this list, the host it ran on will be blacklisted
 # bad exit codes: [1, 2]
 
 ## path to CMSSW release needed to run executable (default read from $LOCALRT)
@@ -60,8 +60,8 @@ delete merged: true
 # threshold for failure: 10
 
 # advanced:
-  ## start killing jobs with excessive runtimes after this many successful
-  ## jobs
+  ## start killing tasks with excessive runtimes after this many successful
+  ## tasks
   # abort threshold: 10
   ## define excessive runtime in multiples of the average runtime
   # abort multiplier: 4
@@ -71,7 +71,7 @@ delete merged: true
   # renew proxy: false
   ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
   # log level: 0
-  ## how many jobs to create and keep in the queue
+  ## how many tasks to create and keep in the queue
   # payload: 400
 
 ## task fields:
@@ -86,11 +86,11 @@ delete merged: true
 ##                      dataset (string): DBS dataset name of input files to run over
 ##                      files (string): path to input files (wildcards accepted)
 ##              one of:
-##                      events per job (int): number of events to process per job
-##                      lumis per job (int): lumis to process per job (default: 25)
+##                      events per task (int): number of events to process per task
+##                      lumis per task (int): lumis to process per task (default: 25)
 ##              lumi mask (string): path to lumi mask to apply
 ##              parameters (list of strings): parameters to pass to cmsRun
-##              extra inputs (list of strings): extra files needed to run the job
+##              extra inputs (list of strings): extra files needed to run the task
 ##              publish label (string): label to include in the published dataset name
 ##              output format (string): optional renaming of files, based on their basename and extension
 ##                                      for example, "this_is_file_{id}_{base}.{ext}"
@@ -110,7 +110,7 @@ task defaults:
     ## Apply defaults only to tasks matching the labels in this list
     matching:
       - label: '^ttH*' # match all labels starting with "ttH"
-        events per job: 5000
+        events per task: 5000
       # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
       #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
 

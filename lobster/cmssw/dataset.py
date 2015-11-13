@@ -19,7 +19,7 @@ class DatasetInfo(object):
         self.empty_source = False
         self.files = []
         self.filesizes = defaultdict(int)
-        self.jobsize = 1
+        self.tasksize = 1
         self.lumis = defaultdict(list)
         self.total_events = 0
         self.total_lumis = 0
@@ -94,11 +94,11 @@ class DASInterface:
             file_based = cfg.get('file based', False)
             res = self.query_database(dataset, instance, mask, file_based)
 
-            num = cfg.get('events per job')
+            num = cfg.get('events per task')
             if num:
-                res.jobsize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
+                res.tasksize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
             else:
-                res.jobsize = cfg.get('lumis per job', 25)
+                res.tasksize = cfg.get('lumis per task', 25)
 
             self.__dsets[dataset] = res
 
@@ -159,15 +159,15 @@ class FileInterface:
             dset.empty_source = cfg.get('empty source', False)
 
             if not files:
-                dset.files = [None for x in range(cfg.get('num jobs', 1))]
+                dset.files = [None for x in range(cfg.get('num tasks', 1))]
                 dset.lumis[None] = [(-1, -1)]
-                dset.total_lumis = cfg.get('num jobs', 1)
+                dset.total_lumis = cfg.get('num tasks', 1)
                 dset.empty_source = True
 
-                # we don't cache gen-jobs (avoid overwriting num jobs
+                # we don't cache gen-tasks (avoid overwriting num tasks
                 # etc...)
             else:
-                dset.jobsize = cfg.get("files per job", 1)
+                dset.tasksize = cfg.get("files per task", 1)
                 if not isinstance(files, list):
                     files = [files]
                 for entry in files:

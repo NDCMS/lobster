@@ -17,23 +17,23 @@ class TaskHandler(object):
     """
 
     def __init__(
-            self, id, dataset, files, lumis, outputs, jobdir,
-            cmssw_job=True, empty_source=False, merge=False, local=False):
+            self, id, dataset, files, lumis, outputs, taskdir,
+            cmssw_task=True, empty_source=False, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
         self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
         self._units = lumis
-        self.jobdir = jobdir
+        self.taskdir = taskdir
         self._outputs = outputs
         self._merge = merge
-        self._cmssw_job = cmssw_job
+        self._cmssw_task = cmssw_task
         self._empty_source = empty_source
         self._local = local
 
     @property
-    def cmssw_job(self):
-        return self._cmssw_job
+    def cmssw_task(self):
+        return self._cmssw_task
 
     @property
     def dataset(self):
@@ -53,7 +53,7 @@ class TaskHandler(object):
 
     @property
     def unit_source(self):
-        return 'jobs' if self._merge else 'units_' + self._dataset
+        return 'tasks' if self._merge else 'units_' + self._dataset
 
     @property
     def merge(self):
@@ -71,7 +71,7 @@ class TaskHandler(object):
 
             skipped = False
             read = 0
-            if self._cmssw_job:
+            if self._cmssw_task:
                 if not self._empty_source:
                     skipped = file in files_skipped or file not in files_info
                     read = 0 if failed or skipped else files_info[file][0]
@@ -126,9 +126,9 @@ class TaskHandler(object):
             parameters['mask']['lumis'] = ls.getCompactList()
 
     def process_report(self, task_update):
-        """Read the report summary provided by `job.py`.
+        """Read the report summary provided by `task.py`.
         """
-        with open(os.path.join(self.jobdir, 'report.json'), 'r') as f:
+        with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
             task_update.bytes_output = data['output size']
             task_update.bytes_bare_output = data['output bare size']
@@ -146,7 +146,7 @@ class TaskHandler(object):
             task_update.time_epilogue_end = data['task timing']['epilogue end']
             task_update.time_stage_out_end = data['task timing']['stage out end']
             task_update.time_cpu = data['cpu time']
-            if self._cmssw_job:
+            if self._cmssw_task:
                 files_info = data['files']['info']
                 files_skipped = data['files']['skipped']
                 events_written = data['events written']
@@ -185,7 +185,7 @@ class TaskHandler(object):
 
         # Save wrapper output
         if task.output:
-            f = gzip.open(os.path.join(self.jobdir, 'job.log.gz'), 'wb')
+            f = gzip.open(os.path.join(self.taskdir, 'task.log.gz'), 'wb')
             f.write(task.output)
             f.close()
 
@@ -195,7 +195,7 @@ class TaskHandler(object):
         cmssw_exit_code = None
         events_written = 0
 
-        # May not all be there for failed jobs
+        # May not all be there for failed tasks
         try:
             files_info, files_skipped, events_written, cmssw_exit_code = self.process_report(task_update)
         except (ValueError, EOFError) as e:

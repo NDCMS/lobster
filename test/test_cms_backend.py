@@ -40,10 +40,10 @@ class TestSQLBackend(object):
     def teardown_class(cls):
         pass
 
-    def create_file_dataset(self, label, files, jobsize):
+    def create_file_dataset(self, label, files, tasksize):
         info = DatasetInfo()
         info.file_based = True
-        info.jobsize = jobsize
+        info.tasksize = tasksize
 
         info.files = ['/test/{0}.root'.format(i) for i in range(files)]
         info.lumis = dict((file, [(-1, -1)]) for file in info.files)
@@ -60,11 +60,11 @@ class TestSQLBackend(object):
 
         return cfg, info
 
-    def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, jobsize=5):
+    def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
         info = DatasetInfo()
         info.total_events = lumi_events * lumis
-        info.jobsize = jobsize
+        info.tasksize = tasksize
         info.path = ''
 
         file_size = 0
@@ -136,7 +136,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_handler', lumis=11, filesize=2.2, jobsize=3))
+                    'test_handler', lumis=11, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
@@ -164,15 +164,15 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_obtain', lumis=20, filesize=2.2, jobsize=3))
+                    'test_obtain', lumis=20, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -192,7 +192,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_good', lumis=20, filesize=2.2, jobsize=6))
+                    'test_good', lumis=20, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
@@ -215,8 +215,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -266,8 +266,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -287,7 +287,7 @@ class TestSQLBackend(object):
     def test_return_bad_again(self):
         # {{{
         self.interface.register(*self.create_dbs_dataset(
-            'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
+            'test_bad_again', lumis=20, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
@@ -315,8 +315,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -337,7 +337,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_ugly', lumis=11, filesize=2.2, jobsize=6))
+                    'test_ugly', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
@@ -371,8 +371,8 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -399,7 +399,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(
                 *self.create_dbs_dataset(
-                    'test_uglier', lumis=11, filesize=2.2, jobsize=6))
+                    'test_uglier', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id, submissions=1)
@@ -417,7 +417,7 @@ class TestSQLBackend(object):
 
         self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
-        # grab another job
+        # grab another task
         (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update.id = id
@@ -441,8 +441,8 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -470,8 +470,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -509,8 +509,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -544,8 +544,8 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -583,8 +583,8 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
             (label,)).fetchone()
 
@@ -599,14 +599,14 @@ class TestCMSSWProvider(object):
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
-        cls.provider = cmssw.JobProvider({
+        cls.provider = cmssw.taskProvider({
             'workdir': cls.workdir,
             'stageout location': cls.workdir,
             'id': 'test',
             'recycle sandbox': '/dev/null',
             'tasks': {}
         })
-        cls.provider._JobProvider__store = DummyInterface()
+        cls.provider._taskProvider__store = DummyInterface()
 
         shutil.copytree(
                 os.path.join(os.path.dirname(__file__), 'data'),
@@ -617,10 +617,10 @@ class TestCMSSWProvider(object):
         shutil.rmtree(cls.workdir)
 
     # def test_return_good(self):
-        # self.provider._JobProvider__jobdirs[0] = \
+        # self.provider._taskProvider__taskdirs[0] = \
                 # os.path.join(self.workdir, 'data', 'running', '0')
-        # self.provider._JobProvider__jobdatasets[0] = 'test'
-        # self.provider._JobProvider__joboutputs[0] = []
+        # self.provider._taskProvider__taskdatasets[0] = 'test'
+        # self.provider._taskProvider__taskoutputs[0] = []
         # self.provider
 
     # def test_return_bad(self):

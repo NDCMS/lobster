@@ -149,13 +149,13 @@ class TestSQLBackend(object):
         events_written = 123
 
         update = TaskUpdate()
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
+        file_update, jobit_update = \
                 handler.get_jobit_info(False, update, files_info, files_skipped, events_written)
 
-        assert jobits_processed == 4
-        assert events_read == 300
-        assert events_written == 123
-        assert status == 2
+        assert update.jobits_processed == 4
+        assert update.events_read == 300
+        assert update.events_written == 123
+        assert update.status == 2
         assert file_update == [(220, 0, 1), (80, 0, 2)]
         assert jobit_update == []
         # }}}
@@ -195,26 +195,19 @@ class TestSQLBackend(object):
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
+        task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                            '/test/2.root': (60, [(1, 5)])
-                        },
-                        [],
-                        100
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                    '/test/2.root': (60, [(1, 5)])
+                },
+                [],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -252,25 +245,20 @@ class TestSQLBackend(object):
         self.interface.register(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = TaskHandler(id, label, files, lumis, None, True)
-
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        True,
-                        {},
-                        [],
-                        0
-                        )
-
         task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
             exit_code=123,
             host='hostname',
             id=id,
-            jobits_processed=jobits_processed,
-            status=status,
             submissions=1)
+
+        handler = TaskHandler(id, label, files, lumis, None, True)
+        file_update, jobit_update = handler.get_jobit_info(
+                True,
+                task_update,
+                {},
+                [],
+                0
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -302,28 +290,24 @@ class TestSQLBackend(object):
             'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        True,
-                        {
-                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                            '/test/2.root': (160, [(1, 5), (1, 6)])
-                        },
-                        [],
-                        100
-                        )
-
         task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
             exit_code=123,
             host='hostname',
             id=id,
-            jobits_processed=jobits_processed,
-            status=status,
             submissions=1)
+
+        handler = TaskHandler(id, label, files, lumis, None, True)
+        file_update, jobit_update = handler.get_jobit_info(
+                True,
+                task_update,
+                {
+                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                    '/test/2.root': (160, [(1, 5), (1, 6)])
+                },
+                [],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -356,24 +340,17 @@ class TestSQLBackend(object):
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
+        task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/0.root': (120, [(1, 2), (1, 3)])
-                        },
-                        ['/test/1.root', '/test/2.root'],
-                        50
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/0.root': (120, [(1, 2), (1, 3)])
+                },
+                ['/test/1.root', '/test/2.root'],
+                50
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -425,50 +402,37 @@ class TestSQLBackend(object):
                     'test_uglier', lumis=11, filesize=2.2, jobsize=6))
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
+        task_update = TaskUpdate(host='hostname', id=id, submissions=1)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                        },
-                        ['/test/2.root'],
-                        100
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status,
-            submissions=1)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                },
+                ['/test/2.root'],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
         # grab another job
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
-                            '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
-                            '/test/4.root': (20, [(1, 9)]),
-                        },
-                        [],
-                        100
-                        )
-
-        task_update.events_read = events_read
-        task_update.events_written = events_written
         task_update.id = id
-        task_update.jobits_processed = jobits_processed
-        task_update.status = status
+        handler = TaskHandler(id, label, files, lumis, None, True)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
+                    '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
+                    '/test/4.root': (20, [(1, 9)]),
+                },
+                [],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -525,31 +489,19 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
-        data = [0] * 7
-        exit_code = 0
-        submissions = 0
-        times = [0] * 19
-
+        task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                            '/test/2.root': (160, [(1, 5), (1, 6)])
-                        },
-                        [],
-                        100
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                    '/test/2.root': (160, [(1, 5), (1, 6)])
+                },
+                [],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -576,23 +528,15 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
+        task_update = TaskUpdate(exit_code=1234, host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        True,
-                        {},
-                        [],
-                        0
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            exit_code=1234,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status)
+        file_update, jobit_update = handler.get_jobit_info(
+                True,
+                task_update,
+                {},
+                [],
+                0
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 
@@ -619,25 +563,18 @@ class TestSQLBackend(object):
 
         (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
 
+        task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        jobits_processed, events_read, events_written, status, file_update, jobit_update = \
-                handler.get_jobit_info(
-                        False,
-                        {
-                            '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                            '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                        },
-                        ['/test/2.root'],
-                        100
-                        )
-
-        task_update = TaskUpdate(
-            events_read=events_read,
-            events_written=events_written,
-            host='hostname',
-            id=id,
-            jobits_processed=jobits_processed,
-            status=status)
+        file_update, jobit_update = handler.get_jobit_info(
+                False,
+                task_update,
+                {
+                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                },
+                ['/test/2.root'],
+                100
+                )
 
         self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
 

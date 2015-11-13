@@ -9,7 +9,6 @@ import sys
 import threading
 import time
 import traceback
-import yaml
 
 from lobster import actions, util
 from lobster.commands.status import status

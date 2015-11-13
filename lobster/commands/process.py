@@ -116,7 +116,8 @@ def sprint(config, workdir, cmsjob):
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-    queue.enable_monitoring(os.path.join(workdir, "monitoring.log"))
+    # FIXME Do we always want to have full monitoring?
+    queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
 
     cores = config.get('cores per job', 1)
     logger.info("starting queue as {0}".format(queue.name))
@@ -217,10 +218,10 @@ def sprint(config, workdir, cmsjob):
                 stats.tasks_waiting))
 
         # FIXME switch to resource monitoring in WQ
-        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
+        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.tasks_running
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
+        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.tasks_running))
         logger.debug("trying to feed {0} jobs to work queue".format(hunger))
 
         expiry = None

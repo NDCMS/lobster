@@ -35,6 +35,8 @@ def boil():
     parser_run = subparsers.add_parser('process', help='process configuration')
     parser_run.add_argument('--finalize', action='store_true', default=False,
             help='do not process any additional data; wrap project up by merging everything')
+    parser_run.add_argument('--increase-thresholds', const=10, nargs='?', type=int,
+            help='increase failure/skipping thresholds')
     parser_run.add_argument('--foreground', action='store_true', default=False,
             help='do not daemonize; run in the foreground instead')
     parser_run.add_argument('-f', '--force', action='store_true', default=False,
@@ -126,9 +128,15 @@ def boil():
         if not args.foreground:
             logger.removeHandler(console)
 
-        if args.func == run and args.finalize:
-            args.config['threshold for failure'] = 0
-            args.config['threshold for skipping'] = 0
+        if args.func == run:
+            if args.finalize:
+                args.config['threshold for failure'] = 0
+                args.config['threshold for skipping'] = 0
+            if args.increase_thresholds:
+                args.config['threshold for failure'] = args.config.get('threshold for failure', 10) + args.increase_thresholds
+                args.config['threshold for skipping'] = args.config.get('threshold for skipping', 10) + args.increase_thresholds
+                with open(os.path.join(workdir, 'lobster_config.yaml'), 'w') as f:
+                    yaml.dump(args.config, f, default_flow_style=False)
 
     if configfile == args.checkpoint:
         # This is the original configuration file!

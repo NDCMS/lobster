@@ -3,6 +3,7 @@ import math
 import os
 import re
 import requests
+from retrying import retry
 import shutil
 import sys
 import tempfile
@@ -42,6 +43,23 @@ class MetaInterface:
             info = self.__file_interface.get_info(cfg)
         info.path = cfg['label']
         return info
+
+class DASWrapper(DbsApi):
+    @retry(stop_max_attempt_number=10)
+    def listFileLumis(self, *args, **kwargs):
+        return super(DASWrapper, self).listFileLumis(*args, **kwargs)
+
+    @retry(stop_max_attempt_number=10)
+    def listFileSummaries(self, *args, **kwargs):
+        return super(DASWrapper, self).listFileSummaries(*args, **kwargs)
+
+    @retry(stop_max_attempt_number=10)
+    def listFiles(self, *args, **kwargs):
+        return super(DASWrapper, self).listFiles(*args, **kwargs)
+
+    @retry(stop_max_attempt_number=10)
+    def listBlocks(self, *args, **kwargs):
+        return super(DASWrapper, self).listBlocks(*args, **kwargs)
 
 class DASInterface:
     def __init__(self):
@@ -89,7 +107,7 @@ class DASInterface:
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-            self.__apis[instance] = DbsApi(dbs_url)
+            self.__apis[instance] = DASWrapper(dbs_url)
 
         result = DatasetInfo()
 

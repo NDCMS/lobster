@@ -374,8 +374,11 @@ class Plotter(object):
 
         logdir = os.path.join(self.__plotdir, 'logs')
         if os.path.exists(logdir):
-            shutil.rmtree(logdir)
-        os.makedirs(logdir)
+            for dirpath, dirnames, filenames in os.walk(logdir):
+                logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
+                map(os.unlink, logs)
+        else:
+            os.makedirs(logdir)
 
         for exit_code, jobs in zip(*split_by_column(failed_jobs[['id', 'exit_code']], 'exit_code')):
             codes[exit_code] = [len(jobs), {}]
@@ -390,9 +393,8 @@ class Plotter(object):
                     continue
 
                 target = os.path.join(os.path.join(self.__plotdir, 'logs'), str(id))
-                if os.path.exists(target):
-                    shutil.rmtree(target)
-                os.makedirs(target)
+                if not os.path.exists(target):
+                    os.makedirs(target)
 
                 files = []
                 for l in ['executable.log.gz', 'job.log.gz']:
@@ -416,9 +418,8 @@ class Plotter(object):
             for id in failed:
                 source = os.path.join(self.__workdir, label, 'failed', util.id2dir(id))
                 target = os.path.join(self.__plotdir, 'logs', label, 'failed')
-                if os.path.exists(target):
-                    shutil.rmtree(target)
-                os.makedirs(target)
+                if not os.path.exists(target):
+                    os.makedirs(target)
 
                 files = []
                 for l in ['executable.log.gz', 'job.log.gz']:
@@ -607,7 +608,7 @@ class Plotter(object):
                         ha="center", transform=ax.transAxes, backgroundcolor='white')
 
             if 'label' in kwargs:
-                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7})
+                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7}, numpoints=1)
 
             self.pickle(filename, data)
             self.saveimg(filename)

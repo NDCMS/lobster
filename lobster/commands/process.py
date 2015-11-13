@@ -140,7 +140,7 @@ def sprint(config, workdir, cmsjob):
     interval_minimum = 10
 
     jobs_left = 0
-    jobits_left = 0
+    units_left = 0
     successful_jobs = 0
 
     creation_time = 0
@@ -160,13 +160,13 @@ def sprint(config, workdir, cmsjob):
                 "efficiency " +
                 "total_memory " +
                 "total_cores " +
-                "jobits_left\n")
+                "units_left\n")
 
     bad_exitcodes = task_src.bad_exitcodes
 
     while not task_src.done():
         jobs_left = task_src.tasks_left()
-        jobits_left = task_src.work_left()
+        units_left = task_src.work_left()
 
         logger.debug("expecting {0} tasks, still".format(jobs_left))
         queue.specify_num_tasks_left(jobs_left)
@@ -196,7 +196,7 @@ def sprint(config, workdir, cmsjob):
                     stats.efficiency,
                     stats.total_memory,
                     stats.total_cores,
-                    jobits_left
+                    units_left
                 ]
                 )) + "\n"
             )
@@ -210,10 +210,10 @@ def sprint(config, workdir, cmsjob):
             logger.info("terminating gracefully")
             break
 
-        logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
+        logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} units left".format(
                 stats.workers_busy,
                 stats.workers_busy + stats.workers_ready,
-                jobits_left,
+                units_left,
                 stats.tasks_running,
                 stats.tasks_waiting))
 
@@ -309,7 +309,7 @@ def sprint(config, workdir, cmsjob):
         # recurring actions are triggered here
         if action:
             action.take()
-    if jobits_left == 0:
+    if units_left == 0:
         logger.info("no more work left to do")
         if action:
             action.take(True)

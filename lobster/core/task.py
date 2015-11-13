@@ -5,7 +5,7 @@ import os
 import work_queue as wq
 
 from lobster import util
-import jobit
+import unit
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -23,7 +23,7 @@ class TaskHandler(object):
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
         self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
-        self._jobits = lumis
+        self._units = lumis
         self.jobdir = jobdir
         self._outputs = outputs
         self._merge = merge
@@ -52,22 +52,22 @@ class TaskHandler(object):
         return list(set([filename for (id, filename) in self._files if filename]))
 
     @property
-    def jobit_source(self):
-        return 'jobs' if self._merge else 'jobits_' + self._dataset
+    def unit_source(self):
+        return 'jobs' if self._merge else 'units_' + self._dataset
 
     @property
     def merge(self):
         return self._merge
 
-    def get_jobit_info(self, failed, task_update, files_info, files_skipped, events_written):
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         events_read = 0
         file_update = []
-        jobit_update = []
+        unit_update = []
 
-        jobits_processed = len(self._jobits)
+        units_processed = len(self._units)
 
         for (id, file) in self._files:
-            file_jobits = [tpl for tpl in self._jobits if tpl[1] == id]
+            file_units = [tpl for tpl in self._units if tpl[1] == id]
 
             skipped = False
             read = 0
@@ -79,38 +79,38 @@ class TaskHandler(object):
             events_read += read
 
             if failed:
-                jobits_processed = 0
+                units_processed = 0
             else:
                 if skipped:
-                    for (lumi_id, lumi_file, r, l) in file_jobits:
-                        jobit_update.append((jobit.FAILED, lumi_id))
-                        jobits_processed -= 1
+                    for (lumi_id, lumi_file, r, l) in file_units:
+                        unit_update.append((unit.FAILED, lumi_id))
+                        units_processed -= 1
                 elif not self._file_based:
                     file_lumis = set(map(tuple, files_info[file][1]))
-                    for (lumi_id, lumi_file, r, l) in file_jobits:
+                    for (lumi_id, lumi_file, r, l) in file_units:
                         if (r, l) not in file_lumis:
-                            jobit_update.append((jobit.FAILED, lumi_id))
-                            jobits_processed -= 1
+                            unit_update.append((unit.FAILED, lumi_id))
+                            units_processed -= 1
 
             file_update.append((read, 1 if skipped else 0, id))
 
         if failed:
             events_written = 0
-            status = jobit.FAILED
+            status = unit.FAILED
         else:
-            status = jobit.SUCCESSFUL
+            status = unit.SUCCESSFUL
 
         if self._merge:
             file_update = []
             # FIXME not correct
-            jobits_missed = 0
+            units_missed = 0
 
         task_update.events_read = events_read
         task_update.events_written = events_written
-        task_update.jobits_processed = jobits_processed
+        task_update.units_processed = units_processed
         task_update.status = status
 
-        return file_update, jobit_update
+        return file_update, unit_update
 
     def adjust(self, parameters, inputs, outputs, se):
         local = self._local or self._merge
@@ -122,7 +122,7 @@ class TaskHandler(object):
         parameters['mask']['files'] = self.input_files
         parameters['output files'] = self._outputs
         if not self._file_based and not self._merge:
-            ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._jobits]))
+            ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
 
     def process_report(self, task_update):
@@ -181,7 +181,7 @@ class TaskHandler(object):
         exit_code = task.return_status
         failed = (exit_code != 0)
 
-        task_update = jobit.TaskUpdate()
+        task_update = unit.TaskUpdate()
 
         # Save wrapper output
         if task.output:
@@ -219,10 +219,10 @@ class TaskHandler(object):
         task_update.exit_code = exit_code
 
         # Update CMS stats
-        file_update, jobit_update = self.get_jobit_info(failed, task_update, files_info, files_skipped, events_written)
+        file_update, unit_update = self.get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         try:
             self.process_wq_info(task, task_update)
         except AttributeError:
             summary.monitor(task.tag)
 
-        return failed, task_update, file_update, jobit_update
+        return failed, task_update, file_update, unit_update

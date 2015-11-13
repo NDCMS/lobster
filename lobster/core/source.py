@@ -18,7 +18,7 @@ from lobster import fs, se, util
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw import dash
 from lobster.cmssw import sandbox
-from lobster.core import jobit
+from lobster.core import unit
 from lobster.core import TaskHandler
 from lobster.core import Workflow
 
@@ -138,7 +138,7 @@ class TaskProvider(object):
         self.__sandbox = os.path.join(self.workdir, 'sandbox')
         self.__jobhandlers = {}
         self.__interface = MetaInterface()
-        self.__store = jobit.JobitStore(self.config)
+        self.__store = unit.UnitStore(self.config)
 
         self.__check_merge()
         self.__setup_inputs()
@@ -186,7 +186,7 @@ class TaskProvider(object):
             self.__dash.register_run()
         else:
             self.__dash = monitor(self.workdir)
-            for id in self.__store.reset_jobits():
+            for id in self.__store.reset_units():
                 self.__dash.update_job(id, dash.ABORTED)
 
         self.config = apply_matching(self.config)
@@ -297,7 +297,7 @@ class TaskProvider(object):
 
     def obtain(self, num=1):
         jobinfos = self.__store.pop_unmerged_jobs(self.config.get('merge size', -1), 10) \
-                + self.__store.pop_jobits(num)
+                + self.__store.pop_units(num)
         if not jobinfos or len(jobinfos) == 0:
             return None
 
@@ -409,7 +409,7 @@ class TaskProvider(object):
             self.__dash.update_job(task.tag, dash.DONE)
 
             handler = self.__jobhandlers[task.tag]
-            failed, task_update, file_update, jobit_update = handler.process(task, summary)
+            failed, task_update, file_update, unit_update = handler.process(task, summary)
 
             wflow = self.workflows[handler.dataset]
             if failed:
@@ -424,7 +424,7 @@ class TaskProvider(object):
 
             self.__dash.update_job(task.tag, dash.RETRIEVED)
 
-            jobs[(handler.dataset, handler.jobit_source)].append((task_update, file_update, jobit_update))
+            jobs[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
 
             del self.__jobhandlers[task.tag]
 
@@ -440,14 +440,14 @@ class TaskProvider(object):
 
         if len(jobs) > 0:
             logger.info(summary)
-            self.__store.update_jobits(jobs)
+            self.__store.update_units(jobs)
 
     def terminate(self):
         for id in self.__store.running_jobs():
             self.__dash.update_job(str(id), dash.CANCELLED)
 
     def done(self):
-        left = self.__store.unfinished_jobits()
+        left = self.__store.unfinished_units()
         if self.config.get('merge size', -1) > 0:
             return self.__store.merged() and left == 0
         return left == 0
@@ -469,4 +469,4 @@ class TaskProvider(object):
         return self.__store.estimate_tasks_left()
 
     def work_left(self):
-        return self.__store.unfinished_jobits()
+        return self.__store.unfinished_units()

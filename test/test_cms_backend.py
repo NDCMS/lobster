@@ -2,7 +2,7 @@
 from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.core.task import TaskHandler
-from lobster.core.jobit import TaskUpdate, JobitStore
+from lobster.core.unit import TaskUpdate, UnitStore
 import os
 import shutil
 import tempfile
@@ -10,7 +10,7 @@ import tempfile
 from WMCore.DataStructs.LumiList import LumiList
 
 class DummyInterface(object):
-    def update_jobits(self, data):
+    def update_units(self, data):
         self.data = data
 
 class DummyTask(object):
@@ -28,7 +28,7 @@ class TestSQLBackend(object):
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
-        cls.interface = JobitStore({
+        cls.interface = UnitStore({
             'workdir': cls.workdir,
             'stageout location': cls.workdir,
             'id': 'test',
@@ -137,7 +137,7 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_handler', lumis=11, filesize=2.2, jobsize=3))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
 
@@ -149,15 +149,15 @@ class TestSQLBackend(object):
         events_written = 123
 
         update = TaskUpdate()
-        file_update, jobit_update = \
-                handler.get_jobit_info(False, update, files_info, files_skipped, events_written)
+        file_update, unit_update = \
+                handler.get_unit_info(False, update, files_info, files_skipped, events_written)
 
-        assert update.jobits_processed == 4
+        assert update.units_processed == 4
         assert update.events_read == 300
         assert update.events_written == 123
         assert update.status == 2
         assert file_update == [(220, 0, 1), (80, 0, 2)]
-        assert jobit_update == []
+        assert unit_update == []
         # }}}
 
     def test_obtain(self):
@@ -165,12 +165,12 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, jobsize=3))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -182,7 +182,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (jr, jd) = self.interface.db.execute(
-                "select jobits_running, jobits_done from files_test_obtain where filename='/test/0.root'").fetchone()
+                "select units_running, units_done from files_test_obtain where filename='/test/0.root'").fetchone()
 
         assert jr == 3
         assert jd == 0
@@ -193,11 +193,11 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, jobsize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -209,12 +209,12 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -226,14 +226,14 @@ class TestSQLBackend(object):
         assert ew == 100
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done, events_read from files_test_good where filename='/test/0.root'").fetchone()
+                "select id, units_running, units_done, events_read from files_test_good where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 3
         assert er == 220
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
+                "select id, units_running, units_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
 
         assert jr == 0
         assert jd == 1
@@ -243,7 +243,7 @@ class TestSQLBackend(object):
     def test_return_bad(self):
         # {{{
         self.interface.register(*self.create_dbs_dataset('test_bad'))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -252,7 +252,7 @@ class TestSQLBackend(object):
             submissions=1)
 
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 True,
                 task_update,
                 {},
@@ -260,12 +260,12 @@ class TestSQLBackend(object):
                 0
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -277,7 +277,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done, events_read from files_test_bad where filename='/test/0.root'").fetchone()
+                "select id, units_running, units_done, events_read from files_test_bad where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -288,7 +288,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register(*self.create_dbs_dataset(
             'test_bad_again', lumis=20, filesize=2.2, jobsize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -297,7 +297,7 @@ class TestSQLBackend(object):
             submissions=1)
 
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 True,
                 task_update,
                 {
@@ -309,12 +309,12 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -326,7 +326,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done, events_read from files_test_bad_again where filename='/test/0.root'").fetchone()
+                "select id, units_running, units_done, events_read from files_test_bad_again where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -338,11 +338,11 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, jobsize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -352,7 +352,7 @@ class TestSQLBackend(object):
                 50
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         skipped = list(
                 self.interface.db.execute(
@@ -362,15 +362,15 @@ class TestSQLBackend(object):
 
         status = list(
                 self.interface.db.execute(
-                    "select status from jobits_{0} where file=2 group by status".format(label)))
+                    "select status from units_{0} where file=2 group by status".format(label)))
 
         assert status == [(3,)]
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
-                jobits_left,
+                units_running,
+                units_done,
+                units_left,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -383,13 +383,13 @@ class TestSQLBackend(object):
         assert ew == 50
 
         (id, jr, jd) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done from files_test_ugly where filename='/test/0.root'").fetchone()
+                "select id, units_running, units_done from files_test_ugly where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 2
 
         (id, jr, jd) = self.interface.db.execute(
-                "select id, jobits_running, jobits_done from files_test_ugly where filename='/test/1.root'").fetchone()
+                "select id, units_running, units_done from files_test_ugly where filename='/test/1.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -400,11 +400,11 @@ class TestSQLBackend(object):
         self.interface.register(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=11, filesize=2.2, jobsize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id, submissions=1)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -415,14 +415,14 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         # grab another job
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update.id = id
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -434,13 +434,13 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
-                jobits_left,
+                units_running,
+                units_done,
+                units_left,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -459,7 +459,7 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         parameters = {'mask': {'lumis': None}}
         TaskHandler(id, label, files, lumis, None, True).adjust(parameters, [], [], se.StorageConfiguration({}))
@@ -468,8 +468,8 @@ class TestSQLBackend(object):
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -487,11 +487,11 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -503,12 +503,12 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -526,11 +526,11 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(exit_code=1234, host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 True,
                 task_update,
                 {},
@@ -538,12 +538,12 @@ class TestSQLBackend(object):
                 0
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
+                units_running,
+                units_done,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",
@@ -561,11 +561,11 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_jobits()[0]
+        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
-        file_update, jobit_update = handler.get_jobit_info(
+        file_update, unit_update = handler.get_unit_info(
                 False,
                 task_update,
                 {
@@ -576,13 +576,13 @@ class TestSQLBackend(object):
                 100
                 )
 
-        self.interface.update_jobits({(label, "jobits_" + label): [(task_update, file_update, jobit_update)]})
+        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
-                jobits_running,
-                jobits_done,
-                jobits_left,
+                units_running,
+                units_done,
+                units_left,
                 (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                 (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
             from datasets where label=?""",

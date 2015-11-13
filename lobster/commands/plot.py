@@ -21,7 +21,7 @@ import matplotlib.dates as dates
 import numpy as np
 
 from lobster import util
-from lobster.core import jobit
+from lobster.core import unit
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -84,7 +84,7 @@ class Plotter(object):
 
     def __init__(self, config, outdir=None):
         self.__workdir = config['workdir']
-        self.__store = jobit.JobitStore(config)
+        self.__store = unit.UnitStore(config)
 
         util.verify(self.__workdir)
         self.__id = config['id']
@@ -166,8 +166,8 @@ class Plotter(object):
             status,
             exit_code,
             submissions,
-            jobits,
-            jobits_processed,
+            units,
+            units_processed,
             events_read,
             events_written,
             time_submit,
@@ -248,12 +248,12 @@ class Plotter(object):
                     events,
                     (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
                     (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                    jobits + masked_lumis,
-                    jobits,
-                    jobits_done,
-                    jobits_paused,
+                    units + masked_lumis,
+                    units,
+                    units_done,
+                    units_paused,
                     '' || round(
-                            jobits_done * 100.0 / jobits,
+                            units_done * 100.0 / units,
                         1) || ' %'
                 from datasets"""))
         summary_data += list(db.execute("""
@@ -262,44 +262,44 @@ class Plotter(object):
                     sum(events),
                     (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0),
                     (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0),
-                    sum(jobits + masked_lumis),
-                    sum(jobits),
-                    sum(jobits_done),
-                    sum(jobits_paused),
+                    sum(units + masked_lumis),
+                    sum(units),
+                    sum(units_done),
+                    sum(units_paused),
                     '' || round(
-                            sum(jobits_done) * 100.0 / sum(jobits),
+                            sum(units_done) * 100.0 / sum(units),
                         1) || ' %'
                 from datasets"""))
 
-        # for cases where jobits per job changes during run, get per-jobit info
-        total_jobits = 0
-        start_jobits = 0
-        completed_jobits = []
+        # for cases where units per job changes during run, get per-unit info
+        total_units = 0
+        start_units = 0
+        completed_units = []
         processed_lumis = {}
         for (label,) in db.execute("select label from datasets"):
-            total_jobits += db.execute("select count(*) from jobits_{0}".format(label)).fetchone()[0]
-            start_jobits += db.execute("""
+            total_units += db.execute("select count(*) from units_{0}".format(label)).fetchone()[0]
+            start_units += db.execute("""
                 select count(*)
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
+                from units_{0}, jobs
+                where units_{0}.job == jobs.id
+                    and (units_{0}.status=2 or units_{0}.status=6)
                     and time_retrieved<=?""".format(label), (self.__xmin,)).fetchone()[0]
-            completed_jobits.append(np.array(db.execute("""
-                select jobits_{0}.id, jobs.time_retrieved
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
+            completed_units.append(np.array(db.execute("""
+                select units_{0}.id, jobs.time_retrieved
+                from units_{0}, jobs
+                where units_{0}.job == jobs.id
+                    and (units_{0}.status=2 or units_{0}.status=6)
                     and time_retrieved>=? and time_retrieved<=?""".format(label),
                 (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
             processed_lumis[label] = db.execute("""
-                select jobits_{0}.run,
-                jobits_{0}.lumi
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status in (2, 6))""".format(label)).fetchall()
+                select units_{0}.run,
+                units_{0}.lumi
+                from units_{0}, jobs
+                where units_{0}.job == jobs.id
+                    and (units_{0}.status in (2, 6))""".format(label)).fetchall()
 
-        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits, processed_lumis
+        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, processed_lumis
 
     def readlog(self, filename=None):
         if filename:
@@ -412,7 +412,7 @@ class Plotter(object):
             if paused == 0:
                 continue
 
-            failed = self.__store.failed_jobits(label)
+            failed = self.__store.failed_units(label)
             skipped = self.__store.skipped_files(label)
 
             for id in failed:
@@ -746,7 +746,7 @@ class Plotter(object):
         self.__foremen = foremen if foremen else []
 
         headers, stats = self.readlog()
-        good_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
+        good_jobs, failed_jobs, summary_data, completed_units, total_units, start_units, processed_lumis = self.readdb()
 
         success_jobs = good_jobs[good_jobs['type'] == 0]
         merge_jobs = good_jobs[good_jobs['type'] == 1]
@@ -870,13 +870,13 @@ class Plotter(object):
             )
 
         if len(good_jobs) > 0:
-            completed, bins = np.histogram(completed_jobits['t_retrieved'], 100)
+            completed, bins = np.histogram(completed_units['t_retrieved'], 100)
             total_completed = np.cumsum(completed)
             centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
 
             self.plot(
-                    [(centers, total_completed * (-1.) + start_jobits)],
-                    'Jobits remaining', 'jobits-total',
+                    [(centers, total_completed * (-1.) + start_units)],
+                    'units remaining', 'units-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )

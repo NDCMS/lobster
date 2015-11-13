@@ -46,7 +46,7 @@ delete merged: true
 ## Retry accessing files only 10 times.  Requires CMSSW to be set up to
 ## skip input files when not accessible.
 # threshold for skipping: 10
-## Quit retrying jobits after 11 times.  After 10 failures, jobits are run
+## Quit retrying units after 11 times.  After 10 failures, units are run
 ## once isolated by themselves.
 # threshold for failure: 10
 

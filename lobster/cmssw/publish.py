@@ -16,7 +16,7 @@ from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
-from lobster.core.jobit import JobitStore
+from lobster.core.unit import UnitStore
 from lobster.core.source import apply_matching
 from lobster.cmssw.dataset import MetaInterface
 
@@ -296,7 +296,7 @@ def publish(args):
             files_preserve=[args.preserve],
             working_directory=workdir,
             pidfile=util.get_lock(workdir)):
-        db = JobitStore(config)
+        db = UnitStore(config)
         das_interface = MetaInterface()
 
         dbs = {}

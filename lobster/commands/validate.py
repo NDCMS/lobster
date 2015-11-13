@@ -2,7 +2,7 @@ import os
 import logging
 
 from lobster import fs, se
-from lobster.core.jobit import JobitStore
+from lobster.core.unit import UnitStore
 from lobster.core.source import apply_matching
 
 def validate(args):
@@ -11,7 +11,7 @@ def validate(args):
     logger = logging.getLogger('lobster.validate')
 
     config = apply_matching(config)
-    store = JobitStore(config)
+    store = UnitStore(config)
     storage = se.StorageConfiguration(config['storage'])
     storage.activate()
 

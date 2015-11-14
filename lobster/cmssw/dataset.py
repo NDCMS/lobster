@@ -73,7 +73,7 @@ class DASInterface:
     def __del__(self):
         shutil.rmtree(self.__cache)
 
-    def __get_mask(self, url):
+    def __get_mask(self, url, cfg):
         if not re.match(r'https?://', url):
             return util.findpath(cfg['basedirs'], url)
 
@@ -93,7 +93,7 @@ class DASInterface:
             instance = cfg.get('dbs instance', 'global')
             mask = cfg.get('lumi mask')
             if mask:
-                mask = self.__get_mask(mask)
+                mask = self.__get_mask(mask, cfg)
             file_based = cfg.get('file based', False)
             res = self.query_database(dataset, instance, mask, file_based)
 

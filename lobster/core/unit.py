@@ -71,6 +71,7 @@ TaskUpdate = util.record('TaskUpdate',
                 'id',
                 default=0)
 
+
 class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
@@ -153,12 +154,6 @@ class UnitStore:
             foreign key(workflow) references workflows(id))""")
 
         self.db.commit()
-
-        try:
-            cur = self.db.execute("select max(id) from tasks")
-            count = int(cur.fetchone()[0])
-        except:
-            pass
 
     def disconnect(self):
         self.db.close()
@@ -692,7 +687,6 @@ class UnitStore:
 
     def update_published(self, block):
         unmerged = [(name, task) for (name, task, merge_task) in block]
-        merged = [(name, merge_task) for (name, task, merge_task) in block]
         unit_update = [task for (name, task, merge_task) in block]
 
         with self.db:

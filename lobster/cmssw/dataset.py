@@ -5,12 +5,12 @@ import re
 import requests
 from retrying import retry
 import shutil
-import sys
 import tempfile
 from lobster import util, fs
 
 from dbs.apis.dbsClient import DbsApi
 from WMCore.DataStructs.LumiList import LumiList
+
 
 class DatasetInfo(object):
     def __init__(self):
@@ -30,6 +30,7 @@ class DatasetInfo(object):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
         return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
 
+
 class MetaInterface:
     def __init__(self):
         self.__file_interface = FileInterface()
@@ -43,6 +44,7 @@ class MetaInterface:
             info = self.__file_interface.get_info(cfg)
         info.path = cfg['label']
         return info
+
 
 class DASWrapper(DbsApi):
     @retry(stop_max_attempt_number=10)
@@ -60,6 +62,7 @@ class DASWrapper(DbsApi):
     @retry(stop_max_attempt_number=10)
     def listBlocks(self, *args, **kwargs):
         return super(DASWrapper, self).listBlocks(*args, **kwargs)
+
 
 class DASInterface:
     def __init__(self):
@@ -136,7 +139,7 @@ class DASInterface:
                     for lumi in run['lumi_section_num']:
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.lumis[file].append((run['run_num'], lumi))
-                    if result.lumis.has_key(file):
+                    if file in result.lumis:
                         files.add(file)
 
         result.files = list(files)
@@ -144,6 +147,7 @@ class DASInterface:
         result.masked_lumis = result.unmasked_lumis - result.total_lumis
 
         return result
+
 
 class FileInterface:
     def __init__(self):

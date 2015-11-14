@@ -44,7 +44,7 @@ use dashboard: true
   ## how many tasks to create and keep in the queue
   # payload: 400
 
-## task fields:
+## workflow fields:
 ##      required:
 ##             label (string): label for this task
 ##             outputs (list): output files to be collected
@@ -71,7 +71,7 @@ use dashboard: true
 ##                                  will try to adjust units per tasks to
 ##                                  match the desired runtime.
 
-tasks:
+workflows:
   - label: something
     cmd: "custom_command.sh -o foo.txt -a custom_command.txt"
     extra inputs: [custom_command.txt]

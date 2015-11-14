@@ -278,7 +278,7 @@ def publish(args):
     config = apply_matching(args.config)
 
     if len(args.datasets) == 0:
-        args.datasets = [task['label'] for task in config.get('tasks', [])]
+        args.datasets = [workflow['label'] for workflow in config.get('workflows', [])]
 
     workdir = config['workdir']
     user = config.get('publish user', os.environ['USER'])

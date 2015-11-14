@@ -18,7 +18,7 @@ def validate(args):
     stats = dict((cfg['label'], [0, 0]) for cfg in config['tasks'])
 
     missing = []
-    for cfg in config['tasks']:
+    for cfg in config['workflows']:
         label = cfg['label']
         logger.info('validating output files for {0}'.format(label))
 

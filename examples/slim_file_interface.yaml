@@ -74,7 +74,7 @@ delete merged: true
   ## how many tasks to create and keep in the queue
   # payload: 400
 
-## task fields:
+## workflow fields:
 ##      required:
 ##             label (string): label for this task
 ##             outputs (list): output files to be collected
@@ -101,9 +101,9 @@ delete merged: true
 ##                                  will try to adjust units per tasks to
 ##                                  match the desired runtime.
 
-## Set task default, applied to all tasks specified below, unless they
+## Set workflow default, applied to all workflows specified below, unless they
 ## override certain options.
-task defaults:
+workflow defaults:
     cmssw config: slim.py
     outputs: [output.root]
     publish label: 'test'
@@ -114,5 +114,5 @@ task defaults:
       # - label: '2012A_06Aug$' #match all labels with 2012A_06Aug
       #   lumi mask: examples/json/Cert_190782-190949_8TeV_06Aug2012ReReco_Collisions12_JSON.txt
 
-tasks:
+workflows:
   - {label: ttH, files: '/ttH'}

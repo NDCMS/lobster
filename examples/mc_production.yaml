@@ -74,7 +74,9 @@ advanced:
   ## how many tasks to create and keep in the queue
   # payload: 400
 
-task defaults:
+## Set workflow default, applied to all workflows specified below, unless they
+## override certain options.
+workflow defaults:
     cmssw config: mc_production.py
     ## if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
     outputs: [minbias.root]
@@ -84,6 +86,6 @@ task defaults:
     ## default task size
     # lumis per task: 25
 
-tasks:
+workflows:
   - {label: minbias, events per task: 225, num tasks: 10000}
 

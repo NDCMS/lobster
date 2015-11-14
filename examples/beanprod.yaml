@@ -65,7 +65,34 @@ advanced:
   ## how many tasks to create and keep in the queue
   # payload: 400
 
-task defaults:
+## workflow fields:
+##      required:
+##             label (string): label for this task
+##             outputs (list): output files to be collected
+##      must include one of the following:
+##              cmssw config (string): path to cmssw parameter set to call cmsRun on
+##              cmd (string): command to run
+##      optional:
+##              one of:
+##                      dataset (string): DBS dataset name of input files to run over
+##                      files (string): path to input files (wildcards accepted)
+##              one of:
+##                      events per task (int): number of events to process per task
+##                      lumis per task (int): lumis to process per task (default: 25)
+##              lumi mask (string): path to lumi mask to apply
+##              parameters (list of strings): parameters to pass to cmsRun
+##              extra inputs (list of strings): extra files needed to run the task
+##              publish label (string): label to include in the published dataset name
+##              output format (string): optional renaming of files, based on their basename and extension
+##                                      for example, "this_is_file_{id}_{base}.{ext}"
+##              task runtime (int): seconds of task runtime.  CMSSW (7_4_X
+##                                  or greater) will run for an addiotional
+##                                  10 minutes, and after further 15
+##                                  minutes, tasks will be killed.  Lobster
+##                                  will try to adjust units per tasks to
+##                                  match the desired runtime.
+
+workflow defaults:
     cmssw config: makeBEAN_cfg.py
     ## if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
     outputs: [ttH_pat2bean_53x.root]
@@ -88,7 +115,7 @@ task defaults:
       - label: '^WJets.*' # match all labels starting with "WJets"
         events per task: 5000
 
-tasks:
+workflows:
   - {label: SingleMu_2012A, parameters: [taskParams=2012_A_data-RR_-1], dataset: /SingleMu/Run2012A-13Jul2012-v1/AOD}
   - {label: SingleMu_2012A_06Aug, parameters: [taskParams=2012_A_data-RRr_-11], dataset: /SingleMu/Run2012A-recover-06Aug2012-v1/AOD}
   - {label: SingleMu_2012B, parameters: [taskParams=2012_B_data-RR_-111], dataset: /SingleMu/Run2012B-13Jul2012-v1/AOD}

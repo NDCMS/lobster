@@ -25,13 +25,13 @@ from lobster.core import Workflow
 logger = logging.getLogger('lobster.source')
 
 def apply_matching(config):
-    if 'task defaults' not in config:
+    if 'workflow defaults' not in config:
         return config
-    defaults = config['task defaults']
+    defaults = config['workflow defaults']
     matching = defaults.get('matching', [])
     configs = []
 
-    for cfg in config['tasks']:
+    for cfg in config['workflows']:
         label = cfg['label']
 
         for match in matching:
@@ -49,8 +49,8 @@ def apply_matching(config):
 
         configs.append(cfg)
 
-    config['tasks'] = configs
-    del config['task defaults']
+    config['workflows'] = configs
+    del config['workflow defaults']
 
     return config
 
@@ -165,8 +165,8 @@ class TaskProvider(object):
             # or use cmd command if all tasks execute the same cmd,
             # or use 'noncmsRun' if task cmds are different
             # Using this for dashboard exe name reporting
-            cmsconfigs = [cfg.get('cmssw config') for cfg in self.config['tasks']]
-            cmds = [cfg.get('cmd') for cfg in self.config['tasks']]
+            cmsconfigs = [cfg.get('cmssw config') for cfg in self.config['workflows']]
+            cmds = [cfg.get('cmd') for cfg in self.config['workflows']]
             if any(cmsconfigs):
                 exename = 'cmsRun'
             elif all(x == cmds[0] and x is not None for x in cmds):
@@ -190,7 +190,7 @@ class TaskProvider(object):
                 self.__dash.update_task(id, dash.ABORTED)
 
         self.config = apply_matching(self.config)
-        for cfg in self.config['tasks']:
+        for cfg in self.config['workflows']:
             wflow = Workflow(self.workdir, cfg, self.basedirs)
             self.workflows[wflow.label] = wflow
 

@@ -23,7 +23,7 @@ class DummyTask(object):
 class TestSQLBackend(object):
     def setup(self):
         with self.interface.db as db:
-            db.execute("delete from datasets")
+            db.execute("delete from workflows")
 
     @classmethod
     def setup_class(cls):
@@ -171,9 +171,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 4
@@ -215,9 +215,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -266,9 +266,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -315,9 +315,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -371,9 +371,9 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -441,9 +441,9 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -470,9 +470,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 3
@@ -509,9 +509,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -544,9 +544,9 @@ class TestSQLBackend(object):
             select
                 units_running,
                 units_done,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -583,9 +583,9 @@ class TestSQLBackend(object):
                 units_running,
                 units_done,
                 units_left,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and dataset = datasets.id)
-            from datasets where label=?""",
+                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
+            from workflows where label=?""",
             (label,)).fetchone()
 
         assert jr == 0
@@ -619,7 +619,7 @@ class TestCMSSWProvider(object):
     # def test_return_good(self):
         # self.provider._taskProvider__taskdirs[0] = \
                 # os.path.join(self.workdir, 'data', 'running', '0')
-        # self.provider._taskProvider__taskdatasets[0] = 'test'
+        # self.provider._taskProvider__taskworkflows[0] = 'test'
         # self.provider._taskProvider__taskoutputs[0] = []
         # self.provider
 

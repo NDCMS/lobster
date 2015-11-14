@@ -1,6 +1,5 @@
 import datetime
 import glob
-import gzip
 import json
 import logging
 import os
@@ -11,7 +10,6 @@ import work_queue as wq
 import yaml
 
 from collections import defaultdict
-from functools import partial
 from hashlib import sha1
 
 from lobster import fs, se, util
@@ -23,6 +21,7 @@ from lobster.core import TaskHandler
 from lobster.core import Workflow
 
 logger = logging.getLogger('lobster.source')
+
 
 def apply_matching(config):
     if 'workflow defaults' not in config:
@@ -53,6 +52,7 @@ def apply_matching(config):
     del config['workflow defaults']
 
     return config
+
 
 class ReleaseSummary(object):
     """Summary of returned tasks.
@@ -115,6 +115,7 @@ class ReleaseSummary(object):
             s += "resource monitoring unavailable for the following tasks: {0}\n".format(", ".join(self.__monitors))
         # Trim final newline
         return s[:-1]
+
 
 class TaskProvider(object):
     def __init__(self, config, interval=300):
@@ -462,7 +463,7 @@ class TaskProvider(object):
         # update dashboard status for all unfinished tasks.
         # WAITING_RETRIEVAL is not a valid status in dashboard,
         # so skipping it for now.
-        exclude_states = ( dash.DONE, dash.WAITING_RETRIEVAL )
+        exclude_states = (dash.DONE, dash.WAITING_RETRIEVAL)
         self.__update_dashboard(queue, exclude_states)
 
     def tasks_left(self):

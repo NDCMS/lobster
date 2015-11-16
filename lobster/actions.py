@@ -28,7 +28,10 @@ class Actions(object):
 
             def plotf(q):
                 while q.get() not in ('stop', None):
-                    plotter.make_plots(foremen=config.get('foremen logs'))
+                    try:
+                        plotter.make_plots(foremen=config.get('foremen logs'))
+                    except:
+                        pass
 
             self.plotq = multiprocessing.Queue()
             self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))

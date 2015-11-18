@@ -206,7 +206,7 @@ class TaskHandler(object):
             logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
         # Determine true status
-        if not exit_code and task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
+        if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
             exit_code = 100000 + task.result
             failed = True
             summary.wq(task.result, task.tag)

@@ -217,10 +217,10 @@ def sprint(config, workdir, cmstask):
                 stats.tasks_waiting))
 
         # FIXME switch to resource monitoring in WQ
-        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.tasks_running
+        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.tasks_running))
+        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
         logger.debug("trying to feed {0} tasks to work queue".format(hunger))
 
         expiry = None

@@ -986,9 +986,8 @@ class Plotter(object):
 
                 self.plot(
                     [
-                        # FIXME: hack below is required because WQ occasionally reports bogus values
-                        (tasks['t_retrieved'][tasks['memory_resident'] < 1e5], tasks['memory_resident'][tasks['memory_resident'] < 1e5]),
-                        (tasks['t_retrieved'][tasks['memory_virtual'] < 1e5], tasks['memory_virtual'][tasks['memory_virtual'] < 1e5]),
+                        (tasks['t_retrieved'], tasks['memory_resident']),
+                        (tasks['t_retrieved'], tasks['memory_virtual']),
                         (tasks['t_retrieved'], tasks['memory_swap'])
                     ],
                     'memory [MB]', prefix + 'memory',

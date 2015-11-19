@@ -2,21 +2,142 @@
 <html>
     <head>
         <title>{{id}}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             @import url(http://fonts.googleapis.com/css?family=Lobster+Two:700italic);
 
             body {
                 font-family:"Trebuchet MS";
+                margin: 0 auto;
+                margin-top: 75px;
+                padding: 0 2em;
+                width: 100%;
+                max-width: 1280px;
+            }
+
+            :target:before {
+                content: "";
+                display: block;
+                height: 50px; /* fixed header height*/
+                margin: -50px 0 0; /* negative fixed header height */
+            }
+
+            nav {
+                background-color: #aaa;
+
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 50px;
+
+                margin: 0;
+                padding: 0;
+
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+
+                z-index: 1000;
+            }
+
+            nav ul {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+            }
+
+            nav ul li {
+                flex: 1 1 100%;
+                display: block;
+                list-style-type: none;
+            }
+
+            nav > ul > li > a {
+                color: #555;
+                text-decoration: none;
+            }
+
+            nav > ul > li > a:hover {
+                color: #000;
+            }
+
+            nav > ul > li a + div {
+                background-color: #aaa;
+                display: none;
+                position: absolute;
+            }
+
+            nav > ul > li:hover a + div {
+                display: block;
+            }
+
+            nav > ul > li a + div > ul {
+                display: flex;
+                flex-direction: column;
+                margin: 0;
+                padding: 0;
+            }
+
+            nav > ul > li a + div > ul > li {
+                flex: 1 1 100%;
+                display: block;
+                margin: 0;
+                padding: .5em;
+            }
+
+            nav > ul > li a + div > ul > li > a {
+                color: #555;
+                text-decoration: none;
+            }
+
+            nav > ul > li a + div > ul > li > a:hover {
+                color: #000;
             }
 
             .lobster {font-family: 'Lobster Two', cursive;}
+
+             @media screen and (min-width: 1280px) {
+                .sidebar {
+                    float: left;
+                    padding: 20px;
+                    width: 400px;
+                }
+
+                .maincontent {
+                    float: left;
+                    padding: 20px
+                    width: 800px;
+                    max-width: 800px;
+                }
+             }
+             @media screen and (max-width: 1279px) {
+                .sidebar {
+                    padding: 20px;
+                    width: 400px;
+                    margin: auto;
+                }
+
+                .maincontent {
+                    padding: 20px
+                    width: 800px;
+                    max-width: 800px;
+                    margin: auto;
+                }
+
+                body {
+                    width: 800px;
+                }
+             }
 
             .center {
                 margin-left: auto;
                 margin-right: auto;
             }
 
-            h1, h2, h3 {clear: left}
+            h2, h3 {
+                border-bottom: solid 1px;
+            }
 
             table.fancy {
                 border-collapse:collapse;
@@ -210,12 +331,28 @@
                 });
             });
         </script>
+        <nav>
+            <ul>
+                <li><a href="#navover">Overview</a></li>
+                <li><a href="#navwflow">Workflows</a></li>
+                <li>
+                    <a href="#navtasks">Tasks</a>
+                    <div>
+                        <ul>
+                            <li><a href="#navgood">Successful</a></li>
+                            <li><a href="#navmerge">Merges</a></li>
+                            <li><a href="#navbad">Failed</a></li>
+                        </ul>
+                </div>
+                <li><a href="#navlobster"><span class="lobster">Lobster</span></a></li>
+            </ul>
+        </nav>
     </head>
     <body>
-        <h1>Summary for Run “{{id}}”</h1>
+        <h1 id="navover">Summary for Project “{{id}}”</h1>
         <table>
             <tr>
-                <td>Run start time: </td>
+                <td>Project start time: </td>
                 <td>{{run_starttime|datetime}}</td>
             </tr>
             {% if run_starttime != plot_starttime %}
@@ -225,7 +362,7 @@
             </tr>
             {% endif %}
             <tr>
-                <td>Run end time: </td>
+                <td>Project end time: </td>
                 <td>{{run_endtime|datetime}}</td>
             </tr>
             {% if run_endtime != plot_endtime %}
@@ -240,7 +377,7 @@
             </tr>
         </table>
 
-        <h1>Overall Task Summary</h1>
+        <h1 id="navwflow">Workflow Summary</h1>
         <p><span class="button depressed" id="tasksummary"><a href="#" id="tasksummary">show breakdown</a></span></p>
         <table class="fancy">
             <tr>
@@ -285,28 +422,31 @@
             {% endfor %}
         </table>
 
-        <h1>task Summary</h1>
+        <h1 id="navtasks">Task Summary</h1>
         {% if good_tasks or bad_tasks %}
-        <div style="float:left">
+        <div class="sidebar">
             <a href="time-pie.png"><img src="time-pie.png"></img></a>
         </div>
-        <div style="margin-left:410px;">
+        <div class="maincontent">
             <a href="all-tasks-hist.png"><img src="all-tasks-hist.png"></img></a>
         {% if good_tasks %}
+            <h3>Efficiency</h3>
             <a href="cpu-wall-hist.png"><img src="cpu-wall-hist.png"></img></a>
             <a href="cpu-wall-int-hist.png"><img src="cpu-wall-int-hist.png"></img></a>
         {% endif %}
         </div>
         {% endif %}
 
-        <h2>Successful tasks</h2>
+        <h2 id="navgood">Successful Tasks</h2>
         {% if good_tasks %}
-        <div style="float:left">
+        <div class="sidebar">
             <a href="good-time-detail-pie.png"><img src="good-time-detail-pie.png"></img></a>
         </div>
-        <div style="margin-left:410px;">
+        <div class="maincontent">
+            <h3>Task Footprint</h3>
             <a href="good-memory-hist.png"><img src="good-memory-hist.png"></img></a>
             <a href="good-workdir-footprint-hist.png"><img src="good-workdir-footprint-hist.png"></img></a>
+            <h3>Task Breakdown</h3>
             <p>
                 <span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
                 <span id="goodmore" class="button depressed"><a href="#" id="goodmore">show timeline breakdown</a></span>
@@ -344,13 +484,15 @@
         <p>No successful tasks yet!</p>
         {% endif %}
 
-        <h2>Merge tasks</h2>
+        <h2 id="navmerge">Merge tasks</h2>
         {% if merge_tasks %}
-        <div style="float:left">
+        <div class="sidebar">
             <a href="merge-time-detail-pie.png"><img src="merge-time-detail-pie.png"></img></a>
         </div>
-        <div style="margin-left:410px;">
+        <div class="maincontent">
+            <h3>Task Footprint</h3>
             <a href="merge-memory-hist.png"><img src="merge-memory-hist.png"></img></a>
+            <h3>Task Breakdown</h3>
             <p>
                 <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
                 <span id="mergemore" class="button depressed"><a href="#" id="mergemore">show timeline breakdown</a></span>
@@ -388,15 +530,18 @@
         <p>No successful merge tasks yet!</p>
         {% endif %}
 
-        <h2>Failed tasks</h2>
+        <h2 id="navbad">Failed tasks</h2>
         {% if bad_tasks %}
-        <div style="float:left">
+        <div class="sidebar">
             <a href="failed-pie.png"><img src="failed-pie.png"></img></a>
         </div>
-        <div style="margin-left:410px;">
+        <div class="maincontent">
+            <h3>Failure Modes</h3>
             <a href="failed-tasks-hist.png"><img src="failed-tasks-hist.png"></img></a>
+            <h3>Task Footprint</h3>
             <a href="failed-memory-hist.png"><img src="failed-memory-hist.png"></img></a>
             <a href="failed-workdir-footprint-hist.png"><img src="failed-workdir-footprint-hist.png"></img></a>
+            <h3>Task Logs</h3>
             <p><span id="logs" class="button depressed"><a href="#" id="logs">show log files</a></span></p>
             <table id="logs" class="fancy">
                 <tr>
@@ -423,13 +568,19 @@
         <p>No failed tasks yet!</p>
         {% endif %}
 
-        <h1><span class="lobster">Lobster</span> Summary</h1>
-        <div style="margin-left:410px;">
+        <h1 id="navlobster"><span class="lobster">Lobster</span> Summary</h1>
+        <div class="sidebar" style="padding:0">
+            <p></p>
+        </div>
+        <div class="maincontent">
+            <h3>Tasks and Workers</h3>
             <a href="workers-plot.png"><img src="workers-plot.png"></img></a>
             <a href="turnover-hist.png"><img src="turnover-hist.png"></img></a>
             <a href="worker-deaths-hist.png"><img src="worker-deaths-hist.png"></img></a>
             <a href="tasks-plot.png"><img src="tasks-plot.png"></img></a>
+            <h3>Time Breakdown</h3>
             <a href="fraction-hist.png"><img src="fraction-hist.png"></img></a>
+            <h3>Output Performance</h3>
             {% if good_tasks %}
             <a href="output-hist.png"><img src="output-hist.png"></img></a>
             <a href="output-total-plot.png"><img src="output-total-plot.png"></img></a>

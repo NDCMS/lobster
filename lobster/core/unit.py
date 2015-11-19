@@ -78,8 +78,8 @@ class UnitStore:
         self.db_path = os.path.join(config['workdir'], "lobster.db")
         self.db = sqlite3.connect(self.db_path)
 
-        self.__failure_threshold = config.get("threshold for failure", 10)
-        self.__skipping_threshold = config.get("threshold for skipping", 10)
+        self.__failure_threshold = config.get("threshold for failure", 30)
+        self.__skipping_threshold = config.get("threshold for skipping", 30)
 
         self.db.execute("""create table if not exists workflows(
             cfg text,

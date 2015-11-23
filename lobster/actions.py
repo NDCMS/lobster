@@ -30,7 +30,7 @@ class Actions(object):
                 while q.get() not in ('stop', None):
                     try:
                         plotter.make_plots(foremen=config.get('foremen logs'))
-                    except e:
+                    except Exception as e:
                         import traceback
                         traceback.print_stack()
                         print e

@@ -64,7 +64,11 @@ def split_by_column(a, col, key=lambda x: x, threshold=None):
 
     return keys, vals
 
-def unpack(source, target):
+def unix2matplotlib(time):
+    return dates.date2num(datetime.fromtimestamp(time))
+
+def unpack(arg):
+    source, target = arg
     try:
         logger.info("unpacking {0}".format(source))
         with open(target, 'w') as output:
@@ -75,6 +79,159 @@ def unpack(source, target):
         logger.error("cannot unpack {0}".format(source))
         return False
     return True
+
+def mp_call(arg):
+    fct, args, kwargs = arg
+    fct(*args, **kwargs)
+
+def mp_pickle(plotdir, name, data):
+    logger.debug("Saving data for {0}".format(name))
+    with open(os.path.join(plotdir, name + '.pkl'), 'wb') as f:
+        pickle.dump(data, f)
+
+def mp_pie(vals, labels, name, plotdir=None, **kwargs):
+    vals = [max(0, val) for val in vals]
+
+    fig, ax = plt.subplots()
+    fig.set_size_inches(4, 3)
+    ratio = 0.75
+    ax.set_position([0.3, 0.3, ratio * 0.7, 0.7])
+
+    newlabels = []
+    total = sum(vals)
+    for label, val in zip(labels, vals):
+        if float(val) / total < .025:
+            newlabels.append('')
+        else:
+            newlabels.append(label)
+
+    with open(os.path.join(plotdir, name + '.dat'), 'w') as f:
+        for l, v in zip(labels, vals):
+            f.write('{0}\t{1}\n'.format(l, v))
+
+    patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
+
+    boxes = []
+    newlabels = []
+    for patch, text, label in zip(patches, texts, labels):
+        if isinstance(label, basestring) and len(text.get_text()) == 0 and len(label) > 0:
+            boxes.append(patch)
+            newlabels.append(label)
+
+    if len(boxes) > 0:
+        ax.legend(boxes, newlabels, ncol=2, mode='expand',
+                bbox_to_anchor=(0, 0, 1, .3),
+                bbox_transform=plt.gcf().transFigure,
+                title='Small Slices',
+                prop={'size': 6})
+
+    return mp_saveimg(plotdir, name)
+
+def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=100, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
+    if not modes:
+        modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
+
+    for mode in modes:
+        filename = stub
+        fig, ax = plt.subplots()
+
+        # to pickle plot contents
+        data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}
+
+        if mode & Plotter.TIME:
+            f = np.vectorize(unix2matplotlib)
+            a = [(f(x), y) for (x, y) in a if len(x) > 0]
+
+            data['data'] = a
+
+            # interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
+            # num_bins = map(unix2matplotlib, bins)
+            # ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=24*60))
+            ax.xaxis.set_major_formatter(dates.DateFormatter("%m-%d\n%H:%M"))
+            ax.set_ylabel(xlabel)
+        else:
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+
+        if mode & Plotter.HIST:
+            filename += '-hist'
+
+            if mode & Plotter.TIME:
+                ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
+                        bins=bins, histtype='barstacked', **kwargs)
+            else:
+                ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
+        elif mode & Plotter.PROF:
+            filename += '-prof'
+            data['data'] = []
+
+            for i, (x, y) in enumerate(a):
+                borders = (unix2matplotlib(xmin), unix2matplotlib(xmax))
+                sums, edges = np.histogram(x, bins=bins, range=borders, weights=y)
+                squares, edges = np.histogram(x, bins=bins, range=borders, weights=np.multiply(y, y))
+                counts, edges = np.histogram(x, bins=bins, range=borders)
+                avg = np.divide(sums, counts)
+                avg_sq = np.divide(squares, counts)
+                err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
+
+                newargs = dict(kwargs)
+                if 'color' in newargs:
+                    newargs['color'] = newargs['color'][i]
+                if 'label' in newargs:
+                    newargs['label'] = newargs['label'][i]
+
+                centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+                ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
+
+                data['data'].append((centers, avg, err))
+
+        elif mode & Plotter.PLOT:
+            filename += '-plot'
+
+            if 'label' in kwargs:
+                for (l, (x, y)) in zip(kwargs['label'], a):
+                    ax.plot(x, y, label=l)
+            else:
+                for (x, y) in a:
+                    ax.plot(x, y)
+
+        ax.grid(True)
+
+        if mode & Plotter.TIME:
+            ax.axis(xmin=unix2matplotlib(xmin), xmax=unix2matplotlib(xmax), ymin=0)
+        else:
+            ax.axis(ymin=0)
+
+        if ymax:
+            ax.axis(ymax=ymax)
+
+        if not mode & Plotter.TIME and mode & Plotter.HIST:
+            labels = kwargs.get('label', [''] * len(a))
+            stats = {}
+            for label, (x, y) in zip(labels, a):
+                avg = np.average(y)
+                var = np.std(y)
+                med = np.median(y)
+                stats[label] = (avg, var, med)
+            info = u"{0} μ = {1:.3g}, σ = {2:.3g} median = {3:.3g}"
+            ax.text(0.75, 0.6,
+                    '\n'.join([info.format(label + ':', avg, var, med) for label, (avg, var, med) in stats.items()]),
+                    ha="center", transform=ax.transAxes, backgroundcolor='white')
+
+        if 'label' in kwargs:
+            ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7}, numpoints=1)
+
+        mp_pickle(plotdir, filename, data)
+        mp_saveimg(plotdir, filename)
+
+
+def mp_saveimg(plotdir, name):
+    logger.info("Saving {0}".format(name))
+
+    plt.savefig(os.path.join(plotdir, name + '.png'))
+    # plt.savefig(os.path.join(self.__plotdir, name + '.pdf'))
+
+    plt.close()
 
 class Plotter(object):
     TIME = 1
@@ -121,6 +278,7 @@ class Plotter(object):
         return int(t.strftime('%s'))
 
     def readdb(self):
+        logger.debug('reading database')
         db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'))
         stats = {}
 
@@ -299,6 +457,8 @@ class Plotter(object):
                 where units_{0}.task == tasks.id
                     and (units_{0}.status in (2, 6))""".format(label)).fetchall()
 
+        logger.debug('finished reading database')
+
         return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, processed_lumis
 
     def readlog(self, filename=None):
@@ -368,7 +528,6 @@ class Plotter(object):
         return res
 
     def savelogs(self, failed_tasks, samples=5):
-        pool = multiprocessing.Pool(processes=10)
         work = []
         codes = {}
 
@@ -381,6 +540,9 @@ class Plotter(object):
             os.makedirs(logdir)
 
         for exit_code, tasks in zip(*split_by_column(failed_tasks[['id', 'exit_code']], 'exit_code')):
+            if exit_code == 0:
+                continue
+
             codes[exit_code] = [len(tasks), {}]
 
             logger.info("Copying sample logs for exit code {0}".format(exit_code))
@@ -402,12 +564,8 @@ class Plotter(object):
                     t = os.path.join(target, l[:-3])
                     if os.path.exists(s):
                         codes[exit_code][1][id].append(l[:-3])
-                        work.append((exit_code, id, l[:-3], pool.apply_async(unpack, [s, t])))
-        for (code, id, file, res) in work:
-            if not res.get():
-                codes[code][1][id].remove(file)
+                        work.append([s, t])
 
-        work = []
         for label, _, _, _, _, _, _, paused, _ in self.__store.workflow_status()[1:]:
             if paused == 0:
                 continue
@@ -426,7 +584,7 @@ class Plotter(object):
                     s = os.path.join(source, l)
                     t = os.path.join(target, str(id) + "_" + l[:-3])
                     if os.path.exists(s):
-                        work.append(pool.apply_async(unpack, [s, t]))
+                        work.append([s, t])
 
             if len(skipped) > 0:
                 outname = os.path.join(self.__plotdir, 'logs', label, 'skipped_files.txt')
@@ -434,20 +592,14 @@ class Plotter(object):
                     os.makedirs(os.path.dirname(outname))
                 with open(outname, 'w') as f:
                     f.write('\n'.join(skipped))
-        for res in work:
-            res.get()
-
-        pool.close()
-        pool.join()
+        pool = multiprocessing.Pool(processes=10)
+        pool.map(unpack, work)
 
         for code in codes:
             for id in range(samples - len(codes[code][1])):
                 codes[code][1][-id] = []
 
         return codes
-
-    def unix2matplotlib(self, time):
-        return dates.date2num(datetime.fromtimestamp(time))
 
     def updatecpu(self, tasks, reshape):
         cache = os.path.join(self.__workdir, 'cputime.pkl')
@@ -508,161 +660,24 @@ class Plotter(object):
                     cpu[bins[1] - 1] += bin * (high - reshape[bins[1] - 1]) / 60.
         return cpu
 
-    def plot(self, a, xlabel, stub=None, ylabel="tasks", bins=100, modes=None, **kwargs_raw):
-        kwargs = dict(kwargs_raw)
-        if 'ymax' in kwargs:
-            del kwargs['ymax']
+    def plot(self, a, xlabel, stub=None, ylabel='tasks', bins=100, modes=None, **kwargs_raw):
+        args = [a, xlabel]
+        kwargs = {
+            'stub': stub,
+            'ylabel': ylabel,
+            'bins': bins,
+            'modes': modes,
+            'xmin': self.__xmin,
+            'xmax': self.__xmax,
+            'plotdir': self.__plotdir
+        }
+        kwargs.update(kwargs_raw)
+        self.__plotargs.append((mp_plot, args, kwargs))
 
-        if not modes:
-            modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
-
-        for mode in modes:
-            filename = stub
-            fig, ax = plt.subplots()
-
-            # to pickle plot contents
-            data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}
-
-            if mode & Plotter.TIME:
-                f = np.vectorize(self.unix2matplotlib)
-                a = [(f(x), y) for (x, y) in a if len(x) > 0]
-
-                data['data'] = a
-
-                # interval = 2**math.floor(math.log((bins[-1] - bins[0]) / 9000.0) / math.log(2))
-                # num_bins = map(self.unix2matplotlib, bins)
-                # ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=24*60))
-                ax.xaxis.set_major_formatter(dates.DateFormatter("%m-%d\n%H:%M"))
-                ax.set_ylabel(xlabel)
-            else:
-                ax.set_xlabel(xlabel)
-                ax.set_ylabel(ylabel)
-
-            if mode & Plotter.HIST:
-                filename += '-hist'
-
-                if mode & Plotter.TIME:
-                    ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
-                            bins=bins, histtype='barstacked', **kwargs)
-                else:
-                    ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
-            elif mode & Plotter.PROF:
-                filename += '-prof'
-                data['data'] = []
-
-                for i, (x, y) in enumerate(a):
-                    borders = (self.unix2matplotlib(self.__xmin), self.unix2matplotlib(self.__xmax))
-                    sums, edges = np.histogram(x, bins=bins, range=borders, weights=y)
-                    squares, edges = np.histogram(x, bins=bins, range=borders, weights=np.multiply(y, y))
-                    counts, edges = np.histogram(x, bins=bins, range=borders)
-                    avg = np.divide(sums, counts)
-                    avg_sq = np.divide(squares, counts)
-                    err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
-
-                    newargs = dict(kwargs)
-                    if 'color' in newargs:
-                        newargs['color'] = newargs['color'][i]
-                    if 'label' in newargs:
-                        newargs['label'] = newargs['label'][i]
-
-                    centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-                    ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
-
-                    data['data'].append((centers, avg, err))
-
-            elif mode & Plotter.PLOT:
-                filename += '-plot'
-
-                if 'label' in kwargs:
-                    for (l, (x, y)) in zip(kwargs['label'], a):
-                        ax.plot(x, y, label=l)
-                else:
-                    for (x, y) in a:
-                        ax.plot(x, y)
-
-            ax.grid(True)
-
-            if mode & Plotter.TIME:
-                ax.axis(
-                        xmin=self.unix2matplotlib(self.__xmin),
-                        xmax=self.unix2matplotlib(self.__xmax),
-                        ymin=0
-                )
-            else:
-                ax.axis(ymin=0)
-
-            if 'ymax' in kwargs_raw:
-                ax.axis(ymax=kwargs_raw['ymax'])
-
-            if not mode & Plotter.TIME and mode & Plotter.HIST:
-                labels = kwargs.get('label', [''] * len(a))
-                stats = {}
-                for label, (x, y) in zip(labels, a):
-                    avg = np.average(y)
-                    var = np.std(y)
-                    med = np.median(y)
-                    stats[label] = (avg, var, med)
-                info = u"{0} μ = {1:.3g}, σ = {2:.3g} median = {3:.3g}"
-                ax.text(0.75, 0.6,
-                        '\n'.join([info.format(label + ':', avg, var, med) for label, (avg, var, med) in stats.items()]),
-                        ha="center", transform=ax.transAxes, backgroundcolor='white')
-
-            if 'label' in kwargs:
-                ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7}, numpoints=1)
-
-            self.pickle(filename, data)
-            self.saveimg(filename)
-
-    def make_pie(self, vals, labels, name, **kwargs):
-        vals = [max(0, val) for val in vals]
-
-        fig, ax = plt.subplots()
-        fig.set_size_inches(4, 3)
-        ratio = 0.75
-        ax.set_position([0.3, 0.3, ratio * 0.7, 0.7])
-
-        newlabels = []
-        total = sum(vals)
-        for label, val in zip(labels, vals):
-            if float(val) / total < .025:
-                newlabels.append('')
-            else:
-                newlabels.append(label)
-
-        with open(os.path.join(self.__plotdir, name + '.dat'), 'w') as f:
-            for l, v in zip(labels, vals):
-                f.write('{0}\t{1}\n'.format(l, v))
-
-        patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
-
-        boxes = []
-        newlabels = []
-        for patch, text, label in zip(patches, texts, labels):
-            if isinstance(label, basestring) and len(text.get_text()) == 0 and len(label) > 0:
-                boxes.append(patch)
-                newlabels.append(label)
-
-        if len(boxes) > 0:
-            ax.legend(boxes, newlabels, ncol=2, mode='expand',
-                    bbox_to_anchor=(0, 0, 1, .3),
-                    bbox_transform=plt.gcf().transFigure,
-                    title='Small Slices',
-                    prop={'size': 6})
-
-        return self.saveimg(name)
-
-    def pickle(self, name, data):
-        logger.debug("Saving data for {0}".format(name))
-        with open(os.path.join(self.__plotdir, name + '.pkl'), 'wb') as f:
-            pickle.dump(data, f)
-
-    def saveimg(self, name):
-        logger.info("Saving {0}".format(name))
-
-        plt.savefig(os.path.join(self.__plotdir, name + '.png'))
-        # plt.savefig(os.path.join(self.__plotdir, name + '.pdf'))
-
-        plt.close()
+    def make_pie(self, vals, labels, name, **kwargs_raw):
+        kwargs = {'plotdir': self.__plotdir}
+        kwargs.update(kwargs_raw)
+        self.__plotargs.append((mp_pie, [vals, labels, name], kwargs))
 
     def make_foreman_plots(self):
         tasks = []
@@ -716,6 +731,9 @@ class Plotter(object):
                 colors=["green","red"]
             )
 
+        if len(names) == 0:
+            return names
+
         self.plot(
             tasks,
             'Tasks', 'foreman-tasks',
@@ -740,6 +758,7 @@ class Plotter(object):
         return names
 
     def make_plots(self, xmin=None, xmax=None, foremen=None):
+        self.__plotargs = []
         self.__xmin = self.parsetime(xmin)
         self.__xmax = self.parsetime(xmax)
 
@@ -893,14 +912,14 @@ class Plotter(object):
 
             self.plot(
                     [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
-                    'Output (GB/h)', 'output',
+                    'Output / (GB/h)', 'output',
                     bins=100,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
             self.plot(
                     [(centers, total_output)],
-                    'Output (GB)', 'output-total',
+                    'Output / GB', 'output-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
@@ -979,7 +998,7 @@ class Plotter(object):
                 for a, label, filestub, color, pie in things_we_are_looking_at:
                     self.plot(
                         [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
-                        label+' (m)', prefix+filestub,
+                        label+' / m', prefix+filestub,
                         color=[cache_map[x][1] for x in cache],
                         label=[cache_map[x][0] for x in cache]
                     )
@@ -990,13 +1009,13 @@ class Plotter(object):
                         (tasks['t_retrieved'], tasks['memory_virtual']),
                         (tasks['t_retrieved'], tasks['memory_swap'])
                     ],
-                    'memory [MB]', prefix + 'memory',
+                    'memory / MB', prefix + 'memory',
                     label=['resident', 'virtual', 'swap']
                 )
 
                 self.plot(
                     [(tasks['t_retrieved'], tasks['workdir_footprint'])],
-                    'working directory footprint [MB]', prefix + 'workdir-footprint',
+                    'working directory footprint / MB', prefix + 'workdir-footprint',
                 )
 
 
@@ -1024,13 +1043,13 @@ class Plotter(object):
                     (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
                     (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
                 ],
-                'memory [MB]', 'failed-memory',
+                'memory / MB', 'failed-memory',
                 label=['resident', 'virtual', 'swap']
             )
 
             self.plot(
                 [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
-                'working directory footprint [MB]', 'failed-workdir-footprint',
+                'working directory footprint / MB', 'failed-workdir-footprint',
             )
 
         else:
@@ -1060,6 +1079,9 @@ class Plotter(object):
                 bad_logs=logs,
                 foremen=foremen_names
             ).encode('utf-8'))
+
+        p = multiprocessing.Pool(10)
+        p.map(mp_call, self.__plotargs)
 
 def plot(args):
     p = Plotter(args.config, args.outdir)

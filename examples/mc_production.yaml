@@ -27,7 +27,7 @@ storage:
     #   - "root://xrootd-cms.infn.it//store/user/<user>/<output directory>"
 
 
-## report jobs to the CMS dashboard (default is true)
+## report tasks to the CMS dashboard (default is true)
 use dashboard: true
 
 ## merge output files to this size
@@ -36,7 +36,7 @@ merge size: 3.5G
 ## delete intermediate files after merging (default is true)
 delete merged: true
 
-## optional: if a job exits with a code in this list, the host it ran on will be blacklisted
+## optional: if a task exits with a code in this list, the host it ran on will be blacklisted
 # bad exit codes: [1, 2]
 
 ## path to CMSSW release needed to run executable (default read from $LOCALRT)
@@ -57,13 +57,13 @@ delete merged: true
 ## Retry accessing files only 30 times.  Requires CMSSW to be set up to
 ## skip input files when not accessible.
 # threshold for skipping: 30
-## Quit retrying jobits after 31 times.  After 30 failures, jobits are run
+## Quit retrying units after 31 times.  After 30 failures, units are run
 ## once isolated by themselves.
 # threshold for failure: 30
 
 advanced:
-  ## start killing jobs with excessive runtimes after this many successful
-  ## jobs
+  ## start killing tasks with excessive runtimes after this many successful
+  ## tasks
   abort threshold: 10
   ## define excessive runtime in multiples of the average runtime
   # abort multiplier: 4
@@ -71,19 +71,21 @@ advanced:
   # renew proxy: false
   ## level of verbosity.  Everything is 1, only critical messages is 5, default 2
   log level: 0
-  ## how many jobs to create and keep in the queue
+  ## how many tasks to create and keep in the queue
   # payload: 400
 
-task defaults:
+## Set workflow default, applied to all workflows specified below, unless they
+## override certain options.
+workflow defaults:
     cmssw config: mc_production.py
     ## if this is not specified, the cmssw config will be loaded to look for output modules and global tags (slower)
     outputs: [minbias.root]
     ## optional renaming of files, based on their basename and extension:
     # output format: "this_is_file_{id}_{base}.{ext}"
     publish label: 'test'
-    ## default job size
-    # lumis per job: 25
+    ## default task size
+    # lumis per task: 25
 
-tasks:
-  - {label: minbias, events per job: 225, num jobs: 10000}
+workflows:
+  - {label: minbias, events per task: 225, num tasks: 10000}
 

@@ -113,15 +113,15 @@ def calculate_alder32(data):
 def check_execution(data, code):
     """Check execution within context.
 
-    Updates 'job exit code' in `data`, if not already set, and prints a
+    Updates 'task exit code' in `data`, if not already set, and prints a
     stack trace if the yield fails with an exception.
     """
     try:
         yield
     except:
         print traceback.format_exc()
-        if data['job exit code'] == 0:
-            data['job exit code'] = code
+        if data['task exit code'] == 0:
+            data['task exit code'] = code
 
 def check_output(config, localname, remotename):
     """Check that file has been transferred correctly.
@@ -341,18 +341,18 @@ def copy_inputs(data, config, env):
 def copy_outputs(data, config, env):
     """Copy output files.
 
-    If the job failed, delete output files, to avoid work_queue
+    If the task failed, delete output files, to avoid work_queue
     transferring them.  Otherwise, attempt stage-out methods in the order
     specified in the config['storage']['output'] section of the user's
-    Lobster configuration. For successful jobs, file sizes are added up
-    and inserted into the job data.
+    Lobster configuration. For successful tasks, file sizes are added up
+    and inserted into the task data.
     """
     outsize = 0
     outsize_bare = 0
 
     transferred = []
     for localname, remotename in config['output files']:
-        # prevent stageout of data for failed jobs
+        # prevent stageout of data for failed tasks
         if os.path.exists(localname) and data['cmssw exit code'] != 0:
             os.remove(localname)
             break
@@ -361,7 +361,7 @@ def copy_outputs(data, config, env):
 
         outsize += os.path.getsize(localname)
 
-        # using try just in case. Successful jobs should always
+        # using try just in case. Successful tasks should always
         # have an existing Events::TTree though.
         # Ha! Unless their output is not an EDM ROOT file, but
         # some other kind of file.  Good thing you used a try!
@@ -438,7 +438,7 @@ def copy_outputs(data, config, env):
     data['output bare size'] = outsize_bare
 
 def edit_process_source(pset, config):
-    """Edit parameter set for job.
+    """Edit parameter set for task.
 
     Adjust input files and lumi mask, as well as adding a process summary
     for performance analysis.
@@ -465,7 +465,7 @@ def edit_process_source(pset, config):
         fp.write(frag)
 
 def parse_fwk_report(config, data, report_filename):
-    """Extract job data from a framework report.
+    """Extract task data from a framework report.
 
     Analyze the CMSSW job framework report to get the CMSSW exit code,
     skipped files, runs and lumis processed on a file basis, total events
@@ -509,7 +509,7 @@ def parse_fwk_report(config, data, report_filename):
                 for lumi in run.lumis:
                     file_lumis.append((run.run, lumi))
         except AttributeError:
-            print 'Detected file-based job.'
+            print 'Detected file-based task.'
         infos[filename] = (int(file['events']), file_lumis)
         eventsPerRun += infos[filename][0]
 
@@ -589,7 +589,7 @@ data = {
         'end size': 0,
         'type': None,
     },
-    'job exit code': 0,
+    'task exit code': 0,
     '{0} exit code'.format('cmssw' if cmsRun else 'exe'): 0,
     'stageout exit code': 0,
     'cpu time': 0,
@@ -597,16 +597,16 @@ data = {
     'output size': 0,
     'output bare size': 0,
     'task timing': {
-        'time stage in end': None,
-        'time prologue end': None,
-        'time wrapper start': None,
-        'time wrapper end': None,
-        'time file requested': None,
-        'time file opened': None,
-        'time file processing': None,
-        'time processing end': None,
-        'time epilogue end': None,
-        'time stage out end': None,
+        'stage in end': None,
+        'prologue end': None,
+        'wrapper start': None,
+        'wrapper end': None,
+        'file requested': None,
+        'file opened': None,
+        'file processing': None,
+        'processing end': None,
+        'epilogue end': None,
+        'stage out end': None,
     },
     'events per run': 0
 }
@@ -618,7 +618,7 @@ env['X509_USER_PROXY'] = 'proxy'
 with check_execution(data, 179):
     copy_inputs(data, config, env)
 
-data['task timing']['time stage in end'] = int(datetime.now().strftime('%s'))
+data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
 
 # Dashboard does not like Unicode, just ASCII encoding
 monitorid = str(config['monitoring']['monitorid'])
@@ -644,7 +644,7 @@ if prologue and len(prologue) > 0:
             raise subprocess.CalledProcessError
 
 
-data['task timing']['time prologue end'] = int(datetime.now().strftime('%s'))
+data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
 parameters = {
             'ExeStart': str(config['executable']),
@@ -690,7 +690,7 @@ print ">>> running {0}".format(' '.join(cmd))
 with open('executable.log', 'w') as logfile:
     p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
 data['exe exit code'] = p.returncode
-data['job exit code'] = data['exe exit code']
+data['task exit code'] = data['exe exit code']
 
 if p.returncode != 0:
     print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
@@ -709,8 +709,8 @@ else:
     data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
-    data['task timing']['time wrapper start'] = extract_time('t_wrapper_start')
-    data['task timing']['time wrapper ready'] = extract_time('t_wrapper_ready')
+    data['task timing']['wrapper start'] = extract_time('t_wrapper_start')
+    data['task timing']['wrapper ready'] = extract_time('t_wrapper_ready')
 
 now = int(datetime.now().strftime('%s'))
 firstevent = now
@@ -718,13 +718,13 @@ firstevent = now
 if cmsRun:
     with check_execution(data, 192):
         frequest, fopen, fprocess = extract_cmssw_times('executable.log', now)
-        data['task timing']['time file requested'] = frequest
-        data['task timing']['time file opened'] = fopen
-        data['task timing']['time file processing'] = fprocess
+        data['task timing']['file requested'] = frequest
+        data['task timing']['file opened'] = fopen
+        data['task timing']['file processing'] = fprocess
 
         firstevent = fprocess
 
-data['task timing']['time processing end'] = now
+data['task timing']['processing end'] = now
 
 if epilogue and len(epilogue) > 0:
     # Make data collected so far available to the epilogue
@@ -744,17 +744,17 @@ if epilogue and len(epilogue) > 0:
     with open('report.json', 'r') as f:
         data = json.load(f)
 
-data['task timing']['time epilogue end'] = int(datetime.now().strftime('%s'))
+data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)
 
 transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
-if data['job exit code'] == 0 and not transfer_success:
-    data['job exit code'] = 211
+if data['task exit code'] == 0 and not transfer_success:
+    data['task exit code'] = 211
     data['output size'] = 0
 
-data['task timing']['time stage out end'] = int(datetime.now().strftime('%s'))
+data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
 
 if 'PARROT_ENABLED' in os.environ:
     cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
@@ -771,7 +771,7 @@ if 'PARROT_ENABLED' in os.environ:
             selfstart = extract_time('t_wrapper_start')
 
             # If our wrapper started before the cache was filled, we are
-            # still a cold cache job (value 0.)  Otherwise, we were
+            # still a cold cache task (value 0.)  Otherwise, we were
             # operating on a hot cache.
             data['cache']['type'] = int(selfstart > fullcache)
 else:
@@ -790,23 +790,23 @@ for filename in 'executable.log report.xml'.split():
                 zipf.close()
 
 cputime = data['cpu time']
-total_time = data['task timing']['time stage out end'] - data['task timing']['time wrapper start']
-exe_time = data['task timing']['time stage out end'] - data['task timing']['time prologue end']
-job_exit_code = data['job exit code']
+total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']
+exe_time = data['task timing']['stage out end'] - data['task timing']['prologue end']
+task_exit_code = data['task exit code']
 stageout_exit_code = data['stageout exit code']
 events_per_run = data['events per run']
 exe_exit_code = data['{0} exit code'.format('cmssw' if cmsRun else 'exe')]
 
 print "Execution time", str(total_time)
 
-print "Exiting with code", str(job_exit_code)
+print "Exiting with code", str(task_exit_code)
 print "Reporting ExeExitCode", str(exe_exit_code)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
 
 parameters = {
             'ExeTime': str(exe_time),
             'ExeExitCode': str(exe_exit_code),
-            'JobExitCode': str(job_exit_code),
+            'JobExitCode': str(task_exit_code),
             'JobExitReason': '',
             'StageOutSE': 'ndcms.crc.nd.edu',
             'StageOutExitStatus': str(stageout_exit_code),
@@ -826,4 +826,4 @@ except:
 apmonSend(taskid, monitorid, parameters, logging, monalisa)
 apmonFree()
 
-sys.exit(job_exit_code)
+sys.exit(task_exit_code)

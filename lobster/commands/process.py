@@ -9,9 +9,10 @@ import sys
 import threading
 import time
 import traceback
-import yaml
 
-from lobster import cmssw, job, status, util
+from lobster import actions, util
+from lobster.commands.status import status
+from lobster.core.source import TaskProvider
 
 from pkg_resources import get_distribution
 
@@ -21,6 +22,7 @@ logger = logging.getLogger('lobster.core')
 
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
+    logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
     workdir = args.config['workdir']
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
@@ -36,9 +38,9 @@ def run(args):
     else:
         util.verify(workdir)
 
-    cmsjob = False
+    cmstask = False
     if config.get('type', 'cmssw') == 'cmssw':
-        cmsjob = True
+        cmstask = True
 
         from WMCore.Credential.Proxy import Proxy
         cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
@@ -76,7 +78,7 @@ def run(args):
             pidfile=util.get_lock(workdir, args.force),
             prevent_core=False,
             signal_map=signals):
-        t = threading.Thread(target=sprint, args=(config, workdir, cmsjob))
+        t = threading.Thread(target=sprint, args=(config, workdir, cmstask))
         t.start()
         t.join()
 
@@ -90,15 +92,14 @@ def run(args):
         except:
             pass
 
-def sprint(config, workdir, cmsjob):
-    if cmsjob:
-        job_src = cmssw.JobProvider(config)
-        actions = cmssw.Actions(config)
+def sprint(config, workdir, cmstask):
+    task_src = TaskProvider(config)
+    if cmstask:
+        action = actions.Actions(config)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logger})
     else:
-        job_src = job.SimpleJobProvider(config)
-        actions = None
+        action = None
         proxy = None
 
     logger.info("using wq from {0}".format(wq.__file__))
@@ -117,7 +118,7 @@ def sprint(config, workdir, cmsjob):
     # FIXME Do we always want to have full monitoring?
     queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
 
-    cores = config.get('cores per job', 1)
+    cores = config.get('cores per task', 1)
     logger.info("starting queue as {0}".format(queue.name))
     logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
         queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
@@ -137,9 +138,9 @@ def sprint(config, workdir, cmsjob):
     interval = 60
     interval_minimum = 10
 
-    jobs_left = 0
-    jobits_left = 0
-    successful_jobs = 0
+    tasks_left = 0
+    units_left = 0
+    successful_tasks = 0
 
     creation_time = 0
     destruction_time = 0
@@ -158,16 +159,16 @@ def sprint(config, workdir, cmsjob):
                 "efficiency " +
                 "total_memory " +
                 "total_cores " +
-                "jobits_left\n")
+                "units_left\n")
 
-    bad_exitcodes = job_src.bad_exitcodes
+    bad_exitcodes = task_src.bad_exitcodes
 
-    while not job_src.done():
-        jobs_left = job_src.tasks_left()
-        jobits_left = job_src.work_left()
+    while not task_src.done():
+        tasks_left = task_src.tasks_left()
+        units_left = task_src.work_left()
 
-        logger.debug("expecting {0} tasks, still".format(jobs_left))
-        queue.specify_num_tasks_left(jobs_left)
+        logger.debug("expecting {0} tasks, still".format(tasks_left))
+        queue.specify_num_tasks_left(tasks_left)
 
         stats = queue.stats_hierarchy
 
@@ -194,7 +195,7 @@ def sprint(config, workdir, cmsjob):
                     stats.efficiency,
                     stats.total_memory,
                     stats.total_cores,
-                    jobits_left
+                    units_left
                 ]
                 )) + "\n"
             )
@@ -202,32 +203,32 @@ def sprint(config, workdir, cmsjob):
         if util.checkpoint(workdir, 'KILLED') == 'PENDING':
             util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
 
-            # let the job source shut down gracefully
-            logger.info("terminating job source")
-            job_src.terminate()
+            # let the task source shut down gracefully
+            logger.info("terminating task source")
+            task_src.terminate()
             logger.info("terminating gracefully")
             break
 
-        logger.info("{0} out of {1} workers busy; {3} jobs running, {4} waiting; {2} jobits left".format(
+        logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
                 stats.workers_busy,
                 stats.workers_busy + stats.workers_ready,
-                jobits_left,
+                units_left,
                 stats.tasks_running,
                 stats.tasks_waiting))
 
         # FIXME switch to resource monitoring in WQ
-        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.tasks_running
+        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.tasks_running))
-        logger.debug("trying to feed {0} jobs to work queue".format(hunger))
+        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
+        logger.debug("trying to feed {0} tasks to work queue".format(hunger))
 
         expiry = None
         if proxy and hunger > 0:
             left = proxy.getTimeLeft()
             if left == 0:
                 logger.error("proxy expired!")
-                job_src.terminate()
+                task_src.terminate()
                 break
             elif left < 4 * 3600:
                 logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
@@ -235,13 +236,13 @@ def sprint(config, workdir, cmsjob):
 
         t = time.time()
         while hunger > 0:
-            jobs = job_src.obtain(hunger)
+            tasks = task_src.obtain(hunger)
 
-            if jobs == None or len(jobs) == 0:
+            if tasks == None or len(tasks) == 0:
                 break
 
-            hunger -= len(jobs)
-            for runtime, cores, cmd, id, inputs, outputs in jobs:
+            hunger -= len(tasks)
+            for runtime, cores, cmd, id, inputs, outputs in tasks:
                 task = wq.Task(cmd)
                 task.specify_tag(id)
                 task.specify_cores(cores)
@@ -271,15 +272,15 @@ def sprint(config, workdir, cmsjob):
                 queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 
-        job_src.update(queue)
+        task_src.update(queue)
         starttime = time.time()
         task = queue.wait(interval)
         tasks = []
         while task:
             if task.return_status == 0:
-                successful_jobs += 1
+                successful_tasks += 1
             elif task.return_status in bad_exitcodes:
-                logger.warning("blacklisting host {0} due to bad exit code from job {1}".format(task.hostname, task.tag))
+                logger.warning("blacklisting host {0} due to bad exit code from task {1}".format(task.hostname, task.tag))
                 queue.blacklist(task.hostname)
             tasks.append(task)
 
@@ -291,7 +292,7 @@ def sprint(config, workdir, cmsjob):
         if len(tasks) > 0:
             try:
                 t = time.time()
-                job_src.release(tasks)
+                task_src.release(tasks)
                 destruction_time += int((time.time() - t) * 1e6)
             except:
                 tb = traceback.format_exc()
@@ -299,15 +300,15 @@ def sprint(config, workdir, cmsjob):
                 for task in tasks:
                     logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                 raise
-        if abort_threshold > 0 and successful_jobs >= abort_threshold and not abort_active:
+        if abort_threshold > 0 and successful_tasks >= abort_threshold and not abort_active:
             logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
             abort_active = True
             queue.activate_fast_abort(abort_multiplier)
 
         # recurring actions are triggered here
-        if actions:
-            actions.take()
-    if jobits_left == 0:
+        if action:
+            action.take()
+    if units_left == 0:
         logger.info("no more work left to do")
-        if actions:
-            actions.take(True)
+        if action:
+            action.take(True)

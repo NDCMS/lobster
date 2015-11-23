@@ -5,12 +5,12 @@ import re
 import requests
 from retrying import retry
 import shutil
-import sys
 import tempfile
 from lobster import util, fs
 
 from dbs.apis.dbsClient import DbsApi
 from WMCore.DataStructs.LumiList import LumiList
+
 
 class DatasetInfo(object):
     def __init__(self):
@@ -19,7 +19,7 @@ class DatasetInfo(object):
         self.empty_source = False
         self.files = []
         self.filesizes = defaultdict(int)
-        self.jobsize = 1
+        self.tasksize = 1
         self.lumis = defaultdict(list)
         self.total_events = 0
         self.total_lumis = 0
@@ -29,6 +29,7 @@ class DatasetInfo(object):
     def __repr__(self):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
         return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
+
 
 class MetaInterface:
     def __init__(self):
@@ -43,6 +44,7 @@ class MetaInterface:
             info = self.__file_interface.get_info(cfg)
         info.path = cfg['label']
         return info
+
 
 class DASWrapper(DbsApi):
     @retry(stop_max_attempt_number=10)
@@ -61,6 +63,7 @@ class DASWrapper(DbsApi):
     def listBlocks(self, *args, **kwargs):
         return super(DASWrapper, self).listBlocks(*args, **kwargs)
 
+
 class DASInterface:
     def __init__(self):
         self.__apis = {}
@@ -70,7 +73,7 @@ class DASInterface:
     def __del__(self):
         shutil.rmtree(self.__cache)
 
-    def __get_mask(self, url):
+    def __get_mask(self, url, cfg):
         if not re.match(r'https?://', url):
             return util.findpath(cfg['basedirs'], url)
 
@@ -90,15 +93,15 @@ class DASInterface:
             instance = cfg.get('dbs instance', 'global')
             mask = cfg.get('lumi mask')
             if mask:
-                mask = self.__get_mask(mask)
+                mask = self.__get_mask(mask, cfg)
             file_based = cfg.get('file based', False)
             res = self.query_database(dataset, instance, mask, file_based)
 
-            num = cfg.get('events per job')
+            num = cfg.get('events per task')
             if num:
-                res.jobsize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
+                res.tasksize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
             else:
-                res.jobsize = cfg.get('lumis per job', 25)
+                res.tasksize = cfg.get('lumis per task', 25)
 
             self.__dsets[dataset] = res
 
@@ -136,7 +139,7 @@ class DASInterface:
                     for lumi in run['lumi_section_num']:
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.lumis[file].append((run['run_num'], lumi))
-                    if result.lumis.has_key(file):
+                    if file in result.lumis:
                         files.add(file)
 
         result.files = list(files)
@@ -144,6 +147,7 @@ class DASInterface:
         result.masked_lumis = result.unmasked_lumis - result.total_lumis
 
         return result
+
 
 class FileInterface:
     def __init__(self):
@@ -159,15 +163,15 @@ class FileInterface:
             dset.empty_source = cfg.get('empty source', False)
 
             if not files:
-                dset.files = [None for x in range(cfg.get('num jobs', 1))]
+                dset.files = [None for x in range(cfg.get('num tasks', 1))]
                 dset.lumis[None] = [(-1, -1)]
-                dset.total_lumis = cfg.get('num jobs', 1)
+                dset.total_lumis = cfg.get('num tasks', 1)
                 dset.empty_source = True
 
-                # we don't cache gen-jobs (avoid overwriting num jobs
+                # we don't cache gen-tasks (avoid overwriting num tasks
                 # etc...)
             else:
-                dset.jobsize = cfg.get("files per job", 1)
+                dset.tasksize = cfg.get("files per task", 1)
                 if not isinstance(files, list):
                     files = [files]
                 for entry in files:

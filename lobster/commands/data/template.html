@@ -285,22 +285,22 @@
             {% endfor %}
         </table>
 
-        <h1>Job Summary</h1>
-        {% if good_jobs or bad_jobs %}
+        <h1>task Summary</h1>
+        {% if good_tasks or bad_tasks %}
         <div style="float:left">
             <a href="time-pie.png"><img src="time-pie.png"></img></a>
         </div>
         <div style="margin-left:410px;">
-            <a href="all-jobs-hist.png"><img src="all-jobs-hist.png"></img></a>
-        {% if good_jobs %}
+            <a href="all-tasks-hist.png"><img src="all-tasks-hist.png"></img></a>
+        {% if good_tasks %}
             <a href="cpu-wall-hist.png"><img src="cpu-wall-hist.png"></img></a>
             <a href="cpu-wall-int-hist.png"><img src="cpu-wall-int-hist.png"></img></a>
         {% endif %}
         </div>
         {% endif %}
 
-        <h2>Successful Jobs</h2>
-        {% if good_jobs %}
+        <h2>Successful tasks</h2>
+        {% if good_tasks %}
         <div style="float:left">
             <a href="good-time-detail-pie.png"><img src="good-time-detail-pie.png"></img></a>
         </div>
@@ -326,7 +326,7 @@
                 {{ label_wrapper('good-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='good') }}
                 {{ label_wrapper('good-setup-cms-hist.png', 'Time from from wrapper ready to file requested', class='good') }}
                 {{ label_wrapper('good-file-open-hist.png', 'Time between requesting and opening file', class='good') }}
-                {{ label_wrapper('good-setup-job-hist.png', 'Time between opening file and begin processing the first event', class='good') }}
+                {{ label_wrapper('good-setup-task-hist.png', 'Time between opening file and begin processing the first event', class='good') }}
             </ul></div>
             <div><ul class="img-list">
                 {{ label_wrapper('good-processing-hist.png', 'Time between begin processing the first event and finish processing', class='good') }}
@@ -341,11 +341,11 @@
             </ul></div>
         </div>
         {% else %}
-        <p>No successful jobs yet!</p>
+        <p>No successful tasks yet!</p>
         {% endif %}
 
-        <h2>Merge Jobs</h2>
-        {% if merge_jobs %}
+        <h2>Merge tasks</h2>
+        {% if merge_tasks %}
         <div style="float:left">
             <a href="merge-time-detail-pie.png"><img src="merge-time-detail-pie.png"></img></a>
         </div>
@@ -370,7 +370,7 @@
                 {{ label_wrapper('merge-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='merge') }}
                 {{ label_wrapper('merge-setup-cms-hist.png', 'Time from from wrapper ready to file requested', class='merge') }}
                 {{ label_wrapper('merge-file-open-hist.png', 'Time between requesting and opening file', class='merge') }}
-                {{ label_wrapper('merge-setup-job-hist.png', 'Time between opening file and begin processing the first event', class='merge') }}
+                {{ label_wrapper('merge-setup-task-hist.png', 'Time between opening file and begin processing the first event', class='merge') }}
             </ul></div>
             <div><ul class="img-list">
                 {{ label_wrapper('merge-processing-hist.png', 'Time between begin processing the first event and finish processing', class='merge') }}
@@ -385,16 +385,16 @@
             </ul></div>
         </div>
         {% else %}
-        <p>No successful merge jobs yet!</p>
+        <p>No successful merge tasks yet!</p>
         {% endif %}
 
-        <h2>Failed Jobs</h2>
-        {% if bad_jobs %}
+        <h2>Failed tasks</h2>
+        {% if bad_tasks %}
         <div style="float:left">
             <a href="failed-pie.png"><img src="failed-pie.png"></img></a>
         </div>
         <div style="margin-left:410px;">
-            <a href="failed-jobs-hist.png"><img src="failed-jobs-hist.png"></img></a>
+            <a href="failed-tasks-hist.png"><img src="failed-tasks-hist.png"></img></a>
             <a href="failed-memory-hist.png"><img src="failed-memory-hist.png"></img></a>
             <a href="failed-workdir-footprint-hist.png"><img src="failed-workdir-footprint-hist.png"></img></a>
             <p><span id="logs" class="button depressed"><a href="#" id="logs">show log files</a></span></p>
@@ -420,7 +420,7 @@
             </table>
         </div>
         {% else %}
-        <p>No failed jobs yet!</p>
+        <p>No failed tasks yet!</p>
         {% endif %}
 
         <h1><span class="lobster">Lobster</span> Summary</h1>
@@ -430,10 +430,10 @@
             <a href="worker-deaths-hist.png"><img src="worker-deaths-hist.png"></img></a>
             <a href="tasks-plot.png"><img src="tasks-plot.png"></img></a>
             <a href="fraction-hist.png"><img src="fraction-hist.png"></img></a>
-            {% if good_jobs %}
+            {% if good_tasks %}
             <a href="output-hist.png"><img src="output-hist.png"></img></a>
             <a href="output-total-plot.png"><img src="output-total-plot.png"></img></a>
-            <a href="jobits-total-plot.png"><img src="jobits-total-plot.png"></img></a>
+            <a href="units-total-plot.png"><img src="units-total-plot.png"></img></a>
             {% else %}
             <p>No output yet!</p>
             {% endif %}

@@ -21,7 +21,7 @@ import matplotlib.dates as dates
 import numpy as np
 
 from lobster import util
-from lobster.cmssw import jobit
+from lobster.core import unit
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -84,7 +84,7 @@ class Plotter(object):
 
     def __init__(self, config, outdir=None):
         self.__workdir = config['workdir']
-        self.__store = jobit.JobitStore(config)
+        self.__store = unit.UnitStore(config)
 
         util.verify(self.__workdir)
         self.__id = config['id']
@@ -124,11 +124,11 @@ class Plotter(object):
         db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'))
         stats = {}
 
-        failed_jobs = np.array(db.execute("""
+        failed_tasks = np.array(db.execute("""
             select
                 id,
                 host,
-                dataset,
+                workflow,
                 exit_code,
                 time_submit,
                 time_retrieved,
@@ -139,13 +139,13 @@ class Plotter(object):
                 memory_virtual,
                 memory_swap,
                 workdir_footprint
-            from jobs
+            from tasks
             where status=3 and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[
                     ('id', 'i4'),
                     ('host', 'a50'),
-                    ('dataset', 'i4'),
+                    ('workflow', 'i4'),
                     ('exit_code', 'i4'),
                     ('t_submit', 'i4'),
                     ('t_retrieved', 'i4'),
@@ -158,16 +158,16 @@ class Plotter(object):
                     ('workdir_footprint', 'i4')
                     ])
 
-        success_jobs = np.array(db.execute("""
+        success_tasks = np.array(db.execute("""
             select
             id,
             host,
-            dataset,
+            workflow,
             status,
             exit_code,
             submissions,
-            jobits,
-            jobits_processed,
+            units,
+            units_processed,
             events_read,
             events_written,
             time_submit,
@@ -198,13 +198,13 @@ class Plotter(object):
             memory_virtual,
             memory_swap,
             workdir_footprint
-            from jobs
+            from tasks
             where status in (2, 6, 7, 8) and time_retrieved>=? and time_retrieved<=?""",
             (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[
                     ('id', 'i4'),
                     ('host', 'a50'),
-                    ('dataset', 'i4'),
+                    ('workflow', 'i4'),
                     ('status', 'i4'),
                     ('exit_code', 'i4'),
                     ('retries', 'i4'),
@@ -246,60 +246,60 @@ class Plotter(object):
                 select
                     label,
                     events,
-                    (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                    (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0 and dataset = datasets.id),
-                    jobits + masked_lumis,
-                    jobits,
-                    jobits_done,
-                    jobits_paused,
+                    (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                    (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                    units + masked_lumis,
+                    units,
+                    units_done,
+                    units_paused,
                     '' || round(
-                            jobits_done * 100.0 / jobits,
+                            units_done * 100.0 / units,
                         1) || ' %'
-                from datasets"""))
+                from workflows"""))
         summary_data += list(db.execute("""
                 select
                     'Total',
                     sum(events),
-                    (select sum(events_read) from jobs where status in (2, 6, 8) and type = 0),
-                    (select sum(events_written) from jobs where status in (2, 6, 8) and type = 0),
-                    sum(jobits + masked_lumis),
-                    sum(jobits),
-                    sum(jobits_done),
-                    sum(jobits_paused),
+                    (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0),
+                    (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0),
+                    sum(units + masked_lumis),
+                    sum(units),
+                    sum(units_done),
+                    sum(units_paused),
                     '' || round(
-                            sum(jobits_done) * 100.0 / sum(jobits),
+                            sum(units_done) * 100.0 / sum(units),
                         1) || ' %'
-                from datasets"""))
+                from workflows"""))
 
-        # for cases where jobits per job changes during run, get per-jobit info
-        total_jobits = 0
-        start_jobits = 0
-        completed_jobits = []
+        # for cases where units per task changes during run, get per-unit info
+        total_units = 0
+        start_units = 0
+        completed_units = []
         processed_lumis = {}
-        for (label,) in db.execute("select label from datasets"):
-            total_jobits += db.execute("select count(*) from jobits_{0}".format(label)).fetchone()[0]
-            start_jobits += db.execute("""
+        for (label,) in db.execute("select label from workflows"):
+            total_units += db.execute("select count(*) from units_{0}".format(label)).fetchone()[0]
+            start_units += db.execute("""
                 select count(*)
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
+                from units_{0}, tasks
+                where units_{0}.task == tasks.id
+                    and (units_{0}.status=2 or units_{0}.status=6)
                     and time_retrieved<=?""".format(label), (self.__xmin,)).fetchone()[0]
-            completed_jobits.append(np.array(db.execute("""
-                select jobits_{0}.id, jobs.time_retrieved
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status=2 or jobits_{0}.status=6)
+            completed_units.append(np.array(db.execute("""
+                select units_{0}.id, tasks.time_retrieved
+                from units_{0}, tasks
+                where units_{0}.task == tasks.id
+                    and (units_{0}.status=2 or units_{0}.status=6)
                     and time_retrieved>=? and time_retrieved<=?""".format(label),
                 (self.__xmin, self.__xmax)).fetchall(),
                 dtype=[('id', 'i4'), ('t_retrieved', 'i4')]))
             processed_lumis[label] = db.execute("""
-                select jobits_{0}.run,
-                jobits_{0}.lumi
-                from jobits_{0}, jobs
-                where jobits_{0}.job == jobs.id
-                    and (jobits_{0}.status in (2, 6))""".format(label)).fetchall()
+                select units_{0}.run,
+                units_{0}.lumi
+                from units_{0}, tasks
+                where units_{0}.task == tasks.id
+                    and (units_{0}.status in (2, 6))""".format(label)).fetchall()
 
-        return success_jobs, failed_jobs, summary_data, np.concatenate(completed_jobits), total_jobits, total_jobits - start_jobits, processed_lumis
+        return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, processed_lumis
 
     def readlog(self, filename=None):
         if filename:
@@ -367,7 +367,7 @@ class Plotter(object):
 
         return res
 
-    def savelogs(self, failed_jobs, samples=5):
+    def savelogs(self, failed_tasks, samples=5):
         pool = multiprocessing.Pool(processes=10)
         work = []
         codes = {}
@@ -380,11 +380,11 @@ class Plotter(object):
         else:
             os.makedirs(logdir)
 
-        for exit_code, jobs in zip(*split_by_column(failed_jobs[['id', 'exit_code']], 'exit_code')):
-            codes[exit_code] = [len(jobs), {}]
+        for exit_code, tasks in zip(*split_by_column(failed_tasks[['id', 'exit_code']], 'exit_code')):
+            codes[exit_code] = [len(tasks), {}]
 
             logger.info("Copying sample logs for exit code {0}".format(exit_code))
-            for id, e in list(jobs[-samples:]):
+            for id, e in list(tasks[-samples:]):
                 codes[exit_code][1][id] = []
 
                 try:
@@ -397,7 +397,7 @@ class Plotter(object):
                     os.makedirs(target)
 
                 files = []
-                for l in ['executable.log.gz', 'job.log.gz']:
+                for l in ['executable.log.gz', 'task.log.gz']:
                     s = os.path.join(source, l)
                     t = os.path.join(target, l[:-3])
                     if os.path.exists(s):
@@ -408,11 +408,11 @@ class Plotter(object):
                 codes[code][1][id].remove(file)
 
         work = []
-        for label, _, _, _, _, _, _, paused, _ in self.__store.dataset_status()[1:]:
+        for label, _, _, _, _, _, _, paused, _ in self.__store.workflow_status()[1:]:
             if paused == 0:
                 continue
 
-            failed = self.__store.failed_jobits(label)
+            failed = self.__store.failed_units(label)
             skipped = self.__store.skipped_files(label)
 
             for id in failed:
@@ -422,7 +422,7 @@ class Plotter(object):
                     os.makedirs(target)
 
                 files = []
-                for l in ['executable.log.gz', 'job.log.gz']:
+                for l in ['executable.log.gz', 'task.log.gz']:
                     s = os.path.join(source, l)
                     t = os.path.join(target, str(id) + "_" + l[:-3])
                     if os.path.exists(s):
@@ -449,7 +449,7 @@ class Plotter(object):
     def unix2matplotlib(self, time):
         return dates.date2num(datetime.fromtimestamp(time))
 
-    def updatecpu(self, jobs, reshape):
+    def updatecpu(self, tasks, reshape):
         cache = os.path.join(self.__workdir, 'cputime.pkl')
         edges = np.arange(self.__xmin, self.__xmax + 60, 60)
 
@@ -463,7 +463,7 @@ class Plotter(object):
             cputime = np.zeros(len(edges) - 1)
             ids = set()
 
-        for (id, cpu, start, end) in zip(jobs['id'], jobs['t_cpu'], jobs['t_first_ev'], jobs['t_processing_end']):
+        for (id, cpu, start, end) in zip(tasks['id'], tasks['t_cpu'], tasks['t_first_ev'], tasks['t_processing_end']):
             if end == start or cpu == 0 or id in ids:
                 continue
 
@@ -508,7 +508,7 @@ class Plotter(object):
                     cpu[bins[1] - 1] += bin * (high - reshape[bins[1] - 1]) / 60.
         return cpu
 
-    def plot(self, a, xlabel, stub=None, ylabel="Jobs", bins=100, modes=None, **kwargs_raw):
+    def plot(self, a, xlabel, stub=None, ylabel="tasks", bins=100, modes=None, **kwargs_raw):
         kwargs = dict(kwargs_raw)
         if 'ymax' in kwargs:
             del kwargs['ymax']
@@ -746,10 +746,10 @@ class Plotter(object):
         self.__foremen = foremen if foremen else []
 
         headers, stats = self.readlog()
-        good_jobs, failed_jobs, summary_data, completed_jobits, total_jobits, start_jobits, processed_lumis = self.readdb()
+        good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, processed_lumis = self.readdb()
 
-        success_jobs = good_jobs[good_jobs['type'] == 0]
-        merge_jobs = good_jobs[good_jobs['type'] == 1]
+        success_tasks = good_tasks[good_tasks['type'] == 0]
+        merge_tasks = good_tasks[good_tasks['type'] == 1]
 
         foremen_names = self.make_foreman_plots()
 
@@ -822,68 +822,68 @@ class Plotter(object):
                 label=['evicted', 'idled out', 'fast aborted']
         )
 
-        if len(good_jobs) > 0 or len(failed_jobs) > 0:
+        if len(good_tasks) > 0 or len(failed_tasks) > 0:
             self.make_pie(
                     [
-                        np.sum(good_jobs['t_allput'] - good_jobs['t_goodput'])
-                            + np.sum(failed_jobs['t_allput'] - failed_jobs['t_goodput']),
-                        np.sum(failed_jobs['t_allput']),
-                        np.sum(good_jobs['t_first_ev'] - good_jobs['t_send_start']),
-                        np.sum(good_jobs['t_processing_end'] - good_jobs['t_first_ev']),
-                        np.sum(good_jobs['t_recv_end'] - good_jobs['t_processing_end'])
+                        np.sum(good_tasks['t_allput'] - good_tasks['t_goodput'])
+                            + np.sum(failed_tasks['t_allput'] - failed_tasks['t_goodput']),
+                        np.sum(failed_tasks['t_allput']),
+                        np.sum(good_tasks['t_first_ev'] - good_tasks['t_send_start']),
+                        np.sum(good_tasks['t_processing_end'] - good_tasks['t_first_ev']),
+                        np.sum(good_tasks['t_recv_end'] - good_tasks['t_processing_end'])
                     ],
                     ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
                     "time-pie",
                     colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
             )
 
-            datasets = []
+            workflows = []
             colors = []
             labels = []
 
-            for jobs, label, success_color, merged_color, merging_color in [
-                    (success_jobs, 'processing', 'green', 'lightgreen', 'darkgreen'),
-                    (merge_jobs, 'merging', 'purple', 'fuchsia', 'darkorchid')]:
+            for tasks, label, success_color, merged_color, merging_color in [
+                    (success_tasks, 'processing', 'green', 'lightgreen', 'darkgreen'),
+                    (merge_tasks, 'merging', 'purple', 'fuchsia', 'darkorchid')]:
                 code_map = {
                         2: (label + ' (status: successful)', success_color),
                         6: ('published', 'blue'),
                         7: (label + ' (status: merging)', merging_color),
                         8: (label + ' (status: merged)', merged_color)
                 }
-                codes, split_jobs = split_by_column(jobs, 'status')
+                codes, split_tasks = split_by_column(tasks, 'status')
 
-                datasets += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in split_jobs]
+                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in split_tasks]
                 colors += [code_map[code][1] for code in codes]
                 labels += [code_map[code][0] for code in codes]
 
-            if len(failed_jobs) > 0:
-                datasets += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in [failed_jobs]]
+            if len(failed_tasks) > 0:
+                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in [failed_tasks]]
                 colors += ['red']
                 labels += ['failed']
 
             self.plot(
-                    datasets,
-                    'Jobs', 'all-jobs',
+                    workflows,
+                    'tasks', 'all-tasks',
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=labels,
                     color=colors
             )
 
-        if len(good_jobs) > 0:
-            completed, bins = np.histogram(completed_jobits['t_retrieved'], 100)
+        if len(good_tasks) > 0:
+            completed, bins = np.histogram(completed_units['t_retrieved'], 100)
             total_completed = np.cumsum(completed)
             centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
 
             self.plot(
-                    [(centers, total_completed * (-1.) + start_jobits)],
-                    'Jobits remaining', 'jobits-total',
+                    [(centers, total_completed * (-1.) + start_units)],
+                    'units remaining', 'units-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
 
             output, bins = np.histogram(
-                    success_jobs['t_retrieved'], 100,
-                    weights=success_jobs['b_output'] / 1024.0**3
+                    success_tasks['t_retrieved'], 100,
+                    weights=success_tasks['b_output'] / 1024.0**3
             )
 
             total_output = np.cumsum(output)
@@ -892,7 +892,7 @@ class Plotter(object):
             scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0**3)
 
             self.plot(
-                    [(success_jobs['t_retrieved'], success_jobs['b_output'] * scale)],
+                    [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
                     'Output (GB/h)', 'output',
                     bins=100,
                     modes=[Plotter.HIST|Plotter.TIME]
@@ -913,7 +913,7 @@ class Plotter(object):
                 return 0
 
             walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
-            cputime = self.updatecpu(success_jobs, edges)
+            cputime = self.updatecpu(success_tasks, edges)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
 
@@ -938,34 +938,34 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
-            for prefix, jobs in [('good-', success_jobs), ('merge-', merge_jobs)]:
-                if len(jobs) == 0:
+            for prefix, tasks in [('good-', success_tasks), ('merge-', merge_tasks)]:
+                if len(tasks) == 0:
                     continue
 
                 cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated', 'darkorchid')}
-                cache, split_jobs = split_by_column(jobs, 'cache')
+                cache, split_tasks = split_by_column(tasks, 'cache')
                 # plot timeline
                 things_we_are_looking_at = [
                         # x-times              , y-times                                                                       , y-label                      , filestub             , color            , in pie
-                        ([(x['t_wrapper_start'], x['t_allput'] - x['t_goodput']) for x in split_jobs]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_wrapper_start']) for x in split_jobs]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
-                        ([(x['t_wrapper_start'], x['t_send_end'] - x['t_send_start']) for x in split_jobs]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_wrapper_start'] - x['t_send_end']) for x in split_jobs]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']) for x in split_jobs]             , 'Release setup'              , 'setup-release'      , "navy"           , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_stage_in'] - x['t_wrapper_ready']) for x in split_jobs]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_prologue'] - x['t_stage_in']) for x in split_jobs]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
-                        ([(x['t_wrapper_start'], x['t_file_req'] - x['t_prologue']) for x in split_jobs]                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue"      , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_file_open'] - x['t_file_req']) for x in split_jobs]                      , 'File request'               , 'file-open'          , "fuchsia"        , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_first_ev'] - x['t_file_open']) for x in split_jobs]                      , 'CMSSW job setup'            , 'setup-job'          , "dodgerblue"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_allput'] - x['t_goodput']) for x in split_tasks]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_wrapper_start']) for x in split_tasks]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
+                        ([(x['t_wrapper_start'], x['t_send_end'] - x['t_send_start']) for x in split_tasks]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_wrapper_start'] - x['t_send_end']) for x in split_tasks]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']) for x in split_tasks]             , 'Release setup'              , 'setup-release'      , "navy"           , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_stage_in'] - x['t_wrapper_ready']) for x in split_tasks]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_prologue'] - x['t_stage_in']) for x in split_tasks]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_file_req'] - x['t_prologue']) for x in split_tasks]                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue"      , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_file_open'] - x['t_file_req']) for x in split_tasks]                      , 'File request'               , 'file-open'          , "fuchsia"        , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_first_ev'] - x['t_file_open']) for x in split_tasks]                      , 'CMSSW task setup'            , 'setup-task'          , "dodgerblue"     , True)  , # blue
                         ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']
-                                               + x['t_first_ev'] - x['t_prologue']) for x in split_jobs]                       , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue
-                        ([(x['t_wrapper_start'], x['t_cpu']) for x in split_jobs]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev'] - x['t_cpu']) for x in split_jobs]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev']) for x in split_jobs]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
-                        ([(x['t_wrapper_start'], x['t_epilogue'] - x['t_processing_end']) for x in split_jobs]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
-                        ([(x['t_wrapper_start'], x['t_stage_out'] - x['t_epilogue']) for x in split_jobs]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_recv_start'] - x['t_stage_out']) for x in split_jobs]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_jobs]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
+                                               + x['t_first_ev'] - x['t_prologue']) for x in split_tasks]                       , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue
+                        ([(x['t_wrapper_start'], x['t_cpu']) for x in split_tasks]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev'] - x['t_cpu']) for x in split_tasks]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev']) for x in split_tasks]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
+                        ([(x['t_wrapper_start'], x['t_epilogue'] - x['t_processing_end']) for x in split_tasks]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_stage_out'] - x['t_epilogue']) for x in split_tasks]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_recv_start'] - x['t_stage_out']) for x in split_tasks]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_tasks]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
                 ]
 
                 times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
@@ -986,25 +986,24 @@ class Plotter(object):
 
                 self.plot(
                     [
-                        # FIXME: hack below is required because WQ occasionally reports bogus values
-                        (jobs['t_retrieved'][jobs['memory_resident'] < 1e5], jobs['memory_resident'][jobs['memory_resident'] < 1e5]),
-                        (jobs['t_retrieved'][jobs['memory_virtual'] < 1e5], jobs['memory_virtual'][jobs['memory_virtual'] < 1e5]),
-                        (jobs['t_retrieved'], jobs['memory_swap'])
+                        (tasks['t_retrieved'], tasks['memory_resident']),
+                        (tasks['t_retrieved'], tasks['memory_virtual']),
+                        (tasks['t_retrieved'], tasks['memory_swap'])
                     ],
                     'memory [MB]', prefix + 'memory',
                     label=['resident', 'virtual', 'swap']
                 )
 
                 self.plot(
-                    [(jobs['t_retrieved'], jobs['workdir_footprint'])],
+                    [(tasks['t_retrieved'], tasks['workdir_footprint'])],
                     'working directory footprint [MB]', prefix + 'workdir-footprint',
                 )
 
 
-        if len(failed_jobs) > 0:
-            logs = self.savelogs(failed_jobs)
+        if len(failed_tasks) > 0:
+            logs = self.savelogs(failed_tasks)
 
-            fail_labels, fail_values = split_by_column(failed_jobs, 'exit_code', threshold=0.025)
+            fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
 
             self.make_pie(
                     [len(xs['t_retrieved']) for xs in fail_values],
@@ -1014,23 +1013,23 @@ class Plotter(object):
 
             self.plot(
                     [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in fail_values],
-                    'Failed jobs', 'failed-jobs',
+                    'Failed tasks', 'failed-tasks',
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=map(str, fail_labels)
             )
 
             self.plot(
                 [
-                    (failed_jobs['t_retrieved'], failed_jobs['memory_resident']),
-                    (failed_jobs['t_retrieved'], failed_jobs['memory_virtual']),
-                    (failed_jobs['t_retrieved'], failed_jobs['memory_swap'])
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_resident']),
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
                 ],
                 'memory [MB]', 'failed-memory',
                 label=['resident', 'virtual', 'swap']
             )
 
             self.plot(
-                [(failed_jobs['t_retrieved'], failed_jobs['workdir_footprint'])],
+                [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
                 'working directory footprint [MB]', 'failed-workdir-footprint',
             )
 
@@ -1053,9 +1052,9 @@ class Plotter(object):
                 plot_endtime=self.__xmax,
                 run_starttime=self.__total_xmin,
                 run_endtime=self.__total_xmax,
-                bad_jobs=len(failed_jobs) > 0,
-                good_jobs=len(success_jobs) > 0,
-                merge_jobs=len(merge_jobs) > 0,
+                bad_tasks=len(failed_tasks) > 0,
+                good_tasks=len(success_tasks) > 0,
+                merge_tasks=len(merge_tasks) > 0,
                 summary=summary_data,
                 jsons=jsons,
                 bad_logs=logs,

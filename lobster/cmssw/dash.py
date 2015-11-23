@@ -42,22 +42,22 @@ conf = {
 
 class DummyMonitor(object):
     def __init__(self, workdir):
-        self._taskid = util.checkpoint(workdir, 'id')
+        self._workflowid = util.checkpoint(workdir, 'id')
 
-    def generate_ids(self, jobid):
-        monitorid = '{0}_{1}/{0}'.format(jobid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._taskid).hexdigest()[-16:]))
-        syncid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._taskid, jobid)
+    def generate_ids(self, taskid):
+        monitorid = '{0}_{1}/{0}'.format(taskid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._workflowid).hexdigest()[-16:]))
+        syncid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._workflowid, taskid)
 
         return monitorid, syncid
 
     def register_run(self):
         pass
 
-    def register_job(self, id):
+    def register_task(self, id):
         """Returns Dashboard MonitorJobID and SyncId."""
         return None, None
 
-    def update_job(self, id, status):
+    def update_task(self, id, status):
         pass
 
     def free(self):
@@ -92,12 +92,12 @@ class Monitor(DummyMonitor):
     def free(self):
         apmonFree()
 
-    def send(self, jobid, params):
-        apmonSend(self._taskid, jobid, params, logging, conf)
+    def send(self, taskid, params):
+        apmonSend(self._workflowid, taskid, params, logging, conf)
 
     def register_run(self):
         self.send('TaskMeta', {
-            'taskId': self._taskid,
+            'taskId': self._workflowid,
             'jobId': 'TaskMeta',
             'tool': 'lobster',
             'tool_ui': os.environ.get('HOSTNAME',''),
@@ -116,10 +116,10 @@ class Monitor(DummyMonitor):
             })
         self.free()
 
-    def register_job(self, id):
+    def register_task(self, id):
         monitorid, syncid = self.generate_ids(id)
         self.send(monitorid, {
-            'taskId': self._taskid,
+            'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,
             'broker': 'condor',
@@ -143,10 +143,10 @@ class Monitor(DummyMonitor):
             })
         return monitorid, syncid
 
-    def update_job(self, id, status):
+    def update_task(self, id, status):
         monitorid, syncid = self.generate_ids(id)
         self.send(monitorid, {
-            'taskId': self._taskid,
+            'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,
             'StatusValueReason': '',
@@ -158,9 +158,9 @@ class Monitor(DummyMonitor):
             })
 
 
-class JobStateChecker(object):
+class TaskStateChecker(object):
     """
-    Check the job state  at a given time interval
+    Check the task state  at a given time interval
     """
 
     def __init__(self, interval):
@@ -180,8 +180,8 @@ class JobStateChecker(object):
 
     def update_dashboard_states(self, monitor, queue, exclude_states):
         """
-        Update dashboard states for all jobs.
-        This is done only if the job status changed.
+        Update dashboard states for all tasks.
+        This is done only if the task status changed.
         """
         t_current = time.time()
         if self.report_in_interval(t_current):
@@ -198,7 +198,7 @@ class JobStateChecker(object):
 
                 if status not in exclude_states and status_new_or_changed:
                     try:
-                        monitor.update_job(id, status)
+                        monitor.update_task(id, status)
                     except:
                         raise
 

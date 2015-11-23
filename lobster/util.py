@@ -73,8 +73,8 @@ def record(cls, *fields, **defaults):
 def id2dir(id):
     # Currently known limitations on the number of entries in a
     # sub-directory concern ext3, where said limit is 32k.  Use a
-    # modus of 10k to split the job numbers.  Famous last words:
-    # "(10k)² jobs should be enough for everyone." → we use two levels
+    # modus of 10k to split the task numbers.  Famous last words:
+    # "(10k)² tasks should be enough for everyone." → we use two levels
     # only.
     id = int(id)
     man = str(id % 10000).zfill(4)
@@ -184,12 +184,12 @@ def taskdir(workdir, taskid, status='running'):
     return tdir
 
 def move(workdir, taskid, status, oldstatus='running'):
-    """Moves a job parameter/log directory from one status directory to
+    """Moves a task parameter/log directory from one status directory to
     another.
 
     Returns the new directory.
     """
-    # See above for job id splitting.  Moves directories and removes
+    # See above for task id splitting.  Moves directories and removes
     # old empty directories.
     old = os.path.normpath(os.path.join(workdir, oldstatus, id2dir(taskid)))
     new = os.path.normpath(os.path.join(workdir, status, id2dir(taskid)))

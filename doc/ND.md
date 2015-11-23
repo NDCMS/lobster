@@ -32,7 +32,7 @@ Then enter a `CMSSW` release directory and source the software environment:
 ### Submitting workers opportunistically
 
 The CRC login nodes `opteron`, `newcell`, and `crcfe01` are connected to
-the ND opportunistic computing pool.  On these, multicore jobs are
+the ND opportunistic computing pool.  On these, multicore tasks are
 preferred and can be run with the same commands as specified in the main
 documentation.
 

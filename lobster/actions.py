@@ -2,7 +2,7 @@ import datetime
 import logging
 import multiprocessing
 
-from lobster.cmssw.plotting import Plotter
+from lobster.commands.plot import Plotter
 
 logger = logging.getLogger('lobster.actions')
 
@@ -28,7 +28,12 @@ class Actions(object):
 
             def plotf(q):
                 while q.get() not in ('stop', None):
-                    plotter.make_plots(foremen=config.get('foremen logs'))
+                    try:
+                        plotter.make_plots(foremen=config.get('foremen logs'))
+                    except e:
+                        import traceback
+                        traceback.print_stack()
+                        print e
 
             self.plotq = multiprocessing.Queue()
             self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))

@@ -139,7 +139,7 @@ CMS):
         merge size: 300M
 
    to your configuration.  Then output files will get merged as processing
-   jobs finish.  If all processing is already done, only merge jobs will
+   tasks finish.  If all processing is already done, only merge tasks will
    run.  Valid units for this option are `K`, `k`, `M`, `m`, `G`, and `g`.
 
    By default, Lobster will assume that the outputs of a task are in EDM
@@ -177,7 +177,7 @@ all point to the same output directory.  Output files are then saved in
 sub-directories named after the task labels.
 
 Access to storage elements is defined by a list of access methods that is
-traversed until file access is successful. Here is an example for jobs at
+traversed until file access is successful. Here is an example for workflows at
 Notre Dame:
 
     storage:
@@ -200,7 +200,7 @@ Notre Dame:
           - srm://T3_US_NotreDame/store/user/<user>/<output directory>
           - chirp://<your server>:<your port>/<output directory>
 
-For analysis jobs streaming from external sites via XrootD, `input` should
+For analysis workflows streaming from external sites via XrootD, `input` should
 be empty.  To use the Tier 2 at CERN for storage, use:
 
     storage:
@@ -293,7 +293,7 @@ and try again.
 ## Altering the worker environment
 
 The following environment variables may be set to influence the environment
-of the job, and may need adjusting to run on the site:
+of the task, and may need adjusting to run on the site:
 <dl>
   <dt>PARROT_PATH</dt>
   <dd>The path of <code>parrot_run</code>.  Default is to look

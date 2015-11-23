@@ -10,14 +10,14 @@ setup(
     url='https://github.com/matz-e/lobster',
     packages=['lobster', 'lobster.cmssw'],
     package_data={'lobster': [
-        'cmssw/data/job.py',
-        'cmssw/data/wrapper.sh',
-        'cmssw/data/mtab',
-        'cmssw/data/siteconfig/JobConfig/site-local-config.xml',
-        'cmssw/data/siteconfig/PhEDEx/storage.xml',
-        'cmssw/data/template.html',
-        'cmssw/data/merge_cfg.py',
-        'cmssw/data/merge_reports.py'
+        'core/data/job.py',
+        'core/data/wrapper.sh',
+        'core/data/mtab',
+        'core/data/siteconfig/JobConfig/site-local-config.xml',
+        'core/data/siteconfig/PhEDEx/storage.xml',
+        'core/data/merge_cfg.py',
+        'core/data/merge_reports.py'
+        'commands/data/template.html',
     ]},
     install_requires=[
         'argparse',

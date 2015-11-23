@@ -16,9 +16,9 @@ from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
-from lobster.job import apply_matching
+from lobster.core.unit import UnitStore
+from lobster.core.source import apply_matching
 from lobster.cmssw.dataset import MetaInterface
-from lobster.cmssw.jobit import JobitStore
 
 logger = logging.getLogger('lobster.publish.')
 
@@ -108,7 +108,7 @@ class BlockDump(object):
         self.pset_hash = pset_hash
         self.gtag = gtag
         self.dbs = dbs
-        self.jobs = []
+        self.tasks = []
 
         storage_path = '/cvmfs/cms.cern.ch/SITECONF/%s/PhEDEx/storage.xml' % os.environ['CMS_LOCAL_SITE']
         self.catalog = readTFC(storage_path)
@@ -164,7 +164,7 @@ class BlockDump(object):
         self.data['dataset']['physics_group_name'] = 'NoGroup'
 
     def set_block(self, version):
-        site_config_path = '/cvmfs/cms.cern.ch/SITECONF/%s/JobConfig/site-local-config.xml' % os.environ['CMS_LOCAL_SITE']
+        site_config_path = '/cvmfs/cms.cern.ch/SITECONF/%s/taskConfig/site-local-config.xml' % os.environ['CMS_LOCAL_SITE']
 
         self.data['block']['create_by'] = self.username
         self.data['block']['creation_date'] = int(time.time())
@@ -175,7 +175,7 @@ class BlockDump(object):
         self.data['block']['block_size'] = 0
 
     def reset(self):
-        self.jobs = []
+        self.tasks = []
         self.data['files'] = []
         self.data['file_conf_list'] = []
         self.data['file_parent_list'] = []
@@ -211,7 +211,7 @@ class BlockDump(object):
             if parent not in self.data['file_parent_list']:
                 self.data['file_parent_list'].append(parent)
 
-    def add_file(self, LFN, output, job, merged_job):
+    def add_file(self, LFN, output, task, merged_task):
         lumi_dict_to_list = lambda d: [{'run_num': run, 'lumi_section_num': lumi} for run in d.keys() for lumi in d[run]]
         PFN = self.catalog.matchLFN('direct', LFN)
         cksum = 0
@@ -237,7 +237,7 @@ class BlockDump(object):
         self.data['block']['block_size'] += int(size)
         self.data['block']['file_count'] += 1
 
-        self.jobs += [(job, merged_job)]
+        self.tasks += [(task, merged_task)]
 
     def get_LFN(self, PFN):
         #see https://twiki.cern.ch/twiki/bin/viewauth/CMS/DMWMPG_Namespace#store_user_and_store_temp_user
@@ -264,7 +264,7 @@ class BlockDump(object):
         return matched
 
     def get_publish_update(self):
-        update = [(self.data['block']['block_name'], job, merge_job) for job, merge_job in self.jobs]
+        update = [(self.data['block']['block_name'], task, merge_task) for task, merge_task in self.tasks]
 
         return update
 
@@ -278,7 +278,7 @@ def publish(args):
     config = apply_matching(args.config)
 
     if len(args.datasets) == 0:
-        args.datasets = [task['label'] for task in config.get('tasks', [])]
+        args.datasets = [workflow['label'] for workflow in config.get('workflows', [])]
 
     workdir = config['workdir']
     user = config.get('publish user', os.environ['USER'])
@@ -296,7 +296,7 @@ def publish(args):
             files_preserve=[args.preserve],
             working_directory=workdir,
             pidfile=util.get_lock(workdir)):
-        db = JobitStore(config)
+        db = UnitStore(config)
         das_interface = MetaInterface()
 
         dbs = {}
@@ -349,22 +349,22 @@ def publish(args):
                 logger.warn(ex)
                 raise
 
-            jobs = db.finished_jobs(label)
+            tasks = db.finished_tasks(label)
 
-            first_job = 0
+            first_task = 0
             inserted = False
-            logger.info('found %d successful %s jobs to publish' % (len(jobs), label))
+            logger.info('found %d successful %s tasks to publish' % (len(tasks), label))
             missing = []
-            while first_job < len(jobs):
+            while first_task < len(tasks):
                 block.reset()
-                chunk = jobs[first_job:first_job+args.block_size]
-                logger.info('preparing DBS entry for %i job block: %s' % (len(chunk), block['block']['block_name']))
+                chunk = tasks[first_task:first_task+args.block_size]
+                logger.info('preparing DBS entry for %i task block: %s' % (len(chunk), block['block']['block_name']))
 
-                for job, merged_job in chunk:
-                    id = merged_job if merged_job else job
+                for task, merged_task in chunk:
+                    id = merged_task if merged_task else task
 
                     f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
-                    report = readJobReport(f)[0]
+                    report = readtaskReport(f)[0]
 
                     with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'report.json')) as f:
                         report = json.load(f)
@@ -376,13 +376,13 @@ def publish(args):
                     LFN = block.get_LFN(PFN)
                     matched_PFN = block.get_matched_PFN(PFN, LFN)
                     if not matched_PFN:
-                        logger.warn('could not find expected output for job(s) {0}'.format(job))
-                        missing.append(job)
+                        logger.warn('could not find expected output for task(s) {0}'.format(task))
+                        missing.append(task)
                     else:
                         fileinfo = report['files']['output info'][local]
                         logger.info('adding %s to block' % LFN)
                         block.add_file_config(LFN)
-                        block.add_file(LFN, fileinfo, job, merged_job)
+                        block.add_file(LFN, fileinfo, task, merged_task)
                         block.add_dataset_config()
                         if args.migrate_parents:
                             block.add_file_parents(LFN, report)
@@ -400,7 +400,7 @@ def publish(args):
                     except HTTPError, e:
                         logger.critical(e)
 
-                first_job += args.block_size
+                first_task += args.block_size
 
             if inserted:
                 published.update({'dataset': block['dataset']['dataset']})
@@ -413,6 +413,6 @@ def publish(args):
                 logger.info('json file of published runs and lumis saved to %s' % json)
 
             if len(missing) > 0:
-                template = "the following job(s) have not been published because their output could not be found: {0}"
+                template = "the following task(s) have not been published because their output could not be found: {0}"
                 logger.warning(template.format(", ".join(map(str, missing))))
 

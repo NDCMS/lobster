@@ -12,11 +12,11 @@ for f in sys.path:
 for f in rm:
     sys.path.remove(f)
 
-from lobster.cmssw.plotting import plot
 from lobster.cmssw.publish import publish
-from lobster.core import kill, run
-from lobster.validate import validate
-from lobster.status import status
+from lobster.commands.process import kill, run
+from lobster.commands.plot import plot
+from lobster.commands.status import status
+from lobster.commands.validate import validate
 from lobster import util
 
 logger = logging.getLogger('lobster')
@@ -27,7 +27,7 @@ def check_deprecated(config):
         sys.exit(1)
 
 def boil():
-    parser = ArgumentParser(description='A job submission tool for CMS')
+    parser = ArgumentParser(description='A task submission tool for CMS')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
     parser.add_argument('--quiet', '-q', action='count', default=0, help='decrease verbosity')
     subparsers = parser.add_subparsers(title='commands')
@@ -56,7 +56,7 @@ def boil():
     parser_plot.add_argument('--outdir', help="specify output directory")
     parser_plot.set_defaults(func=plot)
 
-    parser_validate = subparsers.add_parser('validate', help='validate job output and remove output files for failed jobs')
+    parser_validate = subparsers.add_parser('validate', help='validate task output and remove output files for failed tasks')
     parser_validate.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
             help='only print (do not remove) files to be cleaned')
     parser_validate.add_argument('--delete-merged', action='store_true', dest='delete_merged', default=False,

@@ -1,11 +1,12 @@
 import logging
 import os
-from lobster import cmssw, util
+from lobster import util
+from lobster.core import unit
 
 def status(args):
     config = args.config
     logger = logging.getLogger('lobster.status')
-    store = cmssw.jobit.JobitStore(config)
+    store = unit.UnitStore(config)
 
     data = store.dataset_status()
 
@@ -24,11 +25,11 @@ def status(args):
     wdir = config['workdir']
     for cfg in config['tasks']:
         label = cfg['label']
-        tasks = store.failed_jobits(label)
+        tasks = store.failed_units(label)
         files = store.skipped_files(label)
 
         if len(tasks) > 0:
-            msg = "tasks with failed jobits for {0}:".format(label)
+            msg = "tasks with failed units for {0}:".format(label)
             for task in tasks:
                 tdir = os.path.normpath(os.path.join(wdir, label, 'failed', util.id2dir(task)))
                 msg += "\n" + tdir

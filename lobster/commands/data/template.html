@@ -15,13 +15,6 @@
                 max-width: 1240px;
             }
 
-            :target:before {
-                content: "";
-                display: block;
-                height: 50px; /* fixed header height*/
-                margin: -50px 0 0; /* negative fixed header height */
-            }
-
             nav {
                 background-color: #aaa;
 
@@ -145,6 +138,10 @@
 
             h2, h3 {
                 border-bottom: solid 1px;
+            }
+
+            h1:target h2:target {
+                padding-top: 50px;
             }
 
             table.fancy {

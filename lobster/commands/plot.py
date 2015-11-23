@@ -67,7 +67,8 @@ def split_by_column(a, col, key=lambda x: x, threshold=None):
 def unix2matplotlib(time):
     return dates.date2num(datetime.fromtimestamp(time))
 
-def unpack(source, target):
+def unpack(arg):
+    source, target = arg
     try:
         logger.info("unpacking {0}".format(source))
         with open(target, 'w') as output:
@@ -527,7 +528,6 @@ class Plotter(object):
         return res
 
     def savelogs(self, failed_tasks, samples=5):
-        pool = multiprocessing.Pool(processes=10)
         work = []
         codes = {}
 
@@ -540,6 +540,9 @@ class Plotter(object):
             os.makedirs(logdir)
 
         for exit_code, tasks in zip(*split_by_column(failed_tasks[['id', 'exit_code']], 'exit_code')):
+            if exit_code == 0:
+                continue
+
             codes[exit_code] = [len(tasks), {}]
 
             logger.info("Copying sample logs for exit code {0}".format(exit_code))
@@ -561,12 +564,8 @@ class Plotter(object):
                     t = os.path.join(target, l[:-3])
                     if os.path.exists(s):
                         codes[exit_code][1][id].append(l[:-3])
-                        work.append((exit_code, id, l[:-3], pool.apply_async(unpack, [s, t])))
-        for (code, id, file, res) in work:
-            if not res.get():
-                codes[code][1][id].remove(file)
+                        work.append([s, t])
 
-        work = []
         for label, _, _, _, _, _, _, paused, _ in self.__store.workflow_status()[1:]:
             if paused == 0:
                 continue
@@ -585,7 +584,7 @@ class Plotter(object):
                     s = os.path.join(source, l)
                     t = os.path.join(target, str(id) + "_" + l[:-3])
                     if os.path.exists(s):
-                        work.append(pool.apply_async(unpack, [s, t]))
+                        work.append([s, t])
 
             if len(skipped) > 0:
                 outname = os.path.join(self.__plotdir, 'logs', label, 'skipped_files.txt')
@@ -593,11 +592,8 @@ class Plotter(object):
                     os.makedirs(os.path.dirname(outname))
                 with open(outname, 'w') as f:
                     f.write('\n'.join(skipped))
-        for res in work:
-            res.get()
-
-        pool.close()
-        pool.join()
+        pool = multiprocessing.Pool(processes=10)
+        pool.map(unpack, work)
 
         for code in codes:
             for id in range(samples - len(codes[code][1])):

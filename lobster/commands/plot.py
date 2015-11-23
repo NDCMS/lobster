@@ -893,14 +893,14 @@ class Plotter(object):
 
             self.plot(
                     [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
-                    'Output (GB/h)', 'output',
+                    'Output / (GB/h)', 'output',
                     bins=100,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
             self.plot(
                     [(centers, total_output)],
-                    'Output (GB)', 'output-total',
+                    'Output / GB', 'output-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
@@ -979,7 +979,7 @@ class Plotter(object):
                 for a, label, filestub, color, pie in things_we_are_looking_at:
                     self.plot(
                         [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
-                        label+' (m)', prefix+filestub,
+                        label+' / m', prefix+filestub,
                         color=[cache_map[x][1] for x in cache],
                         label=[cache_map[x][0] for x in cache]
                     )
@@ -990,13 +990,13 @@ class Plotter(object):
                         (tasks['t_retrieved'], tasks['memory_virtual']),
                         (tasks['t_retrieved'], tasks['memory_swap'])
                     ],
-                    'memory [MB]', prefix + 'memory',
+                    'memory / MB', prefix + 'memory',
                     label=['resident', 'virtual', 'swap']
                 )
 
                 self.plot(
                     [(tasks['t_retrieved'], tasks['workdir_footprint'])],
-                    'working directory footprint [MB]', prefix + 'workdir-footprint',
+                    'working directory footprint / MB', prefix + 'workdir-footprint',
                 )
 
 
@@ -1024,13 +1024,13 @@ class Plotter(object):
                     (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
                     (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
                 ],
-                'memory [MB]', 'failed-memory',
+                'memory / MB', 'failed-memory',
                 label=['resident', 'virtual', 'swap']
             )
 
             self.plot(
                 [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
-                'working directory footprint [MB]', 'failed-workdir-footprint',
+                'working directory footprint / MB', 'failed-workdir-footprint',
             )
 
         else:

@@ -15,7 +15,7 @@ def validate(args):
     storage = se.StorageConfiguration(config['storage'])
     storage.activate()
 
-    stats = dict((cfg['label'], [0, 0]) for cfg in config['tasks'])
+    stats = dict((cfg['label'], [0, 0]) for cfg in config['workflows'])
 
     missing = []
     for cfg in config['workflows']:

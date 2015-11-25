@@ -18,17 +18,16 @@ class TaskHandler(object):
 
     def __init__(
             self, id, dataset, files, lumis, outputs, taskdir,
-            cmssw_task=True, empty_source=False, merge=False, local=False):
+            cmssw_task=True, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
-        self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
+        self._file_based = any([file_ is None or run < 0 or lumi < 0 for (_, file_, run, lumi) in lumis])
         self._units = lumis
         self.taskdir = taskdir
         self._outputs = outputs
         self._merge = merge
         self._cmssw_task = cmssw_task
-        self._empty_source = empty_source
         self._local = local
 
     @property
@@ -72,9 +71,8 @@ class TaskHandler(object):
             skipped = False
             read = 0
             if self._cmssw_task:
-                if not self._empty_source:
-                    skipped = file in files_skipped or file not in files_info
-                    read = 0 if failed or skipped else files_info[file][0]
+                skipped = file in files_skipped or file not in files_info
+                read = 0 if failed or skipped else files_info[file][0]
 
             events_read += read
 

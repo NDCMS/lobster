@@ -16,7 +16,6 @@ class DatasetInfo(object):
     def __init__(self):
         self.event_counts = defaultdict(int)
         self.file_based = False
-        self.empty_source = False
         self.files = []
         self.filesizes = defaultdict(int)
         self.tasksize = 1
@@ -160,13 +159,13 @@ class FileInterface:
         if label not in self.__dsets:
             dset = DatasetInfo()
             dset.file_based = True
-            dset.empty_source = cfg.get('empty source', False)
 
             if not files:
-                dset.files = [None for x in range(cfg.get('num tasks', 1))]
-                dset.lumis[None] = [(-1, -1)]
+                ntasks = cfg.get('num tasks', 1)
+                nlumis = cfg.get('lumis per task', 1)
+                dset.files = [None]
+                dset.lumis[None] = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
                 dset.total_lumis = cfg.get('num tasks', 1)
-                dset.empty_source = True
 
                 # we don't cache gen-tasks (avoid overwriting num tasks
                 # etc...)

@@ -84,7 +84,6 @@ class UnitStore:
         self.db.execute("""create table if not exists workflows(
             cfg text,
             dataset text,
-            empty_source int,
             events int default 0,
             file_based int,
             global_tag text,
@@ -173,14 +172,13 @@ class UnitStore:
                        cfg,
                        uuid,
                        file_based,
-                       empty_source,
                        tasksize,
                        taskruntime,
                        units,
                        masked_lumis,
                        units_left,
                        events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', label),
                            label,
                            dataset_info.path,
@@ -190,7 +188,6 @@ class UnitStore:
                            dataset_cfg.get('cmssw config'),
                            self.uuid,
                            dataset_info.file_based,
-                           dataset_info.empty_source,
                            dataset_info.tasksize,
                            taskruntime,
                            dataset_info.total_lumis * len(unique_args),
@@ -254,14 +251,14 @@ class UnitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return []
 
         # calculate how many tasks we can create from all workflows, still
-        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
         tasks = []
 
         random.shuffle(rows)
@@ -270,18 +267,18 @@ class UnitStore:
         # keep all workers occupied
         if tasks_left < num:
             taper = float(tasks_left) / num
-            for workflow, workflow_id, units_left, ntasks, tasksize, empty_source in rows:
+            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
                 tasksize = max(math.ceil((taper * tasksize)), 1)
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks / taper)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id, empty_source))
+                tasks.extend(self.__pop_units(size, workflow, workflow_id))
         else:
-            for workflow, workflow_id, units_left, ntasks, tasksize, empty_source in rows:
+            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id, empty_source))
+                tasks.extend(self.__pop_units(size, workflow, workflow_id))
         return tasks
 
     @retry(stop_max_attempt_number=10)
-    def __pop_units(self, size, workflow, workflow_id, empty_source):
+    def __pop_units(self, size, workflow, workflow_id):
         """Internal method to create tasks from a workflow
         """
         logger.debug("creating {0} task(s) for workflow {1}".format(len(size), workflow))
@@ -327,7 +324,6 @@ class UnitStore:
                     [(id, fileinfo[id]) for id in files],
                     units,
                     arg,
-                    empty_source,
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
@@ -380,7 +376,7 @@ class UnitStore:
             task_update = defaultdict(int)
             unit_update = []
 
-            for (task, label, files, units, arg, empty_source, merge) in tasks:
+            for (task, label, files, units, arg, merge) in tasks:
                 workflow_update += units
                 task_update[task] = len(units)
                 unit_update += [(task, id) for (id, file, run, lumi) in units]
@@ -515,13 +511,13 @@ class UnitStore:
 
     def estimate_tasks_left(self):
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return 0
 
-        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
 
     def unfinished_units(self):
         cur = self.db.execute("select sum(units - units_done - units_paused) from workflows")

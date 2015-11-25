@@ -305,7 +305,7 @@ class TaskProvider(object):
         tasks = []
         ids = []
 
-        for (id, label, files, lumis, unique_arg, empty_source, merge) in taskinfos:
+        for (id, label, files, lumis, unique_arg, merge) in taskinfos:
             wflow = self.workflows[label]
             ids.append(id)
 
@@ -372,7 +372,7 @@ class TaskProvider(object):
 
             handler = TaskHandler(
                 id, label, files, lumis, list(wflow.outputs(id)),
-                jdir, wflow.pset is not None, empty_source,
+                jdir, wflow.pset is not None
                 merge=merge,
                 local=wflow.local)
 

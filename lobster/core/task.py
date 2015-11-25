@@ -16,9 +16,7 @@ class TaskHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(
-            self, id, dataset, files, lumis, outputs, taskdir,
-            cmssw_task=True, merge=False, local=False):
+    def __init__(self, id, dataset, files, lumis, outputs, taskdir, merge=False, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
@@ -27,12 +25,7 @@ class TaskHandler(object):
         self.taskdir = taskdir
         self._outputs = outputs
         self._merge = merge
-        self._cmssw_task = cmssw_task
         self._local = local
-
-    @property
-    def cmssw_task(self):
-        return self._cmssw_task
 
     @property
     def dataset(self):
@@ -68,11 +61,8 @@ class TaskHandler(object):
         for (id, file) in self._files:
             file_units = [tpl for tpl in self._units if tpl[1] == id]
 
-            skipped = False
-            read = 0
-            if self._cmssw_task:
-                skipped = file in files_skipped or file not in files_info
-                read = 0 if failed or skipped else files_info[file][0]
+            skipped = file in files_skipped or file not in files_info
+            read = 0 if failed or skipped else files_info[file][0]
 
             events_read += read
 
@@ -144,13 +134,13 @@ class TaskHandler(object):
             task_update.time_epilogue_end = data['task timing']['epilogue end']
             task_update.time_stage_out_end = data['task timing']['stage out end']
             task_update.time_cpu = data['cpu time']
-            if self._cmssw_task:
-                files_info = data['files']['info']
-                files_skipped = data['files']['skipped']
-                events_written = data['events written']
-                cmssw_exit_code = data['cmssw exit code']
-                return files_info, files_skipped, events_written, cmssw_exit_code
-            return {}, [], 0, None
+
+            files_info = data['files']['info']
+            files_skipped = data['files']['skipped']
+            events_written = data['events written']
+            cmssw_exit_code = data['cmssw exit code']
+
+            return files_info, files_skipped, events_written, cmssw_exit_code
 
     def process_wq_info(self, task, task_update):
         """Extract useful information from the Work Queue task object.

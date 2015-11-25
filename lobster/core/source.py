@@ -372,9 +372,7 @@ class TaskProvider(object):
 
             handler = TaskHandler(
                 id, label, files, lumis, list(wflow.outputs(id)),
-                jdir, wflow.pset is not None
-                merge=merge,
-                local=wflow.local)
+                jdir, merge=merge, local=wflow.local)
 
             # set input/output transfer parameters
             self._storage.preprocess(config, merge)

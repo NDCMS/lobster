@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from lobster import fs, util
+from lobster.core.task import *
 
 logger = logging.getLogger('lobster.workflow')
 
@@ -22,6 +23,9 @@ class Workflow(object):
         self.outputformat = config.get("output format", "{base}_{id}.{ext}")
 
         self.events_per_task = config.get('events per task', -1)
+        self.events_per_lumi = config.get('events per lumi', -1)
+        self.randomize_seeds = config.get('randomize seeds', True)
+
         self.pset = config.get('cmssw config')
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
@@ -107,6 +111,14 @@ class Workflow(object):
                 msg = 'stageout directory is not empty: {0}'
                 raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
 
+    def handler(self, id_, files, lumis, taskdir, merge=False):
+        if merge:
+            return MergeTaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir)
+        elif self.events_per_task > 0:
+            return ProductionTaskHandler(id_, self.label, lumis, list(self.outputs(id_)), taskdir)
+        else:
+            return TaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir, local=self.local)
+
     def outputs(self, id):
         for fn in self._outputs:
             base, ext = os.path.splitext(fn)
@@ -156,3 +168,6 @@ class Workflow(object):
         params['executable'] = cmd
         params['arguments'] = args
         params['mask']['events'] = self.events_per_task
+        if self.events_per_lumi > 0:
+            params['mask']['events per lumi'] = self.events_per_lumi
+            params['randomize seeds'] = self.randomize_seeds

@@ -17,7 +17,7 @@ from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw import dash
 from lobster.cmssw import sandbox
 from lobster.core import unit
-from lobster.core import TaskHandler
+from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
 
 logger = logging.getLogger('lobster.source')
@@ -370,9 +370,7 @@ class TaskProvider(object):
                 # takes care of the fields set to None in config
                 wflow.adjust(config, jdir, inputs, outputs, merge, unique=unique_arg)
 
-            handler = TaskHandler(
-                id, label, files, lumis, list(wflow.outputs(id)),
-                jdir, merge=merge, local=wflow.local)
+            handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
             # set input/output transfer parameters
             self._storage.preprocess(config, merge)
@@ -416,7 +414,7 @@ class TaskProvider(object):
                 summary.dir(str(handler.id), faildir)
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
-                if handler.merge and self.config.get('delete merged', True):
+                if isinstance(MergeTaskHandler, handler) and self.config.get('delete merged', True):
                     files = handler.input_files
                     cleanup += files
                 util.move(wflow.workdir, handler.id, 'successful')

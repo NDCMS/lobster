@@ -9,6 +9,8 @@ import unit
 
 from WMCore.DataStructs.LumiList import LumiList
 
+__all__ = ['TaskHandler', 'MergeTaskHandler', 'ProductionTaskHandler']
+
 logger = logging.getLogger('lobster.cmssw.taskhandler')
 
 class TaskHandler(object):
@@ -16,16 +18,17 @@ class TaskHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(self, id, dataset, files, lumis, outputs, taskdir, merge=False, local=False):
+    def __init__(self, id, dataset, files, lumis, outputs, taskdir, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
         self._file_based = any([file_ is None or run < 0 or lumi < 0 for (_, file_, run, lumi) in lumis])
         self._units = lumis
-        self.taskdir = taskdir
         self._outputs = outputs
-        self._merge = merge
         self._local = local
+
+        self.taskdir = taskdir
+        self.unit_source = 'units_' + self._dataset
 
     @property
     def dataset(self):
@@ -42,14 +45,6 @@ class TaskHandler(object):
     @property
     def input_files(self):
         return list(set([filename for (id, filename) in self._files if filename]))
-
-    @property
-    def unit_source(self):
-        return 'tasks' if self._merge else 'units_' + self._dataset
-
-    @property
-    def merge(self):
-        return self._merge
 
     def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         events_read = 0
@@ -88,11 +83,6 @@ class TaskHandler(object):
         else:
             status = unit.SUCCESSFUL
 
-        if self._merge:
-            file_update = []
-            # FIXME not correct
-            units_missed = 0
-
         task_update.events_read = events_read
         task_update.events_written = events_written
         task_update.units_processed = units_processed
@@ -101,7 +91,7 @@ class TaskHandler(object):
         return file_update, unit_update
 
     def adjust(self, parameters, inputs, outputs, se):
-        local = self._local or self._merge
+        local = self._local
         if local and se.transfer_inputs():
             inputs += [(se.local(f), os.path.basename(f), False) for id, f in self._files if f]
         if se.transfer_outputs():
@@ -109,7 +99,7 @@ class TaskHandler(object):
 
         parameters['mask']['files'] = self.input_files
         parameters['output files'] = self._outputs
-        if not self._file_based and not self._merge:
+        if not self._file_based:
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
 
@@ -214,3 +204,24 @@ class TaskHandler(object):
             summary.monitor(task.tag)
 
         return failed, task_update, file_update, unit_update
+
+
+class MergeTaskHandler(TaskHandler):
+    def __init__(self, id_, dataset, files, lumis, outputs, taskdir):
+        super(MergeTaskHandler, self).__init__(id_, dataset, files, lumis, outputs, taskdir)
+        self._local = True
+        self._file_based = True
+        self.unit_source = 'tasks'
+
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
+        _, up = super(MergeTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
+        return [], up
+
+class ProductionTaskHandler(TaskHandler):
+    def __init__(self, id_, dataset, lumis, outputs, taskdir):
+        super(ProductionTaskHandler, self).__init__(id_, dataset, [], lumis, outputs, taskdir)
+        self._file_based = True
+
+    def adjust(self, parameters, inputs, outputs, se):
+        super(ProductionTaskHandler, self).adjust(parameters, inputs, outputs, se)
+        parameters['mask']['first lumi'] = self._units[0][3]

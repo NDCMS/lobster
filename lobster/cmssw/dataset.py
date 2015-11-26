@@ -162,7 +162,9 @@ class FileInterface:
 
             if not files:
                 ntasks = cfg.get('num tasks', 1)
-                nlumis = cfg.get('lumis per task', 1)
+                nlumis = 1
+                if 'events per lumi' in cfg:
+                    nlumis = int(math.ceil(float(cfg['events per task']) / cfg['events per lumi']))
                 dset.files = [None]
                 dset.lumis[None] = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
                 dset.total_lumis = cfg.get('num tasks', 1)

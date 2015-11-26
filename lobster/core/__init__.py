@@ -1,2 +1,2 @@
-from task import TaskHandler
+from task import *
 from workflow import Workflow

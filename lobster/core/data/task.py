@@ -34,7 +34,26 @@ import FWCore.ParameterSet.Config as cms
 process.Timing = cms.Service("Timing",
     useJobReport = cms.untracked.bool(True),
     summaryOnly = cms.untracked.bool(True))
+
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
+
+for prod in process.producers.values():
+    if prod.hasParameter('nEvents') and prod.type_() == 'ExternalLHEProducer':
+        prod.nEvents = cms.untracked.uint32({events})
+"""
+
+fragment_first = """
+process.source.firstLuminosityBlock = cms.untracked.uint32({lumi})
+"""
+
+fragment_lumi = """
+process.source.numberEventsInLuminosityBlock = cms.untracked.uint32({events})
+"""
+
+fragment_seeding = """
+from IOMC.RandomEngine.RandomServiceHelper import RandomNumberServiceHelper
+helper = RandomNumberServiceHelper(process.RandomNumberGeneratorService)
+helper.populate()
 """
 
 sum_fragment = """
@@ -448,6 +467,11 @@ def edit_process_source(pset, config):
     want_summary = config['want summary']
     runtime = config.get('task runtime')
 
+    # MC production settings
+    lumi_first = config['mask'].get('first lumi')
+    lumi_events = config['mask'].get('events per lumi')
+    seeding = config.get('randomize seeds', False)
+
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])
         if any([f for f in files]):
@@ -458,6 +482,12 @@ def edit_process_source(pset, config):
             frag += sum_fragment
         if runtime:
             frag += runtime_fragment.format(time=runtime)
+        if seeding:
+            frag += fragment_seeding
+        if lumi_events:
+            frag += fragment_lumi.format(events=lumi_events)
+        if lumi_first:
+            frag += fragment_first.format(lumi=lumi_first)
 
         print
         print ">>> config file fragment:"

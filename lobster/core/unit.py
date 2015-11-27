@@ -560,14 +560,11 @@ class UnitStore:
             from workflows""")
         return ["label events read written units unmasked done paused percent".split()] + list(cursor)
 
-    def pop_unmerged_tasks(self, bytes, num=1):
+    def pop_unmerged_tasks(self, sizes, num=1):
         """Create merging tasks.
 
-        This creates `num` merge tasks with a maximal size of `bytes`.
+        This creates `num` merge tasks with a maximal size contained in `sizes`.
         """
-
-        if bytes <= 0:
-            return []
 
         rows = self.db.execute("""
             select label, id, units_done + units_paused == units
@@ -586,7 +583,7 @@ class UnitStore:
 
         res = []
         for dset, dset_id, complete in rows:
-            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, bytes, num))
+            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, sizes[dset], num))
             if len(res) > num:
                 break
         return res
@@ -597,6 +594,11 @@ class UnitStore:
         """
 
         logger.debug("trying to merge tasks from {0}".format(workflow))
+
+        if bytes <= 0:
+            logger.debug("fully merged {0}".format(workflow))
+            self.db.execute("""update workflows set merged=1 where id=?""", (dset_id,))
+            return []
 
         class Merge(object):
             def __init__(self, task, units, size, maxsize):

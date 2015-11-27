@@ -254,30 +254,6 @@ class TaskProvider(object):
         if 'X509_USER_PROXY' in os.environ:
             self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
-    def __check_merge(self):
-        if 'merge size' in self.config:
-            bytes = self.config['merge size']
-            orig = bytes
-            if isinstance(bytes, basestring):
-                unit = bytes[-1].lower()
-                try:
-                    bytes = float(bytes[:-1])
-                    if unit == 'k':
-                        bytes *= 1000
-                    elif unit == 'm':
-                        bytes *= 1e6
-                    elif unit == 'g':
-                        bytes *= 1e9
-                    else:
-                        bytes = -1
-                except ValueError:
-                    bytes = -1
-                self.config['merge size'] = bytes
-
-            if bytes > 0:
-                logger.info('merging outputs up to {0} bytes'.format(bytes))
-            else:
-                logger.error('merging disabled due to malformed size {0}'.format(orig))
 
     def save_configuration(self):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
@@ -294,7 +270,8 @@ class TaskProvider(object):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, num=1):
-        taskinfos = self.__store.pop_unmerged_tasks(self.config.get('merge size', -1), 10) \
+        sizes = dict([(wflow.label, wflow.mergesize) for wflow in self.workflows]
+        taskinfos = self.__store.pop_unmerged_tasks(sizes, 10) \
                 + self.__store.pop_units(num)
         if not taskinfos or len(taskinfos) == 0:
             return None
@@ -437,9 +414,7 @@ class TaskProvider(object):
 
     def done(self):
         left = self.__store.unfinished_units()
-        if self.config.get('merge size', -1) > 0:
-            return self.__store.merged() and left == 0
-        return left == 0
+        return self.__store.merged() and left == 0
 
     def __update_dashboard(self, queue, exclude_states):
         try:

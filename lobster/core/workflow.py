@@ -18,6 +18,7 @@ class Workflow(object):
 
         self.cores = config.get('cores per task', 1)
         self._runtime = config.get('task runtime')
+        self.mergesize = self.__check_merge(config.get('merge size', -1))
 
         if 'sandbox' in config:
             self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
@@ -50,6 +51,31 @@ class Workflow(object):
         if not self._runtime:
             return None
         return self._runtime + 15 * 60
+
+    def __check_merge(self, size):
+        if size <= 0:
+            return size
+
+        orig = size
+        if isinstance(size, basestring):
+            unit = size[-1].lower()
+            try:
+                size = float(bytes[:-1])
+                if unit == 'k':
+                    size *= 1000
+                elif unit == 'm':
+                    size *= 1e6
+                elif unit == 'g':
+                    size *= 1e9
+                else:
+                    size = -1
+            except ValueError:
+                size = -1
+        if size > 0:
+            logger.info('merging outputs up to {0} bytes'.format(size))
+        else:
+            logger.error('merging disabled due to malformed size {0}'.format(orig))
+        return size
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.

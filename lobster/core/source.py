@@ -414,7 +414,7 @@ class TaskProvider(object):
                 summary.dir(str(handler.id), faildir)
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
-                if isinstance(MergeTaskHandler, handler) and self.config.get('delete merged', True):
+                if isinstance(handler, MergeTaskHandler) and self.config.get('delete merged', True):
                     files = handler.input_files
                     cleanup += files
                 util.move(wflow.workdir, handler.id, 'successful')

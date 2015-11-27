@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from lobster import fs, util
+from lobster.cmssw import sandbox
 from lobster.core.task import *
 
 logger = logging.getLogger('lobster.workflow')
@@ -14,7 +15,17 @@ class Workflow(object):
         self.config = config
         self.label = config['label']
         self.workdir = os.path.join(workdir, self.label)
-        self.runtime = config.get('task runtime')
+
+        self.cores = config.get('cores per task', 1)
+        self._runtime = config.get('task runtime')
+
+        if 'sandbox' in config:
+            self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
+        else:
+            self.version, self.sandbox = sandbox.package(
+                    config.get('sandbox release', os.environ['LOCALRT']),
+                    workdir,
+                    config.get('sandbox blacklist', []))
 
         self.cmd = config.get('cmd', 'cmsRun')
         self.extra_inputs = config.get('extra inputs', [])
@@ -33,6 +44,12 @@ class Workflow(object):
         self.copy_inputs(basedirs)
         if self.pset and not self._outputs:
             self.determine_outputs(basedirs)
+
+    @property
+    def runtime(self):
+        if not self._runtime:
+            return None
+        return self._runtime + 15 * 60
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.
@@ -130,6 +147,7 @@ class Workflow(object):
         args = self.args
         pset = self.pset
 
+        inputs.append(self.sandbox, 'sandbox.tar.bz2', True)
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))
@@ -154,10 +172,10 @@ class Workflow(object):
                 args.append(unique)
             if pset:
                 pset = os.path.join(self.workdir, pset)
-            if self.runtime:
+            if self._runtime:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
-                params['task runtime'] = self.runtime + 10 * 60
+                params['task runtime'] = self._runtime + 10 * 60
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))

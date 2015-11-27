@@ -15,7 +15,6 @@ from hashlib import sha1
 from lobster import fs, se, util
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw import dash
-from lobster.cmssw import sandbox
 from lobster.core import unit
 from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
@@ -136,7 +135,6 @@ class TaskProvider(object):
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
-        self.__sandbox = os.path.join(self.workdir, 'sandbox')
         self.__taskhandlers = {}
         self.__interface = MetaInterface()
         self.__store = unit.UnitStore(self.config)
@@ -177,19 +175,6 @@ class TaskProvider(object):
 
             util.register_checkpoint(self.workdir, 'executable', exename)
 
-        if not util.checkpoint(self.workdir, 'sandbox'):
-            blacklist = self.config.get('sandbox blacklist', [])
-            cmssw_version = sandbox.package(self.config.get('sandbox release top', os.environ['LOCALRT']),
-                                            self.__sandbox, blacklist, self.config.get('recycle sandbox'))
-            util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
-            util.register_checkpoint(self.workdir, 'sandbox cmssw version', cmssw_version)
-            self.__dash = monitor(self.workdir)
-            self.__dash.register_run()
-        else:
-            self.__dash = monitor(self.workdir)
-            for id in self.__store.reset_units():
-                self.__dash.update_task(id, dash.ABORTED)
-
         self.config = apply_matching(self.config)
         for cfg in self.config['workflows']:
             wflow = Workflow(self.workdir, cfg, self.basedirs)
@@ -208,8 +193,20 @@ class TaskProvider(object):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
 
+        if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
+            util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
+            versions = set([w.version for w in self.workflows.values()])
+            if len(versions) == 1:
+                util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
+
         if create:
             self.save_configuration()
+            self.__dash = monitor(self.workdir)
+            self.__dash.register_run()
+        else:
+            self.__dash = monitor(self.workdir)
+            for id in self.__store.reset_units():
+                self.__dash.update_task(id, dash.ABORTED)
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -223,13 +220,13 @@ class TaskProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
     def __setup_inputs(self):
-        self._inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
+        self._inputs = [
                 (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),
                 (self.parrot_lib, 'lib', None),
-                ]
+        ]
 
         # Files to make the task wrapper work without referencing WMCore
         # from somewhere else
@@ -383,12 +380,7 @@ class TaskProvider(object):
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
 
-            cores = 1 if merge else self.config.get('cores per task', 1)
-            runtime = None
-            if 'task runtime' in config:
-                runtime = config['task runtime'] + 15 * 60
-
-            tasks.append((runtime, cores, cmd, id, inputs, outputs))
+            tasks.append((wflow.runtime, 1 if merge else wflow.cores, cmd, id, inputs, outputs))
 
             self.__taskhandlers[id] = handler
 

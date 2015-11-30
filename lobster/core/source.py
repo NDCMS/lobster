@@ -139,7 +139,6 @@ class TaskProvider(object):
         self.__interface = MetaInterface()
         self.__store = unit.UnitStore(self.config)
 
-        self.__check_merge()
         self.__setup_inputs()
 
         create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
@@ -270,7 +269,7 @@ class TaskProvider(object):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, num=1):
-        sizes = dict([(wflow.label, wflow.mergesize) for wflow in self.workflows]
+        sizes = dict([(wflow.label, wflow.mergesize) for wflow in self.workflows.values()])
         taskinfos = self.__store.pop_unmerged_tasks(sizes, 10) \
                 + self.__store.pop_units(num)
         if not taskinfos or len(taskinfos) == 0:

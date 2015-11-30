@@ -675,7 +675,7 @@ class UnitStore:
                     tasks(workflow, units, status, type)
                     values (?, ?, ?, ?)""", (dset_id, merge.units, ASSIGNED, MERGE)).lastrowid
                 logger.debug("inserted merge task {0} with tasks {1}".format(merge_id, ", ".join(map(str, merge.tasks))))
-                res += [(str(merge_id), workflow, [], [(id, None, -1, -1) for id in merge.tasks], "", False, True)]
+                res += [(str(merge_id), workflow, [], [(id, None, -1, -1) for id in merge.tasks], "", True)]
                 merge_update += [(merge_id, id) for id in merge.tasks]
 
             self.db.executemany("update tasks set status=7, task=? where id=?", merge_update)

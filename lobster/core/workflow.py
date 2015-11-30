@@ -60,7 +60,7 @@ class Workflow(object):
         if isinstance(size, basestring):
             unit = size[-1].lower()
             try:
-                size = float(bytes[:-1])
+                size = float(size[:-1])
                 if unit == 'k':
                     size *= 1000
                 elif unit == 'm':
@@ -173,7 +173,7 @@ class Workflow(object):
         args = self.args
         pset = self.pset
 
-        inputs.append(self.sandbox, 'sandbox.tar.bz2', True)
+        inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))

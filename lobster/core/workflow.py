@@ -213,6 +213,7 @@ class Workflow(object):
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
                 params['task runtime'] = self._runtime + 10 * 60
+            params['cores'] = self.cores
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))

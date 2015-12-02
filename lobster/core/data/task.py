@@ -56,6 +56,13 @@ helper = RandomNumberServiceHelper(process.RandomNumberGeneratorService)
 helper.populate()
 """
 
+fragment_cores = """
+if hasattr(process, 'options'):
+    process.options.numberOfThreads = cms.untracked.uint32({cores})
+else:
+    process.options = cms.untracked.PSet(numberOfThreads = cms.untracked.uint32({cores}))
+"""
+
 sum_fragment = """
 if hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
@@ -466,6 +473,7 @@ def edit_process_source(pset, config):
     lumis = LumiList(compactList=config['mask']['lumis']).getVLuminosityBlockRange()
     want_summary = config['want summary']
     runtime = config.get('task runtime')
+    cores = config.get('cores')
 
     # MC production settings
     lumi_first = config['mask'].get('first lumi')
@@ -488,6 +496,8 @@ def edit_process_source(pset, config):
             frag += fragment_lumi.format(events=lumi_events)
         if lumi_first:
             frag += fragment_first.format(lumi=lumi_first)
+        if cores:
+            frag += fragment_cores.format(cores=cores)
 
         print
         print ">>> config file fragment:"

@@ -487,7 +487,7 @@ class UnitStore:
 
     def update_workflow_stats(self, label, total=False):
         if total:
-            self.db.execute("update workflows set units=(select count(*) from units_{0}) where label=?", (label,))
+            self.db.execute("update workflows set units=(select count(*) from units_{0}) where label=?".format(label), (label,))
 
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 

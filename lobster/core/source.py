@@ -192,6 +192,10 @@ class TaskProvider(object):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
 
+        for wflow in self.workflows.values():
+            if wflow.prerequisite:
+                self.workflows[wflow.prerequisite].register(wflow)
+
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
             versions = set([w.version for w in self.workflows.values()])
@@ -346,7 +350,7 @@ class TaskProvider(object):
             handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
             # set input/output transfer parameters
-            self._storage.preprocess(config, merge)
+            self._storage.preprocess(config, merge or wflow.prerequisite)
             # adjust file and lumi information in config, add task specific
             # input/output files
             handler.adjust(config, inputs, outputs, self._storage)
@@ -369,7 +373,9 @@ class TaskProvider(object):
     def release(self, tasks):
         cleanup = []
         update = defaultdict(list)
+        propagate = defaultdict(dict)
         summary = ReleaseSummary()
+
         for task in tasks:
             self.__dash.update_task(task.tag, dash.DONE)
 
@@ -377,15 +383,25 @@ class TaskProvider(object):
             failed, task_update, file_update, unit_update = handler.process(task, summary)
 
             wflow = self.workflows[handler.dataset]
+
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')
                 summary.dir(str(handler.id), faildir)
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
-                if isinstance(handler, MergeTaskHandler) and self.config.get('delete merged', True):
+                util.move(wflow.workdir, handler.id, 'successful')
+
+                merge = isinstance(handler, MergeTaskHandler)
+
+                if wflow.mergesize <= 0 or merge:
+                    outfn = handler.outputs[0][1]
+                    outinfo = handler.output_info
+                    for dep in wflow.dependents:
+                        propagate[dep][outfn] = outinfo
+
+                if merge and self.config.get('delete merged', True):
                     files = handler.input_files
                     cleanup += files
-                util.move(wflow.workdir, handler.id, 'successful')
 
             self.__dash.update_task(task.tag, dash.RETRIEVED)
 
@@ -406,6 +422,9 @@ class TaskProvider(object):
         if len(update) > 0:
             logger.info(summary)
             self.__store.update_units(update)
+
+        for label, infos in propagate.items():
+            self.__store.register_files(infos, label)
 
     def terminate(self):
         for id in self.__store.running_tasks():

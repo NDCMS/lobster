@@ -38,6 +38,9 @@ class Workflow(object):
         self.events_per_lumi = config.get('events per lumi', -1)
         self.randomize_seeds = config.get('randomize seeds', True)
 
+        self.dependents = []
+        self.prerequisite = config.get('parent dataset')
+
         self.pset = config.get('cmssw config')
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
@@ -76,6 +79,14 @@ class Workflow(object):
         else:
             logger.error('merging disabled due to malformed size {0}'.format(orig))
         return size
+
+    def register(self, wflow):
+        """Add the workflow `wflow` to the dependents.
+        """
+        logger.info("marking {0} to be downstream of {1}".format(wflow.label, self.label))
+        if len(self._outputs) != 1:
+            raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self._outputs)))
+        self.dependents.append(wflow.label)
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.

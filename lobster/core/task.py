@@ -5,6 +5,7 @@ import os
 import work_queue as wq
 
 from lobster import util
+from lobster.cmssw.dataset import FileInfo
 import unit
 
 from WMCore.DataStructs.LumiList import LumiList
@@ -24,7 +25,7 @@ class TaskHandler(object):
         self._files = [(id, file) for id, file in files]
         self._file_based = any([file_ is None or run < 0 or lumi < 0 for (_, file_, run, lumi) in lumis])
         self._units = lumis
-        self._outputs = outputs
+        self.outputs = outputs
         self._local = local
 
         self.taskdir = taskdir
@@ -35,8 +36,13 @@ class TaskHandler(object):
         return self._dataset
 
     @property
-    def outputs(self):
-        return self._outputs
+    def output_info(self):
+        res = FileInfo()
+        for run, lumis in self.__output_info.get('runs', {-1: [-1]}):
+            res.lumis += [(run, lumi) for lumi in lumis)]
+        res.events = self.__output_info.get('events', 0)
+        res.size = self.__output_size
+        return res
 
     @property
     def id(self):
@@ -95,10 +101,10 @@ class TaskHandler(object):
         if local and se.transfer_inputs():
             inputs += [(se.local(f), os.path.basename(f), False) for id, f in self._files if f]
         if se.transfer_outputs():
-            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self._outputs]
+            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self.outputs]
 
         parameters['mask']['files'] = self.input_files
-        parameters['output files'] = self._outputs
+        parameters['output files'] = self.outputs
         if not self._file_based:
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
@@ -108,6 +114,10 @@ class TaskHandler(object):
         """
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
+
+            self.__output_info = data['files']['output info'].values()[0].get('runs', {-1: [-1]})
+            self.__output_size = data['output size']
+
             task_update.bytes_output = data['output size']
             task_update.bytes_bare_output = data['output bare size']
             task_update.cache = data['cache']['type']

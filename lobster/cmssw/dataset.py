@@ -160,7 +160,9 @@ class FileInterface:
             dset = DatasetInfo()
             dset.file_based = True
 
-            if not files:
+            if not files and 'parent dataset' in cfg:
+                dset.file_based = False
+            elif not files:
                 ntasks = cfg.get('num tasks', 1)
                 nlumis = 1
                 if 'events per lumi' in cfg:

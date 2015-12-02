@@ -225,7 +225,7 @@ class UnitStore:
 
         self.register_files(dataset_info.files, label, unique_args)
 
-    def register_files(self, infos, label, unique_args=None):
+    def register_files(self, infos, label, unique_args=None, update=False):
         with self.db as db:
             cur = db.cursor()
 
@@ -234,7 +234,7 @@ class UnitStore:
 
             update = []
             # Sort for reproducable unit tests.
-            if len(infos) < 25:
+            if len(infos) < 25 or update:
                 items = [(fn, infos[fn]) for fn in sorted(infos.keys())]
             else:
                 items = infos.items()
@@ -247,6 +247,9 @@ class UnitStore:
                 for arg in unique_args:
                     update += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
             self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
+
+            if update:
+                self.update_workflow_stats(label, total=True)
 
     def pop_units(self, num=1):
         """
@@ -482,7 +485,10 @@ class UnitStore:
             for label, _ in taskinfos.keys():
                 self.update_workflow_stats(label)
 
-    def update_workflow_stats(self, label):
+    def update_workflow_stats(self, label, total=False):
+        if total:
+            self.db.execute("update workflows set units=(select count(*) from units_{0}) where label=?", (label,))
+
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 
         if targettime is not None:

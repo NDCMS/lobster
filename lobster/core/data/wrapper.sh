@@ -141,8 +141,8 @@ export SCRAM_ARCH=$arch
 print_output "working directory before release fixing" ls -l
 
 echo ">>> creating new release $rel"
-mkdir tmp || exit_on_error $? 173 "Failed to create temporary directory"
-cd tmp
+mkdir lobster_release_tmp || exit_on_error $? 173 "Failed to create temporary directory"
+cd lobster_release_tmp
 scramv1 project -f CMSSW $rel || exit_on_error $? 173 "Failed to create new release"
 new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
 cd $rel

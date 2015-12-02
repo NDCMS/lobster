@@ -39,7 +39,7 @@ class TaskHandler(object):
     def output_info(self):
         res = FileInfo()
         for run, lumis in self.__output_info.get('runs', {-1: [-1]}):
-            res.lumis += [(run, lumi) for lumi in lumis)]
+            res.lumis += [(run, lumi) for lumi in lumis]
         res.events = self.__output_info.get('events', 0)
         res.size = self.__output_size
         return res

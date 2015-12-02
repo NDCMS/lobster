@@ -12,14 +12,17 @@ from dbs.apis.dbsClient import DbsApi
 from WMCore.DataStructs.LumiList import LumiList
 
 
+class FileInfo(object):
+    def __init__(self):
+        self.lumis = []
+        self.events = 0
+        self.size = 0
+
 class DatasetInfo(object):
     def __init__(self):
-        self.event_counts = defaultdict(int)
         self.file_based = False
-        self.files = []
-        self.filesizes = defaultdict(int)
+        self.files = defaultdict(FileInfo)
         self.tasksize = 1
-        self.lumis = defaultdict(list)
         self.total_events = 0
         self.total_lumis = 0
         self.unmasked_lumis = 0
@@ -118,15 +121,15 @@ class DASInterface:
         result.unmasked_lumis = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
-            result.event_counts[info['logical_file_name']] = info['event_count']
-            result.filesizes[info['logical_file_name']] = info['file_size']
+            fn = info['logical_file_name']
+            result.files[fn].events = info['event_count']
+            result.files[fn].size = info['file_size']
 
         files = set()
         if file_based:
-            for file in self.__apis[instance].listFiles(dataset=dataset):
-                filename = file['logical_file_name']
-                files.add(filename)
-                result.lumis[filename] = [(-2, -2)]
+            for info in self.__apis[instance].listFiles(dataset=dataset):
+                fn = info['logical_file_name']
+                result.files[fn].lumis = [(-2, -2)]
         else:
             blocks = self.__apis[instance].listBlocks(dataset=dataset)
             if mask:
@@ -134,15 +137,12 @@ class DASInterface:
             for block in blocks:
                 runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
                 for run in runs:
-                    file = run['logical_file_name']
+                    fn = run['logical_file_name']
                     for lumi in run['lumi_section_num']:
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
-                            result.lumis[file].append((run['run_num'], lumi))
-                    if file in result.lumis:
-                        files.add(file)
+                            result.files[fn].lumis.append((run['run_num'], lumi))
 
-        result.files = list(files)
-        result.total_lumis = len(sum([result.lumis[f] for f in result.files], []))
+        result.total_lumis = sum([len(f.lumis) for fn, f in result.files.items()])
         result.masked_lumis = result.unmasked_lumis - result.total_lumis
 
         return result
@@ -165,8 +165,7 @@ class FileInterface:
                 nlumis = 1
                 if 'events per lumi' in cfg:
                     nlumis = int(math.ceil(float(cfg['events per task']) / cfg['events per lumi']))
-                dset.files = [None]
-                dset.lumis[None] = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
+                dset.files[None].lumis = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
                 dset.total_lumis = cfg.get('num tasks', 1)
 
                 # we don't cache gen-tasks (avoid overwriting num tasks
@@ -178,14 +177,13 @@ class FileInterface:
                 for entry in files:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
-                        dset.files += filter(fs.isfile, fs.ls(entry))
+                        files = filter(fs.isfile, fs.ls(entry))
+                dset.total_lumis = len(files)
 
-                dset.total_lumis = len(dset.files)
-
-                for file in dset.files:
+                for fn in files:
                     # hack because it will be slow to open all the input files to read the run/lumi info
-                    dset.lumis[file] = [(-1, -1)]
-                    dset.filesizes[file] = fs.getsize(file)
+                    dset.files[fn].lumis = [(-1, -1)]
+                    dset.files[fn].size = fs.getsize(fn)
             self.__dsets[label] = dset
 
         return self.__dsets[label]

@@ -186,7 +186,7 @@ class TaskProvider(object):
                     dataset_info = self.__interface.get_info(wflow.config)
 
                 logger.info("registering {0} in database".format(wflow.label))
-                self.__store.register(wflow.config, dataset_info, wflow.runtime)
+                self.__store.register_dataset(wflow.config, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_taskids(wflow.label):

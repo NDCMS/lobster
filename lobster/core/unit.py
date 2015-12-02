@@ -157,7 +157,7 @@ class UnitStore:
     def disconnect(self):
         self.db.close()
 
-    def register(self, dataset_cfg, dataset_info, taskruntime=None):
+    def register_dataset(self, dataset_cfg, dataset_info, taskruntime=None):
         label = dataset_cfg['label']
         unique_args = dataset_cfg.get('unique parameters', [None])
 
@@ -218,25 +218,35 @@ class UnitStore:
             foreign key(task) references tasks(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
-        for fn in dataset_info.files:
-            file_lumis = len(dataset_info.lumis[fn])
-            cur.execute(
-                    """insert into files_{0}(units, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
-                        file_lumis * len(unique_args),
-                        dataset_info.event_counts[fn],
-                        fn,
-                        dataset_info.filesizes[fn]))
-            file_id = cur.lastrowid
-
-            for arg in unique_args:
-                columns = [(file_id, run, lumi, arg) for (run, lumi) in dataset_info.lumis[fn]]
-                self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), columns)
-
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
         self.db.execute("create index if not exists index_events_{0} on units_{0}(run, lumi)".format(label))
         self.db.execute("create index if not exists index_files_{0} on units_{0}(file)".format(label))
-
         self.db.commit()
+
+        self.register_files(dataset_info.files, label, unique_args)
+
+    def register_files(self, infos, label, unique_args=None):
+        with self.db as db:
+            cur = db.cursor()
+
+            if unique_args is None:
+                unique_args = [None]
+
+            update = []
+            # Sort for reproducable unit tests.
+            if len(infos) < 25:
+                items = [(fn, infos[fn]) for fn in sorted(infos.keys())]
+            else:
+                items = infos.items()
+            for fn, info in items:
+                cur.execute(
+                        """insert into files_{0}(units, events, filename, bytes) values (?, ?, ?, ?)""".format(label),
+                        (len(info.lumis) * len(unique_args), info.events, fn, info.size))
+                fid = cur.lastrowid
+
+                for arg in unique_args:
+                    update += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
+            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
 
     def pop_units(self, num=1):
         """

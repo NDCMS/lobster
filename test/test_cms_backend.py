@@ -45,10 +45,10 @@ class TestSQLBackend(object):
         info.file_based = True
         info.tasksize = tasksize
 
-        info.files = ['/test/{0}.root'.format(i) for i in range(files)]
-        info.lumis = dict((file, [(-1, -1)]) for file in info.files)
+        for fn in ['/test/{0}.root'.format(i) for i in range(files)]:
+            info.files[fn].lumis = [(-1, -1)]
 
-        info.total_lumis = len(info.files)
+        info.total_lumis = len(info.files.keys())
         info.path = ''
 
         cfg = {
@@ -91,9 +91,8 @@ class TestSQLBackend(object):
 
             if file_size == filesize:
                 f = '/test/{0}.root'.format(file_count)
-                info.event_counts[f] = file_events
-                info.lumis[f] = file_lumis
-                info.files.append(f)
+                info.files[f].events = file_events
+                info.files[f].lumis = file_lumis
 
                 file_count += 1
                 file_size = 0
@@ -102,11 +101,10 @@ class TestSQLBackend(object):
 
         if file_size > 0:
             f = '/test/{0}.root'.format(file_count)
-            info.event_counts[f] = file_events
-            info.lumis[f] = file_lumis
-            info.files.append(f)
+            info.files[f].events = file_events
+            info.files[f].lumis = file_lumis
 
-        info.total_lumis = len(sum([info.lumis[f] for f in info.files], []))
+        info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
         cfg = {
                 'dataset': '/Test',
@@ -125,16 +123,15 @@ class TestSQLBackend(object):
         total = 0
 
         assert len(info.files) == 5
-        for (k, v) in info.lumis.items():
-            total += info.event_counts[k]
-            assert len(v) == 3
-
+        for fn, finfo in info.files.items():
+            total += finfo.events
+            assert len(finfo.lumis) == 3
         assert total == 1100
         # }}}
 
     def test_handler(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_handler', lumis=11, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
@@ -162,7 +159,7 @@ class TestSQLBackend(object):
 
     def test_obtain(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
@@ -190,7 +187,7 @@ class TestSQLBackend(object):
 
     def test_return_good(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
@@ -242,7 +239,7 @@ class TestSQLBackend(object):
 
     def test_return_bad(self):
         # {{{
-        self.interface.register(*self.create_dbs_dataset('test_bad'))
+        self.interface.register_dataset(*self.create_dbs_dataset('test_bad'))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
@@ -286,7 +283,7 @@ class TestSQLBackend(object):
 
     def test_return_bad_again(self):
         # {{{
-        self.interface.register(*self.create_dbs_dataset(
+        self.interface.register_dataset(*self.create_dbs_dataset(
             'test_bad_again', lumis=20, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
@@ -335,7 +332,7 @@ class TestSQLBackend(object):
 
     def test_return_ugly(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
@@ -397,7 +394,7 @@ class TestSQLBackend(object):
 
     def test_return_uglier(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
@@ -455,7 +452,7 @@ class TestSQLBackend(object):
 
     def test_file_obtain(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
 
@@ -483,7 +480,7 @@ class TestSQLBackend(object):
 
     def test_file_return_good(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
 
@@ -522,7 +519,7 @@ class TestSQLBackend(object):
 
     def test_file_return_bad(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
 
@@ -557,7 +554,7 @@ class TestSQLBackend(object):
 
     def test_file_return_ugly(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
 

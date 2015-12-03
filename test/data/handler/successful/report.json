@@ -1,0 +1,63 @@
+{
+  "files": {
+    "info": {}, 
+    "output info": {
+      "file:HIG-RunIIWinter15wmLHE-00196.root": {
+        "runs": {
+          "1": [
+            261, 
+            262, 
+            263, 
+            264, 
+            265, 
+            266, 
+            267, 
+            268, 
+            269, 
+            270, 
+            271, 
+            272, 
+            273, 
+            274, 
+            275, 
+            276, 
+            277, 
+            278, 
+            279, 
+            280
+          ]
+        }, 
+        "adler32": "efe74b20", 
+        "events": 4000
+      }
+    }, 
+    "skipped": []
+  }, 
+  "cmssw exit code": 0, 
+  "task timing": {
+    "prologue end": 1449084387, 
+    "file requested": 1449091495, 
+    "wrapper start": 1449084335, 
+    "epilogue end": 1449091524, 
+    "stage out end": 1449091533, 
+    "file opened": 1449091495, 
+    "stage in end": 1449084387, 
+    "file processing": 1449091495, 
+    "processing end": 1449091523, 
+    "wrapper ready": 1449084370, 
+    "wrapper end": null
+  }, 
+  "events per run": 0, 
+  "exe exit code": 0, 
+  "cpu time": 86.4359, 
+  "output bare size": 9815357, 
+  "cache": {
+    "end size": 0, 
+    "type": 0, 
+    "start size": 0
+  }, 
+  "output size": 15037503, 
+  "events written": 4000, 
+  "task exit code": 0, 
+  "stageout exit code": 0
+}

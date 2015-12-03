@@ -38,8 +38,8 @@ class TaskHandler(object):
     @property
     def output_info(self):
         res = FileInfo()
-        for run, lumis in self.__output_info.get('runs', {-1: [-1]}):
-            res.lumis += [(run, lumi) for lumi in lumis]
+        for run, lumis in self.__output_info.get('runs', {-1: [-1]}).items():
+            res.lumis += [(int(run), lumi) for lumi in lumis]
         res.events = self.__output_info.get('events', 0)
         res.size = self.__output_size
         return res
@@ -115,8 +115,9 @@ class TaskHandler(object):
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
 
-            self.__output_info = data['files']['output info'].values()[0].get('runs', {-1: [-1]})
-            self.__output_size = data['output size']
+            if len(data['files']['output info']) > 0:
+                self.__output_info = data['files']['output info'].values()[0]
+                self.__output_size = data['output size']
 
             task_update.bytes_output = data['output size']
             task_update.bytes_bare_output = data['output bare size']
@@ -201,8 +202,7 @@ class TaskHandler(object):
         else:
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
-                if exit_code > 0:
-                    failed = True
+                failed = True
             summary.exe(exit_code, task.tag)
         task_update.exit_code = exit_code
 

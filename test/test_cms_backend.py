@@ -606,8 +606,8 @@ class TestCMSSWProvider(object):
         cls.provider._taskProvider__store = DummyInterface()
 
         shutil.copytree(
-                os.path.join(os.path.dirname(__file__), 'data'),
-                os.path.join(cls.workdir, 'data'))
+                os.path.join(os.path.dirname(__file__), 'tmp_data'),
+                os.path.join(cls.workdir, 'tmp_data'))
 
     @classmethod
     def teardown_class(cls):
@@ -615,7 +615,7 @@ class TestCMSSWProvider(object):
 
     # def test_return_good(self):
         # self.provider._taskProvider__taskdirs[0] = \
-                # os.path.join(self.workdir, 'data', 'running', '0')
+                # os.path.join(self.workdir, 'tmp_data', 'running', '0')
         # self.provider._taskProvider__taskworkflows[0] = 'test'
         # self.provider._taskProvider__taskoutputs[0] = []
         # self.provider

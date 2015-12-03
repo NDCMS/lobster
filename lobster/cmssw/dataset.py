@@ -18,6 +18,10 @@ class FileInfo(object):
         self.events = 0
         self.size = 0
 
+    def __repr__(self):
+        descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
+        return 'FileInfo({0})'.format(',\n'.join(descriptions))
+
 class DatasetInfo(object):
     def __init__(self):
         self.file_based = False

@@ -8,7 +8,7 @@ setup(
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
-    packages=['lobster', 'lobster.cmssw'],
+    packages=['lobster', 'lobster.cmssw', 'lobster.core', 'lobster.commands'],
     package_data={'lobster': [
         'core/data/job.py',
         'core/data/wrapper.sh',

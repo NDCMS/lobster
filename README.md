@@ -19,6 +19,9 @@ from an expert.  Also, if you switch to a release with a signficantly newer
 version of Python than you used to install Lobster, you may have to re-run
 the Lobster installation instructions below.
 
+**Ensure that the following instructions are issued within a CMSSW
+environment!**
+
 ## Dependencies
 
 ### CClab tools
@@ -56,7 +59,7 @@ for bash or, for tcsh
 As you'll need `~/.local` in your path each time you run lobster, we recommend adding
 the step above to your login script.
 
-# Setup
+## Setup
 
 It is recommended to use lobster in a `virtualenv`, which is used to keep
 all dependencies of lobster within one directory and not interfere with
@@ -87,7 +90,7 @@ a local git checkout, use
     git clone git@github.com:matz-e/lobster.git
     cd lobster
     ./install_dependencies.sh
-    python setup.py install
+    pip install .
 
 # Running lobster
 

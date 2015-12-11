@@ -4,6 +4,7 @@ python:
   - "2.7"
 install:
   - BUILD_CCTOOLS=1 ./install_dependencies.sh
+  - pip install matplotlib
   - pip install .
 before_script:
   - export LOBSTER_STORAGE=$PWD/test_storage/

@@ -594,6 +594,8 @@ class Plotter(object):
                     f.write('\n'.join(skipped))
         pool = multiprocessing.Pool(processes=10)
         pool.map(unpack, work)
+        pool.close()
+        pool.join()
 
         for code in codes:
             for id in range(samples - len(codes[code][1])):
@@ -1082,6 +1084,8 @@ class Plotter(object):
 
         p = multiprocessing.Pool(10)
         p.map(mp_call, self.__plotargs)
+        p.close()
+        p.join()
 
 def plot(args):
     p = Plotter(args.config, args.outdir)

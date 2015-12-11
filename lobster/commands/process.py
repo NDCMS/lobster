@@ -77,6 +77,7 @@ def run(args):
             working_directory=workdir,
             pidfile=util.get_lock(workdir, args.force),
             prevent_core=False,
+            initgroups=False,
             signal_map=signals):
         t = threading.Thread(target=sprint, args=(config, workdir, cmstask))
         t.start()

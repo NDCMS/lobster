@@ -10,7 +10,7 @@ setup(
     url='https://github.com/matz-e/lobster',
     packages=['lobster', 'lobster.cmssw', 'lobster.core', 'lobster.commands'],
     package_data={'lobster': [
-        'core/data/job.py',
+        'core/data/task.py',
         'core/data/wrapper.sh',
         'core/data/mtab',
         'core/data/siteconfig/JobConfig/site-local-config.xml',

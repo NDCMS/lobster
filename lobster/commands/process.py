@@ -116,8 +116,10 @@ def sprint(config, workdir, cmstask):
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-    # FIXME Do we always want to have full monitoring?
-    queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
+    if config.get('advanced', {}).get('full monitoring', False):
+        queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
+    else:
+        queue.enable_monitoring(os.path.join(workdir, "work_queue_monitoring"))
 
     cores = config.get('cores per task', 1)
     logger.info("starting queue as {0}".format(queue.name))

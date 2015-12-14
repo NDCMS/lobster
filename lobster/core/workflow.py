@@ -5,6 +5,8 @@ import shutil
 import sys
 
 from lobster import fs, util
+from lobster.cmssw import sandbox
+from lobster.core.task import *
 
 logger = logging.getLogger('lobster.workflow')
 
@@ -13,7 +15,18 @@ class Workflow(object):
         self.config = config
         self.label = config['label']
         self.workdir = os.path.join(workdir, self.label)
-        self.runtime = config.get('task runtime')
+
+        self.cores = config.get('cores per task', 1)
+        self._runtime = config.get('task runtime')
+        self.mergesize = self.__check_merge(config.get('merge size', -1))
+
+        if 'sandbox' in config:
+            self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
+        else:
+            self.version, self.sandbox = sandbox.package(
+                    config.get('sandbox release', os.environ['LOCALRT']),
+                    workdir,
+                    config.get('sandbox blacklist', []))
 
         self.cmd = config.get('cmd', 'cmsRun')
         self.extra_inputs = config.get('extra inputs', [])
@@ -22,6 +35,12 @@ class Workflow(object):
         self.outputformat = config.get("output format", "{base}_{id}.{ext}")
 
         self.events_per_task = config.get('events per task', -1)
+        self.events_per_lumi = config.get('events per lumi', -1)
+        self.randomize_seeds = config.get('randomize seeds', True)
+
+        self.dependents = []
+        self.prerequisite = config.get('parent dataset')
+
         self.pset = config.get('cmssw config')
         self.local = config.get('local', 'files' in config)
         self.edm_output = config.get('edm output', True)
@@ -29,6 +48,45 @@ class Workflow(object):
         self.copy_inputs(basedirs)
         if self.pset and not self._outputs:
             self.determine_outputs(basedirs)
+
+    @property
+    def runtime(self):
+        if not self._runtime:
+            return None
+        return self._runtime + 15 * 60
+
+    def __check_merge(self, size):
+        if size <= 0:
+            return size
+
+        orig = size
+        if isinstance(size, basestring):
+            unit = size[-1].lower()
+            try:
+                size = float(size[:-1])
+                if unit == 'k':
+                    size *= 1000
+                elif unit == 'm':
+                    size *= 1e6
+                elif unit == 'g':
+                    size *= 1e9
+                else:
+                    size = -1
+            except ValueError:
+                size = -1
+        if size > 0:
+            logger.info('merging outputs up to {0} bytes'.format(size))
+        else:
+            logger.error('merging disabled due to malformed size {0}'.format(orig))
+        return size
+
+    def register(self, wflow):
+        """Add the workflow `wflow` to the dependents.
+        """
+        logger.info("marking {0} to be downstream of {1}".format(wflow.label, self.label))
+        if len(self._outputs) != 1:
+            raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self._outputs)))
+        self.dependents.append(wflow.label)
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.
@@ -107,6 +165,14 @@ class Workflow(object):
                 msg = 'stageout directory is not empty: {0}'
                 raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
 
+    def handler(self, id_, files, lumis, taskdir, merge=False):
+        if merge:
+            return MergeTaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir)
+        elif self.events_per_task > 0:
+            return ProductionTaskHandler(id_, self.label, lumis, list(self.outputs(id_)), taskdir)
+        else:
+            return TaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir, local=self.local)
+
     def outputs(self, id):
         for fn in self._outputs:
             base, ext = os.path.splitext(fn)
@@ -118,6 +184,7 @@ class Workflow(object):
         args = self.args
         pset = self.pset
 
+        inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))
@@ -142,10 +209,11 @@ class Workflow(object):
                 args.append(unique)
             if pset:
                 pset = os.path.join(self.workdir, pset)
-            if self.runtime:
+            if self._runtime:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
-                params['task runtime'] = self.runtime + 10 * 60
+                params['task runtime'] = self._runtime + 10 * 60
+            params['cores'] = self.cores
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))
@@ -156,3 +224,6 @@ class Workflow(object):
         params['executable'] = cmd
         params['arguments'] = args
         params['mask']['events'] = self.events_per_task
+        if self.events_per_lumi > 0:
+            params['mask']['events per lumi'] = self.events_per_lumi
+            params['randomize seeds'] = self.randomize_seeds

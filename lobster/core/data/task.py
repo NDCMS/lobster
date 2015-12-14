@@ -34,7 +34,33 @@ import FWCore.ParameterSet.Config as cms
 process.Timing = cms.Service("Timing",
     useJobReport = cms.untracked.bool(True),
     summaryOnly = cms.untracked.bool(True))
+
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
+
+for prod in process.producers.values():
+    if prod.hasParameter('nEvents') and prod.type_() == 'ExternalLHEProducer':
+        prod.nEvents = cms.untracked.uint32({events})
+"""
+
+fragment_first = """
+process.source.firstLuminosityBlock = cms.untracked.uint32({lumi})
+"""
+
+fragment_lumi = """
+process.source.numberEventsInLuminosityBlock = cms.untracked.uint32({events})
+"""
+
+fragment_seeding = """
+from IOMC.RandomEngine.RandomServiceHelper import RandomNumberServiceHelper
+helper = RandomNumberServiceHelper(process.RandomNumberGeneratorService)
+helper.populate()
+"""
+
+fragment_cores = """
+if hasattr(process, 'options'):
+    process.options.numberOfThreads = cms.untracked.uint32({cores})
+else:
+    process.options = cms.untracked.PSet(numberOfThreads = cms.untracked.uint32({cores}))
 """
 
 sum_fragment = """
@@ -447,6 +473,12 @@ def edit_process_source(pset, config):
     lumis = LumiList(compactList=config['mask']['lumis']).getVLuminosityBlockRange()
     want_summary = config['want summary']
     runtime = config.get('task runtime')
+    cores = config.get('cores')
+
+    # MC production settings
+    lumi_first = config['mask'].get('first lumi')
+    lumi_events = config['mask'].get('events per lumi')
+    seeding = config.get('randomize seeds', False)
 
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])
@@ -458,6 +490,14 @@ def edit_process_source(pset, config):
             frag += sum_fragment
         if runtime:
             frag += runtime_fragment.format(time=runtime)
+        if seeding:
+            frag += fragment_seeding
+        if lumi_events:
+            frag += fragment_lumi.format(events=lumi_events)
+        if lumi_first:
+            frag += fragment_first.format(lumi=lumi_first)
+        if cores:
+            frag += fragment_cores.format(cores=cores)
 
         print
         print ">>> config file fragment:"

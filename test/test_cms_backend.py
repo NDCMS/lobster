@@ -45,10 +45,10 @@ class TestSQLBackend(object):
         info.file_based = True
         info.tasksize = tasksize
 
-        info.files = ['/test/{0}.root'.format(i) for i in range(files)]
-        info.lumis = dict((file, [(-1, -1)]) for file in info.files)
+        for fn in ['/test/{0}.root'.format(i) for i in range(files)]:
+            info.files[fn].lumis = [(-1, -1)]
 
-        info.total_lumis = len(info.files)
+        info.total_lumis = len(info.files.keys())
         info.path = ''
 
         cfg = {
@@ -91,9 +91,8 @@ class TestSQLBackend(object):
 
             if file_size == filesize:
                 f = '/test/{0}.root'.format(file_count)
-                info.event_counts[f] = file_events
-                info.lumis[f] = file_lumis
-                info.files.append(f)
+                info.files[f].events = file_events
+                info.files[f].lumis = file_lumis
 
                 file_count += 1
                 file_size = 0
@@ -102,11 +101,10 @@ class TestSQLBackend(object):
 
         if file_size > 0:
             f = '/test/{0}.root'.format(file_count)
-            info.event_counts[f] = file_events
-            info.lumis[f] = file_lumis
-            info.files.append(f)
+            info.files[f].events = file_events
+            info.files[f].lumis = file_lumis
 
-        info.total_lumis = len(sum([info.lumis[f] for f in info.files], []))
+        info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
         cfg = {
                 'dataset': '/Test',
@@ -125,19 +123,18 @@ class TestSQLBackend(object):
         total = 0
 
         assert len(info.files) == 5
-        for (k, v) in info.lumis.items():
-            total += info.event_counts[k]
-            assert len(v) == 3
-
+        for fn, finfo in info.files.items():
+            total += finfo.events
+            assert len(finfo.lumis) == 3
         assert total == 1100
         # }}}
 
     def test_handler(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_handler', lumis=11, filesize=2.2, tasksize=3))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
 
@@ -162,10 +159,10 @@ class TestSQLBackend(object):
 
     def test_obtain(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, tasksize=3))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -190,10 +187,10 @@ class TestSQLBackend(object):
 
     def test_return_good(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -242,8 +239,8 @@ class TestSQLBackend(object):
 
     def test_return_bad(self):
         # {{{
-        self.interface.register(*self.create_dbs_dataset('test_bad'))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        self.interface.register_dataset(*self.create_dbs_dataset('test_bad'))
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -286,9 +283,9 @@ class TestSQLBackend(object):
 
     def test_return_bad_again(self):
         # {{{
-        self.interface.register(*self.create_dbs_dataset(
+        self.interface.register_dataset(*self.create_dbs_dataset(
             'test_bad_again', lumis=20, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -335,10 +332,10 @@ class TestSQLBackend(object):
 
     def test_return_ugly(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -397,10 +394,10 @@ class TestSQLBackend(object):
 
     def test_return_uglier(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=11, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id, submissions=1)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -418,7 +415,7 @@ class TestSQLBackend(object):
         self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         # grab another task
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update.id = id
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -455,11 +452,11 @@ class TestSQLBackend(object):
 
     def test_file_obtain(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         parameters = {'mask': {'lumis': None}}
         TaskHandler(id, label, files, lumis, None, True).adjust(parameters, [], [], se.StorageConfiguration({}))
@@ -483,11 +480,11 @@ class TestSQLBackend(object):
 
     def test_file_return_good(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -522,11 +519,11 @@ class TestSQLBackend(object):
 
     def test_file_return_bad(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(exit_code=1234, host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -557,11 +554,11 @@ class TestSQLBackend(object):
 
     def test_file_return_ugly(self):
         # {{{
-        self.interface.register(
+        self.interface.register_dataset(
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
 
-        (id, label, files, lumis, arg, _, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -609,8 +606,8 @@ class TestCMSSWProvider(object):
         cls.provider._taskProvider__store = DummyInterface()
 
         shutil.copytree(
-                os.path.join(os.path.dirname(__file__), 'data'),
-                os.path.join(cls.workdir, 'data'))
+                os.path.join(os.path.dirname(__file__), 'tmp_data'),
+                os.path.join(cls.workdir, 'tmp_data'))
 
     @classmethod
     def teardown_class(cls):
@@ -618,7 +615,7 @@ class TestCMSSWProvider(object):
 
     # def test_return_good(self):
         # self.provider._taskProvider__taskdirs[0] = \
-                # os.path.join(self.workdir, 'data', 'running', '0')
+                # os.path.join(self.workdir, 'tmp_data', 'running', '0')
         # self.provider._taskProvider__taskworkflows[0] = 'test'
         # self.provider._taskProvider__taskoutputs[0] = []
         # self.provider

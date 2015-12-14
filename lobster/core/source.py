@@ -15,9 +15,8 @@ from hashlib import sha1
 from lobster import fs, se, util
 from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw import dash
-from lobster.cmssw import sandbox
 from lobster.core import unit
-from lobster.core import TaskHandler
+from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
 
 logger = logging.getLogger('lobster.source')
@@ -136,12 +135,10 @@ class TaskProvider(object):
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
-        self.__sandbox = os.path.join(self.workdir, 'sandbox')
         self.__taskhandlers = {}
         self.__interface = MetaInterface()
         self.__store = unit.UnitStore(self.config)
 
-        self.__check_merge()
         self.__setup_inputs()
 
         create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
@@ -177,19 +174,6 @@ class TaskProvider(object):
 
             util.register_checkpoint(self.workdir, 'executable', exename)
 
-        if not util.checkpoint(self.workdir, 'sandbox'):
-            blacklist = self.config.get('sandbox blacklist', [])
-            cmssw_version = sandbox.package(self.config.get('sandbox release top', os.environ['LOCALRT']),
-                                            self.__sandbox, blacklist, self.config.get('recycle sandbox'))
-            util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
-            util.register_checkpoint(self.workdir, 'sandbox cmssw version', cmssw_version)
-            self.__dash = monitor(self.workdir)
-            self.__dash.register_run()
-        else:
-            self.__dash = monitor(self.workdir)
-            for id in self.__store.reset_units():
-                self.__dash.update_task(id, dash.ABORTED)
-
         self.config = apply_matching(self.config)
         for cfg in self.config['workflows']:
             wflow = Workflow(self.workdir, cfg, self.basedirs)
@@ -202,14 +186,30 @@ class TaskProvider(object):
                     dataset_info = self.__interface.get_info(wflow.config)
 
                 logger.info("registering {0} in database".format(wflow.label))
-                self.__store.register(wflow.config, dataset_info, wflow.runtime)
+                self.__store.register_dataset(wflow.config, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
 
+        for wflow in self.workflows.values():
+            if wflow.prerequisite:
+                self.workflows[wflow.prerequisite].register(wflow)
+
+        if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
+            util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
+            versions = set([w.version for w in self.workflows.values()])
+            if len(versions) == 1:
+                util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
+
         if create:
             self.save_configuration()
+            self.__dash = monitor(self.workdir)
+            self.__dash.register_run()
+        else:
+            self.__dash = monitor(self.workdir)
+            for id in self.__store.reset_units():
+                self.__dash.update_task(id, dash.ABORTED)
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -223,13 +223,13 @@ class TaskProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
     def __setup_inputs(self):
-        self._inputs = [(self.__sandbox + ".tar.bz2", "sandbox.tar.bz2", True),
+        self._inputs = [
                 (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),
                 (self.parrot_lib, 'lib', None),
-                ]
+        ]
 
         # Files to make the task wrapper work without referencing WMCore
         # from somewhere else
@@ -257,30 +257,6 @@ class TaskProvider(object):
         if 'X509_USER_PROXY' in os.environ:
             self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
-    def __check_merge(self):
-        if 'merge size' in self.config:
-            bytes = self.config['merge size']
-            orig = bytes
-            if isinstance(bytes, basestring):
-                unit = bytes[-1].lower()
-                try:
-                    bytes = float(bytes[:-1])
-                    if unit == 'k':
-                        bytes *= 1000
-                    elif unit == 'm':
-                        bytes *= 1e6
-                    elif unit == 'g':
-                        bytes *= 1e9
-                    else:
-                        bytes = -1
-                except ValueError:
-                    bytes = -1
-                self.config['merge size'] = bytes
-
-            if bytes > 0:
-                logger.info('merging outputs up to {0} bytes'.format(bytes))
-            else:
-                logger.error('merging disabled due to malformed size {0}'.format(orig))
 
     def save_configuration(self):
         with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
@@ -297,7 +273,8 @@ class TaskProvider(object):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, num=1):
-        taskinfos = self.__store.pop_unmerged_tasks(self.config.get('merge size', -1), 10) \
+        sizes = dict([(wflow.label, wflow.mergesize) for wflow in self.workflows.values()])
+        taskinfos = self.__store.pop_unmerged_tasks(sizes, 10) \
                 + self.__store.pop_units(num)
         if not taskinfos or len(taskinfos) == 0:
             return None
@@ -305,7 +282,7 @@ class TaskProvider(object):
         tasks = []
         ids = []
 
-        for (id, label, files, lumis, unique_arg, empty_source, merge) in taskinfos:
+        for (id, label, files, lumis, unique_arg, merge) in taskinfos:
             wflow = self.workflows[label]
             ids.append(id)
 
@@ -370,14 +347,10 @@ class TaskProvider(object):
                 # takes care of the fields set to None in config
                 wflow.adjust(config, jdir, inputs, outputs, merge, unique=unique_arg)
 
-            handler = TaskHandler(
-                id, label, files, lumis, list(wflow.outputs(id)),
-                jdir, wflow.pset is not None, empty_source,
-                merge=merge,
-                local=wflow.local)
+            handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
             # set input/output transfer parameters
-            self._storage.preprocess(config, merge)
+            self._storage.preprocess(config, merge or wflow.prerequisite)
             # adjust file and lumi information in config, add task specific
             # input/output files
             handler.adjust(config, inputs, outputs, self._storage)
@@ -387,12 +360,7 @@ class TaskProvider(object):
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
 
-            cores = 1 if merge else self.config.get('cores per task', 1)
-            runtime = None
-            if 'task runtime' in config:
-                runtime = config['task runtime'] + 15 * 60
-
-            tasks.append((runtime, cores, cmd, id, inputs, outputs))
+            tasks.append((wflow.runtime, 1 if merge else wflow.cores, cmd, id, inputs, outputs))
 
             self.__taskhandlers[id] = handler
 
@@ -405,7 +373,9 @@ class TaskProvider(object):
     def release(self, tasks):
         cleanup = []
         update = defaultdict(list)
+        propagate = defaultdict(dict)
         summary = ReleaseSummary()
+
         for task in tasks:
             self.__dash.update_task(task.tag, dash.DONE)
 
@@ -413,15 +383,25 @@ class TaskProvider(object):
             failed, task_update, file_update, unit_update = handler.process(task, summary)
 
             wflow = self.workflows[handler.dataset]
+
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')
                 summary.dir(str(handler.id), faildir)
                 cleanup += [lf for rf, lf in handler.outputs]
             else:
-                if handler.merge and self.config.get('delete merged', True):
+                util.move(wflow.workdir, handler.id, 'successful')
+
+                merge = isinstance(handler, MergeTaskHandler)
+
+                if wflow.mergesize <= 0 or merge:
+                    outfn = handler.outputs[0][1]
+                    outinfo = handler.output_info
+                    for dep in wflow.dependents:
+                        propagate[dep][outfn] = outinfo
+
+                if merge and self.config.get('delete merged', True):
                     files = handler.input_files
                     cleanup += files
-                util.move(wflow.workdir, handler.id, 'successful')
 
             self.__dash.update_task(task.tag, dash.RETRIEVED)
 
@@ -443,15 +423,16 @@ class TaskProvider(object):
             logger.info(summary)
             self.__store.update_units(update)
 
+        for label, infos in propagate.items():
+            self.__store.register_files(infos, label)
+
     def terminate(self):
         for id in self.__store.running_tasks():
             self.__dash.update_task(str(id), dash.CANCELLED)
 
     def done(self):
         left = self.__store.unfinished_units()
-        if self.config.get('merge size', -1) > 0:
-            return self.__store.merged() and left == 0
-        return left == 0
+        return self.__store.merged() and left == 0
 
     def __update_dashboard(self, queue, exclude_states):
         try:

@@ -84,7 +84,6 @@ class UnitStore:
         self.db.execute("""create table if not exists workflows(
             cfg text,
             dataset text,
-            empty_source int,
             events int default 0,
             file_based int,
             global_tag text,
@@ -158,7 +157,7 @@ class UnitStore:
     def disconnect(self):
         self.db.close()
 
-    def register(self, dataset_cfg, dataset_info, taskruntime=None):
+    def register_dataset(self, dataset_cfg, dataset_info, taskruntime=None):
         label = dataset_cfg['label']
         unique_args = dataset_cfg.get('unique parameters', [None])
 
@@ -173,14 +172,13 @@ class UnitStore:
                        cfg,
                        uuid,
                        file_based,
-                       empty_source,
                        tasksize,
                        taskruntime,
                        units,
                        masked_lumis,
                        units_left,
                        events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            dataset_cfg.get('dataset', label),
                            label,
                            dataset_info.path,
@@ -190,7 +188,6 @@ class UnitStore:
                            dataset_cfg.get('cmssw config'),
                            self.uuid,
                            dataset_info.file_based,
-                           dataset_info.empty_source,
                            dataset_info.tasksize,
                            taskruntime,
                            dataset_info.total_lumis * len(unique_args),
@@ -221,25 +218,38 @@ class UnitStore:
             foreign key(task) references tasks(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
-        for fn in dataset_info.files:
-            file_lumis = len(dataset_info.lumis[fn])
-            cur.execute(
-                    """insert into files_{0}(units, events, filename, bytes) values (?, ?, ?, ?)""".format(label), (
-                        file_lumis * len(unique_args),
-                        dataset_info.event_counts[fn],
-                        fn,
-                        dataset_info.filesizes[fn]))
-            file_id = cur.lastrowid
-
-            for arg in unique_args:
-                columns = [(file_id, run, lumi, arg) for (run, lumi) in dataset_info.lumis[fn]]
-                self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), columns)
-
         self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
         self.db.execute("create index if not exists index_events_{0} on units_{0}(run, lumi)".format(label))
         self.db.execute("create index if not exists index_files_{0} on units_{0}(file)".format(label))
-
         self.db.commit()
+
+        self.register_files(dataset_info.files, label, unique_args)
+
+    def register_files(self, infos, label, unique_args=None, update=False):
+        with self.db as db:
+            cur = db.cursor()
+
+            if unique_args is None:
+                unique_args = [None]
+
+            update = []
+            # Sort for reproducable unit tests.
+            if len(infos) < 25 or update:
+                items = [(fn, infos[fn]) for fn in sorted(infos.keys())]
+            else:
+                items = infos.items()
+            for fn, info in items:
+                cur.execute(
+                        """insert into files_{0}(units, events, filename, bytes) values (?, ?, ?, ?)""".format(label),
+                        (len(info.lumis) * len(unique_args), info.events, fn, info.size))
+                fid = cur.lastrowid
+
+                for arg in unique_args:
+                    update += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
+            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
+
+            if update:
+                self.update_workflow_stats(label, total=True)
 
     def pop_units(self, num=1):
         """
@@ -254,14 +264,14 @@ class UnitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return []
 
         # calculate how many tasks we can create from all workflows, still
-        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
         tasks = []
 
         random.shuffle(rows)
@@ -270,18 +280,18 @@ class UnitStore:
         # keep all workers occupied
         if tasks_left < num:
             taper = float(tasks_left) / num
-            for workflow, workflow_id, units_left, ntasks, tasksize, empty_source in rows:
+            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
                 tasksize = max(math.ceil((taper * tasksize)), 1)
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks / taper)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id, empty_source))
+                tasks.extend(self.__pop_units(size, workflow, workflow_id))
         else:
-            for workflow, workflow_id, units_left, ntasks, tasksize, empty_source in rows:
+            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id, empty_source))
+                tasks.extend(self.__pop_units(size, workflow, workflow_id))
         return tasks
 
     @retry(stop_max_attempt_number=10)
-    def __pop_units(self, size, workflow, workflow_id, empty_source):
+    def __pop_units(self, size, workflow, workflow_id):
         """Internal method to create tasks from a workflow
         """
         logger.debug("creating {0} task(s) for workflow {1}".format(len(size), workflow))
@@ -327,7 +337,6 @@ class UnitStore:
                     [(id, fileinfo[id]) for id in files],
                     units,
                     arg,
-                    empty_source,
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
@@ -380,7 +389,7 @@ class UnitStore:
             task_update = defaultdict(int)
             unit_update = []
 
-            for (task, label, files, units, arg, empty_source, merge) in tasks:
+            for (task, label, files, units, arg, merge) in tasks:
                 workflow_update += units
                 task_update[task] = len(units)
                 unit_update += [(task, id) for (id, file, run, lumi) in units]
@@ -476,7 +485,10 @@ class UnitStore:
             for label, _ in taskinfos.keys():
                 self.update_workflow_stats(label)
 
-    def update_workflow_stats(self, label):
+    def update_workflow_stats(self, label, total=False):
+        if total:
+            self.db.execute("update workflows set units=(select count(*) from units_{0}) where label=?".format(label), (label,))
+
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 
         if targettime is not None:
@@ -515,13 +527,13 @@ class UnitStore:
 
     def estimate_tasks_left(self):
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize, empty_source
+            select label, id, units_left, units_left * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return 0
 
-        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _, _ in rows)
+        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
 
     def unfinished_units(self):
         cur = self.db.execute("select sum(units - units_done - units_paused) from workflows")
@@ -564,14 +576,11 @@ class UnitStore:
             from workflows""")
         return ["label events read written units unmasked done paused percent".split()] + list(cursor)
 
-    def pop_unmerged_tasks(self, bytes, num=1):
+    def pop_unmerged_tasks(self, sizes, num=1):
         """Create merging tasks.
 
-        This creates `num` merge tasks with a maximal size of `bytes`.
+        This creates `num` merge tasks with a maximal size contained in `sizes`.
         """
-
-        if bytes <= 0:
-            return []
 
         rows = self.db.execute("""
             select label, id, units_done + units_paused == units
@@ -590,7 +599,7 @@ class UnitStore:
 
         res = []
         for dset, dset_id, complete in rows:
-            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, bytes, num))
+            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, sizes[dset], num))
             if len(res) > num:
                 break
         return res
@@ -601,6 +610,11 @@ class UnitStore:
         """
 
         logger.debug("trying to merge tasks from {0}".format(workflow))
+
+        if bytes <= 0:
+            logger.debug("fully merged {0}".format(workflow))
+            self.db.execute("""update workflows set merged=1 where id=?""", (dset_id,))
+            return []
 
         class Merge(object):
             def __init__(self, task, units, size, maxsize):
@@ -677,7 +691,7 @@ class UnitStore:
                     tasks(workflow, units, status, type)
                     values (?, ?, ?, ?)""", (dset_id, merge.units, ASSIGNED, MERGE)).lastrowid
                 logger.debug("inserted merge task {0} with tasks {1}".format(merge_id, ", ".join(map(str, merge.tasks))))
-                res += [(str(merge_id), workflow, [], [(id, None, -1, -1) for id in merge.tasks], "", False, True)]
+                res += [(str(merge_id), workflow, [], [(id, None, -1, -1) for id in merge.tasks], "", True)]
                 merge_update += [(merge_id, id) for id in merge.tasks]
 
             self.db.executemany("update tasks set status=7, task=? where id=?", merge_update)

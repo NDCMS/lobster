@@ -5,9 +5,12 @@ import os
 import work_queue as wq
 
 from lobster import util
+from lobster.cmssw.dataset import FileInfo
 import unit
 
 from WMCore.DataStructs.LumiList import LumiList
+
+__all__ = ['TaskHandler', 'MergeTaskHandler', 'ProductionTaskHandler']
 
 logger = logging.getLogger('lobster.cmssw.taskhandler')
 
@@ -16,32 +19,30 @@ class TaskHandler(object):
     Handles mapping of lumi sections to files etc.
     """
 
-    def __init__(
-            self, id, dataset, files, lumis, outputs, taskdir,
-            cmssw_task=True, empty_source=False, merge=False, local=False):
+    def __init__(self, id, dataset, files, lumis, outputs, taskdir, local=False):
         self._id = id
         self._dataset = dataset
         self._files = [(id, file) for id, file in files]
-        self._file_based = any([run < 0 or lumi < 0 for (id, file, run, lumi) in lumis])
+        self._file_based = any([file_ is None or run < 0 or lumi < 0 for (_, file_, run, lumi) in lumis])
         self._units = lumis
-        self.taskdir = taskdir
-        self._outputs = outputs
-        self._merge = merge
-        self._cmssw_task = cmssw_task
-        self._empty_source = empty_source
+        self.outputs = outputs
         self._local = local
 
-    @property
-    def cmssw_task(self):
-        return self._cmssw_task
+        self.taskdir = taskdir
+        self.unit_source = 'units_' + self._dataset
 
     @property
     def dataset(self):
         return self._dataset
 
     @property
-    def outputs(self):
-        return self._outputs
+    def output_info(self):
+        res = FileInfo()
+        for run, lumis in self.__output_info.get('runs', {-1: [-1]}).items():
+            res.lumis += [(int(run), lumi) for lumi in lumis]
+        res.events = self.__output_info.get('events', 0)
+        res.size = self.__output_size
+        return res
 
     @property
     def id(self):
@@ -50,14 +51,6 @@ class TaskHandler(object):
     @property
     def input_files(self):
         return list(set([filename for (id, filename) in self._files if filename]))
-
-    @property
-    def unit_source(self):
-        return 'tasks' if self._merge else 'units_' + self._dataset
-
-    @property
-    def merge(self):
-        return self._merge
 
     def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         events_read = 0
@@ -69,12 +62,8 @@ class TaskHandler(object):
         for (id, file) in self._files:
             file_units = [tpl for tpl in self._units if tpl[1] == id]
 
-            skipped = False
-            read = 0
-            if self._cmssw_task:
-                if not self._empty_source:
-                    skipped = file in files_skipped or file not in files_info
-                    read = 0 if failed or skipped else files_info[file][0]
+            skipped = file in files_skipped or file not in files_info
+            read = 0 if failed or skipped else files_info[file][0]
 
             events_read += read
 
@@ -100,11 +89,6 @@ class TaskHandler(object):
         else:
             status = unit.SUCCESSFUL
 
-        if self._merge:
-            file_update = []
-            # FIXME not correct
-            units_missed = 0
-
         task_update.events_read = events_read
         task_update.events_written = events_written
         task_update.units_processed = units_processed
@@ -113,15 +97,15 @@ class TaskHandler(object):
         return file_update, unit_update
 
     def adjust(self, parameters, inputs, outputs, se):
-        local = self._local or self._merge
+        local = self._local
         if local and se.transfer_inputs():
             inputs += [(se.local(f), os.path.basename(f), False) for id, f in self._files if f]
         if se.transfer_outputs():
-            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self._outputs]
+            outputs += [(se.local(rf), os.path.basename(lf)) for lf, rf in self.outputs]
 
         parameters['mask']['files'] = self.input_files
-        parameters['output files'] = self._outputs
-        if not self._file_based and not self._merge:
+        parameters['output files'] = self.outputs
+        if not self._file_based:
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
 
@@ -130,6 +114,11 @@ class TaskHandler(object):
         """
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
+
+            if len(data['files']['output info']) > 0:
+                self.__output_info = data['files']['output info'].values()[0]
+                self.__output_size = data['output size']
+
             task_update.bytes_output = data['output size']
             task_update.bytes_bare_output = data['output bare size']
             task_update.cache = data['cache']['type']
@@ -146,13 +135,13 @@ class TaskHandler(object):
             task_update.time_epilogue_end = data['task timing']['epilogue end']
             task_update.time_stage_out_end = data['task timing']['stage out end']
             task_update.time_cpu = data['cpu time']
-            if self._cmssw_task:
-                files_info = data['files']['info']
-                files_skipped = data['files']['skipped']
-                events_written = data['events written']
-                cmssw_exit_code = data['cmssw exit code']
-                return files_info, files_skipped, events_written, cmssw_exit_code
-            return {}, [], 0, None
+
+            files_info = data['files']['info']
+            files_skipped = data['files']['skipped']
+            events_written = data['events written']
+            cmssw_exit_code = data['cmssw exit code']
+
+            return files_info, files_skipped, events_written, cmssw_exit_code
 
     def process_wq_info(self, task, task_update):
         """Extract useful information from the Work Queue task object.
@@ -213,8 +202,7 @@ class TaskHandler(object):
         else:
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
-                if exit_code > 0:
-                    failed = True
+                failed = True
             summary.exe(exit_code, task.tag)
         task_update.exit_code = exit_code
 
@@ -226,3 +214,24 @@ class TaskHandler(object):
             summary.monitor(task.tag)
 
         return failed, task_update, file_update, unit_update
+
+
+class MergeTaskHandler(TaskHandler):
+    def __init__(self, id_, dataset, files, lumis, outputs, taskdir):
+        super(MergeTaskHandler, self).__init__(id_, dataset, files, lumis, outputs, taskdir)
+        self._local = True
+        self._file_based = True
+        self.unit_source = 'tasks'
+
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
+        _, up = super(MergeTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
+        return [], up
+
+class ProductionTaskHandler(TaskHandler):
+    def __init__(self, id_, dataset, lumis, outputs, taskdir):
+        super(ProductionTaskHandler, self).__init__(id_, dataset, [], lumis, outputs, taskdir)
+        self._file_based = True
+
+    def adjust(self, parameters, inputs, outputs, se):
+        super(ProductionTaskHandler, self).adjust(parameters, inputs, outputs, se)
+        parameters['mask']['first lumi'] = self._units[0][3]

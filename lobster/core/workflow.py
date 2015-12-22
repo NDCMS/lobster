@@ -23,8 +23,17 @@ class Workflow(object):
         if 'sandbox' in config:
             self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
         else:
+            releaseDir = ''
+            # Check whether a release is currently set up
+            if 'LOCALRT' in os.environ:
+                releaseDir = os.environ['LOCALRT']
+            # See if we've requested a specific release
+            releaseDir = config.get('sandbox release',releaseDir)
+            if releaseDir == '':
+                raise Exception('Either need to run Lobster after running cmsenv in desired release or need to specify "sandbox release" in config for this workflow.')
+
             self.version, self.sandbox = sandbox.package(
-                    config.get('sandbox release', os.environ['LOCALRT']),
+                    releaseDir,
                     workdir,
                     config.get('sandbox blacklist', []))
 

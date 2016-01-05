@@ -688,6 +688,7 @@ data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
 parameters = {
             'ExeStart': str(config['executable']),
+            'NCores': config.get('cores', 1),
             'SyncCE': 'ndcms.crc.nd.edu',
             'SyncGridJobId': syncid,
             'WNHostName': os.environ.get('HOSTNAME', '')
@@ -736,7 +737,7 @@ if p.returncode != 0:
     print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
-    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)
+    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging, monalisa)
 
     with check_execution(data, 190):
         parse_fwk_report(config, data, 'report.xml')

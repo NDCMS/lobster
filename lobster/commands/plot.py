@@ -676,7 +676,7 @@ class Plotter(object):
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_plot, args, kwargs))
 
-    def make_pie(self, vals, labels, name, **kwargs_raw):
+    def pie(self, vals, labels, name, **kwargs_raw):
         kwargs = {'plotdir': self.__plotdir}
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_pie, [vals, labels, name], kwargs))
@@ -723,7 +723,7 @@ class Plotter(object):
                 label=['joined', 'removed']
             )
 
-            self.make_pie(
+            self.pie(
                 [
                 np.sum(stats[:,headers['total_good_execute_time']]),
                 np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
@@ -844,7 +844,7 @@ class Plotter(object):
         )
 
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
-            self.make_pie(
+            self.pie(
                     [
                         np.sum(good_tasks['t_allput'] - good_tasks['t_goodput'])
                             + np.sum(failed_tasks['t_allput'] - failed_tasks['t_goodput']),
@@ -990,7 +990,7 @@ class Plotter(object):
                 ]
 
                 times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
-                self.make_pie(
+                self.pie(
                         [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
                         [plot[1] for plot in things_we_are_looking_at if plot[-1]],
                         prefix + "time-detail-pie",
@@ -1026,7 +1026,7 @@ class Plotter(object):
 
             fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
 
-            self.make_pie(
+            self.pie(
                     [len(xs['t_retrieved']) for xs in fail_values],
                     fail_labels,
                     "failed-pie"

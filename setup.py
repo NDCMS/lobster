@@ -16,8 +16,8 @@ setup(
         'core/data/siteconfig/JobConfig/site-local-config.xml',
         'core/data/siteconfig/PhEDEx/storage.xml',
         'core/data/merge_cfg.py',
-        'core/data/merge_reports.py'
-        'commands/data/template.html',
+        'core/data/merge_reports.py',
+        'commands/data/template.html'
     ]},
     install_requires=[
         'argparse',

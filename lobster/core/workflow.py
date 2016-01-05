@@ -21,7 +21,7 @@ class Workflow(object):
             merge_cleanup=True,
             merge_size=-1,
             sandbox=None,
-            sandbox_release=os.environ['LOCALRT'],
+            sandbox_release=None,
             sandbox_blacklist=None,
             command='cmsRun',
             extra_inputs = None,
@@ -61,7 +61,13 @@ class Workflow(object):
         self.edm_output = edm_output
 
         self.sandbox = sandbox
-        self.sandbox_release = sandbox_release
+        if sandbox_release is not None:
+            self.sandbox_release = sandbox_release
+        else:
+            try:
+                self.sandbox_release = os.environ['LOCALRT']
+            except:
+                raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
         self.sandbox_blacklist = sandbox_blacklist
 
     @property

@@ -245,16 +245,15 @@ def sprint(config, workdir, cmstask):
                 break
 
             hunger -= len(tasks)
-            for runtime, cores, cmd, id, inputs, outputs in tasks:
+            for runtime, memory, cores, cmd, id, inputs, outputs in tasks:
                 task = wq.Task(cmd)
                 task.specify_tag(id)
                 task.specify_cores(cores)
                 task.specify_max_retries(wq_max_retries)
                 if runtime:
                     task.specify_running_time(runtime * 10**6)
-                # temporary work-around?
-                # task.specify_memory(1000)
-                # task.specify_disk(4000)
+                if memory:
+                    task.specify_memory(memory)
 
                 for (local, remote, cache) in inputs:
                     if os.path.isfile(local):

@@ -140,8 +140,9 @@ class TaskHandler(object):
             files_skipped = data['files']['skipped']
             events_written = data['events written']
             cmssw_exit_code = data['cmssw exit code']
-
-            return files_info, files_skipped, events_written, cmssw_exit_code
+            stageout_exit_code = data['stageout exit code']
+            task_exit_code = data['task exit code']
+            return files_info, files_skipped, events_written, cmssw_exit_code, stageout_exit_code, task_exit_code
 
     def process_wq_info(self, task, task_update):
         """Extract useful information from the Work Queue task object.
@@ -182,11 +183,13 @@ class TaskHandler(object):
         files_info = {}
         files_skipped = []
         cmssw_exit_code = None
+        stageout_exit_code = None
+        task_exit_code = None
         events_written = 0
 
         # May not all be there for failed tasks
         try:
-            files_info, files_skipped, events_written, cmssw_exit_code = self.process_report(task_update)
+            files_info, files_skipped, events_written, cmssw_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update)
         except (ValueError, EOFError) as e:
             failed = True
             logger.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -203,7 +206,14 @@ class TaskHandler(object):
             if cmssw_exit_code not in (None, 0):
                 exit_code = cmssw_exit_code
                 failed = True
+            if stageout_exit_code not in (None, 0):
+                exit_code = stageout_exit_code
+                failed = True
+            if task_exit_code not in (None, 0):
+                exit_code = task_exit_code
+                failed = True
             summary.exe(exit_code, task.tag)
+
         task_update.exit_code = exit_code
 
         # Update CMS stats

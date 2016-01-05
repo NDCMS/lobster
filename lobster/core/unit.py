@@ -75,11 +75,11 @@ TaskUpdate = util.record('TaskUpdate',
 class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
-        self.db_path = os.path.join(config['workdir'], "lobster.db")
+        self.db_path = os.path.join(config.workdir, "lobster.db")
         self.db = sqlite3.connect(self.db_path)
 
-        self.__failure_threshold = config.get("threshold for failure", 30)
-        self.__skipping_threshold = config.get("threshold for skipping", 30)
+        self.__failure_threshold = config.advanced.threshold_for_failure
+        self.__skipping_threshold = config.advanced.threshold_for_skipping
 
         self.db.execute("""create table if not exists workflows(
             cfg text,
@@ -157,9 +157,9 @@ class UnitStore:
     def disconnect(self):
         self.db.close()
 
-    def register_dataset(self, dataset_cfg, dataset_info, taskruntime=None):
-        label = dataset_cfg['label']
-        unique_args = dataset_cfg.get('unique parameters', [None])
+    def register_dataset(self, wflow, dataset_info, taskruntime=None):
+        label = wflow.label
+        unique_args = wflow.unique_args
 
         cur = self.db.cursor()
         cur.execute("""insert into workflows
@@ -179,13 +179,13 @@ class UnitStore:
                        units_left,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
-                           dataset_cfg.get('dataset', label),
+                           wflow.label,
                            label,
-                           dataset_info.path,
+                           wflow.label,
                            os.path.basename(os.environ.get('LOCALRT', '')),
-                           dataset_cfg.get('global tag'),
-                           dataset_cfg.get('publish label', dataset_cfg['label']).replace('-', '_'), #TODO: more lexical checks #TODO: publish label check
-                           dataset_cfg.get('cmssw config'),
+                           wflow.globaltag,
+                           wflow.publish_label,
+                           wflow.pset,
                            self.uuid,
                            dataset_info.file_based,
                            dataset_info.tasksize,
@@ -232,7 +232,7 @@ class UnitStore:
             if unique_args is None:
                 unique_args = [None]
 
-            update = []
+            rows = []
             # Sort for reproducable unit tests.
             if len(infos) < 25 or update:
                 items = [(fn, infos[fn]) for fn in sorted(infos.keys())]
@@ -245,8 +245,8 @@ class UnitStore:
                 fid = cur.lastrowid
 
                 for arg in unique_args:
-                    update += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
-            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
+                    rows += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
+            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), rows)
 
             if update:
                 self.update_workflow_stats(label, total=True)

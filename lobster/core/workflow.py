@@ -6,48 +6,63 @@ import sys
 
 from lobster import fs, util
 from lobster.cmssw import sandbox
+from lobster.core.dataset import ProductionDataset
 from lobster.core.task import *
 
 logger = logging.getLogger('lobster.workflow')
 
 class Workflow(object):
-    def __init__(self, workdir, config, basedirs):
-        self.config = config
-        self.label = config['label']
-        self.workdir = os.path.join(workdir, self.label)
+    def __init__(self,
+            label,
+            dataset,
+            publish_label=None,
+            cores_per_task=1,
+            task_runtime=None,
+            merge_cleanup=True,
+            merge_size=-1,
+            sandbox=None,
+            sandbox_release=os.environ['LOCALRT'],
+            sandbox_blacklist=None,
+            command='cmsRun',
+            extra_inputs = None,
+            arguments=None,
+            unique_arguments=None,
+            outputs=None,
+            output_format="{base}_{id}.{ext}",
+            randomize_seeds=True,
+            parent=None,
+            local=False,
+            cmssw_config=None,
+            globaltag=None,
+            edm_output=True):
+        self.label = label
+        self.dataset = dataset
 
-        self.cores = config.get('cores per task', 1)
-        self._runtime = config.get('task runtime')
-        self.mergesize = self.__check_merge(config.get('merge size', -1))
+        self.publish_label = publish_label if publish_label else label
 
-        if 'sandbox' in config:
-            self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
-        else:
-            self.version, self.sandbox = sandbox.package(
-                    config.get('sandbox release', os.environ['LOCALRT']),
-                    workdir,
-                    config.get('sandbox blacklist', []))
+        self.cores = cores_per_task
+        self._runtime = task_runtime
+        self.merge_size = self.__check_merge(merge_size)
+        self.merge_cleanup = merge_cleanup
 
-        self.cmd = config.get('cmd', 'cmsRun')
-        self.extra_inputs = config.get('extra inputs', [])
-        self.args = config.get('parameters', [])
-        self._outputs = config.get('outputs')
-        self.outputformat = config.get("output format", "{base}_{id}.{ext}")
-
-        self.events_per_task = config.get('events per task', -1)
-        self.events_per_lumi = config.get('events per lumi', -1)
-        self.randomize_seeds = config.get('randomize seeds', True)
+        self.cmd = command
+        self.extra_inputs = extra_inputs if extra_inputs else []
+        self.args = arguments if arguments else []
+        self.unique_args = unique_arguments if unique_arguments else [None]
+        self._outputs = outputs
+        self.outputformat = output_format
 
         self.dependents = []
-        self.prerequisite = config.get('parent dataset')
+        self.prerequisite = parent
 
-        self.pset = config.get('cmssw config')
-        self.local = config.get('local', 'files' in config)
-        self.edm_output = config.get('edm output', True)
+        self.pset = cmssw_config
+        self.globaltag = globaltag
+        self.local = local or hasattr(dataset, 'files')
+        self.edm_output = edm_output
 
-        self.copy_inputs(basedirs)
-        if self.pset and not self._outputs:
-            self.determine_outputs(basedirs)
+        self.sandbox = sandbox
+        self.sandbox_release = sandbox_release
+        self.sandbox_blacklist = sandbox_blacklist
 
     @property
     def runtime(self):
@@ -100,7 +115,7 @@ class Workflow(object):
         if self.pset:
             shutil.copy(util.findpath(basedirs, self.pset), os.path.join(self.workdir, os.path.basename(self.pset)))
 
-        if 'extra inputs' not in self.config:
+        if self.extra_inputs is None:
             return []
 
         def copy_file(fn):
@@ -121,8 +136,7 @@ class Workflow(object):
 
             return target
 
-        files = map(copy_file, self.config['extra inputs'])
-        self.config['extra inputs'] = files
+        files = map(copy_file, self.extra_inputs)
         self.extra_inputs = files
 
     def determine_outputs(self, basedirs):
@@ -139,19 +153,30 @@ class Workflow(object):
             source = imp.load_source('cms_config_source', self.pset, f)
             process = source.process
             if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
-                self.config['global tag'] = process.GlobalTag.globaltag.value()
+                self.global_tag = process.GlobalTag.globaltag.value()
             for label, module in process.outputModules.items():
                 self._outputs.append(module.fileName.value())
             if 'TFileService' in process.services:
                 self._outputs.append(process.services['TFileService'].fileName.value())
                 self.edm_output = False
 
-            self.config['edm output'] = self.edm_output
-            self.config['outputs'] = self._outputs
-
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self._outputs)))
 
-    def create(self):
+    def setup(self, workdir, basedirs):
+        self.workdir = os.path.join(workdir, self.label)
+
+        if self.sandbox:
+            self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
+        else:
+            self.version, self.sandbox = sandbox.package(
+                    self.sandbox_release,
+                    workdir,
+                    self.sandbox_blacklist)
+
+        self.copy_inputs(basedirs)
+        if self.pset and not self._outputs:
+            self.determine_outputs(basedirs)
+
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that
         # constitutes an error, since we really should create the workflow!
@@ -168,7 +193,7 @@ class Workflow(object):
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
             return MergeTaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir)
-        elif self.events_per_task > 0:
+        elif isinstance(self.dataset, ProductionDataset):
             return ProductionTaskHandler(id_, self.label, lumis, list(self.outputs(id_)), taskdir)
         else:
             return TaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir, local=self.local)
@@ -223,7 +248,9 @@ class Workflow(object):
 
         params['executable'] = cmd
         params['arguments'] = args
-        params['mask']['events'] = self.events_per_task
-        if self.events_per_lumi > 0:
-            params['mask']['events per lumi'] = self.events_per_lumi
-            params['randomize seeds'] = self.randomize_seeds
+        if isinstance(self.dataset, ProductionDataset):
+            params['mask']['events'] = self.dataset.events_per_task
+            params['mask']['events per lumi'] = self.dataset.events_per_lumi
+            params['randomize seeds'] = self.dataset.randomize_seeds
+        else:
+            params['mask']['events'] = -1

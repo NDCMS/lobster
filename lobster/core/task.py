@@ -5,7 +5,7 @@ import os
 import work_queue as wq
 
 from lobster import util
-from lobster.cmssw.dataset import FileInfo
+from lobster.core.dataset import FileInfo
 import unit
 
 from WMCore.DataStructs.LumiList import LumiList

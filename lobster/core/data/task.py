@@ -435,6 +435,13 @@ def copy_outputs(data, config, env):
                 for k in ['LD_LIBRARY_PATH', 'PATH']:
                     pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
+                ldpath = pruned_env.get('LD_LIBRARY_PATH', '')
+                if ldpath != '':
+                    ldpath += ':'
+                print "GOOOOD", os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
+                ldpath += os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
+                pruned_env['LD_LIBRARY_PATH'] = ldpath
+
                 p = run_subprocess(args, env=pruned_env)
                 if p.returncode == 0 and check_output(config, localname, remotename):
                     transferred.append(localname)

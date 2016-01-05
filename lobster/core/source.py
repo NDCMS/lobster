@@ -13,45 +13,12 @@ from collections import defaultdict
 from hashlib import sha1
 
 from lobster import fs, se, util
-from lobster.cmssw.dataset import MetaInterface
 from lobster.cmssw import dash
 from lobster.core import unit
 from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
 
 logger = logging.getLogger('lobster.source')
-
-
-def apply_matching(config):
-    if 'workflow defaults' not in config:
-        return config
-    defaults = config['workflow defaults']
-    matching = defaults.get('matching', [])
-    configs = []
-
-    for cfg in config['workflows']:
-        label = cfg['label']
-
-        for match in matching:
-            if re.search(match['label'], label):
-                for k, v in match.items():
-                    if k == 'label':
-                        continue
-                    if k not in cfg:
-                        cfg[k] = v
-        for k, v in defaults.items():
-            if k == 'matching':
-                continue
-            if k not in cfg:
-                cfg[k] = v
-
-        configs.append(cfg)
-
-    config['workflows'] = configs
-    del config['workflow defaults']
-
-    return config
-
 
 class ReleaseSummary(object):
     """Summary of returned tasks.
@@ -119,9 +86,9 @@ class ReleaseSummary(object):
 class TaskProvider(object):
     def __init__(self, config, interval=300):
         self.config = config
-        self.basedirs = [config['base directory'], config['startup directory']]
-        self.workdir = config.get('workdir', os.getcwd())
-        self._storage = se.StorageConfiguration(config['storage'])
+        self.basedirs = [config.base_directory, config.startup_directory]
+        self.workdir = config.workdir
+        self._storage = config.storage
         self._storage.activate()
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
 
@@ -130,28 +97,27 @@ class TaskProvider(object):
         self.parrot_lib = os.path.join(self.workdir, 'lib')
 
         self.workflows = {}
-        self.bad_exitcodes = config.get('bad exit codes', [169])
+        self.bad_exitcodes = config.advanced.bad_exit_codes
 
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
         self.__taskhandlers = {}
-        self.__interface = MetaInterface()
         self.__store = unit.UnitStore(self.config)
 
         self.__setup_inputs()
 
-        create = not util.checkpoint(self.workdir, 'id') and not self.config.get('merge', False)
+        create = not util.checkpoint(self.workdir, 'id')
         if create:
             self.taskid = 'lobster_{0}_{1}'.format(
-                self.config['id'],
+                self.config.label,
                 sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
             util.register_checkpoint(self.workdir, 'id', self.taskid)
         else:
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        if self.config.get('use dashboard', True):
+        if self.config.advanced.use_dashboard:
             logger.info("using dashboard with task id {0}".format(self.taskid))
             monitor = dash.Monitor
         else:
@@ -163,8 +129,8 @@ class TaskProvider(object):
             # or use cmd command if all tasks execute the same cmd,
             # or use 'noncmsRun' if task cmds are different
             # Using this for dashboard exe name reporting
-            cmsconfigs = [cfg.get('cmssw config') for cfg in self.config['workflows']]
-            cmds = [cfg.get('cmd') for cfg in self.config['workflows']]
+            cmsconfigs = [wflow.pset for wflow in self.config.workflows]
+            cmds = [wflow.cmd for wflow in self.config.workflows]
             if any(cmsconfigs):
                 exename = 'cmsRun'
             elif all(x == cmds[0] and x is not None for x in cmds):
@@ -174,19 +140,17 @@ class TaskProvider(object):
 
             util.register_checkpoint(self.workdir, 'executable', exename)
 
-        self.config = apply_matching(self.config)
-        for cfg in self.config['workflows']:
-            wflow = Workflow(self.workdir, cfg, self.basedirs)
+        for wflow in self.config.workflows:
             self.workflows[wflow.label] = wflow
 
             if create and not util.checkpoint(self.workdir, wflow.label):
-                wflow.create()
+                wflow.setup(self.workdir, self.basedirs)
                 logger.info("querying backend for {0}".format(wflow.label))
                 with fs.default():
-                    dataset_info = self.__interface.get_info(wflow.config)
+                    dataset_info = wflow.dataset.get_info()
 
                 logger.info("registering {0} in database".format(wflow.label))
-                self.__store.register_dataset(wflow.config, dataset_info, wflow.runtime)
+                self.__store.register_dataset(wflow, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_taskids(wflow.label):
@@ -203,7 +167,7 @@ class TaskProvider(object):
                 util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
 
         if create:
-            self.save_configuration()
+            self.config.save()
             self.__dash = monitor(self.workdir)
             self.__dash.register_run()
         else:
@@ -258,10 +222,6 @@ class TaskProvider(object):
             self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
 
-    def save_configuration(self):
-        with open(os.path.join(self.workdir, 'lobster_config.yaml'), 'w') as f:
-            yaml.dump(self.config, f, default_flow_style=False)
-
     def get_taskids(self, label, status='running'):
         # Iterates over the task directories and returns all taskids found
         # therein.
@@ -273,7 +233,7 @@ class TaskProvider(object):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, num=1):
-        sizes = dict([(wflow.label, wflow.mergesize) for wflow in self.workflows.values()])
+        sizes = dict([(wflow.label, wflow.merge_size) for wflow in self.workflows.values()])
         taskinfos = self.__store.pop_unmerged_tasks(sizes, 10) \
                 + self.__store.pop_units(num)
         if not taskinfos or len(taskinfos) == 0:
@@ -306,10 +266,10 @@ class TaskProvider(object):
                 },
                 'arguments': None,
                 'output files': None,
-                'want summary': self.config.get('cmssw summary', True),
+                'want summary': True,
                 'executable': None,
                 'pset': None,
-                'prologue': self.config.get('prologue'),
+                'prologue': None,
                 'epilogue': None
             }
 
@@ -393,13 +353,13 @@ class TaskProvider(object):
 
                 merge = isinstance(handler, MergeTaskHandler)
 
-                if wflow.mergesize <= 0 or merge:
+                if wflow.merge_size <= 0 or merge:
                     outfn = handler.outputs[0][1]
                     outinfo = handler.output_info
                     for dep in wflow.dependents:
                         propagate[dep][outfn] = outinfo
 
-                if merge and self.config.get('delete merged', True):
+                if merge and wflow.merge_cleanup:
                     files = handler.input_files
                     cleanup += files
 

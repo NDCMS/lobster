@@ -23,13 +23,13 @@ logger = logging.getLogger('lobster.core')
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
     logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
-    workdir = args.config['workdir']
+    workdir = args.config.workdir
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 def run(args):
     config = args.config
 
-    workdir = config['workdir']
+    workdir = config.workdir
     if not os.path.exists(workdir):
         os.makedirs(workdir)
 
@@ -38,31 +38,27 @@ def run(args):
     else:
         util.verify(workdir)
 
-    cmstask = False
-    if config.get('type', 'cmssw') == 'cmssw':
-        cmstask = True
-
-        from WMCore.Credential.Proxy import Proxy
-        cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
-        if cred.check():
-            if not 'X509_USER_PROXY' in os.environ:
-                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
-        else:
-            if config.get('advanced', {}).get('renew proxy', True):
-                try:
-                    cred.renew()
-                except Exception as e:
-                    logger.error("could not renew proxy")
-                    sys.exit(1)
-            else:
-                logger.error("please renew your proxy")
+    from WMCore.Credential.Proxy import Proxy
+    cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
+    if cred.check():
+        if not 'X509_USER_PROXY' in os.environ:
+            os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
+    else:
+        if config.advanced.renew_proxy:
+            try:
+                cred.renew()
+            except Exception as e:
+                logger.error("could not renew proxy")
                 sys.exit(1)
+        else:
+            logger.error("please renew your proxy")
+            sys.exit(1)
 
     if not args.foreground:
         ttyfile = open(os.path.join(workdir, 'process.err'), 'a')
         logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'process.err')))
 
-    if config.get('advanced', {}).get('dump core', False):
+    if config.advanced.dump_core:
         logger.info("setting core dump size to unlimited")
         resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
@@ -79,7 +75,7 @@ def run(args):
             prevent_core=False,
             initgroups=False,
             signal_map=signals):
-        t = threading.Thread(target=sprint, args=(config, workdir, cmstask))
+        t = threading.Thread(target=sprint, args=(config, workdir))
         t.start()
         t.join()
 
@@ -93,15 +89,11 @@ def run(args):
         except:
             pass
 
-def sprint(config, workdir, cmstask):
+def sprint(config, workdir):
     task_src = TaskProvider(config)
-    if cmstask:
-        action = actions.Actions(config)
-        from WMCore.Credential.Proxy import Proxy
-        proxy = Proxy({'logger': logger})
-    else:
-        action = None
-        proxy = None
+    action = actions.Actions(config)
+    from WMCore.Credential.Proxy import Proxy
+    proxy = Proxy({'logger': logger})
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -111,27 +103,24 @@ def sprint(config, workdir, cmstask):
 
     queue = wq.WorkQueue(-1)
     queue.specify_log(os.path.join(workdir, "work_queue.log"))
-    queue.specify_name("lobster_" + config["id"])
+    queue.specify_name("lobster_" + config.label)
     queue.specify_keepalive_timeout(300)
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-    if config.get('advanced', {}).get('full monitoring', False):
+    if config.advanced.full_monitoring:
         queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
     else:
         queue.enable_monitoring(os.path.join(workdir, "work_queue_monitoring"))
 
-    cores = config.get('cores per task', 1)
     logger.info("starting queue as {0}".format(queue.name))
-    logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
-        queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
 
-    payload = config.get('advanced', {}).get('payload', 10)
+    payload = config.advanced.payload
     abort_active = False
-    abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
-    abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
+    abort_threshold = config.advanced.abort_threshold
+    abort_multiplier = config.advanced.abort_multiplier
 
-    wq_max_retries = config.get('advanced', {}).get('wq max tries', 10)
+    wq_max_retries = config.advanced.wq_max_retries
 
     if util.checkpoint(workdir, 'KILLED') == 'PENDING':
         util.register_checkpoint(workdir, 'KILLED', 'RESTART')

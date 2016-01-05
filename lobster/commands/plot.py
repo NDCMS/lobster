@@ -240,16 +240,16 @@ class Plotter(object):
     PROF = 8
 
     def __init__(self, config, outdir=None):
-        self.__workdir = config['workdir']
+        self.__workdir = config.workdir
         self.__store = unit.UnitStore(config)
 
         util.verify(self.__workdir)
-        self.__id = config['id']
+        self.__id = config.label
 
         if outdir:
             self.__plotdir = outdir
         else:
-            self.__plotdir = config.get("plotdir", self.__id)
+            self.__plotdir = config.plotdir if config.plotdir else self.__id
         self.__plotdir = os.path.expandvars(os.path.expanduser(self.__plotdir))
 
         if not os.path.isdir(self.__plotdir):

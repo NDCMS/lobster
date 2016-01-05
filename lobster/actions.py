@@ -18,18 +18,18 @@ class DummyQueue(object):
 
 class Actions(object):
     def __init__(self, config):
-        if 'plotdir' not in config:
+        if not config.plotdir:
             self.plotq = DummyQueue()
         else:
-            logger.info('plots in {0} will be updated automatically'.format(config['plotdir']))
-            if 'foremen logs' in config:
-                logger.info('foremen logs will be included from: {0}'.format(', '.join(config['foremen logs'])))
-            plotter = Plotter(config, config['plotdir'])
+            logger.info('plots in {0} will be updated automatically'.format(config.plotdir))
+            if config.foremen_logs:
+                logger.info('foremen logs will be included from: {0}'.format(', '.join(config.foremen_logs)))
+            plotter = Plotter(config)
 
             def plotf(q):
                 while q.get() not in ('stop', None):
                     try:
-                        plotter.make_plots(foremen=config.get('foremen logs'))
+                        plotter.make_plots(foremen=config.foremen_logs)
                     except Exception as e:
                         import traceback
                         traceback.print_stack()

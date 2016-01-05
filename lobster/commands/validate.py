@@ -3,14 +3,12 @@ import logging
 
 from lobster import fs, se
 from lobster.core.unit import UnitStore
-from lobster.core.source import apply_matching
 
 def validate(args):
     config = args.config
 
     logger = logging.getLogger('lobster.validate')
 
-    config = apply_matching(config)
     store = UnitStore(config)
     storage = se.StorageConfiguration(config['storage'])
     storage.activate()

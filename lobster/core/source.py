@@ -373,7 +373,7 @@ class TaskProvider(object):
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
 
-            tasks.append((wflow.runtime, 1 if merge else wflow.cores, cmd, id, inputs, outputs))
+            tasks.append(('merge' if merge else wflow.category, cmd, id, inputs, outputs))
 
             self.__taskhandlers[id] = handler
 
@@ -452,6 +452,27 @@ class TaskProvider(object):
             self.__dash_checker.update_dashboard_states(self.__dash, queue, exclude_states)
         except:
             logger.warning("Could not update task states to dashboard")
+
+    def category_constraints(self):
+        """Get the workflow resource constraints.
+
+        Will return a dictionary with nested dictionaries, referenced by
+        workflow catergory.  The nested dictionaries contain the keys
+        `cores`, `memory`, and `wall_time`, if the corresponding constraint
+        is specified in the workflow configuration.
+        """
+        constraints = {
+                'merge': {'cores': 1, 'memory': 900}
+        }
+        for wflow in self.workflows.values():
+            constraints[wflow.label] = {}
+            if wflow.runtime:
+                constraints[wflow.label]['wall_time'] = wflow.runtime * int(1e6)
+            if wflow.memory:
+                constraints[wflow.label]['memory'] = wflow.memory
+            if wflow.cores:
+                constraints[wflow.label]['cores'] = wflow.cores
+        return constraints
 
     def update(self, queue):
         # update dashboard status for all unfinished tasks.

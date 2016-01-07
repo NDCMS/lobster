@@ -449,7 +449,7 @@ class TaskProvider(object):
         is specified in the workflow configuration.
         """
         constraints = {
-                'merge': {'cores': 1}
+                'merge': {'cores': 1, 'memory': 900}
         }
         for wflow in self.workflows.values():
             constraints[wflow.label] = {}

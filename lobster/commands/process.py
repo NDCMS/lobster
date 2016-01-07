@@ -173,7 +173,7 @@ def sprint(config, workdir, cmstask):
     for category, constraints in task_src.category_constraints().items():
         queue.specify_max_category_resources(category, constraints)
         if 'wall_time' not in constraints:
-            queue.activate_fast_abort_category(catergory, abort_multiplier)
+            queue.activate_fast_abort_category(category, abort_multiplier)
 
     while not task_src.done():
         tasks_left = task_src.tasks_left()

@@ -282,6 +282,10 @@ class Plotter(object):
         db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'))
         stats = {}
 
+        wflow_ids = {}
+        for id_, label in db.execute("select id, label from workflows"):
+            wflow_ids[label] = id_
+
         failed_tasks = np.array(db.execute("""
             select
                 id,
@@ -459,7 +463,7 @@ class Plotter(object):
 
         logger.debug('finished reading database')
 
-        return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, processed_lumis
+        return wflow_ids, success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, processed_lumis
 
     def readlog(self, filename=None):
         if filename:
@@ -527,11 +531,11 @@ class Plotter(object):
 
         return res
 
-    def savelogs(self, failed_tasks, samples=5):
+    def savelogs(self, failed_tasks, samples=5, suffix=''):
         work = []
         codes = {}
 
-        logdir = os.path.join(self.__plotdir, 'logs')
+        logdir = os.path.join(self.__plotdir, 'logs' + suffix)
         if os.path.exists(logdir):
             for dirpath, dirnames, filenames in os.walk(logdir):
                 logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
@@ -554,7 +558,7 @@ class Plotter(object):
                 except IndexError:
                     continue
 
-                target = os.path.join(os.path.join(self.__plotdir, 'logs'), str(id))
+                target = os.path.join(logdir, str(id))
                 if not os.path.exists(target):
                     os.makedirs(target)
 
@@ -575,7 +579,7 @@ class Plotter(object):
 
             for id in failed:
                 source = os.path.join(self.__workdir, label, 'failed', util.id2dir(id))
-                target = os.path.join(self.__plotdir, 'logs', label, 'failed')
+                target = os.path.join(logdir, label, 'failed')
                 if not os.path.exists(target):
                     os.makedirs(target)
 
@@ -587,7 +591,7 @@ class Plotter(object):
                         work.append([s, t])
 
             if len(skipped) > 0:
-                outname = os.path.join(self.__plotdir, 'logs', label, 'skipped_files.txt')
+                outname = os.path.join(logdir, label, 'skipped_files.txt')
                 if not os.path.isdir(os.path.dirname(outname)):
                     os.makedirs(os.path.dirname(outname))
                 with open(outname, 'w') as f:
@@ -676,7 +680,7 @@ class Plotter(object):
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_plot, args, kwargs))
 
-    def make_pie(self, vals, labels, name, **kwargs_raw):
+    def pie(self, vals, labels, name, **kwargs_raw):
         kwargs = {'plotdir': self.__plotdir}
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_pie, [vals, labels, name], kwargs))
@@ -723,7 +727,7 @@ class Plotter(object):
                 label=['joined', 'removed']
             )
 
-            self.make_pie(
+            self.pie(
                 [
                 np.sum(stats[:,headers['total_good_execute_time']]),
                 np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
@@ -759,6 +763,179 @@ class Plotter(object):
 
         return names
 
+    def make_workflow_plots(self, suffix, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
+        if len(good_tasks) > 0 or len(failed_tasks) > 0:
+            self.pie(
+                    [
+                        np.sum(good_tasks['t_allput'] - good_tasks['t_goodput'])
+                            + np.sum(failed_tasks['t_allput'] - failed_tasks['t_goodput']),
+                        np.sum(failed_tasks['t_allput']),
+                        np.sum(good_tasks['t_first_ev'] - good_tasks['t_send_start']),
+                        np.sum(good_tasks['t_processing_end'] - good_tasks['t_first_ev']),
+                        np.sum(good_tasks['t_recv_end'] - good_tasks['t_processing_end'])
+                    ],
+                    ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
+                    "time-pie" + suffix,
+                    colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
+            )
+
+            workflows = []
+            colors = []
+            labels = []
+
+            for tasks, label, success_color, merged_color, merging_color in [
+                    (success_tasks, 'processing', 'green', 'lightgreen', 'darkgreen'),
+                    (merge_tasks, 'merging', 'purple', 'fuchsia', 'darkorchid')]:
+                code_map = {
+                        2: (label + ' (status: successful)', success_color),
+                        6: ('published', 'blue'),
+                        7: (label + ' (status: merging)', merging_color),
+                        8: (label + ' (status: merged)', merged_color)
+                }
+                codes, split_tasks = split_by_column(tasks, 'status')
+
+                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in split_tasks]
+                colors += [code_map[code][1] for code in codes]
+                labels += [code_map[code][0] for code in codes]
+
+            if len(failed_tasks) > 0:
+                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in [failed_tasks]]
+                colors += ['red']
+                labels += ['failed']
+
+            self.plot(
+                    workflows,
+                    'tasks', 'all-tasks' + suffix,
+                    modes=[Plotter.HIST|Plotter.TIME],
+                    label=labels,
+                    color=colors
+            )
+
+        if len(good_tasks) > 0:
+            output, bins = np.histogram(
+                    success_tasks['t_retrieved'], 100,
+                    weights=success_tasks['b_output'] / 1024.0**3
+            )
+
+            total_output = np.cumsum(output)
+            centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
+
+            scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0**3)
+
+            self.plot(
+                    [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
+                    'Output / (GB/h)', 'output' + suffix,
+                    bins=100,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+            self.plot(
+                    [(centers, total_output)],
+                    'Output / GB', 'output-total' + suffix,
+                    bins=100,
+                    modes=[Plotter.PLOT|Plotter.TIME]
+            )
+
+            for prefix, tasks in [('good-', success_tasks), ('merge-', merge_tasks)]:
+                if len(tasks) == 0:
+                    continue
+
+                cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated', 'darkorchid')}
+                cache, split_tasks = split_by_column(tasks, 'cache')
+                # plot timeline
+                things_we_are_looking_at = [
+                        # x-times              , y-times                                                                       , y-label                      , filestub             , color            , in pie
+                        ([(x['t_wrapper_start'], x['t_allput'] - x['t_goodput']) for x in split_tasks]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_wrapper_start']) for x in split_tasks]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
+                        ([(x['t_wrapper_start'], x['t_send_end'] - x['t_send_start']) for x in split_tasks]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_wrapper_start'] - x['t_send_end']) for x in split_tasks]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']) for x in split_tasks]             , 'Release setup'              , 'setup-release'      , "navy"           , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_stage_in'] - x['t_wrapper_ready']) for x in split_tasks]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_prologue'] - x['t_stage_in']) for x in split_tasks]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_file_req'] - x['t_prologue']) for x in split_tasks]                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue"      , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_file_open'] - x['t_file_req']) for x in split_tasks]                      , 'File request'               , 'file-open'          , "fuchsia"        , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_first_ev'] - x['t_file_open']) for x in split_tasks]                      , 'CMSSW task setup'            , 'setup-task'          , "dodgerblue"     , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']
+                                               + x['t_first_ev'] - x['t_prologue']) for x in split_tasks]                       , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue
+                        ([(x['t_wrapper_start'], x['t_cpu']) for x in split_tasks]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev'] - x['t_cpu']) for x in split_tasks]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
+                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev']) for x in split_tasks]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
+                        ([(x['t_wrapper_start'], x['t_epilogue'] - x['t_processing_end']) for x in split_tasks]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
+                        ([(x['t_wrapper_start'], x['t_stage_out'] - x['t_epilogue']) for x in split_tasks]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
+                        ([(x['t_wrapper_start'], x['t_recv_start'] - x['t_stage_out']) for x in split_tasks]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
+                        ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_tasks]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
+                ]
+
+                times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
+                self.pie(
+                        [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
+                        [plot[1] for plot in things_we_are_looking_at if plot[-1]],
+                        prefix + "time-detail-pie" + suffix,
+                        colors=[plot[-2] for plot in things_we_are_looking_at if plot[-1]]
+                )
+
+                for a, label, filestub, color, pie in things_we_are_looking_at:
+                    self.plot(
+                        [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
+                        label+' / m', prefix + filestub + suffix,
+                        color=[cache_map[x][1] for x in cache],
+                        label=[cache_map[x][0] for x in cache]
+                    )
+
+                self.plot(
+                    [
+                        (tasks['t_retrieved'], tasks['memory_resident']),
+                        (tasks['t_retrieved'], tasks['memory_virtual']),
+                        (tasks['t_retrieved'], tasks['memory_swap'])
+                    ],
+                    'memory / MB', prefix + 'memory' + suffix,
+                    label=['resident', 'virtual', 'swap']
+                )
+
+                self.plot(
+                    [(tasks['t_retrieved'], tasks['workdir_footprint'])],
+                    'working directory footprint / MB', prefix + 'workdir-footprint' + suffix,
+                )
+
+
+        if len(failed_tasks) > 0:
+            logs = self.savelogs(failed_tasks, suffix=suffix)
+
+            fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
+
+            self.pie(
+                    [len(xs['t_retrieved']) for xs in fail_values],
+                    fail_labels,
+                    "failed-pie" + suffix
+            )
+
+            self.plot(
+                    [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in fail_values],
+                    'Failed tasks', 'failed-tasks' + suffix,
+                    modes=[Plotter.HIST|Plotter.TIME],
+                    label=map(str, fail_labels)
+            )
+
+            self.plot(
+                [
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_resident']),
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
+                    (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
+                ],
+                'memory / MB', 'failed-memory' + suffix,
+                label=['resident', 'virtual', 'swap']
+            )
+
+            self.plot(
+                [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
+                'working directory footprint / MB', 'failed-workdir-footprint' + suffix,
+            )
+
+        else:
+            logs = None
+
+        return logs
+
     def make_plots(self, xmin=None, xmax=None, foremen=None):
         self.__plotargs = []
         self.__xmin = self.parsetime(xmin)
@@ -767,11 +944,14 @@ class Plotter(object):
         self.__foremen = foremen if foremen else []
 
         headers, stats = self.readlog()
-        good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, processed_lumis = self.readdb()
+        wflow_ids, good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, processed_lumis = self.readdb()
 
         success_tasks = good_tasks[good_tasks['type'] == 0]
         merge_tasks = good_tasks[good_tasks['type'] == 1]
 
+        # -------------
+        # General plots
+        # -------------
         foremen_names = self.make_foreman_plots()
 
         self.plot(
@@ -843,53 +1023,6 @@ class Plotter(object):
                 label=['evicted', 'idled out', 'fast aborted']
         )
 
-        if len(good_tasks) > 0 or len(failed_tasks) > 0:
-            self.make_pie(
-                    [
-                        np.sum(good_tasks['t_allput'] - good_tasks['t_goodput'])
-                            + np.sum(failed_tasks['t_allput'] - failed_tasks['t_goodput']),
-                        np.sum(failed_tasks['t_allput']),
-                        np.sum(good_tasks['t_first_ev'] - good_tasks['t_send_start']),
-                        np.sum(good_tasks['t_processing_end'] - good_tasks['t_first_ev']),
-                        np.sum(good_tasks['t_recv_end'] - good_tasks['t_processing_end'])
-                    ],
-                    ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
-                    "time-pie",
-                    colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
-            )
-
-            workflows = []
-            colors = []
-            labels = []
-
-            for tasks, label, success_color, merged_color, merging_color in [
-                    (success_tasks, 'processing', 'green', 'lightgreen', 'darkgreen'),
-                    (merge_tasks, 'merging', 'purple', 'fuchsia', 'darkorchid')]:
-                code_map = {
-                        2: (label + ' (status: successful)', success_color),
-                        6: ('published', 'blue'),
-                        7: (label + ' (status: merging)', merging_color),
-                        8: (label + ' (status: merged)', merged_color)
-                }
-                codes, split_tasks = split_by_column(tasks, 'status')
-
-                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in split_tasks]
-                colors += [code_map[code][1] for code in codes]
-                labels += [code_map[code][0] for code in codes]
-
-            if len(failed_tasks) > 0:
-                workflows += [(x['t_retrieved'], [1] * len(x['t_retrieved'])) for x in [failed_tasks]]
-                colors += ['red']
-                labels += ['failed']
-
-            self.plot(
-                    workflows,
-                    'tasks', 'all-tasks',
-                    modes=[Plotter.HIST|Plotter.TIME],
-                    label=labels,
-                    color=colors
-            )
-
         if len(good_tasks) > 0:
             completed, bins = np.histogram(completed_units['t_retrieved'], 100)
             total_completed = np.cumsum(completed)
@@ -898,30 +1031,6 @@ class Plotter(object):
             self.plot(
                     [(centers, total_completed * (-1.) + start_units)],
                     'units remaining', 'units-total',
-                    bins=100,
-                    modes=[Plotter.PLOT|Plotter.TIME]
-            )
-
-            output, bins = np.histogram(
-                    success_tasks['t_retrieved'], 100,
-                    weights=success_tasks['b_output'] / 1024.0**3
-            )
-
-            total_output = np.cumsum(output)
-            centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
-
-            scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0**3)
-
-            self.plot(
-                    [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
-                    'Output / (GB/h)', 'output',
-                    bins=100,
-                    modes=[Plotter.HIST|Plotter.TIME]
-            )
-
-            self.plot(
-                    [(centers, total_output)],
-                    'Output / GB', 'output-total',
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
@@ -959,103 +1068,17 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
-            for prefix, tasks in [('good-', success_tasks), ('merge-', merge_tasks)]:
-                if len(tasks) == 0:
-                    continue
-
-                cache_map = {0: ('cold cache', 'lightskyblue'), 1: ('hot cache', 'navy'), 2: ('dedicated', 'darkorchid')}
-                cache, split_tasks = split_by_column(tasks, 'cache')
-                # plot timeline
-                things_we_are_looking_at = [
-                        # x-times              , y-times                                                                       , y-label                      , filestub             , color            , in pie
-                        ([(x['t_wrapper_start'], x['t_allput'] - x['t_goodput']) for x in split_tasks]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_wrapper_start']) for x in split_tasks]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
-                        ([(x['t_wrapper_start'], x['t_send_end'] - x['t_send_start']) for x in split_tasks]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_wrapper_start'] - x['t_send_end']) for x in split_tasks]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']) for x in split_tasks]             , 'Release setup'              , 'setup-release'      , "navy"           , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_stage_in'] - x['t_wrapper_ready']) for x in split_tasks]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_prologue'] - x['t_stage_in']) for x in split_tasks]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
-                        ([(x['t_wrapper_start'], x['t_file_req'] - x['t_prologue']) for x in split_tasks]                       , 'CMSSW setup'                , 'setup-cms'          , "royalblue"      , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_file_open'] - x['t_file_req']) for x in split_tasks]                      , 'File request'               , 'file-open'          , "fuchsia"        , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_first_ev'] - x['t_file_open']) for x in split_tasks]                      , 'CMSSW task setup'            , 'setup-task'          , "dodgerblue"     , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_wrapper_ready'] - x['t_wrapper_start']
-                                               + x['t_first_ev'] - x['t_prologue']) for x in split_tasks]                       , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue
-                        ([(x['t_wrapper_start'], x['t_cpu']) for x in split_tasks]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev'] - x['t_cpu']) for x in split_tasks]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
-                        ([(x['t_wrapper_start'], x['t_processing_end'] - x['t_first_ev']) for x in split_tasks]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
-                        ([(x['t_wrapper_start'], x['t_epilogue'] - x['t_processing_end']) for x in split_tasks]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
-                        ([(x['t_wrapper_start'], x['t_stage_out'] - x['t_epilogue']) for x in split_tasks]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
-                        ([(x['t_wrapper_start'], x['t_recv_start'] - x['t_stage_out']) for x in split_tasks]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
-                        ([(x['t_wrapper_start'], x['t_recv_end'] - x['t_recv_start']) for x in split_tasks]                     , 'Output transfer work_queue' , 'transfer-out-wq'    , "gainsboro"      , True)    # gray
-                ]
-
-                times_by_cache = [plot[0] for plot in things_we_are_looking_at if plot[-1]]
-                self.make_pie(
-                        [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
-                        [plot[1] for plot in things_we_are_looking_at if plot[-1]],
-                        prefix + "time-detail-pie",
-                        colors=[plot[-2] for plot in things_we_are_looking_at if plot[-1]]
-                )
-
-                for a, label, filestub, color, pie in things_we_are_looking_at:
-                    self.plot(
-                        [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
-                        label+' / m', prefix+filestub,
-                        color=[cache_map[x][1] for x in cache],
-                        label=[cache_map[x][0] for x in cache]
-                    )
-
-                self.plot(
-                    [
-                        (tasks['t_retrieved'], tasks['memory_resident']),
-                        (tasks['t_retrieved'], tasks['memory_virtual']),
-                        (tasks['t_retrieved'], tasks['memory_swap'])
-                    ],
-                    'memory / MB', prefix + 'memory',
-                    label=['resident', 'virtual', 'swap']
-                )
-
-                self.plot(
-                    [(tasks['t_retrieved'], tasks['workdir_footprint'])],
-                    'working directory footprint / MB', prefix + 'workdir-footprint',
-                )
-
-
-        if len(failed_tasks) > 0:
-            logs = self.savelogs(failed_tasks)
-
-            fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
-
-            self.make_pie(
-                    [len(xs['t_retrieved']) for xs in fail_values],
-                    fail_labels,
-                    "failed-pie"
-            )
-
-            self.plot(
-                    [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in fail_values],
-                    'Failed tasks', 'failed-tasks',
-                    modes=[Plotter.HIST|Plotter.TIME],
-                    label=map(str, fail_labels)
-            )
-
-            self.plot(
-                [
-                    (failed_tasks['t_retrieved'], failed_tasks['memory_resident']),
-                    (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
-                    (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
-                ],
-                'memory / MB', 'failed-memory',
-                label=['resident', 'virtual', 'swap']
-            )
-
-            self.plot(
-                [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
-                'working directory footprint / MB', 'failed-workdir-footprint',
-            )
-
-        else:
-            logs = None
+        # -----------------------
+        # Workflow specific plots
+        # -----------------------
+        logs = self.make_workflow_plots('-all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
+        for label, id_ in wflow_ids.items():
+            self.make_workflow_plots('-' + label, edges,
+                    good_tasks[good_tasks['workflow'] == id_],
+                    failed_tasks[failed_tasks['workflow'] == id_],
+                    success_tasks[success_tasks['workflow'] == id_],
+                    merge_tasks[merge_tasks['workflow'] == id_],
+                    xmin, xmax)
 
         jsons = self.savejsons(processed_lumis)
 
@@ -1079,7 +1102,8 @@ class Plotter(object):
                 summary=summary_data,
                 jsons=jsons,
                 bad_logs=logs,
-                foremen=foremen_names
+                foremen=foremen_names,
+                workflows=['all'] + sorted(wflow_ids.keys())
             ).encode('utf-8'))
 
         p = multiprocessing.Pool(10)

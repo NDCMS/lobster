@@ -454,7 +454,7 @@ class TaskProvider(object):
         for wflow in self.workflows.values():
             constraints[wflow.label] = {}
             if wflow.runtime:
-                constraints[wflow.label]['wall_time'] = wflow.runtime * 1e6
+                constraints[wflow.label]['wall_time'] = wflow.runtime * int(1e6)
             if wflow.memory:
                 constraints[wflow.label]['memory'] = wflow.memory
             if wflow.cores:

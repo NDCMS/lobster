@@ -519,26 +519,26 @@ class UnitStore:
 
         self.db.execute("""
             update workflows set
-                units_running=(select count(*) from units_{0} where status == 1),
-                units_done=(select count(*) from units_{0} where status in (2, 6, 7, 8)),
-                units_paused=(
+                units_running=ifnull((select count(*) from units_{0} where status == 1), 0),
+                units_done=ifnull((select count(*) from units_{0} where status in (2, 6, 7, 8)), 0),
+                units_paused=ifnull((
                         select count(*)
                         from units_{0}
                         where
                             (failed > ? or file in (select id from files_{0} where skipped >= ?))
                             and status in (0, 3, 4)
-                    ) + (
+                    ), 0) + ifnull((
                         case when parent is not null
                         then
                             (select units_paused from workflows where workflows.id == parent)
                         else 0
                         end
-                    )
+                    ), 0)
             where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label,))
 
         self.db.execute("""
             update workflows set
-                units_available=(select count(*) from units_{0}) - (units_running + units_done + units_paused),
+                units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + units_paused),
                 units_left=units - (units_running + units_done + units_paused)
             where label=?""".format(label), (label,))
 

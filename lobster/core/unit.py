@@ -560,7 +560,7 @@ class UnitStore:
 
     def estimate_tasks_left(self):
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize
+            select label, id, units_left, units_available * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:

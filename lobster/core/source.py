@@ -2,6 +2,7 @@ import datetime
 import glob
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -174,6 +175,7 @@ class TaskProvider(object):
 
             util.register_checkpoint(self.workdir, 'executable', exename)
 
+        total_units = {}
         self.config = apply_matching(self.config)
         for cfg in self.config['workflows']:
             wflow = Workflow(self.workdir, cfg, self.basedirs)
@@ -188,6 +190,10 @@ class TaskProvider(object):
                 logger.info("registering {0} in database".format(wflow.label))
                 self.__store.register_dataset(wflow.config, dataset_info, wflow.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
+
+                total_units[wflow.label] = dataset_info.total_lumis
+                if 'events per lumi' in wflow.config:
+                    total_units[wflow.label] *= int(math.ceil(float(wflow.config['events per task']) / wflow.config['events per lumi']))
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
@@ -195,6 +201,8 @@ class TaskProvider(object):
         for wflow in self.workflows.values():
             if wflow.prerequisite:
                 self.workflows[wflow.prerequisite].register(wflow)
+                if create:
+                    self.__store.register_dependency(wflow.label, wflow.prerequisite, total_units[self.__find_root(wflow.label)])
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
@@ -221,6 +229,11 @@ class TaskProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
+
+    def __find_root(self, label):
+        while self.workflows[label].prerequisite:
+            label = self.workflows[label].prerequisite
+        return label
 
     def __setup_inputs(self):
         self._inputs = [

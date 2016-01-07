@@ -161,9 +161,9 @@ class TaskHandler(object):
         task_update.time_on_worker = task.cmd_execution_time / 1000000
         task_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
         task_update.workdir_num_files = task.resources_measured.workdir_num_files
-        task_update.workdir_footprint = task.resources_measured.workdir_footprint
+        task_update.workdir_footprint = task.resources_measured.disk
         task_update.limits_exceeded = task.resources_measured.limits_exceeded
-        task_update.memory_resident = task.resources_measured.resident_memory
+        task_update.memory_resident = task.resources_measured.memory
         task_update.memory_swap = task.resources_measured.swap_memory
         task_update.memory_virtual = task.resources_measured.virtual_memory
 

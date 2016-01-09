@@ -472,6 +472,8 @@ class TaskProvider(object):
                 constraints[wflow.label]['memory'] = wflow.memory
             if wflow.cores:
                 constraints[wflow.label]['cores'] = wflow.cores
+            if wflow.disk:
+                constraints[wflow.label]['disk'] = wflow.disk
         return constraints
 
     def update(self, queue):

@@ -18,6 +18,7 @@ class Workflow(object):
 
         self.cores = config.get('cores per task', 1)
         self._runtime = config.get('task runtime')
+        self.memory = config.get('task memory')
         self.mergesize = self.__check_merge(config.get('merge size', -1))
 
         if 'sandbox' in config:

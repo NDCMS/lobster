@@ -360,7 +360,7 @@ class TaskProvider(object):
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
 
-            tasks.append((wflow.runtime, 1 if merge else wflow.cores, cmd, id, inputs, outputs))
+            tasks.append((wflow.runtime, wflow.memory, 1 if merge else wflow.cores, cmd, id, inputs, outputs))
 
             self.__taskhandlers[id] = handler
 

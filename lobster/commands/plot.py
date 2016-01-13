@@ -1088,6 +1088,9 @@ class Plotter(object):
         env.tests["sum"] = lambda s: s == "Total"
         template = env.get_template('template.html')
 
+        shutil.copy(os.path.join(os.path.dirname(__file__), 'data', 'styles.css'),
+                os.path.join(self.__plotdir, 'styles.css'))
+
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
             f.write(template.render(
                 id=self.__id,

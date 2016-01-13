@@ -166,6 +166,15 @@ def sprint(config, workdir, cmstask):
 
     bad_exitcodes = task_src.bad_exitcodes
 
+    # Workflows can be assigned categories, with each category having
+    # different cpu/memory/walltime requirements that WQ will automatically
+    # fine-tune
+    for category, constraints in task_src.category_constraints().items():
+        queue.specify_max_category_resources(category, constraints)
+        logger.debug('Category {0}: {1}'.format(category,constraints))
+        if 'wall_time' not in constraints:
+            queue.activate_fast_abort_category(category, abort_multiplier)
+
     while not task_src.done():
         tasks_left = task_src.tasks_left()
         units_left = task_src.work_left()
@@ -245,15 +254,11 @@ def sprint(config, workdir, cmstask):
                 break
 
             hunger -= len(tasks)
-            for runtime, memory, cores, cmd, id, inputs, outputs in tasks:
+            for category, cmd, id, inputs, outputs in tasks:
                 task = wq.Task(cmd)
+                task.specify_category(category)
                 task.specify_tag(id)
-                task.specify_cores(cores)
                 task.specify_max_retries(wq_max_retries)
-                if runtime:
-                    task.specify_running_time(runtime * 10**6)
-                if memory:
-                    task.specify_memory(memory)
 
                 for (local, remote, cache) in inputs:
                     if os.path.isfile(local):

@@ -15,10 +15,12 @@ class Workflow(object):
         self.config = config
         self.label = config['label']
         self.workdir = os.path.join(workdir, self.label)
+        self.category = config.get('category', self.label)
 
         self.cores = config.get('cores per task', 1)
         self._runtime = config.get('task runtime')
         self.memory = config.get('task memory')
+        self.disk = config.get('task disk')
         self.mergesize = self.__check_merge(config.get('merge size', -1))
 
         if 'sandbox' in config:

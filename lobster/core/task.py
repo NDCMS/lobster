@@ -160,10 +160,10 @@ class TaskHandler(object):
         task_update.time_retrieved = task.finish_time / 1000000
         task_update.time_on_worker = task.cmd_execution_time / 1000000
         task_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
-        task_update.workdir_num_files = task.resources_measured.workdir_num_files
-        task_update.workdir_footprint = task.resources_measured.workdir_footprint
+        task_update.workdir_num_files = task.resources_measured.total_files
+        task_update.workdir_footprint = task.resources_measured.disk
         task_update.limits_exceeded = task.resources_measured.limits_exceeded
-        task_update.memory_resident = task.resources_measured.resident_memory
+        task_update.memory_resident = task.resources_measured.memory
         task_update.memory_swap = task.resources_measured.swap_memory
         task_update.memory_virtual = task.resources_measured.virtual_memory
 
@@ -220,7 +220,8 @@ class TaskHandler(object):
         file_update, unit_update = self.get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         try:
             self.process_wq_info(task, task_update)
-        except AttributeError:
+        except AttributeError as e:
+            logger.debug('Error processing WQ info:{}'.format(e))
             summary.monitor(task.tag)
 
         return failed, task_update, file_update, unit_update

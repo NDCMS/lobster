@@ -44,15 +44,14 @@ def run(args):
         cmstask = True
 
         from WMCore.Credential.Proxy import Proxy
-        cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
-        if cred.check():
+        cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+        if cred.check() and cred.getTimeLeft() > 4 * 3600:
             if not 'X509_USER_PROXY' in os.environ:
                 os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
         else:
             if config.get('advanced', {}).get('renew proxy', True):
-                try:
-                    cred.renew()
-                except Exception as e:
+                cred.renew()
+                if cred.getTimeLeft() < 4 * 3600:
                     logger.error("could not renew proxy")
                     sys.exit(1)
             else:
@@ -99,7 +98,7 @@ def sprint(config, workdir, cmstask):
     if cmstask:
         action = actions.Actions(config)
         from WMCore.Credential.Proxy import Proxy
-        proxy = Proxy({'logger': logger})
+        proxy = Proxy({'logger': logging.getLogger("WMCore")})
     else:
         action = None
         proxy = None

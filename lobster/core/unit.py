@@ -76,7 +76,7 @@ class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
         self.db_path = os.path.join(config['workdir'], "lobster.db")
-        self.db = sqlite3.connect(self.db_path)
+        self.db = sqlite3.connect(self.db_path, timeout=90)
 
         self.__failure_threshold = config.get("threshold for failure", 30)
         self.__skipping_threshold = config.get("threshold for skipping", 30)

@@ -279,7 +279,7 @@ class Plotter(object):
 
     def readdb(self):
         logger.debug('reading database')
-        db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'))
+        db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'), timeout=90)
         stats = {}
 
         failed_tasks = np.array(db.execute("""

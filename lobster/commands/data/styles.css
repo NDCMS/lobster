@@ -3,7 +3,7 @@
 body {
     font-family:"Trebuchet MS";
     margin: 0 auto;
-    margin-top: 75px;
+    margin-top: 5em;
     padding: 0;
     width: 100%;
     max-width: 1240px;
@@ -15,83 +15,51 @@ nav {
     position: fixed;
     top: 0;
     left: 0;
-    min-width: 100%;
-    min-height: 50px;
+    width: 100%;
+    /* min-width: 100%; */
+    /* min-height: 50px; */
 
     margin: 0;
     padding: 0;
 
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    /* display: flex; */
+    /* flex-direction: column; */
+    /* justify-content: center; */
 
     z-index: 1000;
 }
 
 nav ul {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    /* width: 100%; */
-
+    list-style: none;
+    text-align: center;
     margin: 0;
     padding: 0;
 }
 
-nav ul li {
-    flex: 1;
-    display: block;
-    list-style-type: none;
-
-    padding-left: 1em;
-    padding-right: 1em;
-
-    /* text-align: center; */
-}
-
-nav > ul > li > a {
-    color: #555;
-    text-decoration: none;
-}
-
-nav > ul > li > a:hover {
-    color: #000;
-}
-
-nav > ul > li a + div {
-    background-color: #aaa;
-    display: none;
-    position: absolute;
-    padding-top: 1em;
-}
-
-nav > ul > li:hover a + div {
-    display: block;
-}
-
-nav > ul > li a + div > ul {
-    display: flex;
-    flex-direction: column;
-    /* margin: 0; */
-    padding: 0;
-    /* width: 100%; */
-}
-
-nav > ul > li a + div > ul > li {
-    /* flex: 1 1 100%; */
-    display: block;
-    /* margin: 0; */
+nav li {
+    font-size: 1.2em;
+    line-height: 2em;
     padding: .5em;
-    /* text-align: center; */
+    transition: .3s background-color;
 }
 
-nav > ul > li a + div > ul > li > a {
-    color: #555;
+nav li.active {
+    background: #eee;
+}
+
+nav select {
+    font-family:"Trebuchet MS";
+    font-size: .8em;
+}
+
+nav li a {
     text-decoration: none;
+    color: #333;
+    display: block;
 }
 
-nav > ul > li a + div > ul > li > a:hover {
-    color: #000;
+nav li:hover {
+    background-color: #ccc;
 }
 
 .lobster {font-family: 'Lobster Two', cursive;}
@@ -108,6 +76,10 @@ nav > ul > li a + div > ul > li > a:hover {
         padding: 10px;
         width: 800px;
         max-width: 800px;
+    }
+
+    nav li {
+        display: inline-block;
     }
 }
 @media screen and (max-width: 1239px) {
@@ -148,7 +120,7 @@ table.fancy {
 }
 
 table.fancy td, th {
-    border:1px solid #333437;
+    border:1px solid #333;
     padding:3px 7px 2px 7px;
 }
 
@@ -156,13 +128,13 @@ table.fancy th, td.footer {
     text-align:left;
     padding-top:5px;
     padding-bottom:4px;
-    background-color:#454648;
+    background-color:#333;
     color:#ffffff;
 }
 
 table.fancy tr.alt td {
     color:#000000;
-    background-color:#B4B8C1;
+    background-color:#ccc;
 }
 
 ul.img-list {

@@ -1110,6 +1110,7 @@ class Plotter(object):
         with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
             f.write(wflow.render(
                 id=self.__id,
+                label='all workflows',
                 bad_tasks=len(failed_tasks) > 0,
                 good_tasks=len(success_tasks) > 0,
                 merge_tasks=len(merge_tasks) > 0,
@@ -1140,6 +1141,7 @@ class Plotter(object):
             with open(os.path.join(self.__plotdir, label, 'index.html'), 'w') as f:
                 f.write(wflow.render(
                     id=self.__id,
+                    label=label,
                     bad_tasks=len(wf_failed_tasks) > 0,
                     good_tasks=len(wf_success_tasks) > 0,
                     merge_tasks=len(wf_merge_tasks) > 0,

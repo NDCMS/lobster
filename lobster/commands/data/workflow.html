@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>{{id}}</title>
+        <title>{{id}}: {{label}}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta http-equiv="refresh" content="900">
         <link rel="stylesheet" href="../styles.css">
@@ -96,13 +96,14 @@
         </script>
         <nav>
             <ul>
-                <li><a href=".."><span class="lobster">Lobster</span></a></li>
-                <li>
+                <li><a href=".."><span class="lobster">Lobster</span> project overview</a></li>
+                <li class="active">
+                    Summary for
                     <select id="workflows">
-                        <option value="" selected="selected" disabled>Select workflow</option>
-                        <option value="all">All workflows</option>
-                        {% for label in workflows %}
-                        <option value="{{ label }}">{{ label }}</option>
+                        <option value="" disabled>change workflow</option>
+                        <option value="all" {% if label == 'all workflows' %}selected="selected"{% endif %}>all workflows</option>
+                        {% for wflow in workflows %}
+                        <option value="{{ wflow }}"{% if label == wflow %} selected="selected"{% endif %}>{{ wflow }}</option>
                         {% endfor %}
                     </select>
                 </li>

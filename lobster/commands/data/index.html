@@ -30,11 +30,11 @@
 
         <nav>
             <ul>
-                <li><a href="#"><span class="lobster">Lobster</span></a></li>
-                <li>
+                <li class="active"><a href="#"><span class="lobster">Lobster</span> project overview</a></li>
+                <li>Summary for
                     <select id="workflows">
-                        <option value="" selected="selected" disabled>Select workflow</option>
-                        <option value="all">All workflows</option>
+                        <option value="" selected="selected" disabled>select…</option>
+                        <option value="all">all workflows</option>
                         {% for label in workflows %}
                         <option value="{{ label }}">{{ label }}</option>
                         {% endfor %}

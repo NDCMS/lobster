@@ -1,0 +1,210 @@
+@import url(http://fonts.googleapis.com/css?family=Lobster+Two:700italic);
+
+body {
+    font-family:"Trebuchet MS";
+    margin: 0 auto;
+    margin-top: 5em;
+    padding: 0;
+    width: 100%;
+    max-width: 1240px;
+}
+
+nav {
+    background-color: #aaa;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* min-width: 100%; */
+    /* min-height: 50px; */
+
+    margin: 0;
+    padding: 0;
+
+    /* display: flex; */
+    /* flex-direction: column; */
+    /* justify-content: center; */
+
+    z-index: 1000;
+}
+
+nav ul {
+    list-style: none;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    font-size: 1.2em;
+    line-height: 2em;
+    padding: .5em;
+    transition: .3s background-color;
+}
+
+nav li.active {
+    background: #eee;
+}
+
+nav select {
+    font-family:"Trebuchet MS";
+    font-size: .8em;
+}
+
+nav li a {
+    text-decoration: none;
+    color: #333;
+    display: block;
+}
+
+nav li:hover {
+    background-color: #ccc;
+}
+
+.lobster {font-family: 'Lobster Two', cursive;}
+
+@media screen and (min-width: 1240px) {
+    .sidebar {
+        float: left;
+        padding: 10px;
+        width: 400px;
+    }
+
+    .maincontent {
+        float: left;
+        padding: 10px;
+        width: 800px;
+        max-width: 800px;
+    }
+
+    nav li {
+        display: inline-block;
+    }
+}
+@media screen and (max-width: 1239px) {
+    .sidebar {
+        padding: 10px;
+        width: 400px;
+        margin: auto;
+    }
+
+    .maincontent {
+        padding: 10px;
+        width: 800px;
+        max-width: 800px;
+        margin: auto;
+    }
+
+    body {
+        width: 800px;
+    }
+}
+
+.center {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+h2, h3 {
+    clear: both;
+    border-bottom: solid 1px;
+}
+
+h1:target h2:target {
+    padding-top: 50px;
+}
+
+table.fancy {
+    border-collapse:collapse;
+}
+
+table.fancy td, th {
+    border:1px solid #333;
+    padding:3px 7px 2px 7px;
+}
+
+table.fancy th, td.footer {
+    text-align:left;
+    padding-top:5px;
+    padding-bottom:4px;
+    background-color:#333;
+    color:#ffffff;
+}
+
+table.fancy tr.alt td {
+    color:#000000;
+    background-color:#ccc;
+}
+
+ul.img-list {
+    padding: 0;
+}
+
+ul.img-list li {
+    display: inline-block;
+    position: relative;
+}
+
+ul.img-list img {
+    border-radius: 15px;
+}
+
+span.text-content {
+    background: rgba(0,0,0,0.6);
+    border-radius: 15px;
+    color: white;
+    display: table;
+    font-size: 1.5em;
+    height: 150px;
+    left: 15px;
+    position: absolute;
+    top: -5px;
+    width: 750px;
+    opacity: 0;
+    -webkit-transition: opacity 500ms;
+    -moz-transition: opacity 500ms;
+    -o-transition: opacity 500ms;
+    transition: opacity 500ms;
+}
+
+span.text-content span {
+    display: table-cell;
+    text-align: center;
+    vertical-align: middle;
+}
+
+ul.img-list li:hover span.text-content {
+    opacity: 1;
+}
+
+.button {
+    border: 1px solid #666;
+    border-radius: .5em;
+    padding: .3em;
+}
+
+.button a {
+    color: black;
+    text-decoration: none;
+}
+
+.right {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-left: 0;
+}
+
+.left {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-right: 0;
+}
+
+.depressed {
+    box-shadow: 0px -1em 5px 0px rgba(0,0,0,0.08) inset;
+}
+
+.pressed {
+    box-shadow: 0px 1em 10px 0px rgba(0,0,0,0.28) inset;
+}

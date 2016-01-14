@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{id}}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="refresh" content="900">
+        <link rel="stylesheet" href="styles.css">
+
+        {% macro label_wrapper(img_name, label) %}
+        <li><a class="workflow" href="{{ img_name }}"><img alt="{{ label }}"
+                    {% for k, v in kwargs.iteritems() %}
+                        {{ k }}="{{ v }}"
+                    {% endfor %}
+                src="{{ img_name }}"/>
+                <span class="text-content"><span>
+                    {{ label }}
+                </span></span>
+            </a></li>
+        {% endmacro %}
+
+        <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $("select#workflows").change(function() {
+                    var current = $(this).val();
+                    window.location.href = current;
+                });
+            });
+        </script>
+
+        <nav>
+            <ul>
+                <li class="active"><a href="#"><span class="lobster">Lobster</span> project overview</a></li>
+                <li>Summary for
+                    <select id="workflows">
+                        <option value="" selected="selected" disabled>select…</option>
+                        <option value="all">all workflows</option>
+                        {% for label in workflows %}
+                        <option value="{{ label }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </li>
+            </ul>
+        </nav>
+    </head>
+    <body>
+        <h1 id="navover">Summary for Project “{{id}}”</h1>
+        <table>
+            <tr>
+                <td>Project start time: </td>
+                <td>{{run_starttime|datetime}}</td>
+            </tr>
+            {% if run_starttime != plot_starttime %}
+            <tr>
+                <td>Plot start time: </td>
+                <td>{{plot_starttime|datetime}}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td>Project end time: </td>
+                <td>{{run_endtime|datetime}}</td>
+            </tr>
+            {% if run_endtime != plot_endtime %}
+            <tr>
+                <td>Plot end time: </td>
+                <td>{{plot_endtime|datetime}}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td>Plots updated: </td>
+                <td>{{plot_time|datetime}}</td>
+            </tr>
+        </table>
+
+        <h1 id="navwflow">Workflow Summary</h1>
+        <table class="fancy">
+            <tr>
+                <th>Workflow</th>
+                <th>Events</th>
+                <th>Events read</th>
+                <th>Events written</th>
+                <th>Units total</th>
+                <th>Units unmasked</th>
+                <th>Units written</th>
+                <th>Units failed</th>
+                <th>Progress</th>
+                {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
+            </tr>
+            {% for row in summary %}
+            {% if row[0] is sum %}
+            <tr>
+            {% else %}
+            <tr{{ loop.cycle('', ' class="alt"') }}>
+            {% endif %}
+                {% for cell in row %}
+                <td{% if row == summary[-1] %} class="footer"{% endif %}>
+                    {% if cell == row[-2] and cell > 0 and row != summary[-1] %}
+                        <a href="logs/{{row[0]}}">{{cell}}</a>
+                    {% else %}
+                        {{ cell }}
+                    {% endif %}
+                </td>
+                    {% if cell == row[-1] and jsons|length > 0%}
+                        {% if row == summary[-1] %}
+                        <td class="footer"></td>
+                        {% else %}
+                        <td>
+                            {% for path, name in jsons[row[0]] %}
+                            <a href={{ path }}>{{ name }}</a>
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h1 id="navtasks">Task Summary</h1>
+        {% if good_tasks or bad_tasks %}
+        <div class="sidebar">
+            <a class="workflow" href="all/time-pie.png"><img alt="" src="all/time-pie.png"/></a>
+        </div>
+        <div class="maincontent">
+            <a class="workflow" href="all/all-tasks-hist.png"><img alt="" src="all/all-tasks-hist.png"/></a>
+        {% if good_tasks %}
+            <h3>Efficiency (all workflows)</h3>
+            <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
+            <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
+        {% endif %}
+        </div>
+        {% endif %}
+
+        <h1 id="navlobster"><span class="lobster">Lobster</span> Summary</h1>
+        <div class="sidebar" style="padding:0">
+            <p></p>
+        </div>
+        <div class="maincontent">
+            <h3>Tasks and Workers</h3>
+            <a href="workers-plot.png"><img alt="" src="workers-plot.png"/></a>
+            <a href="turnover-hist.png"><img alt="" src="turnover-hist.png"/></a>
+            <a href="worker-deaths-hist.png"><img alt="" src="worker-deaths-hist.png"/></a>
+            <a href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
+            <h3>Time Breakdown</h3>
+            <a href="fraction-hist.png"><img alt="" src="fraction-hist.png"/></a>
+            <h3>Output Performance</h3>
+            {% if good_tasks %}
+            <a href="output-hist.png"><img alt="" src="output-all-hist.png"/></a>
+            <a href="output-total-plot.png"><img alt="" src="output-total-all-plot.png"/></a>
+            <a href="units-total-plot.png"><img alt="" src="units-total-plot.png"/></a>
+            {% else %}
+            <p>No output yet!</p>
+            {% endif %}
+        </div>
+
+        {% if foremen|length > 0 %}
+        <h1>Foreman Summary</h1>
+        <span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
+        <div style="margin-left:410px;">
+            <a href="foreman-tasks-plot.png"><img alt="" src="foreman-tasks-plot.png"/></a>
+            <a href="foreman-idle-plot.png"><img alt="" src="foreman-idle-plot.png"/></a>
+            <a href="foreman-efficiency-plot.png"><img alt="" src="foreman-efficiency-plot.png"/></a>
+        </div>
+
+        {% for foreman in foremen %}
+        <div class="foreman more"><h1>{{ foreman }} summary</h1></div>
+        <div class="foreman more" style="float:left">
+            <a href="{{ foreman }}-time-pie.png"><img alt="" src="{{ foreman }}-time-pie.png"/></a>
+        </div>
+        <div class="foreman more" style="margin-left:410px;"><ul class = "img-list">
+            <a href="{{ foreman }}-workers-plot.png"><img alt="" src="{{ foreman }}-workers-plot.png"/></a>
+            <a href="{{ foreman }}-turnover-hist.png"><img alt="" src="{{ foreman }}-turnover-hist.png"/></a>
+        </ul></div>
+        {% endfor %}
+        {% endif %}
+    </body>
+</html>

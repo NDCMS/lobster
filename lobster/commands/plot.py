@@ -531,11 +531,11 @@ class Plotter(object):
 
         return res
 
-    def savelogs(self, failed_tasks, samples=5, suffix=''):
+    def savelogs(self, failed_tasks, samples=5, subdir=''):
         work = []
         codes = {}
 
-        logdir = os.path.join(self.__plotdir, 'logs' + suffix)
+        logdir = os.path.join(self.__plotdir, subdir, 'logs')
         if os.path.exists(logdir):
             for dirpath, dirnames, filenames in os.walk(logdir):
                 logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
@@ -763,7 +763,7 @@ class Plotter(object):
 
         return names
 
-    def make_workflow_plots(self, suffix, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
+    def make_workflow_plots(self, subdir, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
             self.pie(
                     [
@@ -775,7 +775,7 @@ class Plotter(object):
                         np.sum(good_tasks['t_recv_end'] - good_tasks['t_processing_end'])
                     ],
                     ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
-                    "time-pie" + suffix,
+                    os.path.join(subdir, "time-pie"),
                     colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
             )
 
@@ -805,7 +805,7 @@ class Plotter(object):
 
             self.plot(
                     workflows,
-                    'tasks', 'all-tasks' + suffix,
+                    'tasks', os.path.join(subdir, 'all-tasks'),
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=labels,
                     color=colors
@@ -824,14 +824,14 @@ class Plotter(object):
 
             self.plot(
                     [(success_tasks['t_retrieved'], success_tasks['b_output'] * scale)],
-                    'Output / (GB/h)', 'output' + suffix,
+                    'Output / (GB/h)', os.path.join(subdir, 'output'),
                     bins=100,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
             self.plot(
                     [(centers, total_output)],
-                    'Output / GB', 'output-total' + suffix,
+                    'Output / GB', os.path.join(subdir, 'output-total'),
                     bins=100,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
@@ -870,14 +870,14 @@ class Plotter(object):
                 self.pie(
                         [np.sum([np.sum(x[1]) for x in times]) for times in times_by_cache],
                         [plot[1] for plot in things_we_are_looking_at if plot[-1]],
-                        prefix + "time-detail-pie" + suffix,
+                        os.path.join(subdir, prefix + "time-detail-pie"),
                         colors=[plot[-2] for plot in things_we_are_looking_at if plot[-1]]
                 )
 
                 for a, label, filestub, color, pie in things_we_are_looking_at:
                     self.plot(
                         [(xtimes, ytimes / 60.) for xtimes, ytimes in a],
-                        label+' / m', prefix + filestub + suffix,
+                        label+' / m', os.path.join(subdir, prefix + filestub),
                         color=[cache_map[x][1] for x in cache],
                         label=[cache_map[x][0] for x in cache]
                     )
@@ -888,30 +888,30 @@ class Plotter(object):
                         (tasks['t_retrieved'], tasks['memory_virtual']),
                         (tasks['t_retrieved'], tasks['memory_swap'])
                     ],
-                    'memory / MB', prefix + 'memory' + suffix,
+                    'memory / MB', os.path.join(subdir, prefix + 'memory'),
                     label=['resident', 'virtual', 'swap']
                 )
 
                 self.plot(
                     [(tasks['t_retrieved'], tasks['workdir_footprint'])],
-                    'working directory footprint / MB', prefix + 'workdir-footprint' + suffix,
+                    'working directory footprint / MB', os.path.join(subdir, prefix + 'workdir-footprint'),
                 )
 
 
         if len(failed_tasks) > 0:
-            logs = self.savelogs(failed_tasks, suffix=suffix)
+            logs = self.savelogs(failed_tasks, subdir=subdir)
 
             fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
 
             self.pie(
                     [len(xs['t_retrieved']) for xs in fail_values],
                     fail_labels,
-                    "failed-pie" + suffix
+                    os.path.join(subdir, "failed-pie")
             )
 
             self.plot(
                     [(xs['t_retrieved'], [1] * len(xs['t_retrieved'])) for xs in fail_values],
-                    'Failed tasks', 'failed-tasks' + suffix,
+                    'Failed tasks', os.path.join(subdir, 'failed-tasks'),
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=map(str, fail_labels)
             )
@@ -922,13 +922,13 @@ class Plotter(object):
                     (failed_tasks['t_retrieved'], failed_tasks['memory_virtual']),
                     (failed_tasks['t_retrieved'], failed_tasks['memory_swap'])
                 ],
-                'memory / MB', 'failed-memory' + suffix,
+                'memory / MB', os.path.join(subdir, 'failed-memory'),
                 label=['resident', 'virtual', 'swap']
             )
 
             self.plot(
                 [(failed_tasks['t_retrieved'], failed_tasks['workdir_footprint'])],
-                'working directory footprint / MB', 'failed-workdir-footprint' + suffix,
+                'working directory footprint / MB', os.path.join(subdir, 'failed-workdir-footprint'),
             )
 
         else:
@@ -1068,37 +1068,48 @@ class Plotter(object):
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
-        # -----------------------
-        # Workflow specific plots
-        # -----------------------
-        logs = self.make_workflow_plots('-all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
-        for label, id_ in wflow_ids.items():
-            self.make_workflow_plots('-' + label, edges,
-                    good_tasks[good_tasks['workflow'] == id_],
-                    failed_tasks[failed_tasks['workflow'] == id_],
-                    success_tasks[success_tasks['workflow'] == id_],
-                    merge_tasks[merge_tasks['workflow'] == id_],
-                    xmin, xmax)
-
-        jsons = self.savejsons(processed_lumis)
+        # ----------
+        # Templating
+        # ----------
 
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
         env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
         env.tests["sum"] = lambda s: s == "Total"
-        template = env.get_template('template.html')
+        overview = env.get_template('index.html')
+        wflow = env.get_template('workflow.html')
+
+        jsons = self.savejsons(processed_lumis)
 
         shutil.copy(os.path.join(os.path.dirname(__file__), 'data', 'styles.css'),
                 os.path.join(self.__plotdir, 'styles.css'))
 
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
-            f.write(template.render(
+            f.write(overview.render(
                 id=self.__id,
                 plot_time=time.time(),
                 plot_starttime=self.__xmin,
                 plot_endtime=self.__xmax,
                 run_starttime=self.__total_xmin,
                 run_endtime=self.__total_xmax,
+                summary=summary_data,
+                jsons=jsons,
+                bad_tasks=len(failed_tasks) > 0,
+                good_tasks=len(success_tasks) > 0,
+                foremen=foremen_names,
+                workflows=sorted(wflow_ids.keys())
+            ).encode('utf-8'))
+
+        # -----------------------
+        # Workflow specific plots
+        # -----------------------
+        outdir = os.path.join(self.__plotdir, 'all')
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        logs = self.make_workflow_plots('all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
+        with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
+            f.write(wflow.render(
+                id=self.__id,
                 bad_tasks=len(failed_tasks) > 0,
                 good_tasks=len(success_tasks) > 0,
                 merge_tasks=len(merge_tasks) > 0,
@@ -1106,8 +1117,38 @@ class Plotter(object):
                 jsons=jsons,
                 bad_logs=logs,
                 foremen=foremen_names,
-                workflows=['all'] + sorted(wflow_ids.keys())
+                workflows=sorted(wflow_ids.keys())
             ).encode('utf-8'))
+
+        for label, id_ in wflow_ids.items():
+            outdir = os.path.join(self.__plotdir, label)
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+
+            wf_good_tasks = good_tasks[good_tasks['workflow'] == id_]
+            wf_failed_tasks = failed_tasks[failed_tasks['workflow'] == id_]
+            wf_success_tasks = success_tasks[success_tasks['workflow'] == id_]
+            wf_merge_tasks = merge_tasks[merge_tasks['workflow'] == id_]
+
+            logs = self.make_workflow_plots(label, edges,
+                    wf_good_tasks,
+                    wf_failed_tasks,
+                    wf_success_tasks,
+                    wf_merge_tasks,
+                    xmin, xmax)
+
+            with open(os.path.join(self.__plotdir, label, 'index.html'), 'w') as f:
+                f.write(wflow.render(
+                    id=self.__id,
+                    bad_tasks=len(wf_failed_tasks) > 0,
+                    good_tasks=len(wf_success_tasks) > 0,
+                    merge_tasks=len(wf_merge_tasks) > 0,
+                    summary=[xs for xs in summary_data if xs[0] == label],
+                    jsons=jsons,
+                    bad_logs=logs,
+                    foremen=foremen_names,
+                    workflows=sorted(wflow_ids.keys())
+                ).encode('utf-8'))
 
         p = multiprocessing.Pool(10)
         p.map(mp_call, self.__plotargs)

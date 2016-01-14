@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{id}}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="refresh" content="900">
+        <link rel="stylesheet" href="../styles.css">
+
+        {% macro label_wrapper(img_name, label) %}
+        <li><a class="workflow" href="{{ img_name }}"><img alt="{{ label }}"
+                    {% for k, v in kwargs.iteritems() %}
+                        {{ k }}="{{ v }}"
+                    {% endfor %}
+                src="{{ img_name }}"/>
+                <span class="text-content"><span>
+                    {{ label }}
+                </span></span>
+            </a></li>
+        {% endmacro %}
+
+        <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+        <script>
+            function src_replace(sel, a, b) {
+                $(sel).attr("src", function(idx, src) {
+                    return src.replace(a, b);
+                });
+            };
+
+            var last_workflow = 'all';
+
+            $(document).ready(function() {
+                $("div.good.more").hide();
+                $("div.merge.more").hide();
+                $("div.foreman.more").hide();
+
+                $("select#workflows").change(function() {
+                    var current = $(this).val();
+                    window.location.href = '../' + current;
+                });
+
+                $("a#goodmore").bind('click', function() {
+                    $("div.good.more").slideToggle();
+                    $("span#goodmore").toggleClass("depressed");
+                    $("span#goodmore").toggleClass("pressed");
+                    return false;
+                });
+
+                $("a#mergemore").bind('click', function() {
+                    $("div.merge.more").slideToggle();
+                    $("span#mergemore").toggleClass("depressed");
+                    $("span#mergemore").toggleClass("pressed");
+                    return false;
+                });
+
+                $("a#foremanmore").bind('click', function() {
+                    $("div.foreman.more").slideToggle();
+                    $("span#foremanmore").toggleClass("depressed");
+                    $("span#foremanmore").toggleClass("pressed");
+                    return false;
+                });
+
+                $("a#mergehist").bind('click', function() {
+                    src_replace("img.merge", "-prof", "-hist");
+                    $("span#mergehist.left").removeClass("depressed");
+                    $("span#mergehist.left").addClass("pressed");
+                    $("span#mergehist.right").removeClass("pressed");
+                    $("span#mergehist.right").addClass("depressed");
+                    return false;
+                });
+                $("a#mergeprof").bind('click', function() {
+                    src_replace("img.merge", "-hist", "-prof");
+                    $("span#mergehist.left").removeClass("pressed");
+                    $("span#mergehist.left").addClass("depressed");
+                    $("span#mergehist.right").removeClass("depressed");
+                    $("span#mergehist.right").addClass("pressed");
+                    return false;
+                });
+
+                $("a#goodhist").bind('click', function() {
+                    src_replace("img.good", "-prof", "-hist");
+                    $("span#goodhist.left").removeClass("depressed");
+                    $("span#goodhist.left").addClass("pressed");
+                    $("span#goodhist.right").removeClass("pressed");
+                    $("span#goodhist.right").addClass("depressed");
+                    return false;
+                });
+                $("a#goodprof").bind('click', function() {
+                    src_replace("img.good", "-hist", "-prof");
+                    $("span#goodhist.right").removeClass("depressed");
+                    $("span#goodhist.right").addClass("pressed");
+                    $("span#goodhist.left").removeClass("pressed");
+                    $("span#goodhist.left").addClass("depressed");
+                    return false;
+                });
+            });
+        </script>
+        <nav>
+            <ul>
+                <li><a href=".."><span class="lobster">Lobster</span></a></li>
+                <li>
+                    <select id="workflows">
+                        <option value="" selected="selected" disabled>Select workflow</option>
+                        <option value="all">All workflows</option>
+                        {% for label in workflows %}
+                        <option value="{{ label }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </li>
+            </ul>
+        </nav>
+    </head>
+    <body>
+        <h1 id="navwflow">Workflow Summary</h1>
+        <table class="fancy">
+            <tr>
+                <th>Workflow</th>
+                <th>Events</th>
+                <th>Events read</th>
+                <th>Events written</th>
+                <th>Units total</th>
+                <th>Units unmasked</th>
+                <th>Units written</th>
+                <th>Units failed</th>
+                <th>Progress</th>
+                {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
+            </tr>
+            {% for row in summary %}
+            {% if row[0] is sum %}
+            <tr>
+            {% else %}
+            <tr{{ loop.cycle('', ' class="alt"') }}>
+            {% endif %}
+                {% for cell in row %}
+                <td{% if row == summary[-1] %} class="footer"{% endif %}>
+                    {% if cell == row[-2] and cell > 0 and row != summary[-1] %}
+                        <a href="logs/{{row[0]}}">{{cell}}</a>
+                    {% else %}
+                        {{ cell }}
+                    {% endif %}
+                </td>
+                    {% if cell == row[-1] and jsons|length > 0%}
+                        {% if row == summary[-1] %}
+                        <td class="footer"></td>
+                        {% else %}
+                        <td>
+                            {% for path, name in jsons[row[0]] %}
+                            <a href={{ path }}>{{ name }}</a>
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h1 id="navtasks">Task Summary</h1>
+        {% if good_tasks or bad_tasks %}
+        <div class="sidebar">
+            <a class="workflow" href="time-pie.png"><img alt="" src="time-pie.png"/></a>
+        </div>
+        <div class="maincontent">
+            <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
+        </div>
+        {% endif %}
+
+        <h2 id="navgood">Successful Tasks</h2>
+        {% if good_tasks %}
+        <div class="sidebar">
+            <a class="workflow" href="good-time-detail-pie.png"><img alt="" src="good-time-detail-pie.png"/></a>
+        </div>
+        <div class="maincontent">
+            <h3>Task Footprint</h3>
+            <a class="workflow" href="good-memory-hist.png"><img alt="" src="good-memory-hist.png"/></a>
+            <a class="workflow" href="good-workdir-footprint-hist.png"><img alt="" src="good-workdir-footprint-hist.png"/></a>
+            <h3>Task Breakdown</h3>
+            <p>
+                <span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
+                <span id="goodmore" class="button depressed"><a href="#" id="goodmore">show timeline breakdown</a></span>
+            </p>
+            <div class="good more"><ul class="img-list">
+                {{ label_wrapper('good-eviction-hist.png', 'Time lost to eviction or exceeding requested resources', class="good") }}
+            </ul></div>
+            <div><ul class="img-list">
+                {{ label_wrapper('good-runtime-hist.png', 'Time from wrapper start to processing end', class='good') }}
+                {{ label_wrapper('good-overhead-hist.png', 'Time from wrapper start to begin processing the first event', class='good') }}
+            </ul></div>
+            <div class="good more"><ul class="img-list">
+                {{ label_wrapper('good-transfer-in-hist.png', 'Time to transfer input files', class='good') }}
+                {{ label_wrapper('good-startup-hist.png', 'Time between completing the input file transfer and starting the wrapper', class='good') }}
+                {{ label_wrapper('good-stage-in-hist.png', 'Time to stage in all additional input files', class='good more') }}
+                {{ label_wrapper('good-prologue-hist.png', 'Time to run the prologue command', class='good more') }}
+                {{ label_wrapper('good-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='good') }}
+                {{ label_wrapper('good-setup-cms-hist.png', 'Time from from wrapper ready to file requested', class='good') }}
+                {{ label_wrapper('good-file-open-hist.png', 'Time between requesting and opening file', class='good') }}
+                {{ label_wrapper('good-setup-task-hist.png', 'Time between opening file and begin processing the first event', class='good') }}
+            </ul></div>
+            <div><ul class="img-list">
+                {{ label_wrapper('good-processing-hist.png', 'Time between begin processing the first event and finish processing', class='good') }}
+            </ul></div>
+            <div class="good more"><ul class="img-list">
+                {{ label_wrapper('good-processing-cpu-hist.png', 'CPU processing time (from cmssw)', class='good more') }}
+                {{ label_wrapper('good-processing-non-cpu-hist.png', 'Total processing time minus CPU processing time', class='good more') }}
+                {{ label_wrapper('good-epilogue-hist.png', 'Time to run the epilogue command', class='good more') }}
+                {{ label_wrapper('good-stage-out-hist.png', 'Time to stage out all output files', class='good more') }}
+                {{ label_wrapper('good-transfer-out-wait-hist.png', 'Time between stageout completion and WQ task.receive_output_start', class='good more') }}
+                {{ label_wrapper('good-transfer-out-wq-hist.png', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='good more') }}
+            </ul></div>
+        </div>
+        {% else %}
+        <p>No successful tasks yet!</p>
+        {% endif %}
+
+        <h2 id="navmerge">Merge tasks</h2>
+        {% if merge_tasks %}
+        <div class="sidebar">
+            <a class="workflow" href="merge-time-detail-pie.png"><img alt="" src="merge-time-detail-pie.png"/></a>
+        </div>
+        <div class="maincontent">
+            <h3>Task Footprint</h3>
+            <a class="workflow" href="merge-memory-hist.png"><img alt="" src="merge-memory-hist.png"/></a>
+            <a class="workflow" href="merge-workdir-footprint-hist.png"><img alt="" src="merge-workdir-footprint-hist.png"/></a>
+            <h3>Task Breakdown</h3>
+            <p>
+                <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
+                <span id="mergemore" class="button depressed"><a href="#" id="mergemore">show timeline breakdown</a></span>
+            </p>
+            <div class="merge more"><ul class="img-list">
+                {{ label_wrapper('merge-eviction-hist.png', 'Time lost to eviction', class="merge") }}
+            </ul></div>
+            <div><ul class="img-list">
+                {{ label_wrapper('merge-runtime-hist.png', 'Time from wrapper start to processing end', class='merge') }}
+                {{ label_wrapper('merge-overhead-hist.png', 'Time from wrapper start to begin processing the first event', class='merge') }}
+            </ul></div>
+            <div class="merge more"><ul class="img-list">
+                {{ label_wrapper('merge-transfer-in-hist.png', 'Time to transfer input files', class='merge') }}
+                {{ label_wrapper('merge-startup-hist.png', 'Time between completing the input file transfer and starting the wrapper', class='merge') }}
+                {{ label_wrapper('merge-stage-in-hist.png', 'Time to stage in all additional input files', class='merge more') }}
+                {{ label_wrapper('merge-prologue-hist.png', 'Time to run the prologue command', class='merge more') }}
+                {{ label_wrapper('merge-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='merge') }}
+                {{ label_wrapper('merge-setup-cms-hist.png', 'Time from from wrapper ready to file requested', class='merge') }}
+                {{ label_wrapper('merge-file-open-hist.png', 'Time between requesting and opening file', class='merge') }}
+                {{ label_wrapper('merge-setup-task-hist.png', 'Time between opening file and begin processing the first event', class='merge') }}
+            </ul></div>
+            <div><ul class="img-list">
+                {{ label_wrapper('merge-processing-hist.png', 'Time between begin processing the first event and finish processing', class='merge') }}
+            </ul></div>
+            <div class="merge more"><ul class="img-list">
+                {{ label_wrapper('merge-processing-cpu-hist.png', 'CPU processing time (from cmssw)', class='merge more') }}
+                {{ label_wrapper('merge-processing-non-cpu-hist.png', 'Total processing time minus CPU processing time', class='merge more') }}
+                {{ label_wrapper('merge-epilogue-hist.png', 'Time to run the epilogue command', class='merge more') }}
+                {{ label_wrapper('merge-stage-out-hist.png', 'Time to stage out all output files', class='merge more') }}
+                {{ label_wrapper('merge-transfer-out-wait-hist.png', 'Time between stageout completion and WQ task.receive_output_start', class='merge more') }}
+                {{ label_wrapper('merge-transfer-out-wq-hist.png', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='merge more') }}
+            </ul></div>
+        </div>
+        {% else %}
+        <p>No successful merge tasks yet!</p>
+        {% endif %}
+
+        <h2 id="navbad">Failed tasks</h2>
+        {% if bad_tasks %}
+        <div class="sidebar">
+            <a class="workflow" href="failed-pie.png"><img alt="" src="failed-pie.png"/></a>
+        </div>
+        <div class="maincontent">
+            <h3>Failure Modes</h3>
+            <a class="workflow" href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
+            <h3>Task Footprint</h3>
+            <a class="workflow" href="failed-memory-hist.png"><img alt="" src="failed-memory-hist.png"/></a>
+            <a class="workflow" href="failed-workdir-footprint-hist.png"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
+            <h3>Task Logs</h3>
+            <table class="fancy">
+                <tr>
+                    <th>Exit code</th>
+                    <th>occurences</th>
+                    <th>logs 1</th>
+                    <th>logs 2</th>
+                    <th>logs 3</th>
+                    <th>logs 4</th>
+                    <th>logs 5</th>
+                </tr>
+                {% for code, values in bad_logs|dictsort %}
+                <tr {{ loop.cycle('', 'class="alt"') }}>
+                    <td>{{ code }}</td>
+                    <td>{{ values[0] }}</td>
+                    {% for id, files in values[1]|dictsort|reverse %}
+                    <td>{% for file in files %} <a href="logs/{{ id }}/{{ file }}">{{ file }}</a>{% endfor %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% else %}
+        <p>No failed tasks yet!</p>
+        {% endif %}
+    </body>
+</html>

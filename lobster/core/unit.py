@@ -96,7 +96,7 @@ class UnitStore:
             taskruntime int default null,
             tasksize int,
             label text,
-            masked_lumis int default 0,
+            units_masked int default 0,
             merged int default 0,
             path text,
             pset_hash text default null,
@@ -175,7 +175,7 @@ class UnitStore:
                        tasksize,
                        taskruntime,
                        units,
-                       masked_lumis,
+                       units_masked,
                        units_left,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
@@ -566,7 +566,7 @@ class UnitStore:
                 events,
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                units + masked_lumis,
+                units + units_masked,
                 units,
                 units_done,
                 units_paused,

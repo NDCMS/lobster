@@ -63,6 +63,7 @@ class ProductionDataset(object):
         self.number_of_tasks = number_of_tasks
         self.events_per_task = events_per_task
         self.events_per_lumi = events_per_lumi
+        self.randomize_seeds = randomize_seeds
 
         nlumis = 1
         if events_per_lumi:

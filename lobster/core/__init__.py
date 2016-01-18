@@ -1,3 +1,3 @@
 from task import *
-from workflow import Workflow
+from workflow import Category, Workflow
 from dataset import *

@@ -141,7 +141,6 @@ class TaskProvider(object):
 
             util.register_checkpoint(self.workdir, 'executable', exename)
 
-        total_units = {}
         for wflow in self.config.workflows:
             self.workflows[wflow.label] = wflow
 
@@ -152,12 +151,8 @@ class TaskProvider(object):
                     dataset_info = wflow.dataset.get_info()
 
                 logger.info("registering {0} in database".format(wflow.label))
-                self.__store.register_dataset(wflow, dataset_info, wflow.runtime)
+                self.__store.register_dataset(wflow, dataset_info, wflow.category.runtime)
                 util.register_checkpoint(self.workdir, wflow.label, 'REGISTERED')
-
-                total_units[wflow.label] = dataset_info.total_lumis
-                if 'events per lumi' in wflow.config:
-                    total_units[wflow.label] *= int(math.ceil(float(wflow.config['events per task']) / wflow.config['events per lumi']))
             elif os.path.exists(os.path.join(wflow.workdir, 'running')):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
@@ -166,7 +161,7 @@ class TaskProvider(object):
             if wflow.prerequisite:
                 self.workflows[wflow.prerequisite].register(wflow)
                 if create:
-                    self.__store.register_dependency(wflow.label, wflow.prerequisite, total_units[self.__find_root(wflow.label)])
+                    self.__store.register_dependency(wflow.label, wflow.prerequisite, wflow.dataset.parent.total_units)
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
@@ -424,16 +419,8 @@ class TaskProvider(object):
         constraints = {
                 'merge': {'cores': 1, 'memory': 900}
         }
-        for wflow in self.workflows.values():
-            constraints[wflow.label] = {}
-            if wflow.runtime:
-                constraints[wflow.label]['wall_time'] = wflow.runtime * int(1e6)
-            if wflow.memory:
-                constraints[wflow.label]['memory'] = wflow.memory
-            if wflow.cores:
-                constraints[wflow.label]['cores'] = wflow.cores
-            if wflow.disk:
-                constraints[wflow.label]['disk'] = wflow.disk
+        for category in set([w.category for w in self.workflows.values()]):
+            constraints[category.name] = category.wq()
         return constraints
 
     def update(self, queue):

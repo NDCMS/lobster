@@ -3,7 +3,7 @@ import pickle
 import re
 
 import lobster.cmssw as cmssw
-from lobster.core import Dataset, ParentDataset, ProductionDataset, Workflow
+from lobster.core import Dataset, ParentDataset, ProductionDataset, Category, Workflow
 from lobster.se import StorageConfiguration
 
 def apply_matching(config):
@@ -37,6 +37,17 @@ def apply_matching(config):
     return config
 
 
+def extract_category(config):
+    category = Category(
+            name=config.pop('category', config['label']),
+            cores=config.pop('cores per task', 1),
+            disk=config.pop('task disk', None),
+            memory=config.pop('task memory', None),
+            runtime=config.pop('task runtime', None)
+    )
+    return category
+
+
 def extract_dataset(config):
     if 'dataset' in config:
         cls = cmssw.Dataset
@@ -62,8 +73,17 @@ def extract_dataset(config):
                 'number of tasks': 1,
                 'randomize seeds': True
         }
+
+        if 'num tasks' in config:
+            config['number of tasks'] = config.pop('num tasks')
+    elif 'parent' in config:
+        cls = ParentDataset
+        dset_kwargs = {
+                'parent': None,
+                'units per task': 1
+        }
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("can't extract a dataset out of: " + repr(config))
 
     for key in dset_kwargs.keys():
         if key in config:
@@ -87,10 +107,23 @@ def pythonize_yaml(config):
 
     workflows = []
     for cfg in config['workflows']:
-        cfg['dataset'] = extract_dataset(cfg)
+        if 'parent dataset' in cfg:
+            name = cfg.pop('parent dataset')
+            for w in workflows:
+                if w.label == name:
+                    cfg['parent'] = w.dataset
+                    break
+            else:
+                raise ValueError("parent {0} not defined in configuration before usage".format(name))
 
         if 'delete merged' in cfg:
             cfg['merge_cleanup'] = cfg.pop('delete merged')
+
+        if 'lumis per task' in cfg:
+            cfg['units per task'] = cfg.pop('lumis per task')
+
+        cfg['dataset'] = extract_dataset(cfg)
+        cfg['category'] = extract_category(cfg)
 
         workflows.append(Workflow(**pythonize_keys(cfg)))
     config['workflows'] = workflows
@@ -118,8 +151,11 @@ class Config(object):
 
     @classmethod
     def load(cls, path):
-        with open(os.path.join(path, 'config.pkl'), 'rb') as f:
-            return pickle.load(f)
+        try:
+            with open(os.path.join(path, 'config.pkl'), 'rb') as f:
+                return pickle.load(f)
+        except IOError:
+            raise IOError("can't load configuration from {0}".format(os.path.join(path, 'config.pkl')))
 
     def save(self):
         with open(os.path.join(self.workdir, 'config.pkl'), 'wb') as f:

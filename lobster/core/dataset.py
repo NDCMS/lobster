@@ -84,8 +84,8 @@ class ProductionDataset(object):
         return dset
 
 class ParentDataset(object):
-    def __init__(self, wflow, units_per_task=1):
-        self.parent = wflow.dataset
+    def __init__(self, parent, units_per_task=1):
+        self.parent = parent
         self.units_per_task = units_per_task
         self.total_units = self.parent.total_units
 

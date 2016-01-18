@@ -11,16 +11,38 @@ from lobster.core.task import *
 
 logger = logging.getLogger('lobster.workflow')
 
+class Category(object):
+    def __init__(self,
+            name,
+            cores=1,
+            runtime=None,
+            memory=None,
+            disk=None
+            ):
+        self.name = name
+        self.cores = cores
+        self.runtime = runtime
+        self.memory = memory
+        self.disk = disk
+
+    def wq(self):
+        res = {}
+        if self.runtime:
+            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * int(1e6)
+        if self.memory:
+            res['memory'] = self.memory
+        if self.cores:
+            res['cores'] = self.cores
+        if self.disk:
+            res['disk'] = self.disk
+        return res
+
 class Workflow(object):
     def __init__(self,
             label,
-            category=None,
             dataset,
+            category=None,
             publish_label=None,
-            cores_per_task=1,
-            task_runtime=None,
-            task_memory=None,
-            task_disk=None,
             merge_cleanup=True,
             merge_size=-1,
             sandbox=None,
@@ -44,10 +66,6 @@ class Workflow(object):
 
         self.publish_label = publish_label if publish_label else label
 
-        self.cores = cores_per_task
-        self._runtime = task_runtime
-        self.memory = task_memory
-        self.disk = task_disk
         self.merge_size = self.__check_merge(merge_size)
         self.merge_cleanup = merge_cleanup
 
@@ -75,12 +93,6 @@ class Workflow(object):
             except:
                 raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
         self.sandbox_blacklist = sandbox_blacklist
-
-    @property
-    def runtime(self):
-        if not self._runtime:
-            return None
-        return self._runtime + 15 * 60
 
     def __check_merge(self, size):
         if size <= 0:
@@ -246,11 +258,11 @@ class Workflow(object):
                 args.append(unique)
             if pset:
                 pset = os.path.join(self.workdir, pset)
-            if self._runtime:
+            if self.category.runtime:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
-                params['task runtime'] = self._runtime + 10 * 60
-            params['cores'] = self.cores
+                params['task runtime'] = self.category.runtime + 10 * 60
+            params['cores'] = self.category.cores
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))

@@ -76,7 +76,7 @@ class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
         self.db_path = os.path.join(config['workdir'], "lobster.db")
-        self.db = sqlite3.connect(self.db_path)
+        self.db = sqlite3.connect(self.db_path, timeout=90)
 
         self.__failure_threshold = config.get("threshold for failure", 30)
         self.__skipping_threshold = config.get("threshold for skipping", 30)
@@ -98,7 +98,7 @@ class UnitStore:
             taskruntime int default null,
             tasksize int,
             label text,
-            masked_lumis int default 0,
+            units_masked int default 0,
             merged int default 0,
             path text,
             pset_hash text default null,
@@ -177,7 +177,7 @@ class UnitStore:
                        tasksize,
                        taskruntime,
                        units,
-                       masked_lumis,
+                       units_masked,
                        units_left,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
@@ -599,7 +599,7 @@ class UnitStore:
                 events,
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                units + masked_lumis,
+                units + units_masked,
                 units,
                 units_done,
                 units_paused,

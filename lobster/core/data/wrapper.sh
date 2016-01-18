@@ -177,4 +177,6 @@ print_output "working directory after execution" ls -l
 
 echo "[$(date '+%F %T')] wrapper done"
 
+echo "Final return status = $res"
+
 exit $res

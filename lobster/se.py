@@ -314,7 +314,7 @@ class SRM(StorageElement):
         except IndexError:
             raise IOError
 
-    def remove(self, path):
+    def remove(self, *paths):
         while len(paths) != 0:
             # FIXME safe is active because SRM does not care about directories.
             self.execute('rm -r', *(paths[:50]), safe=True)

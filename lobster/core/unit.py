@@ -76,7 +76,7 @@ class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
         self.db_path = os.path.join(config.workdir, "lobster.db")
-        self.db = sqlite3.connect(self.db_path)
+        self.db = sqlite3.connect(self.db_path, timeout=90)
 
         self.__failure_threshold = config.advanced.threshold_for_failure
         self.__skipping_threshold = config.advanced.threshold_for_skipping
@@ -88,15 +88,17 @@ class UnitStore:
             file_based int,
             global_tag text,
             id integer primary key autoincrement,
+            parent int default null,
             units integer,
             units_done int default 0,
             units_left int default 0,
+            units_available int default 0,
             units_paused int default 0,
             units_running int default 0,
             taskruntime int default null,
             tasksize int,
             label text,
-            masked_lumis int default 0,
+            units_masked int default 0,
             merged int default 0,
             path text,
             pset_hash text default null,
@@ -175,7 +177,7 @@ class UnitStore:
                        tasksize,
                        taskruntime,
                        units,
-                       masked_lumis,
+                       units_masked,
                        units_left,
                        events)
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
@@ -225,16 +227,26 @@ class UnitStore:
 
         self.register_files(dataset_info.files, label, unique_args)
 
-    def register_files(self, infos, label, unique_args=None, update=False):
+    def register_dependency(self, label, parent, total_units):
+        with self.db as db:
+            self.db.execute("""
+                update workflows
+                set
+                    parent=(select id from workflows where label=?),
+                    units=?
+                where label=?""", (parent, total_units, label)
+            )
+
+    def register_files(self, infos, label, unique_args=None):
         with self.db as db:
             cur = db.cursor()
 
             if unique_args is None:
                 unique_args = [None]
 
-            rows = []
+            update = []
             # Sort for reproducable unit tests.
-            if len(infos) < 25 or update:
+            if len(infos) < 25:
                 items = [(fn, infos[fn]) for fn in sorted(infos.keys())]
             else:
                 items = infos.items()
@@ -245,11 +257,9 @@ class UnitStore:
                 fid = cur.lastrowid
 
                 for arg in unique_args:
-                    rows += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
-            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), rows)
-
-            if update:
-                self.update_workflow_stats(label, total=True)
+                    update += [(fid, run, lumi, arg) for (run, lumi) in info.lumis]
+            self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
+            self.update_workflow_stats(label)
 
     def pop_units(self, num=1):
         """
@@ -264,14 +274,14 @@ class UnitStore:
         """
 
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize
+            select label, id, units_left, units_available, units_available * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return []
 
         # calculate how many tasks we can create from all workflows, still
-        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
+        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, _, tasks, _ in rows)
         tasks = []
 
         random.shuffle(rows)
@@ -280,12 +290,16 @@ class UnitStore:
         # keep all workers occupied
         if tasks_left < num:
             taper = float(tasks_left) / num
-            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
+            for workflow, workflow_id, units_left, units_available, ntasks, tasksize in rows:
+                if units_available < tasksize and units_available != units_left:
+                    continue
                 tasksize = max(math.ceil((taper * tasksize)), 1)
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks / taper)))
                 tasks.extend(self.__pop_units(size, workflow, workflow_id))
         else:
-            for workflow, workflow_id, units_left, ntasks, tasksize in rows:
+            for workflow, workflow_id, units_left, units_available, ntasks, tasksize in rows:
+                if units_available < tasksize and units_available != units_left:
+                    continue
                 size = [int(tasksize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
                 tasks.extend(self.__pop_units(size, workflow, workflow_id))
         return tasks
@@ -485,10 +499,7 @@ class UnitStore:
             for label, _ in taskinfos.keys():
                 self.update_workflow_stats(label)
 
-    def update_workflow_stats(self, label, total=False):
-        if total:
-            self.db.execute("update workflows set units=(select count(*) from units_{0}) where label=?".format(label), (label,))
-
+    def update_workflow_stats(self, label):
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 
         if targettime is not None:
@@ -508,18 +519,40 @@ class UnitStore:
 
         self.db.execute("""
             update workflows set
-                units_running=(select count(*) from units_{0} where status == 1),
-                units_done=(select count(*) from units_{0} where status in (2, 6, 7, 8)),
-                units_paused=(select count(*) from units_{0}
+                units_running=ifnull((select count(*) from units_{0} where status == 1), 0),
+                units_done=ifnull((select count(*) from units_{0} where status in (2, 6, 7, 8)), 0),
+                units_paused=ifnull((
+                        select count(*)
+                        from units_{0}
                         where
                             (failed > ? or file in (select id from files_{0} where skipped >= ?))
-                            and status in (0, 3, 4))
+                            and status in (0, 3, 4)
+                    ), 0) + ifnull((
+                        case when parent is not null
+                        then
+                            (select units_paused from workflows where workflows.id == parent)
+                        else 0
+                        end
+                    ), 0)
             where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label,))
 
         self.db.execute("""
             update workflows set
+                units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + units_paused),
                 units_left=units - (units_running + units_done + units_paused)
             where label=?""".format(label), (label,))
+
+        if logger.getEffectiveLevel() <= logging.DEBUG:
+            size, running, done, paused, available, left = self.db.execute("""
+                select tasksize, units_running, units_done, units_paused, units_available, units_left
+                from workflows where label=?""", (label,)).fetchone()
+            logger.debug(("updated stats for {0}:\n\t"
+                + "tasksize:        {1}\n\t"
+                + "units running:   {2}\n\t"
+                + "units done:      {3}\n\t"
+                + "units paused:    {4}\n\t"
+                + "units available: {5}\n\t"
+                + "units left:      {6}").format(label, size, running, done, paused, available, left))
 
     def merged(self):
         unmerged = self.db.execute("select count(*) from workflows where merged <> 1").fetchone()[0]
@@ -527,7 +560,7 @@ class UnitStore:
 
     def estimate_tasks_left(self):
         rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_left * 1. / tasksize, tasksize
+            select label, id, units_left, units_available * 1. / tasksize, tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
@@ -566,7 +599,7 @@ class UnitStore:
                 events,
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                units + masked_lumis,
+                units + units_masked,
                 units,
                 units_done,
                 units_paused,

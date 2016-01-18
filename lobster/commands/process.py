@@ -22,6 +22,7 @@ logger = logging.getLogger('lobster.core')
 
 def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
+    logger.debug("Don't be alarmed.  The following stack trace doesn't indicate a crash.  It's just for debugging purposes.")
     logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
     workdir = args.config.workdir
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
@@ -39,15 +40,14 @@ def run(args):
         util.verify(workdir)
 
     from WMCore.Credential.Proxy import Proxy
-    cred = Proxy({'logger': logger, 'proxyValidity': '192:00'})
-    if cred.check():
+    cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+    if cred.check() and cred.getTimeLeft() > 4 * 3600:
         if not 'X509_USER_PROXY' in os.environ:
             os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
     else:
         if config.advanced.renew_proxy:
-            try:
-                cred.renew()
-            except Exception as e:
+            cred.renew()
+            if cred.getTimeLeft() < 4 * 3600:
                 logger.error("could not renew proxy")
                 sys.exit(1)
         else:
@@ -93,7 +93,7 @@ def sprint(config, workdir):
     task_src = TaskProvider(config)
     action = actions.Actions(config)
     from WMCore.Credential.Proxy import Proxy
-    proxy = Proxy({'logger': logger})
+    proxy = Proxy({'logger': logging.getLogger("WMCore")})
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -154,6 +154,15 @@ def sprint(config, workdir):
                 "units_left\n")
 
     bad_exitcodes = task_src.bad_exitcodes
+
+    # Workflows can be assigned categories, with each category having
+    # different cpu/memory/walltime requirements that WQ will automatically
+    # fine-tune
+    for category, constraints in task_src.category_constraints().items():
+        queue.specify_max_category_resources(category, constraints)
+        logger.debug('Category {0}: {1}'.format(category,constraints))
+        if 'wall_time' not in constraints:
+            queue.activate_fast_abort_category(category, abort_multiplier)
 
     while not task_src.done():
         tasks_left = task_src.tasks_left()
@@ -234,16 +243,11 @@ def sprint(config, workdir):
                 break
 
             hunger -= len(tasks)
-            for runtime, cores, cmd, id, inputs, outputs in tasks:
+            for category, cmd, id, inputs, outputs in tasks:
                 task = wq.Task(cmd)
+                task.specify_category(category)
                 task.specify_tag(id)
-                task.specify_cores(cores)
                 task.specify_max_retries(wq_max_retries)
-                if runtime:
-                    task.specify_running_time(runtime * 10**6)
-                # temporary work-around?
-                # task.specify_memory(1000)
-                # task.specify_disk(4000)
 
                 for (local, remote, cache) in inputs:
                     if os.path.isfile(local):

@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='Lobster',
-    version='1.3',
+    version='1.4',
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
@@ -17,7 +17,9 @@ setup(
         'core/data/siteconfig/PhEDEx/storage.xml',
         'core/data/merge_cfg.py',
         'core/data/merge_reports.py',
-        'commands/data/template.html'
+        'commands/data/index.html',
+        'commands/data/styles.css',
+        'commands/data/workflow.html'
     ]},
     install_requires=[
         'argparse',

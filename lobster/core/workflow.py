@@ -14,10 +14,13 @@ logger = logging.getLogger('lobster.workflow')
 class Workflow(object):
     def __init__(self,
             label,
+            category=None,
             dataset,
             publish_label=None,
             cores_per_task=1,
             task_runtime=None,
+            task_memory=None,
+            task_disk=None,
             merge_cleanup=True,
             merge_size=-1,
             sandbox=None,
@@ -36,12 +39,15 @@ class Workflow(object):
             globaltag=None,
             edm_output=True):
         self.label = label
+        self.category = category if category else label
         self.dataset = dataset
 
         self.publish_label = publish_label if publish_label else label
 
         self.cores = cores_per_task
         self._runtime = task_runtime
+        self.memory = task_memory
+        self.disk = task_disk
         self.merge_size = self.__check_merge(merge_size)
         self.merge_cleanup = merge_cleanup
 

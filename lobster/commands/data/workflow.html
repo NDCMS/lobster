@@ -1,247 +1,13 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>{{id}}</title>
+        <title>{{id}}: {{label}}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta http-equiv="refresh" content="900">
-        <style>
-            @import url(http://fonts.googleapis.com/css?family=Lobster+Two:700italic);
-
-            body {
-                font-family:"Trebuchet MS";
-                margin: 0 auto;
-                margin-top: 75px;
-                padding: 0;
-                width: 100%;
-                max-width: 1240px;
-            }
-
-            nav {
-                background-color: #aaa;
-
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 50px;
-
-                margin: 0;
-                padding: 0;
-
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-
-                z-index: 1000;
-            }
-
-            nav ul {
-                display: flex;
-                flex-direction: row;
-                width: 100%;
-
-                margin: 0;
-                padding: 0;
-            }
-
-            nav ul li {
-                flex: 1 1 100%;
-                display: block;
-                list-style-type: none;
-                text-align: center;
-            }
-
-            nav > ul > li > a {
-                color: #555;
-                text-decoration: none;
-            }
-
-            nav > ul > li > a:hover {
-                color: #000;
-            }
-
-            nav > ul > li a + div {
-                background-color: #aaa;
-                display: none;
-                position: absolute;
-                width: 25%;
-                padding-top: 1em;
-            }
-
-            nav > ul > li:hover a + div {
-                display: block;
-            }
-
-            nav > ul > li a + div > ul {
-                display: flex;
-                flex-direction: column;
-                margin: 0;
-                padding: 0;
-                width: 100%;
-            }
-
-            nav > ul > li a + div > ul > li {
-                flex: 1 1 100%;
-                display: block;
-                margin: 0;
-                padding: .5em;
-                text-align: center;
-            }
-
-            nav > ul > li a + div > ul > li > a {
-                color: #555;
-                text-decoration: none;
-            }
-
-            nav > ul > li a + div > ul > li > a:hover {
-                color: #000;
-            }
-
-            .lobster {font-family: 'Lobster Two', cursive;}
-
-             @media screen and (min-width: 1240px) {
-                .sidebar {
-                    float: left;
-                    padding: 10px;
-                    width: 400px;
-                }
-
-                .maincontent {
-                    float: left;
-                    padding: 10px
-                    width: 800px;
-                    max-width: 800px;
-                }
-             }
-             @media screen and (max-width: 1239px) {
-                .sidebar {
-                    padding: 10px;
-                    width: 400px;
-                    margin: auto;
-                }
-
-                .maincontent {
-                    padding: 10px
-                    width: 800px;
-                    max-width: 800px;
-                    margin: auto;
-                }
-
-                body {
-                    width: 800px;
-                }
-             }
-
-            .center {
-                margin-left: auto;
-                margin-right: auto;
-            }
-
-            h2, h3 {
-                border-bottom: solid 1px;
-            }
-
-            h1:target h2:target {
-                padding-top: 50px;
-            }
-
-            table.fancy {
-                border-collapse:collapse;
-            }
-
-            table.fancy td, th {
-                border:1px solid #333437;
-                padding:3px 7px 2px 7px;
-            }
-
-            table.fancy th, td.footer {
-                text-align:left;
-                padding-top:5px;
-                padding-bottom:4px;
-                background-color:#454648;
-                color:#ffffff;
-            }
-
-            table.fancy tr.alt td {
-                color:#000000;
-                background-color:#B4B8C1;
-            }
-
-            ul.img-list {
-                padding: 0;
-            }
-
-            ul.img-list li {
-                display: inline-block;
-                position: relative;
-            }
-
-            ul.img-list img {
-                border-radius: 15px;
-            }
-
-            span.text-content {
-                background: rgba(0,0,0,0.6);
-                border-radius: 15px;
-                color: white;
-                display: table;
-                font-size: 1.5em;
-                height: 150px;
-                left: 15px;
-                position: absolute;
-                top: -5px;
-                width: 750px;
-                opacity: 0;
-                -webkit-transition: opacity 500ms;
-                -moz-transition: opacity 500ms;
-                -o-transition: opacity 500ms;
-                transition: opacity 500ms;
-            }
-
-            span.text-content span {
-                display: table-cell;
-                text-align: center;
-                vertical-align: middle;
-            }
-
-            ul.img-list li:hover span.text-content {
-                opacity: 1;
-            }
-
-            .button {
-                border: 1px solid #666;
-                border-radius: .5em;
-                padding: .3em;
-            }
-
-            .button a {
-                color: black;
-                text-decoration: none;
-            }
-
-            .right {
-                border-top-left-radius: 0;
-                border-bottom-left-radius: 0;
-                margin-left: 0;
-            }
-
-            .left {
-                border-top-right-radius: 0;
-                border-bottom-right-radius: 0;
-                margin-right: 0;
-            }
-
-            .depressed {
-                box-shadow: 0px -1em 5px 0px rgba(0,0,0,0.08) inset;
-            }
-
-            .pressed {
-                box-shadow: 0px 1em 10px 0px rgba(0,0,0,0.28) inset;
-            }
-        </style>
+        <link rel="stylesheet" href="../styles.css">
 
         {% macro label_wrapper(img_name, label) %}
-        <li><a href="{{ img_name }}"><img alt="{{ label }}"
+        <li><a class="workflow" href="{{ img_name }}"><img alt="{{ label }}"
                     {% for k, v in kwargs.iteritems() %}
                         {{ k }}="{{ v }}"
                     {% endfor %}
@@ -260,18 +26,16 @@
                 });
             };
 
+            var last_workflow = 'all';
+
             $(document).ready(function() {
-                $("tr.tasksummary").hide();
                 $("div.good.more").hide();
                 $("div.merge.more").hide();
-                $("table#logs").hide();
                 $("div.foreman.more").hide();
 
-                $("a#tasksummary").bind('click', function() {
-                    $("tr.tasksummary").toggle();
-                    $("span#tasksummary").toggleClass("depressed");
-                    $("span#tasksummary").toggleClass("pressed");
-                    return false;
+                $("select#workflows").change(function() {
+                    var current = $(this).val();
+                    window.location.href = '../' + current;
                 });
 
                 $("a#goodmore").bind('click', function() {
@@ -328,82 +92,44 @@
                     $("span#goodhist.left").addClass("depressed");
                     return false;
                 });
-
-                $("a#logs").bind('click', function() {
-                    $("table#logs").slideToggle();
-                    $("span#logs").toggleClass("depressed");
-                    $("span#logs").toggleClass("pressed");
-                    return false;
-                });
             });
         </script>
         <nav>
             <ul>
-                <li><a href="#navover">Overview</a></li>
-                <li><a href="#navwflow">Workflows</a></li>
-                <li>
-                    <a href="#navtasks">Tasks</a>
-                    <div>
-                        <ul>
-                            <li><a href="#navgood">Successful</a></li>
-                            <li><a href="#navmerge">Merges</a></li>
-                            <li><a href="#navbad">Failed</a></li>
-                        </ul>
-                    </div>
+                <li><a href=".."><span class="lobster">Lobster</span> project overview</a></li>
+                <li class="active">
+                    Summary for
+                    <select id="workflows">
+                        <option value="" disabled>change workflow</option>
+                        <option value="all" {% if label == 'all workflows' %}selected="selected"{% endif %}>all workflows</option>
+                        {% for wflow in workflows %}
+                        <option value="{{ wflow }}"{% if label == wflow %} selected="selected"{% endif %}>{{ wflow }}</option>
+                        {% endfor %}
+                    </select>
                 </li>
-                <li><a href="#navlobster"><span class="lobster">Lobster</span></a></li>
             </ul>
         </nav>
     </head>
     <body>
-        <h1 id="navover">Summary for Project “{{id}}”</h1>
-        <table>
-            <tr>
-                <td>Project start time: </td>
-                <td>{{run_starttime|datetime}}</td>
-            </tr>
-            {% if run_starttime != plot_starttime %}
-            <tr>
-                <td>Plot start time: </td>
-                <td>{{plot_starttime|datetime}}</td>
-            </tr>
-            {% endif %}
-            <tr>
-                <td>Project end time: </td>
-                <td>{{run_endtime|datetime}}</td>
-            </tr>
-            {% if run_endtime != plot_endtime %}
-            <tr>
-                <td>Plot end time: </td>
-                <td>{{plot_endtime|datetime}}</td>
-            </tr>
-            {% endif %}
-            <tr>
-                <td>Plots updated: </td>
-                <td>{{plot_time|datetime}}</td>
-            </tr>
-        </table>
-
         <h1 id="navwflow">Workflow Summary</h1>
-        <p><span class="button depressed" id="tasksummary"><a href="#" id="tasksummary">show breakdown</a></span></p>
         <table class="fancy">
             <tr>
-                <th>task</th>
-                <th>events</th>
-                <th>events read</th>
-                <th>events written</th>
-                <th>total lumis</th>
-                <th>unmasked lumis</th>
-                <th>lumis written</th>
-                <th>lumis failed</th>
-                <th>progress</th>
-                {% if jsons|length > 0 %}<th>json</th>{% endif %}
+                <th>Workflow</th>
+                <th>Events</th>
+                <th>Events read</th>
+                <th>Events written</th>
+                <th>Units total</th>
+                <th>Units unmasked</th>
+                <th>Units written</th>
+                <th>Units failed</th>
+                <th>Progress</th>
+                {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
             </tr>
             {% for row in summary %}
             {% if row[0] is sum %}
             <tr>
             {% else %}
-            <tr class="tasksummary{{ loop.cycle('', ' alt') }}">
+            <tr{{ loop.cycle('', ' class="alt"') }}>
             {% endif %}
                 {% for cell in row %}
                 <td{% if row == summary[-1] %} class="footer"{% endif %}>
@@ -432,27 +158,22 @@
         <h1 id="navtasks">Task Summary</h1>
         {% if good_tasks or bad_tasks %}
         <div class="sidebar">
-            <a href="time-pie.png"><img alt="" src="time-pie.png"/></a>
+            <a class="workflow" href="time-pie.png"><img alt="" src="time-pie.png"/></a>
         </div>
         <div class="maincontent">
-            <a href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
-        {% if good_tasks %}
-            <h3>Efficiency</h3>
-            <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
-            <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
-        {% endif %}
+            <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
         </div>
         {% endif %}
 
         <h2 id="navgood">Successful Tasks</h2>
         {% if good_tasks %}
         <div class="sidebar">
-            <a href="good-time-detail-pie.png"><img alt="" src="good-time-detail-pie.png"/></a>
+            <a class="workflow" href="good-time-detail-pie.png"><img alt="" src="good-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Footprint</h3>
-            <a href="good-memory-hist.png"><img alt="" src="good-memory-hist.png"/></a>
-            <a href="good-workdir-footprint-hist.png"><img alt="" src="good-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="good-memory-hist.png"><img alt="" src="good-memory-hist.png"/></a>
+            <a class="workflow" href="good-workdir-footprint-hist.png"><img alt="" src="good-workdir-footprint-hist.png"/></a>
             <h3>Task Breakdown</h3>
             <p>
                 <span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
@@ -494,11 +215,12 @@
         <h2 id="navmerge">Merge tasks</h2>
         {% if merge_tasks %}
         <div class="sidebar">
-            <a href="merge-time-detail-pie.png"><img alt="" src="merge-time-detail-pie.png"/></a>
+            <a class="workflow" href="merge-time-detail-pie.png"><img alt="" src="merge-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Footprint</h3>
-            <a href="merge-memory-hist.png"><img alt="" src="merge-memory-hist.png"/></a>
+            <a class="workflow" href="merge-memory-hist.png"><img alt="" src="merge-memory-hist.png"/></a>
+            <a class="workflow" href="merge-workdir-footprint-hist.png"><img alt="" src="merge-workdir-footprint-hist.png"/></a>
             <h3>Task Breakdown</h3>
             <p>
                 <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
@@ -540,17 +262,16 @@
         <h2 id="navbad">Failed tasks</h2>
         {% if bad_tasks %}
         <div class="sidebar">
-            <a href="failed-pie.png"><img alt="" src="failed-pie.png"/></a>
+            <a class="workflow" href="failed-pie.png"><img alt="" src="failed-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Failure Modes</h3>
-            <a href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
+            <a class="workflow" href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
             <h3>Task Footprint</h3>
-            <a href="failed-memory-hist.png"><img alt="" src="failed-memory-hist.png"/></a>
-            <a href="failed-workdir-footprint-hist.png"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="failed-memory-hist.png"><img alt="" src="failed-memory-hist.png"/></a>
+            <a class="workflow" href="failed-workdir-footprint-hist.png"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
             <h3>Task Logs</h3>
-            <p><span id="logs" class="button depressed"><a href="#" id="logs">show log files</a></span></p>
-            <table id="logs" class="fancy">
+            <table class="fancy">
                 <tr>
                     <th>Exit code</th>
                     <th>occurences</th>
@@ -573,49 +294,6 @@
         </div>
         {% else %}
         <p>No failed tasks yet!</p>
-        {% endif %}
-
-        <h1 id="navlobster"><span class="lobster">Lobster</span> Summary</h1>
-        <div class="sidebar" style="padding:0">
-            <p></p>
-        </div>
-        <div class="maincontent">
-            <h3>Tasks and Workers</h3>
-            <a href="workers-plot.png"><img alt="" src="workers-plot.png"/></a>
-            <a href="turnover-hist.png"><img alt="" src="turnover-hist.png"/></a>
-            <a href="worker-deaths-hist.png"><img alt="" src="worker-deaths-hist.png"/></a>
-            <a href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
-            <h3>Time Breakdown</h3>
-            <a href="fraction-hist.png"><img alt="" src="fraction-hist.png"/></a>
-            <h3>Output Performance</h3>
-            {% if good_tasks %}
-            <a href="output-hist.png"><img alt="" src="output-hist.png"/></a>
-            <a href="output-total-plot.png"><img alt="" src="output-total-plot.png"/></a>
-            <a href="units-total-plot.png"><img alt="" src="units-total-plot.png"/></a>
-            {% else %}
-            <p>No output yet!</p>
-            {% endif %}
-        </div>
-
-        {% if foremen|length > 0 %}
-        <h1>Foreman Summary</h1>
-        <span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
-        <div style="margin-left:410px;">
-            <a href="foreman-tasks-plot.png"><img alt="" src="foreman-tasks-plot.png"/></a>
-            <a href="foreman-idle-plot.png"><img alt="" src="foreman-idle-plot.png"/></a>
-            <a href="foreman-efficiency-plot.png"><img alt="" src="foreman-efficiency-plot.png"/></a>
-        </div>
-
-        {% for foreman in foremen %}
-        <div class="foreman more"><h1>{{ foreman }} summary</h1></div>
-        <div class="foreman more" style="float:left">
-            <a href="{{ foreman }}-time-pie.png"><img alt="" src="{{ foreman }}-time-pie.png"/></a>
-        </div>
-        <div class="foreman more" style="margin-left:410px;"><ul class = "img-list">
-            <a href="{{ foreman }}-workers-plot.png"><img alt="" src="{{ foreman }}-workers-plot.png"/></a>
-            <a href="{{ foreman }}-turnover-hist.png"><img alt="" src="{{ foreman }}-turnover-hist.png"/></a>
-        </ul></div>
-        {% endfor %}
         {% endif %}
     </body>
 </html>

@@ -695,6 +695,7 @@ data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
 parameters = {
             'ExeStart': str(config['executable']),
+            'NCores': config.get('cores', 1),
             'SyncCE': 'ndcms.crc.nd.edu',
             'SyncGridJobId': syncid,
             'WNHostName': os.environ.get('HOSTNAME', '')
@@ -743,7 +744,7 @@ if p.returncode != 0:
     print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
-    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun'}, logging, monalisa)
+    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging, monalisa)
 
     with check_execution(data, 190):
         parse_fwk_report(config, data, 'report.xml')
@@ -795,10 +796,14 @@ data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
 
 with check_execution(data, 210):
     copy_outputs(data, config, env)
+# Also set stageout exit code if copy_outputs fails
+if data['task exit code'] == 210:
+    data['stageout exit code'] = 210
 
 transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
 if data['task exit code'] == 0 and not transfer_success:
     data['task exit code'] = 211
+    data['stageout exit code'] = 211
     data['output size'] = 0
 
 data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))

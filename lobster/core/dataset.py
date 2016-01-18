@@ -71,7 +71,7 @@ class ProductionDataset(object):
 
     def get_info(self):
         dset = DatasetInfo()
-        dest.file_based = True
+        dset.file_based = True
 
         ntasks = self.number_of_tasks
         nlumis = 1

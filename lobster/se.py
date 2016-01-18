@@ -346,7 +346,7 @@ class StorageConfiguration(object):
         if input is None:
             self.__input = []
         else:
-            self.__input = map(self._expand_site, config.get('input', []))
+            self.__input = map(self._expand_site, input)
         self.__output = map(self._expand_site, output)
 
         self.__wq_inputs = use_work_queue_for_inputs

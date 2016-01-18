@@ -55,7 +55,7 @@ class TestSQLBackend(object):
         info.total_lumis = len(info.files.keys())
         info.path = ''
 
-        return Workflow(label, None), info
+        return Workflow(label, None, sandbox_release=''), info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
@@ -103,7 +103,7 @@ class TestSQLBackend(object):
 
         info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
-        return Workflow(label, None), info
+        return Workflow(label, None, sandbox_release=''), info
         # }}}
 
     def test_create_datasets(self):

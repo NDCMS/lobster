@@ -543,16 +543,17 @@ class UnitStore:
             where label=?""".format(label), (label,))
 
         if logger.getEffectiveLevel() <= logging.DEBUG:
-            size, running, done, paused, available, left = self.db.execute("""
-                select tasksize, units_running, units_done, units_paused, units_available, units_left
+            size, total, running, done, paused, available, left = self.db.execute("""
+                select tasksize, units, units_running, units_done, units_paused, units_available, units_left
                 from workflows where label=?""", (label,)).fetchone()
             logger.debug(("updated stats for {0}:\n\t"
                 + "tasksize:        {1}\n\t"
+                + "units total:     {7}\n\t"
                 + "units running:   {2}\n\t"
                 + "units done:      {3}\n\t"
                 + "units paused:    {4}\n\t"
                 + "units available: {5}\n\t"
-                + "units left:      {6}").format(label, size, running, done, paused, available, left))
+                + "units left:      {6}").format(label, size, running, done, paused, available, left, total))
 
     def merged(self):
         unmerged = self.db.execute("select count(*) from workflows where merged <> 1").fetchone()[0]

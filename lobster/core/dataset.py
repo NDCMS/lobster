@@ -42,12 +42,15 @@ class Dataset(object):
         dset.file_based = True
 
         dset.tasksize = self.files_per_task
-        if not isinstance(files, list):
-            files = [files]
-        for entry in files:
+        if not isinstance(self.files, list):
+            self.files = [self.files]
+        files = []
+        for entry in self.files:
             entry = os.path.expanduser(entry)
             if fs.isdir(entry):
-                files = filter(fs.isfile, fs.ls(entry))
+                files += filter(fs.isfile, fs.ls(entry))
+            elif fs.isfile(entry):
+                files.append(entry)
         dset.total_lumis = len(files)
         self.total_units = len(files)
 

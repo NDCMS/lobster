@@ -1,11 +1,14 @@
 # vim: foldmethod=marker
+import os
+import shutil
+import tempfile
+
 from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.core.task import TaskHandler
 from lobster.core.unit import TaskUpdate, UnitStore
-import os
-import shutil
-import tempfile
+from lobster.core.config import Config
+from lobster.core.workflow import Workflow
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -28,13 +31,14 @@ class TestSQLBackend(object):
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
-        cls.interface = UnitStore({
-            'workdir': cls.workdir,
-            'stageout location': cls.workdir,
-            'id': 'test',
-            'recycle sandbox': '/dev/null',
-            'tasks': {}
-        })
+        cls.interface = UnitStore(
+            Config(
+                label='test',
+                workdir=cls.workdir,
+                storage=se.StorageConfiguration(output=['file://' + cls.workdir]),
+                workflows=[]
+            )
+        )
 
     @classmethod
     def teardown_class(cls):
@@ -51,14 +55,7 @@ class TestSQLBackend(object):
         info.total_lumis = len(info.files.keys())
         info.path = ''
 
-        cfg = {
-                'dataset': '/Test',
-                'global tag': 'test',
-                'label': label,
-                'cmssw config': ''
-        }
-
-        return cfg, info
+        return Workflow(label, None), info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
@@ -106,14 +103,7 @@ class TestSQLBackend(object):
 
         info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
-        cfg = {
-                'dataset': '/Test',
-                'global tag': 'test',
-                'label': label,
-                'cmssw config': ''
-        }
-
-        return cfg, info
+        return Workflow(label, None), info
         # }}}
 
     def test_create_datasets(self):

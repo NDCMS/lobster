@@ -1,6 +1,7 @@
 import imp
 import logging
 import os
+import re
 import shutil
 import sys
 
@@ -61,6 +62,8 @@ class Workflow(object):
             globaltag=None,
             edm_output=True):
         self.label = label
+        if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
+            raise ValueError("Workflow label contains illegal characters: {}".format(label))
         self.category = category if category else label
         self.dataset = dataset
 

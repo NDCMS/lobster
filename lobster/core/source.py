@@ -148,7 +148,8 @@ class TaskProvider(object):
                 wflow.setup(self.workdir, self.basedirs)
                 logger.info("querying backend for {0}".format(wflow.label))
                 with fs.default():
-                    dataset_info = wflow.dataset.get_info()
+                    with wflow.dataset.override():
+                        dataset_info = wflow.dataset.get_info()
 
                 logger.info("registering {0} in database".format(wflow.label))
                 self.__store.register_dataset(wflow, dataset_info, wflow.category.runtime)

@@ -15,6 +15,7 @@ for f in rm:
 from lobster.cmssw.publish import publish
 from lobster.commands.process import kill, run
 from lobster.commands.plot import plot
+from lobster.commands.reconfigure import reconfigure
 from lobster.commands.status import status
 from lobster.commands.validate import validate
 from lobster.core import config
@@ -62,6 +63,11 @@ def boil():
     parser_status = subparsers.add_parser('status', help='show a workflow status summary')
     parser_status.set_defaults(func=status)
 
+    parser_reconf = subparsers.add_parser('reconfigure', help='change the configuration of a running lobster process')
+    parser_reconf.add_argument('setting', help='the configuration setting to alter')
+    parser_reconf.add_argument('value', help='the value to assign to the configuration setting')
+    parser_reconf.set_defaults(func=reconfigure)
+
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
     parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
@@ -89,9 +95,10 @@ def boil():
             cfg = config.Config.load(cfg.workdir)
         else:
             # This is the original configuration file!
-            cfg.base_directory = os.path.abspath(os.path.dirname(configfile))
-            cfg.base_configuration = os.path.abspath(configfile)
-            cfg.startup_directory = os.path.abspath(os.getcwd())
+            with cfg.override():
+                cfg.base_directory = os.path.abspath(os.path.dirname(configfile))
+                cfg.base_configuration = os.path.abspath(configfile)
+                cfg.startup_directory = os.path.abspath(os.getcwd())
     else:
         # Load configuration from working directory passed to us
         workdir = args.checkpoint

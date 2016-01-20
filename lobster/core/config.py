@@ -5,6 +5,7 @@ import re
 import lobster.cmssw as cmssw
 from lobster.core import Dataset, ParentDataset, ProductionDataset, Category, Workflow
 from lobster.se import StorageConfiguration
+from lobster.util import Configurable
 
 def apply_matching(config):
     if 'workflow defaults' not in config:
@@ -101,7 +102,8 @@ def pythonize_keys(config):
 def pythonize_yaml(config):
     config = apply_matching(config)
 
-    config['advanced'] = AdvancedOptions(**pythonize_keys(config['advanced']))
+    if 'advanced' in config:
+        config['advanced'] = AdvancedOptions(**pythonize_keys(config['advanced']))
     config['storage'] = StorageConfiguration(**pythonize_keys(config['storage']))
     config['label'] = config.pop('id')
 
@@ -131,9 +133,12 @@ def pythonize_yaml(config):
     return Config(**pythonize_keys(config))
 
 
-class Config(object):
+class Config(Configurable):
     """Top level Lobster configuration object
     """
+
+    _mutable = []
+
     def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None,
             foremen_logs=None,
             base_directory=None, base_configuration=None, startup_directory=None):
@@ -162,9 +167,38 @@ class Config(object):
             pickle.dump(self, f)
 
 
-class AdvancedOptions(object):
+class AdvancedOptions(Configurable):
     """Advanced options for tuning Lobster
     """
+
+    _mutable = ['threshold_for_failure', 'threshold_for_skipping']
+
+    def __init__(self,
+            use_dashboard=True,
+            abort_threshold=10,
+            abort_multiplier=4,
+            bad_exit_codes=None,
+            dump_core=False,
+            full_monitoring=False,
+            log_level=2,
+            payload=10,
+            renew_proxy=True,
+            threshold_for_failure=30,
+            threshold_for_skipping=30,
+            wq_max_retries=10):
+        self.use_dashboard = use_dashboard
+        self.abort_threshold = abort_threshold
+        self.abort_multiplier = abort_multiplier
+        self.bad_exit_codes = bad_exit_codes if bad_exit_codes else [169]
+        self.dump_core = dump_core
+        self.full_monitoring = full_monitoring
+        self.log_level = log_level
+        self.payload = payload
+        self.renew_proxy = renew_proxy
+        self.threshold_for_failure = threshold_for_failure
+        self.threshold_for_skipping = threshold_for_skipping
+        self.wq_max_retries = wq_max_retries
+
     def __init__(self,
             use_dashboard=True,
             abort_threshold=10,

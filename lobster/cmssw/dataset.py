@@ -5,7 +5,9 @@ import requests
 from retrying import retry
 import shutil
 import tempfile
+
 from lobster.core.dataset import FileInfo, DatasetInfo
+from lobster.util import Configurable
 
 from dbs.apis.dbsClient import DbsApi
 from WMCore.DataStructs.LumiList import LumiList
@@ -35,7 +37,9 @@ class Cache(object):
     def __del__(self):
         shutil.rmtree(self.cache)
 
-class Dataset(object):
+class Dataset(Configurable):
+    _mutable = []
+
     __apis = {}
     __dsets = {}
     __cache = Cache()

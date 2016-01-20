@@ -3,7 +3,9 @@ import math
 import os
 import re
 import shutil
+
 from lobster import util, fs
+from lobster.util import Configurable
 
 __all__ = ['Dataset', 'ParentDataset', 'ProductionDataset']
 
@@ -31,7 +33,9 @@ class DatasetInfo(object):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
         return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
 
-class Dataset(object):
+class Dataset(Configurable):
+    _mutable = []
+
     def __init__(self, files, files_per_task=1):
         self.files = files
         self.files_per_task = files_per_task
@@ -61,7 +65,8 @@ class Dataset(object):
 
         return dset
 
-class ProductionDataset(object):
+class ProductionDataset(Configurable):
+    _mutable = []
     def __init__(self, events_per_task, events_per_lumi=None, number_of_tasks=1, randomize_seeds=True):
         self.number_of_tasks = number_of_tasks
         self.events_per_task = events_per_task
@@ -87,7 +92,8 @@ class ProductionDataset(object):
 
         return dset
 
-class ParentDataset(object):
+class ParentDataset(Configurable):
+    _mutable = []
     def __init__(self, parent, units_per_task=1):
         self.parent = parent
         self.units_per_task = units_per_task

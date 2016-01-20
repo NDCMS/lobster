@@ -7,11 +7,56 @@ import shutil
 import subprocess
 import yaml
 
+from contextlib import contextmanager
 from lockfile.pidlockfile import PIDLockFile
 from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
 logger = logging.getLogger('lobster.util')
+
+class PartiallyMutable(type):
+    """Support metaclass for partially mutable base object.
+
+    This metaclass makes sure that classes have an attribute `_mutable` and
+    sets the attribute `__fixed` to `True` after an instance has been
+    constructed.
+    """
+    def __init__(self, name, bases, attrs):
+        key = '_mutable'
+        if key not in attrs:
+            raise AttributeError('class {} does not set the attribute _mutable'.format(name))
+        type.__init__(self, name, bases, attrs)
+
+    def __call__(cls, *args, **kwargs):
+        res = type.__call__(cls, *args, **kwargs)
+        setattr(res, '__fixed', True)
+        return res
+
+
+class Configurable(object):
+    """Partially mutable base object.
+
+    Subclasses will have to define a class attribute `_mutable`, listing
+    all attributes that are allowed to be changed after an instance has
+    been constructed.
+    """
+    __metaclass__ = PartiallyMutable
+    _mutable = []
+
+    def __setattr__(self, attr, value):
+        if not hasattr(self, '__fixed') or not getattr(self, '__fixed'):
+            super(Configurable, self).__setattr__(attr, value)
+        elif attr in self._mutable:
+            super(Configurable, self).__setattr__(attr, value)
+        else:
+            raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
+
+    @contextmanager
+    def override(self):
+        self.__dict__['__fixed'] = False
+        yield
+        self.__dict__['__fixed'] = True
+
 
 def record(cls, *fields, **defaults):
     """

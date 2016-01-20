@@ -1,10 +1,14 @@
 import datetime
 import logging
 import multiprocessing
+import os
+import re
 
 from lobster.commands.plot import Plotter
 
 logger = logging.getLogger('lobster.actions')
+
+cmd_re = re.compile('^.* = [0-9]+$')
 
 class DummyQueue(object):
     def start(*args):
@@ -18,6 +22,12 @@ class DummyQueue(object):
 
 class Actions(object):
     def __init__(self, config):
+        fn = os.path.join(config.workdir, 'ipc')
+        if not os.path.exists(fn):
+            os.mkfifo(fn)
+        self.fifo = os.fdopen(os.open(fn, os.O_RDONLY|os.O_NONBLOCK))
+        self.__config = config
+
         if not config.plotdir:
             self.plotq = DummyQueue()
         else:
@@ -47,7 +57,22 @@ class Actions(object):
         self.plotq.put('stop')
         self.plotp.join()
 
+    def __communicate(self):
+        cmds = map(str.strip, self.fifo.readlines())
+        for cmd in cmds:
+            logger.debug('received commands: {}'.format(cmd))
+            if not cmd_re.match(cmd):
+                logger.error('invalid command received: {}'.format(cmd))
+                continue
+            try:
+                exec cmd in {'config': self.__config}, {}
+                self.__config.save()
+            except Exception as e:
+                logger.error('caught exeption from command: {}'.format(e))
+
     def take(self, force=False):
+        self.__communicate()
+
         now = datetime.datetime.now()
         if (now - self.__last).seconds > 15 * 60 or force:
             self.plotq.put('plot')

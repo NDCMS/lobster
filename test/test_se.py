@@ -34,8 +34,10 @@ class TestSE(unittest.TestCase):
         s.activate()
 
         with fs.default():
-            info = dataset.Dataset(files='spam/').get_info()
-            assert len(info.files) == 10
+            ds = dataset.Dataset(files='spam/')
+            with ds.override():
+                info = ds.get_info()
+                assert len(info.files) == 10
 
     def permissions(self, url):
         if not isinstance(url, list):

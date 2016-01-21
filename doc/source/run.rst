@@ -61,3 +61,39 @@ space.  The factory can then be started with::
 
 Using a Chirp server
 --------------------
+
+Using Chirp for stage-in and stage-out can be helpful when standard CMS
+tools for file handling, i.e., XrootD and SRM, are not available.
+
+Create a file called `acl` with default access permissions in, e.g., your
+home directory via (you will need a valid proxy for this!)::
+
+    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" > ~/acl
+
+Then do something akin to the following command::
+
+    chirp_server --root=<some_directory> -A ~/acl -p <your_port>
+
+where the default port is `9094`, but may be occupied, in which case it
+should be best to linearly increment this port until you find a free one.
+The `root` directory given to the Chirp server can be the desired stage-out
+location, or any directory above it.
+
+.. note::
+   If you are using Chirp to stage out to a server that cannot handle a
+   high load, limit the connections by adding ``-M 50`` to the arguments.
+
+You should test Chirp from another machine::
+
+    voms-proxy-init -voms cms -valid 192:00
+    chirp_put <some_file> <your_server>:<your_port> spam
+
+If this command fails with a permission issue, make sure you do not have
+any `.__acl` files lingering around in your stageout directory::
+
+    find <your_stageout_directory> -name .__acl -exec rm \{} \;
+
+and try again.  Then add the following line to either the input or output
+argument of the :class:`~lobster.se.StorageConfiguration`::
+
+    "chirp://<your_server>:<your_port>/<your_stageout_directory_minus_chirp_root>"

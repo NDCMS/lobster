@@ -97,3 +97,17 @@ and try again.  Then add the following line to either the input or output
 argument of the :class:`~lobster.se.StorageConfiguration`::
 
     "chirp://<your_server>:<your_port>/<your_stageout_directory_minus_chirp_root>"
+
+Using a Hadoop backend
+~~~~~~~~~~~~~~~~~~~~~~
+
+Running `Chirp` with a direct connection to a Hadoop storage element may
+increase performance.  To set it up, which can end up quite complex, do
+something like::
+
+    cd /var/tmp/
+    cp -r /usr/lib/hadoop/ .
+    cp /usr/lib64/libhdfs* hadoop/lib/
+    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop LIBHDFS_OPTS=-Xmx100m chirp_server \
+            --root=hdfs://ndcms.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop> \
+            -A ~/acl -p <your_port>

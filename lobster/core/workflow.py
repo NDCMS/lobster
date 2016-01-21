@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 import imp
 import logging
 import os
@@ -14,6 +15,29 @@ from lobster.util import Configurable
 logger = logging.getLogger('lobster.workflow')
 
 class Category(Configurable):
+    """
+    Resource specification for a group of
+    :class:`~lobster.core.workflow.Workflow`s.
+
+    This information will be passed on to `WorkQueue`, which will forcibly
+    terminate tasks of :class:`Workflow` in the group that exceed the
+    specified resources.
+
+    Parameters
+    ----------
+        name : str
+            The name of the resource group.
+        cores : int
+            The number of cores a task of the group should use.
+        runtime : int
+            The runtime of the task in seconds.  Lobster will add a grace
+            period to this time, and try to adjust the task size such that
+            this runtime is achieved.
+        memory : int
+            How much memory a task is allowed to use, in megabytes.
+        disk : int
+            How much disk a task is allowed to use, in megabytes.
+    """
     _mutable = []
 
     def __init__(self,
@@ -42,6 +66,76 @@ class Category(Configurable):
         return res
 
 class Workflow(Configurable):
+    """
+    A specification for processing a dataset.
+
+    Parameters
+    ----------
+        label : str
+            The shorthand name of the workflow.  This is used as a
+            reference throughout Lobster.
+        dataset : Dataset
+            The specification of data to be processed.  Can be any of the
+            dataset related classes.
+        category : Category
+            The category of resource specification this workflow belongs
+            to.
+        publish_label : str
+            The label to be used for the publication database.
+        merge_cleanup : bool
+            Delete merged output files.
+        merge_size : str
+            Activates output file merging when set.  Accepts the suffixes
+            *k*, *m*, *g* for kilobyte, megabyte, …
+        sandbox : str
+            Path to a sandbox to re-use.  This sandbox will be copied over
+            to the current working directory.
+        sandbox_release : str
+            The path to the CMSSW release to be used as a sandbox.
+            Defaults to the environment variable `LOCALRT`.
+        sandbox_blacklist : list
+            A specification of paths to not pack into the sandbox.
+        command : str
+            Which executable to run (for non-CMSSW workflows)
+        extra_inputs : list
+            Additional inputs outside the sandbox needed to process the
+            workflow.
+        arguments : list
+            Arguments to pass to the executable.
+        unique_arguments : list
+            A list of arguments.  Each element of the dataset is processed
+            once for each argument in this list.  The unique argument is
+            also passed to the executable.
+
+            TODO: should really be in the dataset specification
+        outputs : list
+            A list of strings which specifies the files produced by the
+            workflow.  Will be automatically determined for CMSSW
+            workflows.
+        output_format : str
+            How the output files should be renamed on the storage element.
+            This is a new-style format string, allowing for the fields
+            `base`, `id`, and `ext`, for the basename of the output file,
+            the ID of the task, and the extension of the output file.
+        parent : str
+            The label of the parent workflow, if any.
+
+            TODO: should really be a dataset specfication
+        local : bool
+            If set to `True`, Lobster will assume this workflow's input is
+            present on the output storage element.
+        cmssw_config : str
+            The CMSSW configuration to use, if any.
+        globaltag : str
+            Which GlobalTag this workflow uses.  Needed for publication of
+            CMSSW workflows, and can be automatically determined for these.
+
+            TODO: check that the globaltag is determined independently of
+            the outputs.
+        edm_output : bool
+            Autodetermined when outputs are determined automatically.
+            Tells Lobster if the output of this workflow is in EDM format.
+    """
     _mutable = []
     def __init__(self,
             label,
@@ -54,12 +148,11 @@ class Workflow(Configurable):
             sandbox_release=None,
             sandbox_blacklist=None,
             command='cmsRun',
-            extra_inputs = None,
+            extra_inputs=None,
             arguments=None,
             unique_arguments=None,
             outputs=None,
             output_format="{base}_{id}.{ext}",
-            randomize_seeds=True,
             parent=None,
             local=False,
             cmssw_config=None,

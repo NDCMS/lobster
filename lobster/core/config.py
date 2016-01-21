@@ -2,139 +2,36 @@ import os
 import pickle
 import re
 
-import lobster.cmssw as cmssw
-from lobster.core import Dataset, ParentDataset, ProductionDataset, Category, Workflow
-from lobster.se import StorageConfiguration
 from lobster.util import Configurable
 
-def apply_matching(config):
-    if 'workflow defaults' not in config:
-        return config
-    defaults = config['workflow defaults']
-    matching = defaults.get('matching', [])
-    configs = []
-
-    for cfg in config['workflows']:
-        label = cfg['label']
-
-        for match in matching:
-            if re.search(match['label'], label):
-                for k, v in match.items():
-                    if k == 'label':
-                        continue
-                    if k not in cfg:
-                        cfg[k] = v
-        for k, v in defaults.items():
-            if k == 'matching':
-                continue
-            if k not in cfg:
-                cfg[k] = v
-
-        configs.append(cfg)
-
-    config['workflows'] = configs
-    del config['workflow defaults']
-
-    return config
-
-
-def extract_category(config):
-    category = Category(
-            name=config.pop('category', config['label']),
-            cores=config.pop('cores per task', 1),
-            disk=config.pop('task disk', None),
-            memory=config.pop('task memory', None),
-            runtime=config.pop('task runtime', None)
-    )
-    return category
-
-
-def extract_dataset(config):
-    if 'dataset' in config:
-        cls = cmssw.Dataset
-        dset_kwargs = {
-                'dataset': None,
-                'lumi mask': None,
-                'lumis per task': 25,
-                'events per task': None,
-                'file based': False,
-                'dbs instance': 'global',
-        }
-    elif 'files' in config:
-        cls = Dataset
-        dset_kwargs = {
-                'files': [],
-                'files per task': 1
-        }
-    elif 'events per task' in config:
-        cls = ProductionDataset
-        dset_kwargs = {
-                'events per task': None,
-                'events per lumi': None,
-                'number of tasks': 1,
-                'randomize seeds': True
-        }
-
-        if 'num tasks' in config:
-            config['number of tasks'] = config.pop('num tasks')
-    elif 'parent' in config:
-        cls = ParentDataset
-        dset_kwargs = {
-                'parent': None,
-                'units per task': 1
-        }
-    else:
-        raise NotImplementedError("can't extract a dataset out of: " + repr(config))
-
-    for key in dset_kwargs.keys():
-        if key in config:
-            dset_kwargs[key] = config.pop(key)
-        else:
-            del dset_kwargs[key]
-
-    return cls(**pythonize_keys(dset_kwargs))
-
-
-def pythonize_keys(config):
-    return dict([(k.replace(" ", "_").replace("-", "_"), v) for k, v in config.items()])
-
-
-def pythonize_yaml(config):
-    config = apply_matching(config)
-
-    if 'advanced' in config:
-        config['advanced'] = AdvancedOptions(**pythonize_keys(config['advanced']))
-    config['storage'] = StorageConfiguration(**pythonize_keys(config['storage']))
-    config['label'] = config.pop('id')
-
-    workflows = []
-    for cfg in config['workflows']:
-        if 'parent dataset' in cfg:
-            name = cfg.pop('parent dataset')
-            for w in workflows:
-                if w.label == name:
-                    cfg['parent'] = w.dataset
-                    break
-            else:
-                raise ValueError("parent {0} not defined in configuration before usage".format(name))
-
-        if 'delete merged' in cfg:
-            cfg['merge_cleanup'] = cfg.pop('delete merged')
-
-        if 'lumis per task' in cfg:
-            cfg['units per task'] = cfg.pop('lumis per task')
-
-        cfg['dataset'] = extract_dataset(cfg)
-        cfg['category'] = extract_category(cfg)
-
-        workflows.append(Workflow(**pythonize_keys(cfg)))
-    config['workflows'] = workflows
-
-    return Config(**pythonize_keys(config))
-
-
 class Config(Configurable):
-    """Top level Lobster configuration object
+    """
+    Top-level Lobster configuration object
+
+    This configuration object will fully specify a Lobster project,
+    including several :class:`~lobster.core.workflow.Workflow` instances
+    and a :class:`~lobster.se.StorageConfiguration`.
+
+    Parameters
+    ----------
+        label : str
+            A string to identify this project by.  This will be used in the
+            CMS dashboard, where 
+        workdir : str
+            The working directory to be used for the project.  Note that
+            this should be on a local filesystem to avoid problems with the
+            database.
+        storage : StorageConfiguration
+            The configuration for the storage element for output and input
+            files.
+        workflows : list
+            A list of :class:`~lobster.core.workflow.Workflow` to process.
+        advanced : AdvancedOptions
+            More options for advanced users.
+        plotdir : str
+            A directory to store monitoring pages in.
+        foremen_logs : list
+            A list of :class:`str` pointing to the `WorkQueue` foremen logs.
     """
 
     _mutable = []
@@ -142,6 +39,9 @@ class Config(Configurable):
     def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None,
             foremen_logs=None,
             base_directory=None, base_configuration=None, startup_directory=None):
+        """
+        Top-level configuration object for Lobster
+        """
         self.label = label
         self.workdir = workdir
         self.plotdir = plotdir
@@ -168,7 +68,49 @@ class Config(Configurable):
 
 
 class AdvancedOptions(Configurable):
-    """Advanced options for tuning Lobster
+    """
+    Advanced options for tuning Lobster
+
+    Parameters
+    ----------
+        use_dashboard : bool
+            Use the CMS dashboard to report task status.
+        abort_threshold : int
+            After how many successful tasks outliers in runtime should be
+            killed.
+        abort_multiplier : int
+            How many standard deviations a task is allowed to go over the
+            average task runtime.
+        bad_exit_codes : list
+            A list of exit codes that are considered to come from bad
+            workers.  As soon as a task returns with an exit code from this
+            list, the worker it ran on will be blacklisted and no more
+            tasks send to it.
+        dump_core : bool
+            Produce core dumps.  Useful to debug `WorkQueue`.
+        full_monitoring : bool
+            Produce full monitoring output.  Useful to debug `WorkQueue`.
+        log_level : int
+            How much logging output to show.  Goes from 1 to 5, where 1 is
+            the most verbose (including a lot of debug output), and 5 is
+            practically quiet.
+        payload : int
+            How many tasks to keep in the queue (minimum).  Note that the
+            payload will increase with the number of cores available to
+            Lobster.  This is just the minimum with no workers connected.
+        renew_proxy : bool
+            Have Lobster automatically renew CMS authentication
+            credentials.
+        threshold_for_failure : int
+            How often a single unit may fail to be processed before Lobster
+            will not attempt to process it any longer.
+        threshold_for_skipping : int
+            How often a single file may fail to be accessed before Lobster
+            will not attempt to process it any longer.
+        wq_max_retries : int
+            How often `WorkQueue` will attempt to process a task before
+            handing it back to Lobster.  `WorkQueue` will only reprocess
+            evicted tasks automatically.
     """
 
     _mutable = ['threshold_for_failure', 'threshold_for_skipping']

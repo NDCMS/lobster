@@ -34,6 +34,19 @@ class DatasetInfo(object):
         return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
 
 class Dataset(Configurable):
+    """
+    A simple dataset specification.
+
+    Runs over files found in a list of directories or specified directly.
+
+    Parameters
+    ----------
+        files : list
+            A list of files or directories to process.  May also be a `str`
+            pointing to a single file or directory.
+        files_per_task : int
+            How many files to process in one task
+    """
     _mutable = []
 
     def __init__(self, files, files_per_task=1):
@@ -66,6 +79,20 @@ class Dataset(Configurable):
         return dset
 
 class ProductionDataset(Configurable):
+    """
+    Dataset specification for Monte-Carlo event generation.
+
+    Parameters
+    ----------
+        events_per_task : int
+            How many events to generate in one task.
+        events_per_lumi : int
+            How many events should be in one luminosity section
+        numbor_of_tasks : int
+            How many tasks to run.
+        randomize_seeds : bool
+            Use random seeds every time a task is run.
+    """
     _mutable = []
     def __init__(self, events_per_task, events_per_lumi=None, number_of_tasks=1, randomize_seeds=True):
         self.number_of_tasks = number_of_tasks
@@ -93,6 +120,17 @@ class ProductionDataset(Configurable):
         return dset
 
 class ParentDataset(Configurable):
+    """
+    Process the output of another workflow.
+
+    Parameters
+    ----------
+        parent : Dataset
+            The parent dataset to process.
+        units_per_task : int
+            How much of the parent dataset to process at once.  Can be
+            changed by Lobster to match the user-specified task runtime.
+    """
     _mutable = []
     def __init__(self, parent, units_per_task=1):
         self.parent = parent

@@ -38,6 +38,27 @@ class Cache(object):
         shutil.rmtree(self.cache)
 
 class Dataset(Configurable):
+    """
+    Specification for processing a dataset stored in DBS.
+
+    Parameters
+    ----------
+        dataset : str
+            The full dataset name as in DBS.
+        lumis_per_task : int
+            How many luminosity sections to process in one task.  May be
+            modified by Lobster to match the user-specified task runtime.
+        events_per_task : int
+            Adjust `lumis_per_task` to contain as many luminosity sections
+            to process the specified amount of events.
+        lumi_mask : str
+            The URL or filename of a JSON luminosity section mask, as
+            customary in CMS.
+        file_based : bool
+            Process whole files instead of single luminosity sections.
+        dbs_instance : str
+            Which DBS instance to query for the `dataset`.
+    """
     _mutable = []
 
     __apis = {}

@@ -18,7 +18,7 @@ from lobster.commands.plot import plot
 from lobster.commands.reconfigure import reconfigure
 from lobster.commands.status import status
 from lobster.commands.validate import validate
-from lobster.core import config
+from lobster.core import config, legacy
 from lobster import util
 
 logger = logging.getLogger('lobster')
@@ -86,7 +86,7 @@ def boil():
         configfile = args.checkpoint
         if configfile.endswith('.yaml') or configfile.endswith('.yml'):
             with open(configfile) as f:
-                cfg = config.pythonize_yaml(yaml.load(f))
+                cfg = legacy.pythonize_yaml(yaml.load(f))
         else:
             import imp
             cfg = imp.load_source('userconfig', configfile).config

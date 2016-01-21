@@ -438,7 +438,6 @@ def copy_outputs(data, config, env):
                 ldpath = pruned_env.get('LD_LIBRARY_PATH', '')
                 if ldpath != '':
                     ldpath += ':'
-                print "GOOOOD", os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
                 ldpath += os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
                 pruned_env['LD_LIBRARY_PATH'] = ldpath
 

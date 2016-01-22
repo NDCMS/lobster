@@ -78,8 +78,7 @@ class UnitStore:
         self.db_path = os.path.join(config.workdir, "lobster.db")
         self.db = sqlite3.connect(self.db_path, timeout=90)
 
-        self.__failure_threshold = config.advanced.threshold_for_failure
-        self.__skipping_threshold = config.advanced.threshold_for_skipping
+        self.config = config
 
         self.db.execute("""create table if not exists workflows(
             cfg text,
@@ -308,7 +307,15 @@ class UnitStore:
     def __pop_units(self, size, workflow, workflow_id):
         """Internal method to create tasks from a workflow
         """
-        logger.debug("creating {0} task(s) for workflow {1}".format(len(size), workflow))
+        logger.debug(("creating {0} task(s) for workflow {1}:" +
+            "\n\tthreshold for skipping: {2}" +
+            "\n\tthreshold for failure:  {3}").format(
+                len(size),
+                workflow,
+                self.config.advanced.threshold_for_skipping,
+                self.config.advanced.threshold_for_failure
+            )
+        )
 
         with self.db:
             fileinfo = list(self.db.execute("""select id, filename
@@ -316,7 +323,7 @@ class UnitStore:
                         where
                             (units_done + units_running < units) and
                             (skipped < ?)
-                        order by skipped asc""".format(workflow), (self.__skipping_threshold,)))
+                        order by skipped asc""".format(workflow), (self.config.advanced.threshold_for_skipping,)))
             files = [x for (x, y) in fileinfo]
             fileinfo = dict(fileinfo)
 
@@ -354,14 +361,14 @@ class UnitStore:
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
-                if (run, lumi) in all_lumis or failed > self.__failure_threshold:
+                if (run, lumi) in all_lumis or failed > self.config.advanced.threshold_for_failure:
                     continue
 
                 if current_size == 0:
                     if len(size) == 0:
                         break
 
-                if failed == self.__failure_threshold:
+                if failed == self.config.advanced.threshold_for_failure:
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 
@@ -377,7 +384,7 @@ class UnitStore:
                                 lumi=? and
                                 status not in (1, 2, 6, 7, 8) and
                                 failed < ?""".format(workflow),
-                            (run, lumi, self.__failure_threshold)):
+                            (run, lumi, self.config.advanced.threshold_for_failure)):
                         units.append((ls_id, ls_file, ls_run, ls_lumi))
                         files.add(ls_file)
                 else:
@@ -534,7 +541,9 @@ class UnitStore:
                         else 0
                         end
                     ), 0)
-            where label=?""".format(label), (self.__failure_threshold, self.__skipping_threshold, label,))
+            where label=?""".format(label),
+            (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label,)
+        )
 
         self.db.execute("""
             update workflows set
@@ -786,7 +795,7 @@ class UnitStore:
         return cur
 
     def failed_units(self, label):
-        tasks = self.db.execute("select task from units_{0} where failed > ?".format(label), (self.__failure_threshold,))
+        tasks = self.db.execute("select task from units_{0} where failed > ?".format(label), (self.config.advanced.threshold_for_failure,))
         return [xs[0] for xs in tasks]
 
     def running_tasks(self):
@@ -795,7 +804,7 @@ class UnitStore:
             yield v
 
     def skipped_files(self, label):
-        files = self.db.execute("select filename from files_{0} where skipped > ?".format(label), (self.__skipping_threshold,))
+        files = self.db.execute("select filename from files_{0} where skipped > ?".format(label), (self.config.advanced.threshold_for_skipping,))
         return [xs[0] for xs in files]
 
     def update_pset_hash(self, pset_hash, workflow):

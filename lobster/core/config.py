@@ -16,7 +16,9 @@ class Config(Configurable):
     ----------
         label : str
             A string to identify this project by.  This will be used in the
-            CMS dashboard, where 
+            CMS dashboard, where it appears as ``lobster_<label>_<hash>``,
+            and in conjunction with `WorkQueue`, where the project will be
+            referred to as ``lobster_<label>``.
         workdir : str
             The working directory to be used for the project.  Note that
             this should be on a local filesystem to avoid problems with the

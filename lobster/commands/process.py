@@ -115,7 +115,6 @@ def sprint(config, workdir):
 
     logger.info("starting queue as {0}".format(queue.name))
 
-    payload = config.advanced.payload
     abort_active = False
     abort_threshold = config.advanced.abort_threshold
     abort_multiplier = config.advanced.abort_multiplier
@@ -218,7 +217,7 @@ def sprint(config, workdir):
                 stats.tasks_waiting))
 
         # FIXME switch to resource monitoring in WQ
-        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
+        need = max(config.advanced.payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
         hunger = max(need - stats.tasks_waiting, 0)
 
         logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))

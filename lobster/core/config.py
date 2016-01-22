@@ -115,7 +115,7 @@ class AdvancedOptions(Configurable):
             evicted tasks automatically.
     """
 
-    _mutable = ['threshold_for_failure', 'threshold_for_skipping']
+    _mutable = ['payload', 'threshold_for_failure', 'threshold_for_skipping']
 
     def __init__(self,
             use_dashboard=True,

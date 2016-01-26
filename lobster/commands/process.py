@@ -153,11 +153,14 @@ def sprint(config, workdir):
                 "units_left\n")
 
     bad_exitcodes = task_src.bad_exitcodes
+    categories = []
 
     # Workflows can be assigned categories, with each category having
     # different cpu/memory/walltime requirements that WQ will automatically
     # fine-tune
     for category, constraints in task_src.category_constraints().items():
+        if category != 'merge':
+            categories.append(category)
         queue.specify_max_category_resources(category, constraints)
         logger.debug('Category {0}: {1}'.format(category,constraints))
         if 'wall_time' not in constraints:
@@ -216,15 +219,8 @@ def sprint(config, workdir):
                 stats.tasks_running,
                 stats.tasks_waiting))
 
-        # FIXME switch to resource monitoring in WQ
-        need = max(config.advanced.payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
-        hunger = max(need - stats.tasks_waiting, 0)
-
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
-        logger.debug("trying to feed {0} tasks to work queue".format(hunger))
-
         expiry = None
-        if proxy and hunger > 0:
+        if proxy:
             left = proxy.getTimeLeft()
             if left == 0:
                 logger.error("proxy expired!")
@@ -234,37 +230,37 @@ def sprint(config, workdir):
                 logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
             expiry = int(time.time()) + left
 
+        have = {}
+        for c in categories:
+            cstats = queue.stats_category(c)
+            have[c] = cstats.tasks_running + cstats.tasks_waiting
+
         t = time.time()
-        while hunger > 0:
-            tasks = task_src.obtain(hunger)
+        tasks = task_src.obtain(stats.total_cores, stats.committed_cores, have)
 
-            if tasks == None or len(tasks) == 0:
-                break
+        for category, cmd, id, inputs, outputs in tasks:
+            task = wq.Task(cmd)
+            task.specify_category(category)
+            task.specify_tag(id)
+            task.specify_max_retries(wq_max_retries)
 
-            hunger -= len(tasks)
-            for category, cmd, id, inputs, outputs in tasks:
-                task = wq.Task(cmd)
-                task.specify_category(category)
-                task.specify_tag(id)
-                task.specify_max_retries(wq_max_retries)
+            for (local, remote, cache) in inputs:
+                if os.path.isfile(local):
+                    cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
+                    task.specify_input_file(str(local), str(remote), cache_opt)
+                elif os.path.isdir(local):
+                    task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
+                            wq.WORK_QUEUE_CACHE, recursive=True)
+                else:
+                    logger.critical("cannot send file to worker: {0}".format(local))
+                    raise NotImplementedError
 
-                for (local, remote, cache) in inputs:
-                    if os.path.isfile(local):
-                        cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
-                        task.specify_input_file(str(local), str(remote), cache_opt)
-                    elif os.path.isdir(local):
-                        task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
-                                wq.WORK_QUEUE_CACHE, recursive=True)
-                    else:
-                        logger.critical("cannot send file to worker: {0}".format(local))
-                        raise NotImplementedError
+            for (local, remote) in outputs:
+                task.specify_output_file(str(local), str(remote))
 
-                for (local, remote) in outputs:
-                    task.specify_output_file(str(local), str(remote))
-
-                if expiry:
-                    task.specify_end_time(expiry * 10**6)
-                queue.submit(task)
+            if expiry:
+                task.specify_end_time(expiry * 10**6)
+            queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 
         task_src.update(queue)

@@ -98,6 +98,7 @@ class TaskProvider(object):
         self.parrot_lib = os.path.join(self.workdir, 'lib')
 
         self.workflows = {}
+        self.categories = {}
         self.bad_exitcodes = config.advanced.bad_exit_codes
 
         self.__dash = None
@@ -143,6 +144,7 @@ class TaskProvider(object):
 
         for wflow in self.config.workflows:
             self.workflows[wflow.label] = wflow
+            self.categories[wflow.category.name] = wflow.category
 
             if create and not util.checkpoint(self.workdir, wflow.label):
                 wflow.setup(self.workdir, self.basedirs)
@@ -241,12 +243,108 @@ class TaskProvider(object):
     def get_report(self, label, task):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
-    def obtain(self, num=1):
-        sizes = dict([(wflow.label, wflow.merge_size) for wflow in self.workflows.values()])
-        taskinfos = self.__store.pop_unmerged_tasks(sizes, 10) \
-                + self.__store.pop_units(num)
+    def obtain(self, total, used, tasks):
+        """
+        Obtain tasks from the project.
+
+        Will create tasks for all workflows, if possible.  Merge tasks are
+        always created, given enough successful tasks.  The remaining tasks
+        are split proportionally between the categories based on remaining
+        resources multiplied by cores used per task.  Within categories,
+        tasks are created based on the same logic.
+
+        Parameters
+        ----------
+            total : int
+                Number of cores available.
+            used : int
+                Number of cores used.
+            tasks : dict
+                Dictionary with category names as keys and tuples
+                ``(tasks_running, tasks_waiting)`` as values.
+        """
+        logger.debug("creating tasks for {} cores total, {} used".format(total, used))
+
+        taskinfos = []
+        sizes = {}
+        wflows = {}
+        for wflow in self.workflows.values():
+            # First try to create a bunch of merge tasks
+            taskinfos += self.__store.pop_unmerged_tasks(wflow.label, wflow.merge_size, 10)
+
+            # Then see what we can create still in terms of work
+            complete, units_left, tasks_left = self.__store.work_left(wflow.label)
+            if not complete and tasks_left < 1.:
+                logger.debug("workflow {} has not enough units available to form a new tasks".format(wflow.label))
+                continue
+
+            cat = wflow.category.name
+            if cat not in sizes:
+                sizes[cat] = 0
+            if cat not in wflows:
+                wflows[cat] = [{}, {}]
+            wflows[cat][0 if complete else 1][wflow.label] = int(math.ceil(tasks_left)) * wflow.category.cores
+            sizes[cat] += int(math.ceil(tasks_left)) * wflow.category.cores
+
+        # How many cores we need to occupy: have at least 10% of the
+        # available cores provisioned with waiting work
+        need = max(max(total - used, 0) + 0.1 * total, self.config.advanced.payload)
+        # Subtract all waiting cores
+        for name, queued in tasks.items():
+            need -= self.categories[name].cores * queued
+        hunger = max(need, 0)
+
+        logger.debug("need to fill {} cores".format(hunger))
+
+        if hunger == 0:
+            return []
+
+        # Sort categories such that the smallest task limit is processed
+        # first
+        def helper(cat):
+            return -cat.tasks * cat.cores if cat.tasks else None
+
+        # Go through categories, adjusting number of tasks
+        count = sum(sizes.values())
+        for cat in sorted(self.categories.values(), key=helper):
+            ccores = int(math.ceil(hunger * sizes[cat.name] / float(count)))
+            if cat.tasks:
+                ccores = min(ccores, cat.tasks * cat.cores)
+            ctotal = sizes[cat.name]
+
+            logger.debug(("creating tasks for category {c.name}:" +
+                    "\n\ttask limit:         {c.tasks}" +
+                    "\n\tcores per task:     {c.cores}" +
+                    "\n\tcores to fill:      {cc}" +
+                    "\n\tcores able to fill: {ct}").format(c=cat, cc=ccores, ct=ctotal))
+
+            # Go through incomplete workflows associated with category
+            for label, left in wflows[cat.name][1].items():
+                ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cat.cores))))
+                infos = self.__store.pop_units(label, ntasks)
+                logger.debug("created {} tasks for workflow {}".format(len(infos), label))
+                ccores -= len(infos) * cat.cores
+                hunger -= len(infos) * cat.cores
+                ctotal -= left
+                taskinfos += infos
+
+            # Go through complete workflows associated with category
+            for label, left in wflows[cat.name][0].items():
+                ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cat.cores))))
+                # If we should create more tasks than we can, calculate a
+                # scale factor to decrease the task size
+                taper = min(1., float(left) / (ntasks * cat.cores))
+                infos = self.__store.pop_units(label, ntasks, taper)
+                logger.debug("created {} tasks for workflow {}".format(len(infos), label))
+                ccores -= len(infos) * cat.cores
+                hunger -= len(infos) * cat.cores
+                ctotal -= left
+                taskinfos += infos
+
+            count -= sizes[cat.name]
+
         if not taskinfos or len(taskinfos) == 0:
-            return None
+            return []
 
         tasks = []
         ids = []

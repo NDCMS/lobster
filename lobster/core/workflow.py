@@ -37,6 +37,9 @@ class Category(Configurable):
             How much memory a task is allowed to use, in megabytes.
         disk : int
             How much disk a task is allowed to use, in megabytes.
+        tasks : int
+            How many tasks should be in the queue (running or waiting) at
+            the same time.
     """
     _mutable = []
 
@@ -45,13 +48,15 @@ class Category(Configurable):
             cores=1,
             runtime=None,
             memory=None,
-            disk=None
+            disk=None,
+            tasks=None
             ):
         self.name = name
         self.cores = cores
         self.runtime = runtime
         self.memory = memory
         self.disk = disk
+        self.tasks = tasks
 
     def wq(self):
         res = {}

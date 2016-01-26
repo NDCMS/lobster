@@ -260,64 +260,63 @@ class UnitStore:
             self.db.executemany("insert into units_{0}(file, run, lumi, arg) values (?, ?, ?, ?)".format(label), update)
             self.update_workflow_stats(label)
 
-    def pop_units(self, num=1):
+    def work_left(self, label):
         """
-        Create a predetermined number of tasks.  The task these are
-        created for is drawn randomly from all unfinished tasks.
+        Get information about what is left to do for a workflow.
 
-        Arguments:
-            num: the number of tasks to be created (default 1)
-        Returns:
-            a list containing an id, workflow label, file information (id,
-            filename), lumi information (id, file id, run, lumi)
+        Parameters
+        ----------
+            label : str
+                The workflow for which to return the stats.
+
+        Returns
+        -------
+            complete : bool
+                If the whole workflow is available for processing.
+            units_left : int
+                How many units are left for the workflow - including
+                unavailable ones.
+            tasks_left : float
+                How many tasks need to be created to process all units
+                currently available.
         """
-
-        rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_available, units_available * 1. / tasksize, tasksize
-            from workflows
-            where units_left > 0""")]
-        if len(rows) == 0:
-            return []
-
-        # calculate how many tasks we can create from all workflows, still
-        tasks_left = sum(int(math.ceil(tasks)) for _, _, _, _, tasks, _ in rows)
-        tasks = []
-
-        random.shuffle(rows)
-
-        # if total tasks left < requested tasks, make the tasks smaller to
-        # keep all workers occupied
-        if tasks_left < num:
-            taper = float(tasks_left) / num
-            for workflow, workflow_id, units_left, units_available, ntasks, tasksize in rows:
-                if units_available < tasksize and units_available != units_left:
-                    continue
-                tasksize = max(math.ceil((taper * tasksize)), 1)
-                size = [int(tasksize)] * max(1, int(math.ceil(ntasks / taper)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id))
-        else:
-            for workflow, workflow_id, units_left, units_available, ntasks, tasksize in rows:
-                if units_available < tasksize and units_available != units_left:
-                    continue
-                size = [int(tasksize)] * max(1, int(math.ceil(ntasks * num / tasks_left)))
-                tasks.extend(self.__pop_units(size, workflow, workflow_id))
-        return tasks
+        complete, units_left, tasks_left = self.db.execute(
+                "select (units_left = units_available), units_left, units_available * 1. / tasksize from workflows where label=?",
+                (label,)).fetchone()
+        return complete, units_left, tasks_left
 
     @retry(stop_max_attempt_number=10)
-    def __pop_units(self, size, workflow, workflow_id):
-        """Internal method to create tasks from a workflow
-        """
-        logger.debug(("creating {0} task(s) for workflow {1}:" +
-            "\n\tthreshold for skipping: {2}" +
-            "\n\tthreshold for failure:  {3}").format(
-                len(size),
-                workflow,
-                self.config.advanced.threshold_for_skipping,
-                self.config.advanced.threshold_for_failure
-            )
-        )
+    def pop_units(self, workflow, num, taper=1.):
+        """Create tasks from a workflow.
 
+        Parameters
+        ----------
+            workflow : str
+                The label of the workflow.
+            num : int
+                The number of tasks to create.
+            taper : int
+                Factor to apply to the tasksize.
+        """
         with self.db:
+            workflow_id, tasksize = self.db.execute(
+                    "select id, tasksize from workflows where label=?",
+                    (workflow,)).fetchone()
+
+            logger.debug(("creating {0} task(s) for workflow {1}:" +
+                "\n\ttaper:    {4}" +
+                "\n\ttasksize: {5}" +
+                "\n\tthreshold for skipping: {2}" +
+                "\n\tthreshold for failure:  {3}").format(
+                    num,
+                    workflow,
+                    self.config.advanced.threshold_for_skipping,
+                    self.config.advanced.threshold_for_failure,
+                    taper,
+                    tasksize
+                )
+            )
+
             fileinfo = list(self.db.execute("""select id, filename
                         from files_{0}
                         where
@@ -326,6 +325,8 @@ class UnitStore:
                         order by skipped asc""".format(workflow), (self.config.advanced.threshold_for_skipping,)))
             files = [x for (x, y) in fileinfo]
             fileinfo = dict(fileinfo)
+
+            tasksize = int(math.ceil(tasksize * taper))
 
             rows = []
             for i in range(0, len(files), 40):
@@ -365,7 +366,7 @@ class UnitStore:
                     continue
 
                 if current_size == 0:
-                    if len(size) == 0:
+                    if num <= 0:
                         break
 
                 if failed == self.config.advanced.threshold_for_failure:
@@ -393,14 +394,14 @@ class UnitStore:
 
                 current_size += 1
 
-                if current_size == size[0]:
+                if current_size == tasksize:
                     insert_task(files, units, arg)
 
                     files = set()
                     units = []
 
                     current_size = 0
-                    size.pop(0)
+                    num -= 1
 
             if current_size > 0:
                 insert_task(files, units, arg)
@@ -619,44 +620,43 @@ class UnitStore:
             from workflows""")
         return ["label events read written units unmasked done paused percent".split()] + list(cursor)
 
-    def pop_unmerged_tasks(self, sizes, num=1):
-        """Create merging tasks.
-
-        This creates `num` merge tasks with a maximal size contained in `sizes`.
-        """
-
-        rows = self.db.execute("""
-            select label, id, units_done + units_paused == units
-            from workflows
-            where
-                merged <> 1 and
-                (units_done + units_paused) * 10 >= units
-                and (select count(*) from tasks where workflow=workflows.id and status=2) > 0
-        """).fetchall()
-
-        if len(rows) == 0:
-            logger.debug("no merge possibility found")
-            return []
-
-        random.shuffle(rows)
-
-        res = []
-        for dset, dset_id, complete in rows:
-            res.extend(self.__pop_unmerged_tasks(dset, dset_id, complete, sizes[dset], num))
-            if len(res) > num:
-                break
-        return res
-
     @retry(stop_max_attempt_number=10)
-    def __pop_unmerged_tasks(self, workflow, dset_id, units_complete, bytes, num=1):
-        """Internal method to merge tasks
+    def pop_unmerged_tasks(self, workflow, bytes, num):
+        """Method to get merge tasks.
+
+        Parameters
+        ----------
+            workflow : str
+                The label of the workflow to create merge tasks for.
+            bytes : int
+                The merge size of the workflow, in bytes.
+            num : int
+                How many merge tasks to create.
         """
+
+        dset_id, merged = self.db.execute(
+            "select id, merged from workflows where label=?", (workflow,)).fetchone()
 
         logger.debug("trying to merge tasks from {0}".format(workflow))
 
-        if bytes <= 0:
+        if merged:
+            return []
+        elif bytes <= 0:
             logger.debug("fully merged {0}".format(workflow))
-            self.db.execute("""update workflows set merged=1 where id=?""", (dset_id,))
+            with self.db:
+                self.db.execute("""update workflows set merged=1 where id=?""", (dset_id,))
+            return []
+
+        mergeable, units_complete = self.db.execute("""
+            select
+                (units_done + units_paused) * 10 >= units and
+                    (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
+                units_done + units_paused == units
+            from workflows
+            where label=?
+        """, (workflow,)).fetchone()
+
+        if not mergeable:
             return []
 
         class Merge(object):

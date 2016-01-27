@@ -277,6 +277,8 @@ class TaskProvider(object):
             if not complete and tasks_left < 1.:
                 logger.debug("workflow {} has not enough units available to form a new tasks".format(wflow.label))
                 continue
+            elif units_left == 0:
+                continue
 
             cat = wflow.category.name
             if cat not in sizes:

@@ -178,15 +178,18 @@ class FileInterface:
                 # etc...)
             else:
                 dset.tasksize = cfg.get("files per task", 1)
+                allfiles = []
                 if not isinstance(files, list):
                     files = [files]
                 for entry in files:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
-                        files = filter(fs.isfile, fs.ls(entry))
-                dset.total_lumis = len(files)
+                        allfiles += filter(fs.isfile, fs.ls(entry))
+                    elif fs.isfile(entry):
+                        allfiles.append(entry)
+                dset.total_lumis = len(allfiles)
 
-                for fn in files:
+                for fn in allfiles:
                     # hack because it will be slow to open all the input files to read the run/lumi info
                     dset.files[fn].lumis = [(-1, -1)]
                     dset.files[fn].size = fs.getsize(fn)

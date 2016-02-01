@@ -292,33 +292,32 @@ class Workflow(Configurable):
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self._outputs)))
 
     def setup(self, workdir, basedirs):
-        with self.override():
-            self.workdir = os.path.join(workdir, self.label)
+        self.workdir = os.path.join(workdir, self.label)
 
-            if self.sandbox:
-                self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
-            else:
-                self.version, self.sandbox = sandbox.package(
-                        self.sandbox_release,
-                        workdir,
-                        self.sandbox_blacklist)
+        if self.sandbox:
+            self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
+        else:
+            self.version, self.sandbox = sandbox.package(
+                    self.sandbox_release,
+                    workdir,
+                    self.sandbox_blacklist)
 
-            self.copy_inputs(basedirs)
-            if self.pset and not self._outputs:
-                self.determine_outputs(basedirs)
+        self.copy_inputs(basedirs)
+        if self.pset and not self._outputs:
+            self.determine_outputs(basedirs)
 
-            # Working directory for workflow
-            # TODO Should we really check if this already exists?  IMO that
-            # constitutes an error, since we really should create the workflow!
-            if not os.path.exists(self.workdir):
-                os.makedirs(self.workdir)
-            # Create the stageout directory
-            if not fs.exists(self.label):
-                fs.makedirs(self.label)
-            else:
-                if len(list(fs.ls(self.label))) > 0:
-                    msg = 'stageout directory is not empty: {0}'
-                    raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
+        # Working directory for workflow
+        # TODO Should we really check if this already exists?  IMO that
+        # constitutes an error, since we really should create the workflow!
+        if not os.path.exists(self.workdir):
+            os.makedirs(self.workdir)
+        # Create the stageout directory
+        if not fs.exists(self.label):
+            fs.makedirs(self.label)
+        else:
+            if len(list(fs.ls(self.label))) > 0:
+                msg = 'stageout directory is not empty: {0}'
+                raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
 
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:

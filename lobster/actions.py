@@ -5,6 +5,7 @@ import os
 import re
 
 from lobster.commands.plot import Plotter
+from lobster.util import PartiallyMutable
 
 logger = logging.getLogger('lobster.actions')
 
@@ -65,8 +66,9 @@ class Actions(object):
                 logger.error('invalid command received: {}'.format(cmd))
                 continue
             try:
-                exec cmd in {'config': self.__config}, {}
-                self.__config.save()
+                with PartiallyMutable.lockdown():
+                    exec cmd in {'config': self.__config}, {}
+                    self.__config.save()
             except Exception as e:
                 logger.error('caught exeption from command: {}'.format(e))
 

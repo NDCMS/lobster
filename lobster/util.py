@@ -29,8 +29,16 @@ class PartiallyMutable(type):
 
     def __call__(cls, *args, **kwargs):
         res = type.__call__(cls, *args, **kwargs)
-        setattr(res, '__fixed', True)
         return res
+
+    @classmethod
+    @contextmanager
+    def lockdown(self):
+        try:
+            self.fixed = True
+            yield
+        finally:
+            self.fixed = False
 
 
 class Configurable(object):
@@ -44,18 +52,12 @@ class Configurable(object):
     _mutable = []
 
     def __setattr__(self, attr, value):
-        if not hasattr(self, '__fixed') or not getattr(self, '__fixed'):
+        if not hasattr(self.__class__, 'fixed') or not getattr(self.__class__, 'fixed'):
             super(Configurable, self).__setattr__(attr, value)
         elif attr in self._mutable:
             super(Configurable, self).__setattr__(attr, value)
         else:
             raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
-
-    @contextmanager
-    def override(self):
-        self.__dict__['__fixed'] = False
-        yield
-        self.__dict__['__fixed'] = True
 
 
 def record(cls, *fields, **defaults):

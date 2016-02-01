@@ -642,7 +642,7 @@ class Plotter(object):
                     cputime[i] += (edges[i + 1] - start) * ratio
                     wall += (edges[i + 1] - start) * ratio
             if abs(wall - cpu)/cpu > 0.1:
-                logger.debug("time {0}: CPU {1}, {2} - {3}").format(wall, cpu, start, end)
+                logger.debug("time {0}: CPU {1}, {2} - {3}".format(wall, cpu, start, end))
         try:
             with open(cache, 'wb') as f:
                 pickle.dump((cputime, ids), f)

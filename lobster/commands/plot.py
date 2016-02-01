@@ -616,12 +616,17 @@ class Plotter(object):
         ends = np.digitize(tasks['t_processing_end'], edges)
 
         lefts = np.take(edges, starts) - tasks['t_first_ev']
-        rights = tasks['t_processing_end'] - np.take(edges - 1, ends)
+        rights = tasks['t_processing_end'] - np.take(edges, ends - 1)
 
         for fraction, left, start, end, right in zip(ratio, lefts, starts, ends, rights):
-            cputime[start - 1] += fraction * left
-            cputime[start:end - 1] += fraction * 60
-            cputime[end] += fraction * right
+            if start == end:
+                # do some special logic if the task is completely in one
+                # bin: length = left - (bin width - right)
+                cputime[start - 1] += fraction * (left + right - (edges[start] - edges[start - 1]))
+            else:
+                cputime[start - 1] += fraction * left
+                cputime[start:end - 1] += fraction * 60
+                cputime[end] += fraction * right
 
         return cputime
 

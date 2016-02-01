@@ -309,6 +309,9 @@ class TaskProvider(object):
         # Go through categories, adjusting number of tasks
         count = sum(sizes.values())
         for cat in sorted(self.categories.values(), key=helper):
+            if cat.name not in sizes:
+                continue
+
             ccores = int(math.ceil(hunger * sizes[cat.name] / float(count)))
             if cat.tasks:
                 ccores = min(ccores, cat.tasks * cat.cores)

@@ -59,6 +59,16 @@ space.  The factory can then be started with::
 
     work_queue_factory -T condor -C config.json
 
+.. note::
+   At Notre Dame, the following login nodes are connected to the
+   opportunistic resource: `crcfe01`, `crcfe02`, and `condorfe`.  The
+   resources have monitoring pages for `condor`_ and the `external
+   bandwidth`_, and the `squid server`_.
+
+.. _condor: http://condor.cse.nd.edu/condor_matrix.cgi
+.. _external bandwidth: http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0
+.. _squid server: http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=ndcms.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=
+
 Using a Chirp server
 --------------------
 

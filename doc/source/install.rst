@@ -22,11 +22,22 @@ Dependencies
 
   Download the most recent version of the cctools from the `Notre Dame
   Cooperative Computing Lab`_ and install them by unpacking the tarball and
-  adding the `bin` directory to your path::
+  adding the `bin` directory to your path (the following instructions may
+  need to be changed for the newest version)::
 
     wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz|tar xvzf -
     export PATH=$PWD/cctools-5.2.0-x86_64-redhat6/bin:$PATH
     export PYTHONPATH=$PWD/cctools-5.2.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
+
+  .. note::
+     At Notre Dame, a development version can be accessed via::
+
+      cctools=cctools-063-54b7a7e1-cvmfs-b75bd0a0
+      export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
+      export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
+
+     For `tcsh` users these lines have to be adapted [#ftools]_.  You might
+     want to add these lines to the shell startup file.
 
 * Setuptools
 
@@ -79,3 +90,12 @@ easy modification of the source::
     pip install .
 
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
+
+.. rubric:: Footnotes
+
+.. [#ftools] ``tcsh`` users should use the following to access the
+   `cctools` development version at Notre Dame::
+
+    setenv cctools-063-54b7a7e1-cvmfs-b75bd0a0
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}

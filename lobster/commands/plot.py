@@ -607,64 +607,28 @@ class Plotter(object):
 
         return codes
 
-    def updatecpu(self, tasks, reshape):
-        cache = os.path.join(self.__workdir, 'cputime.pkl')
-        edges = np.arange(self.__xmin, self.__xmax + 60, 60)
+    def updatecpu(self, tasks, edges):
+        cputime = np.zeros(len(edges) - 1)
 
-        try:
-            with open(cache, 'rb') as f:
-                cputime, ids = pickle.load(f)
-                cputime.resize(len(edges) - 1)
-            logger.info("reusing previously calculated cpu time stats.")
-        except:
-            logger.warning("calculating cpu time split up from scratch.")
-            cputime = np.zeros(len(edges) - 1)
-            ids = set()
+        ratio = tasks['t_cpu'] * 1. / (tasks['t_processing_end'] - tasks['t_first_ev'])
 
-        for (id, cpu, start, end) in zip(tasks['id'], tasks['t_cpu'], tasks['t_first_ev'], tasks['t_processing_end']):
-            if end == start or cpu == 0 or id in ids:
-                continue
+        starts = np.digitize(tasks['t_first_ev'], edges)
+        ends = np.digitize(tasks['t_processing_end'], edges)
 
-            ids.add(id)
-            ratio = cpu * 1. / (end - start)
-            wall = 0
-            for i in range(len(edges) - 1):
-                if start >= edges[i] and end < edges[i + 1]:
-                    cputime[i] += (end - start) * ratio
-                    wall += (end - start) * ratio
-                elif start < edges[i] and end >= edges[i + 1]:
-                    cputime[i] += (edges[i + 1] - edges[i]) * ratio
-                    wall += (edges[i + 1] - edges[i]) * ratio
-                elif start < edges[i] and end >= edges[i] and end < edges[i + 1]:
-                    cputime[i] += (end - edges[i]) * ratio
-                    wall += (end - edges[i]) * ratio
-                elif start >= edges[i] and start < edges[i + 1] and end >= edges[i + 1]:
-                    cputime[i] += (edges[i + 1] - start) * ratio
-                    wall += (edges[i + 1] - start) * ratio
-            if abs(wall - cpu)/cpu > 0.1:
-                logger.debug("time {0}: CPU {1}, {2} - {3}".format(wall, cpu, start, end))
-        try:
-            with open(cache, 'wb') as f:
-                pickle.dump((cputime, ids), f)
-        except IOError:
-            logger.warning("could not save cpu time stats")
+        lefts = np.take(edges, starts) - tasks['t_first_ev']
+        rights = tasks['t_processing_end'] - np.take(edges, ends - 1)
 
-        cpu = np.zeros(len(reshape) - 1)
-
-        if len(cputime) < len(cpu):
-            logger.error("not enough data to produce cpu time plots.")
-            return cpu
-
-        for bin, low, high in zip(cputime, edges[:-1], edges[1:]):
-            bins = np.digitize([low, high], reshape)
-            if bins[0] == bins[1]:
-                cpu[bins[0] - 1] += bin
+        for fraction, left, start, end, right in zip(ratio, lefts, starts, ends, rights):
+            if start == end:
+                # do some special logic if the task is completely in one
+                # bin: length = left - (bin width - right)
+                cputime[start - 1] += fraction * (left + right - (edges[start] - edges[start - 1]))
             else:
-                if bins[0] > 0:
-                    cpu[bins[0] - 1] += bin * (reshape[bins[0]] - low) / 60.
-                if bins[1] < len(cpu):
-                    cpu[bins[1] - 1] += bin * (high - reshape[bins[1] - 1]) / 60.
-        return cpu
+                cputime[start - 1] += fraction * left
+                cputime[start:end - 1] += fraction * 60
+                cputime[end] += fraction * right
+
+        return cputime
 
     def plot(self, a, xlabel, stub=None, ylabel='tasks', bins=100, modes=None, **kwargs_raw):
         args = [a, xlabel]

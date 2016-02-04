@@ -619,14 +619,16 @@ class Plotter(object):
         rights = tasks['t_processing_end'] - np.take(edges, ends - 1)
 
         for fraction, left, start, end, right in zip(ratio, lefts, starts, ends, rights):
-            if start == end:
+            if start == end and start > 0 and start <= len(cputime):
                 # do some special logic if the task is completely in one
                 # bin: length = left - (bin width - right)
                 cputime[start - 1] += fraction * (left + right - (edges[start] - edges[start - 1]))
             else:
-                cputime[start - 1] += fraction * left
+                if start > 0 and start <= len(cputime):
+                    cputime[start - 1] += fraction * left
                 cputime[start:end - 1] += fraction * 60
-                cputime[end] += fraction * right
+                if end >= 0 and end < len(cputime)
+                    cputime[end] += fraction * right
 
         return cputime
 

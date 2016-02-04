@@ -646,6 +646,7 @@ data = {
         'stage in end': None,
         'prologue end': None,
         'wrapper start': None,
+        'wrapper ready': None,
         'wrapper end': None,
         'file requested': None,
         'file opened': None,

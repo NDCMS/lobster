@@ -242,7 +242,7 @@ class TaskProvider(object):
     def get_report(self, label, task):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
-    def obtain(self, total, used, tasks):
+    def obtain(self, total, tasks):
         """
         Obtain tasks from the project.
 
@@ -256,13 +256,11 @@ class TaskProvider(object):
         ----------
             total : int
                 Number of cores available.
-            used : int
-                Number of cores used.
             tasks : dict
                 Dictionary with category names as keys and tuples
                 ``(tasks_running, tasks_waiting)`` as values.
         """
-        logger.debug("creating tasks for {} cores total, {} used".format(total, used))
+        logger.debug("creating tasks for {} cores total".format(total))
 
         taskinfos = []
         sizes = {}
@@ -289,7 +287,7 @@ class TaskProvider(object):
 
         # How many cores we need to occupy: have at least 10% of the
         # available cores provisioned with waiting work
-        need = max(max(total - used, 0) + 0.1 * total, self.config.advanced.payload)
+        need = total + max(int(0.1 * total), self.config.advanced.payload)
         # Subtract all waiting cores
         for name, queued in tasks.items():
             need -= self.categories[name].cores * queued

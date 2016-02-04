@@ -126,8 +126,8 @@ def sprint(config, workdir):
 
     # time in seconds to wait for WQ to return tasks, with minimum wait
     # time in case no more tasks are waiting
-    interval = 60
-    interval_minimum = 10
+    interval = 120
+    interval_minimum = 30
 
     tasks_left = 0
     units_left = 0
@@ -236,7 +236,7 @@ def sprint(config, workdir):
             have[c] = cstats.tasks_running + cstats.tasks_waiting
 
         t = time.time()
-        tasks = task_src.obtain(stats.total_cores, stats.committed_cores, have)
+        tasks = task_src.obtain(stats.total_cores, have)
 
         for category, cmd, id, inputs, outputs in tasks:
             task = wq.Task(cmd)
@@ -276,7 +276,7 @@ def sprint(config, workdir):
             tasks.append(task)
 
             remaining = int(starttime + interval - time.time())
-            if (interval - remaining > interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
+            if (interval - remaining < interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
                 task = queue.wait(remaining)
             else:
                 task = None

@@ -643,8 +643,6 @@ class UnitStore:
         dset_id, merged = self.db.execute(
             "select id, merged from workflows where label=?", (workflow,)).fetchone()
 
-        logger.debug("trying to merge tasks from {0}".format(workflow))
-
         if merged:
             return []
         elif bytes <= 0:
@@ -664,6 +662,8 @@ class UnitStore:
 
         if not mergeable:
             return []
+
+        logger.debug("trying to merge tasks from {0}".format(workflow))
 
         class Merge(object):
             def __init__(self, task, units, size, maxsize):

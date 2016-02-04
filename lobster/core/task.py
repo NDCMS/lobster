@@ -166,6 +166,9 @@ class TaskHandler(object):
         task_update.memory_resident = task.resources_measured.memory
         task_update.memory_swap = task.resources_measured.swap_memory
         task_update.memory_virtual = task.resources_measured.virtual_memory
+        task_update.network_bandwidth = task.resources_measured.bandwidth
+        task_update.network_bytes_received = task.resources_measured.bytes_received
+        task_update.network_bytes_sent = task.resources_measured.bytes_sent
 
     def process(self, task, summary):
         exit_code = task.return_status

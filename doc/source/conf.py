@@ -296,3 +296,16 @@ texinfo_documents = [
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 sys.path.append('..')
+
+import os
+if os.environ.get('READTHEDOCS', None) == 'True':
+    import sys
+    from mock import Mock as MagicMock
+
+    class Mock(MagicMock):
+        @classmethod
+        def __getattr__(cls, name):
+                return Mock()
+
+    MOCK_MODULES = ['WMCore', 'work_queue']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

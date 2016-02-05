@@ -35,6 +35,13 @@ commands
 
     tail -f /my/working/directory/process.{err,log}
 
+5. Validate the output directory to catch any stray or missing files::
+
+    lobster validate --dry-run config.py
+
+   and, after verifying the printout from the above, run it again without
+   the ``--dry-run`` argument.
+
 .. _submission:
 Submitting workers
 ------------------

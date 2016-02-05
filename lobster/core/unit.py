@@ -743,8 +743,9 @@ class UnitStore:
                 res += [(str(merge_id), workflow, [], [(id, None, -1, -1) for id in merge.tasks], "", True)]
                 merge_update += [(merge_id, id) for id in merge.tasks]
 
-            self.db.executemany("update tasks set status=7, task=? where id=?", merge_update)
-            self.update_workflow_stats(workflow)
+            if len(res) > 0:
+                self.db.executemany("update tasks set status=7, task=? where id=?", merge_update)
+                self.update_workflow_stats(workflow)
 
             return res
 

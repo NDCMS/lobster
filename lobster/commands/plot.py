@@ -627,7 +627,7 @@ class Plotter(object):
                 if start > 0 and start <= len(cputime):
                     cputime[start - 1] += fraction * left
                 cputime[start:end - 1] += fraction * 60
-                if end >= 0 and end < len(cputime)
+                if end >= 0 and end < len(cputime):
                     cputime[end] += fraction * right
 
         return cputime

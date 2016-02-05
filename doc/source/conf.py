@@ -300,13 +300,12 @@ sys.path.append('../..')
 
 import os
 if os.environ.get('READTHEDOCS', None) == 'True':
-    import sys
     from mock import Mock as MagicMock
 
     class Mock(MagicMock):
         @classmethod
         def __getattr__(cls, name):
-                return Mock()
+            return Mock()
 
-    MOCK_MODULES = ['WMCore', 'work_queue']
+    MOCK_MODULES = ['httplib2', 'pycurl', 'work_queue', 'Chirp', 'dbs', 'dbs.apis', 'dbs.apis.dbsClient']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

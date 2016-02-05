@@ -296,6 +296,7 @@ texinfo_documents = [
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 sys.path.append('..')
+sys.path.append('../..')
 
 import os
 if os.environ.get('READTHEDOCS', None) == 'True':

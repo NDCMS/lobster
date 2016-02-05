@@ -10,55 +10,38 @@ def validate(args):
     logger = logging.getLogger('lobster.validate')
 
     store = UnitStore(config)
-    storage = se.StorageConfiguration(config['storage'])
-    storage.activate()
+    config.storage.activate()
 
-    stats = dict((cfg['label'], [0, 0]) for cfg in config['workflows'])
+    stats = dict((w.label, [0, 0]) for w in config.workflows)
 
     missing = []
-    for cfg in config['workflows']:
-        label = cfg['label']
-        logger.info('validating output files for {0}'.format(label))
+    for wflow in config.workflows:
+        logger.info('validating output files for {0}'.format(wflow.label))
 
-        files = set(fs.ls(label))
+        files = set(fs.ls(wflow.label))
         delete = []
 
-        for task, task_type in store.failed_tasks(label):
-            for output in cfg['outputs']:
-                base, ext = os.path.splitext(output)
-                filename = os.path.join(
-                        label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
-
+        for task, task_type in store.failed_tasks(wflow.label):
+            for _, filename in wflow.outputs(task):
                 if filename in files:
                     logger.info("found output from failed task: {0}".format(filename))
-                    stats[label][0] += 1
+                    stats[wflow.label][0] += 1
                     if not args.dry_run:
                         delete.append(filename)
 
-        for task, task_type in store.merged_tasks(label):
-            for output in cfg['outputs']:
-                base, ext = os.path.splitext(output)
-                filename = os.path.join(
-                        label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
-
+        for task, task_type in store.merged_tasks(wflow.label):
+            for _, filename in wflow.outputs(task):
                 if filename in files:
                     logger.info("found output from intermediate merged task: {0}".format(filename))
-                    stats[label][1] += 1
+                    stats[wflow.label][1] += 1
                     if not args.dry_run and args.delete_merged:
                         delete.append(filename)
 
         for fn in delete:
             fs.remove(fn)
 
-        for task, task_type in store.successful_tasks(label):
-            for output in cfg['outputs']:
-                base, ext = os.path.splitext(output)
-                filename = os.path.join(
-                        label,
-                        cfg.get("output format", "{base}_{id}.{ext}").format(base=base, ext=ext[1:], id=task))
-
+        for task, task_type in store.successful_tasks(wflow.label):
+            for _, filename in wflow.outputs(task):
                 if filename not in files:
                     missing.append(task)
                     logger.warning('output file is missing for {0}'.format(task))

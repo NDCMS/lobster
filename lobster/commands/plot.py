@@ -70,6 +70,9 @@ def unix2matplotlib(time):
 def unpack(arg):
     source, target = arg
     try:
+        if os.path.isfile(target):
+            logger.info("skipping {0}".format(source))
+            return
         logger.info("unpacking {0}".format(source))
         with open(target, 'w') as output:
             input = gzip.open(source, 'rb')
@@ -77,8 +80,6 @@ def unpack(arg):
             input.close()
     except IOError:
         logger.error("cannot unpack {0}".format(source))
-        return False
-    return True
 
 def mp_call(arg):
     fct, args, kwargs = arg
@@ -404,34 +405,7 @@ class Plotter(object):
                     ('workdir_footprint', 'i4')
                     ])
 
-        summary_data = list(db.execute("""
-                select
-                    label,
-                    events,
-                    (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                    (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                    units + units_masked,
-                    units,
-                    units_done,
-                    units_paused,
-                    '' || round(
-                            units_done * 100.0 / units,
-                        1) || ' %'
-                from workflows"""))
-        summary_data += list(db.execute("""
-                select
-                    'Total',
-                    sum(events),
-                    (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0),
-                    (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0),
-                    sum(units + units_masked),
-                    sum(units),
-                    sum(units_done),
-                    sum(units_paused),
-                    '' || round(
-                            sum(units_done) * 100.0 / sum(units),
-                        1) || ' %'
-                from workflows"""))
+        summary_data = list(self.__store.workflow_status())[1:]
 
         # for cases where units per task changes during run, get per-unit info
         total_units = 0
@@ -530,11 +504,11 @@ class Plotter(object):
 
         return res
 
-    def savelogs(self, failed_tasks, samples=5, subdir=''):
+    def savelogs(self, failed_tasks, samples=5):
         work = []
         codes = {}
 
-        logdir = os.path.join(self.__plotdir, subdir, 'logs')
+        logdir = os.path.join(self.__plotdir, 'logs')
         if os.path.exists(logdir):
             for dirpath, dirnames, filenames in os.walk(logdir):
                 logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
@@ -569,7 +543,7 @@ class Plotter(object):
                         codes[exit_code][1][id].append(l[:-3])
                         work.append([s, t])
 
-        for label, _, _, _, _, _, _, paused, _ in self.__store.workflow_status()[1:]:
+        for label, _, _, _, _, _, _, paused, failed, skipped, _ in list(self.__store.workflow_status())[1:-1]:
             if paused == 0:
                 continue
 
@@ -578,7 +552,7 @@ class Plotter(object):
 
             for id in failed:
                 source = os.path.join(self.__workdir, label, 'failed', util.id2dir(id))
-                target = os.path.join(logdir, label, 'failed')
+                target = os.path.join(logdir, 'failed_' + label)
                 if not os.path.exists(target):
                     os.makedirs(target)
 
@@ -590,7 +564,7 @@ class Plotter(object):
                         work.append([s, t])
 
             if len(skipped) > 0:
-                outname = os.path.join(logdir, label, 'skipped_files.txt')
+                outname = os.path.join(logdir, 'skipped_{}.txt'.format(label))
                 if not os.path.isdir(os.path.dirname(outname)):
                     os.makedirs(os.path.dirname(outname))
                 with open(outname, 'w') as f:
@@ -864,7 +838,7 @@ class Plotter(object):
 
 
         if len(failed_tasks) > 0:
-            logs = self.savelogs(failed_tasks, subdir=subdir)
+            logs = self.savelogs(failed_tasks)
 
             fail_labels, fail_values = split_by_column(failed_tasks, 'exit_code', threshold=0.025)
 

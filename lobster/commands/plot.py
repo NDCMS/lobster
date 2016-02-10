@@ -505,16 +505,9 @@ class Plotter(object):
         return res
 
     def savelogs(self, failed_tasks, samples=5):
+        logdir = os.path.join(self.__plotdir, 'logs')
         work = []
         codes = {}
-
-        logdir = os.path.join(self.__plotdir, 'logs')
-        if os.path.exists(logdir):
-            for dirpath, dirnames, filenames in os.walk(logdir):
-                logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
-                map(os.unlink, logs)
-        else:
-            os.makedirs(logdir)
 
         for exit_code, tasks in zip(*split_by_column(failed_tasks[['id', 'exit_code']], 'exit_code')):
             if exit_code == 0:
@@ -1042,6 +1035,14 @@ class Plotter(object):
         # -----------------------
         # Workflow specific plots
         # -----------------------
+        logdir = os.path.join(self.__plotdir, 'logs')
+        if os.path.exists(logdir):
+            for dirpath, dirnames, filenames in os.walk(logdir):
+                logs = [os.path.join(dirpath, fn) for fn in filenames if fn.endswith('.log')]
+                map(os.unlink, logs)
+        else:
+            os.makedirs(logdir)
+
         outdir = os.path.join(self.__plotdir, 'all')
         if not os.path.exists(outdir):
             os.makedirs(outdir)

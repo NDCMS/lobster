@@ -517,17 +517,16 @@ class Plotter(object):
 
         res = {}
         for label in processed:
-            jsondir = os.path.join('jsons', label)
             if not os.path.exists(os.path.join(self.__plotdir, jsondir)):
                 os.makedirs(os.path.join(self.__plotdir, jsondir))
             lumis = LumiList(lumis=processed[label])
-            lumis.writeJSON(os.path.join(self.__plotdir, jsondir, 'processed.json'))
-            res[label] = [(os.path.join(jsondir, 'processed.json'), 'processed')]
+            lumis.writeJSON(os.path.join(jsondir, 'processed_{}.json'.format(label)))
+            res[label] = [(os.path.join('jsons', 'processed_{}.json'.format(label)), 'processed')]
 
             published = os.path.join(self.__workdir, label, 'published.json')
             if os.path.isfile(published):
-                shutil.copy(published, os.path.join(self.__plotdir, jsondir))
-                res[label] += [(os.path.join(jsondir, 'published.json'), 'published')]
+                shutil.copy(published, os.path.join(jsondir, 'published_{}.json'.format(label)))
+                res[label] += [(os.path.join('jsons', 'published_{}.json'.format(label)), 'published')]
 
         return res
 

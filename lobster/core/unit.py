@@ -614,8 +614,8 @@ class UnitStore:
             select
                 label,
                 events,
-                (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
-                (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
+                ifnull((select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
+                ifnull((select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
                 units + units_masked,
                 units,
                 units_done,

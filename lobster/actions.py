@@ -42,9 +42,9 @@ class Actions(object):
                     try:
                         plotter.make_plots(foremen=config.foremen_logs)
                     except Exception as e:
+                        logger.error("plotting failed with: {}".format(e))
                         import traceback
-                        traceback.print_stack()
-                        print e
+                        traceback.print_exc()
 
             self.plotq = multiprocessing.Queue()
             self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))

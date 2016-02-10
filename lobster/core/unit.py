@@ -624,7 +624,32 @@ class UnitStore:
                         units_done * 100.0 / units,
                     1) || ' %'
             from workflows""")
-        return ["label events read written units unmasked done paused percent".split()] + list(cursor)
+
+        yield "Label Events read written Units unmasked done paused failed skipped Completion".split()
+        total = None
+        for row in cursor:
+            failed, skipped = self.db.execute("""
+                select
+                    ifnull((
+                        select count(*)
+                        from units_{0}
+                        where failed > ? and status in (0, 3, 4)
+                    ), 0),
+                    ifnull((
+                        select count(*)
+                        from units_{0}
+                        where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
+                    ), 0)
+                from workflows where label=?
+                """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
+            row = row[:-1] + (failed, skipped, row[-1])
+            if total is None:
+                total = row[1:-1]
+            else:
+                total = map(sum, zip(total, row[1:-1]))
+
+            yield row
+        yield ['Total'] + total + ['{} %'.format(round(total[-4] * 100. / total[-5], 1))]
 
     @retry(stop_max_attempt_number=10)
     def pop_unmerged_tasks(self, workflow, bytes, num):

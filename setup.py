@@ -19,7 +19,7 @@ setup(
         'core/data/merge_reports.py',
         'commands/data/index.html',
         'commands/data/styles.css',
-        'commands/data/workflow.html'
+        'commands/data/category.html'
     ]},
     install_requires=[
         'argparse',

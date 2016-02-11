@@ -33,7 +33,7 @@
                 $("div.merge.more").hide();
                 $("div.foreman.more").hide();
 
-                $("select#workflows").change(function() {
+                $("select#categories").change(function() {
                     var current = $(this).val();
                     window.location.href = '../' + current;
                 });
@@ -99,11 +99,11 @@
                 <li><a href=".."><span class="lobster">Lobster</span> project overview</a></li>
                 <li class="active">
                     Summary for
-                    <select id="workflows">
+                    <select id="categories">
                         <option value="" disabled>change workflow</option>
-                        <option value="all" {% if label == 'all workflows' %}selected="selected"{% endif %}>all workflows</option>
-                        {% for wflow in workflows %}
-                        <option value="{{ wflow }}"{% if label == wflow %} selected="selected"{% endif %}>{{ wflow }}</option>
+                        <option value="all" {% if label == 'all categories' %}selected="selected"{% endif %}>all categories</option>
+                        {% for c in categories %}
+                        <option value="{{ c }}"{% if label == c %} selected="selected"{% endif %}>{{ c }}</option>
                         {% endfor %}
                     </select>
                 </li>

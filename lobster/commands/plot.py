@@ -241,16 +241,15 @@ class Plotter(object):
     PROF = 8
 
     def __init__(self, config, outdir=None):
-        self.__workdir = config.workdir
+        self.config = config
         self.__store = unit.UnitStore(config)
 
-        util.verify(self.__workdir)
-        self.__id = config.label
+        util.verify(self.config.workdir)
 
         if outdir:
             self.__plotdir = outdir
         else:
-            self.__plotdir = config.plotdir if config.plotdir else self.__id
+            self.__plotdir = config.plotdir if config.plotdir else self.config.label
         self.__plotdir = os.path.expandvars(os.path.expanduser(self.__plotdir))
 
         if not os.path.isdir(self.__plotdir):
@@ -280,7 +279,7 @@ class Plotter(object):
 
     def readdb(self):
         logger.debug('reading database')
-        db = sqlite3.connect(os.path.join(self.__workdir, 'lobster.db'), timeout=90)
+        db = sqlite3.connect(os.path.join(self.config.workdir, 'lobster.db'), timeout=90)
         stats = {}
 
         wflow_ids = {}
@@ -443,7 +442,7 @@ class Plotter(object):
         if filename:
             fn = filename
         else:
-            fn = os.path.join(self.__workdir, 'lobster_stats.log')
+            fn = os.path.join(self.config.workdir, 'lobster_stats.log')
 
         with open(fn) as f:
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
@@ -497,7 +496,7 @@ class Plotter(object):
             lumis.writeJSON(os.path.join(jsondir, 'processed_{}.json'.format(label)))
             res[label] = [(os.path.join('jsons', 'processed_{}.json'.format(label)), 'processed')]
 
-            published = os.path.join(self.__workdir, label, 'published.json')
+            published = os.path.join(self.config.workdir, label, 'published.json')
             if os.path.isfile(published):
                 shutil.copy(published, os.path.join(jsondir, 'published_{}.json'.format(label)))
                 res[label] += [(os.path.join('jsons', 'published_{}.json'.format(label)), 'published')]
@@ -520,7 +519,7 @@ class Plotter(object):
                 codes[exit_code][1][id] = []
 
                 try:
-                    source = glob.glob(os.path.join(self.__workdir, '*', 'failed', util.id2dir(id)))[0]
+                    source = glob.glob(os.path.join(self.config.workdir, '*', 'failed', util.id2dir(id)))[0]
                 except IndexError:
                     continue
 
@@ -544,7 +543,7 @@ class Plotter(object):
             skipped = self.__store.skipped_files(label)
 
             for id in failed:
-                source = os.path.join(self.__workdir, label, 'failed', util.id2dir(id))
+                source = os.path.join(self.config.workdir, label, 'failed', util.id2dir(id))
                 target = os.path.join(logdir, 'failed_' + label)
                 if not os.path.exists(target):
                     os.makedirs(target)
@@ -1004,12 +1003,14 @@ class Plotter(object):
         # Templating
         # ----------
 
+        categories = [c.name for c in self.config.categories if c.name != 'merge']
+
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
         env.filters["datetime"] = lambda d: datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
         env.tests["sum"] = lambda s: s == "Total"
         overview = env.get_template('index.html')
-        wflow = env.get_template('workflow.html')
+        wflow = env.get_template('category.html')
 
         jsons = self.savejsons(processed_lumis)
 
@@ -1018,7 +1019,7 @@ class Plotter(object):
 
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
             f.write(overview.render(
-                id=self.__id,
+                id=self.config.label,
                 plot_time=time.time(),
                 plot_starttime=self.__xmin,
                 plot_endtime=self.__xmax,
@@ -1029,11 +1030,11 @@ class Plotter(object):
                 bad_tasks=len(failed_tasks) > 0,
                 good_tasks=len(success_tasks) > 0,
                 foremen=foremen_names,
-                workflows=sorted(wflow_ids.keys())
+                categories=categories
             ).encode('utf-8'))
 
         # -----------------------
-        # Workflow specific plots
+        # Category specific plots
         # -----------------------
         logdir = os.path.join(self.__plotdir, 'logs')
         if os.path.exists(logdir):
@@ -1049,7 +1050,7 @@ class Plotter(object):
         logs = self.make_workflow_plots('all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
         with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
             f.write(wflow.render(
-                id=self.__id,
+                id=self.config.label,
                 label='all workflows',
                 bad_tasks=len(failed_tasks) > 0,
                 good_tasks=len(success_tasks) > 0,
@@ -1058,18 +1059,28 @@ class Plotter(object):
                 jsons=jsons,
                 bad_logs=logs,
                 foremen=foremen_names,
-                workflows=sorted(wflow_ids.keys())
+                categories=categories
             ).encode('utf-8'))
 
-        for label, id_ in wflow_ids.items():
+        for category in self.config.categories:
+            label = category.name
+            if label == 'merge':
+                continue
+            ids = []
+            labels = []
+            for workflow in self.config.workflows:
+                if workflow.category == category:
+                    ids.append(wflow_ids[workflow.label])
+                    labels.append(workflow.label)
+
             outdir = os.path.join(self.__plotdir, label)
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-            wf_good_tasks = good_tasks[good_tasks['workflow'] == id_]
-            wf_failed_tasks = failed_tasks[failed_tasks['workflow'] == id_]
-            wf_success_tasks = success_tasks[success_tasks['workflow'] == id_]
-            wf_merge_tasks = merge_tasks[merge_tasks['workflow'] == id_]
+            wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)]
+            wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)]
+            wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)]
+            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)]
 
             logs = self.make_workflow_plots(label, edges,
                     wf_good_tasks,
@@ -1080,16 +1091,16 @@ class Plotter(object):
 
             with open(os.path.join(self.__plotdir, label, 'index.html'), 'w') as f:
                 f.write(wflow.render(
-                    id=self.__id,
+                    id=self.config.label,
                     label=label,
                     bad_tasks=len(wf_failed_tasks) > 0,
                     good_tasks=len(wf_success_tasks) > 0,
                     merge_tasks=len(wf_merge_tasks) > 0,
-                    summary=[xs for xs in summary_data if xs[0] == label],
+                    summary=[xs for xs in summary_data if xs[0] in labels],
                     jsons=jsons,
                     bad_logs=logs,
                     foremen=foremen_names,
-                    workflows=sorted(wflow_ids.keys())
+                    categories=categories
                 ).encode('utf-8'))
 
         p = multiprocessing.Pool(10)

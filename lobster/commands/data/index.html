@@ -21,7 +21,7 @@
         <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
         <script>
             $(document).ready(function() {
-                $("select#workflows").change(function() {
+                $("select#categories").change(function() {
                     var current = $(this).val();
                     window.location.href = current;
                 });
@@ -32,10 +32,10 @@
             <ul>
                 <li class="active"><a href="#"><span class="lobster">Lobster</span> project overview</a></li>
                 <li>Summary for
-                    <select id="workflows">
+                    <select id="categories">
                         <option value="" selected="selected" disabled>select…</option>
-                        <option value="all">all workflows</option>
-                        {% for label in workflows %}
+                        <option value="all">all categories</option>
+                        {% for label in categories %}
                         <option value="{{ label }}">{{ label }}</option>
                         {% endfor %}
                     </select>

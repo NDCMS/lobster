@@ -513,6 +513,24 @@ class UnitStore:
             for label, _ in taskinfos.keys():
                 self.update_workflow_stats(label)
 
+    def update_workflow_stats_paused(self, roots=None):
+        """Update workflow statistics after increasing thresholds.
+
+        Happens only where needed, recursively traversing all dependency
+        trees between workflows, issuing blanket updates if a parent
+        workflow is changed.
+        """
+        if roots is None:
+            roots = [w for w in self.config.workflows if not w.prerequisite]
+        for r in roots:
+            merged, paused = self.db.execute("select merged, units_paused from workflows where label=?", (r.label,)).fetchone()
+            if paused > 0:
+                for m in r.family():
+                    self.db.execute("update workflows set merged=0 where label=?", (m.label,))
+                    self.update_workflow_stats(m.label)
+            elif len(r.dependents) > 0:
+                self.update_workflow_stats(r.dependents)
+
     def update_workflow_stats(self, label):
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 

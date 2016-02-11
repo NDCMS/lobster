@@ -97,10 +97,6 @@ class TaskProvider(object):
         self.parrot_bin = os.path.join(self.workdir, 'bin')
         self.parrot_lib = os.path.join(self.workdir, 'lib')
 
-        self.workflows = {}
-        self.categories = {}
-        self.bad_exitcodes = config.advanced.bad_exit_codes
-
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
@@ -143,9 +139,6 @@ class TaskProvider(object):
             util.register_checkpoint(self.workdir, 'executable', exename)
 
         for wflow in self.config.workflows:
-            self.workflows[wflow.label] = wflow
-            self.categories[wflow.category.name] = wflow.category
-
             if create and not util.checkpoint(self.workdir, wflow.label):
                 wflow.setup(self.workdir, self.basedirs)
                 logger.info("querying backend for {0}".format(wflow.label))
@@ -159,15 +152,15 @@ class TaskProvider(object):
                 for id in self.get_taskids(wflow.label):
                     util.move(wflow.workdir, id, 'failed')
 
-        for wflow in self.workflows.values():
+        for wflow in self.config.workflows:
             if wflow.prerequisite:
-                self.workflows[wflow.prerequisite].register(wflow)
+                getattr(self.config.workflows, wflow.prerequisite).register(wflow)
                 if create:
                     self.__store.register_dependency(wflow.label, wflow.prerequisite, wflow.dataset.parent.total_units)
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
-            versions = set([w.version for w in self.workflows.values()])
+            versions = set([w.version for w in self.config.workflows])
             if len(versions) == 1:
                 util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
 
@@ -192,8 +185,8 @@ class TaskProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
     def __find_root(self, label):
-        while self.workflows[label].prerequisite:
-            label = self.workflows[label].prerequisite
+        while getattr(self.config.workflows, label).prerequisite:
+            label = getattr(self.config.workflows, label).prerequisite
         return label
 
     def __setup_inputs(self):
@@ -265,7 +258,7 @@ class TaskProvider(object):
         taskinfos = []
         sizes = {}
         wflows = {}
-        for wflow in self.workflows.values():
+        for wflow in self.config.workflows:
             # First try to create a bunch of merge tasks
             taskinfos += self.__store.pop_unmerged_tasks(wflow.label, wflow.merge_size, 10)
 
@@ -290,7 +283,7 @@ class TaskProvider(object):
         need = total + max(int(0.1 * total), self.config.advanced.payload)
         # Subtract all waiting cores
         for name, queued in tasks.items():
-            need -= self.categories[name].cores * queued
+            need -= getattr(self.config.categories, name).cores * queued
         hunger = max(need, 0)
 
         logger.debug("need to fill {} cores".format(hunger))
@@ -305,8 +298,8 @@ class TaskProvider(object):
 
         # Go through categories, adjusting number of tasks
         count = sum(sizes.values())
-        for cat in sorted(self.categories.values(), key=helper):
-            if cat.name not in sizes:
+        for cat in sorted(self.config.categories, key=helper):
+            if cat.name not in sizes or cat.name == 'merge':
                 continue
 
             ccores = int(math.ceil(hunger * sizes[cat.name] / float(count)))
@@ -352,7 +345,7 @@ class TaskProvider(object):
         ids = []
 
         for (id, label, files, lumis, unique_arg, merge) in taskinfos:
-            wflow = self.workflows[label]
+            wflow = getattr(self.config.workflows, label)
             ids.append(id)
 
             jdir = util.taskdir(wflow.workdir, id)
@@ -451,7 +444,7 @@ class TaskProvider(object):
             handler = self.__taskhandlers[task.tag]
             failed, task_update, file_update, unit_update = handler.process(task, summary)
 
-            wflow = self.workflows[handler.dataset]
+            wflow = getattr(self.config.workflows, handler.dataset)
 
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')
@@ -466,7 +459,7 @@ class TaskProvider(object):
                     outfn = handler.outputs[0][1]
                     outinfo = handler.output_info
                     for dep in wflow.dependents:
-                        propagate[dep][outfn] = outinfo
+                        propagate[dep.label][outfn] = outinfo
 
                 if merge and wflow.merge_cleanup:
                     files = handler.input_files
@@ -509,27 +502,17 @@ class TaskProvider(object):
         except:
             logger.warning("Could not update task states to dashboard")
 
-    def category_constraints(self):
-        """Get the workflow resource constraints.
-
-        Will return a dictionary with nested dictionaries, referenced by
-        workflow catergory.  The nested dictionaries contain the keys
-        `cores`, `memory`, and `wall_time`, if the corresponding constraint
-        is specified in the workflow configuration.
-        """
-        constraints = {
-                'merge': {'cores': 1, 'memory': 900}
-        }
-        for category in set([w.category for w in self.workflows.values()]):
-            constraints[category.name] = category.wq()
-        return constraints
-
     def update(self, queue):
         # update dashboard status for all unfinished tasks.
         # WAITING_RETRIEVAL is not a valid status in dashboard,
         # so skipping it for now.
         exclude_states = (dash.DONE, dash.WAITING_RETRIEVAL)
         self.__update_dashboard(queue, exclude_states)
+
+    def update_paused(self):
+        """Have the unit store updated the statistics for paused units.
+        """
+        self.__store.update_workflow_stats_paused()
 
     def tasks_left(self):
         return self.__store.estimate_tasks_left()

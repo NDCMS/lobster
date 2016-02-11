@@ -41,7 +41,9 @@ class Category(Configurable):
             How many tasks should be in the queue (running or waiting) at
             the same time.
     """
-    _mutable = []
+    _mutable = {
+            'tasks': (None, None, tuple())
+    }
 
     def __init__(self,
             name,
@@ -57,6 +59,12 @@ class Category(Configurable):
         self.memory = memory
         self.disk = disk
         self.tasks = tasks
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
     def wq(self):
         res = {}
@@ -141,7 +149,7 @@ class Workflow(Configurable):
             Autodetermined when outputs are determined automatically.
             Tells Lobster if the output of this workflow is in EDM format.
     """
-    _mutable = []
+    _mutable = {}
     def __init__(self,
             label,
             dataset,
@@ -230,7 +238,15 @@ class Workflow(Configurable):
         logger.info("marking {0} to be downstream of {1}".format(wflow.label, self.label))
         if len(self._outputs) != 1:
             raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self._outputs)))
-        self.dependents.append(wflow.label)
+        self.dependents.append(wflow)
+
+    def family(self):
+        """Returns a flattened hierarchy tree
+        """
+        yield self
+        for d in self.dependents:
+            for member in d.family():
+                yield member
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.

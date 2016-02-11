@@ -21,10 +21,14 @@ class PartiallyMutable(type):
     sets the attribute `__fixed` to `True` after an instance has been
     constructed.
     """
+    actions = set()
+
     def __init__(self, name, bases, attrs):
         key = '_mutable'
         if key not in attrs:
             raise AttributeError('class {} does not set the attribute _mutable'.format(name))
+        elif not isinstance(attrs[key], dict):
+            raise AttributeError('class {} does not define the attribute _mutable as dict'.format(name))
         type.__init__(self, name, bases, attrs)
 
     def __call__(cls, *args, **kwargs):
@@ -40,22 +44,31 @@ class PartiallyMutable(type):
         finally:
             self.fixed = False
 
+    @classmethod
+    def changes(self):
+        for tpl in self.actions:
+            yield tpl
+        self.actions.clear()
+
 
 class Configurable(object):
     """Partially mutable base object.
 
-    Subclasses will have to define a class attribute `_mutable`, listing
-    all attributes that are allowed to be changed after an instance has
-    been constructed.
+    Subclasses will have to define a class attribute `_mutable`, a
+    dictionary linking all attributes to an action to be performed.
+    Attributes are given as strings, while the action to be performed is a
+    tuple consisting of the component to be changed, the method to be
+    called, and the arguments.
     """
     __metaclass__ = PartiallyMutable
-    _mutable = []
+    _mutable = {}
 
     def __setattr__(self, attr, value):
         if not hasattr(self.__class__, 'fixed') or not getattr(self.__class__, 'fixed'):
             super(Configurable, self).__setattr__(attr, value)
         elif attr in self._mutable:
             super(Configurable, self).__setattr__(attr, value)
+            self.__class__.actions.add(self._mutable[attr])
         else:
             raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
 

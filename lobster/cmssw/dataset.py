@@ -59,7 +59,7 @@ class Dataset(Configurable):
         dbs_instance : str
             Which DBS instance to query for the `dataset`.
     """
-    _mutable = []
+    _mutable = {}
 
     __apis = {}
     __dsets = {}

@@ -1,7 +1,9 @@
+from collections import namedtuple
 import os
 import pickle
 import re
 
+from lobster.core.workflow import Category
 from lobster.util import Configurable
 
 class Config(Configurable):
@@ -36,7 +38,7 @@ class Config(Configurable):
             A list of :class:`str` pointing to the `WorkQueue` foremen logs.
     """
 
-    _mutable = []
+    _mutable = {}
 
     def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None,
             foremen_logs=None,
@@ -49,12 +51,19 @@ class Config(Configurable):
         self.plotdir = plotdir
         self.foremen_logs = foremen_logs
         self.storage = storage
-        self.workflows = workflows
+        self.workflows = namedtuple('workflows', [w.label for w in workflows])(*workflows)
         self.advanced = advanced if advanced else AdvancedOptions()
+
+        cats = list(set([w.category for w in workflows])) + [Category(name='merge', cores=1, memory=900)]
+        self.categories = namedtuple('categories', [c.name for c in cats])(*cats)
 
         self.base_directory = base_directory
         self.base_configuration = base_configuration
         self.startup_directory = startup_directory
+
+        # hack to allow pickling of the config object
+        globals()['categories'] = type(self.categories)
+        globals()['workflows'] = type(self.workflows)
 
     @classmethod
     def load(cls, path):
@@ -115,7 +124,11 @@ class AdvancedOptions(Configurable):
             evicted tasks automatically.
     """
 
-    _mutable = ['payload', 'threshold_for_failure', 'threshold_for_skipping']
+    _mutable = {
+            'payload': (None, None, tuple()),
+            'threshold_for_failure': ('source', 'update_paused', tuple()),
+            'threshold_for_skipping': ('source', 'update_paused', tuple())
+    }
 
     def __init__(self,
             use_dashboard=True,

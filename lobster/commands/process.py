@@ -91,7 +91,7 @@ def run(args):
 
 def sprint(config, workdir):
     task_src = TaskProvider(config)
-    action = actions.Actions(config)
+    action = actions.Actions(config, task_src)
     from WMCore.Credential.Proxy import Proxy
     proxy = Proxy({'logger': logging.getLogger("WMCore")})
 
@@ -152,19 +152,20 @@ def sprint(config, workdir):
                 "total_cores " +
                 "units_left\n")
 
-    bad_exitcodes = task_src.bad_exitcodes
+    bad_exitcodes = config.advanced.bad_exit_codes
     categories = []
 
     # Workflows can be assigned categories, with each category having
     # different cpu/memory/walltime requirements that WQ will automatically
     # fine-tune
-    for category, constraints in task_src.category_constraints().items():
-        if category != 'merge':
-            categories.append(category)
-        queue.specify_max_category_resources(category, constraints)
-        logger.debug('Category {0}: {1}'.format(category,constraints))
+    for category in config.categories:
+        constraints = category.wq()
+        if category.name != 'merge':
+            categories.append(category.name)
+        queue.specify_max_category_resources(category.name, constraints)
+        logger.debug('Category {0}: {1}'.format(category.name ,constraints))
         if 'wall_time' not in constraints:
-            queue.activate_fast_abort_category(category, abort_multiplier)
+            queue.activate_fast_abort_category(category.name, abort_multiplier)
 
     while not task_src.done():
         tasks_left = task_src.tasks_left()

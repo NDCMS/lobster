@@ -47,7 +47,7 @@ class Dataset(Configurable):
         files_per_task : int
             How many files to process in one task
     """
-    _mutable = []
+    _mutable = {}
 
     def __init__(self, files, files_per_task=1):
         self.files = files
@@ -93,7 +93,7 @@ class ProductionDataset(Configurable):
         randomize_seeds : bool
             Use random seeds every time a task is run.
     """
-    _mutable = []
+    _mutable = {}
     def __init__(self, events_per_task, events_per_lumi=None, number_of_tasks=1, randomize_seeds=True):
         self.number_of_tasks = number_of_tasks
         self.events_per_task = events_per_task
@@ -131,7 +131,7 @@ class ParentDataset(Configurable):
             How much of the parent dataset to process at once.  Can be
             changed by Lobster to match the user-specified task runtime.
     """
-    _mutable = []
+    _mutable = {}
     def __init__(self, parent, units_per_task=1):
         self.parent = parent
         self.units_per_task = units_per_task

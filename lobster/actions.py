@@ -22,12 +22,13 @@ class DummyQueue(object):
         return None
 
 class Actions(object):
-    def __init__(self, config):
+    def __init__(self, config, source):
         fn = os.path.join(config.workdir, 'ipc')
         if not os.path.exists(fn):
             os.mkfifo(fn)
         self.fifo = os.fdopen(os.open(fn, os.O_RDONLY|os.O_NONBLOCK))
-        self.__config = config
+        self.config = config
+        self.source = source
 
         if not config.plotdir:
             self.plotq = DummyQueue()
@@ -67,10 +68,14 @@ class Actions(object):
                 continue
             try:
                 with PartiallyMutable.lockdown():
-                    exec cmd in {'config': self.__config}, {}
-                    self.__config.save()
+                    exec cmd in {'config': self.config}, {}
+                    self.config.save()
             except Exception as e:
                 logger.error('caught exeption from command: {}'.format(e))
+        for component, attr, args in PartiallyMutable.changes():
+            if attr is not None:
+                logger.info('updating setup by calling {} of {} with {}'.format(attr, component, args))
+                getattr(getattr(self, component), attr)(*args)
 
     def take(self, force=False):
         self.__communicate()

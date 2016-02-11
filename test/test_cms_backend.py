@@ -1,11 +1,14 @@
 # vim: foldmethod=marker
+import os
+import shutil
+import tempfile
+
 from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.core.task import TaskHandler
 from lobster.core.unit import TaskUpdate, UnitStore
-import os
-import shutil
-import tempfile
+from lobster.core.config import Config
+from lobster.core.workflow import Workflow
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -28,13 +31,14 @@ class TestSQLBackend(object):
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
-        cls.interface = UnitStore({
-            'workdir': cls.workdir,
-            'stageout location': cls.workdir,
-            'id': 'test',
-            'recycle sandbox': '/dev/null',
-            'tasks': {}
-        })
+        cls.interface = UnitStore(
+            Config(
+                label='test',
+                workdir=cls.workdir,
+                storage=se.StorageConfiguration(output=['file://' + cls.workdir]),
+                workflows=[]
+            )
+        )
 
     @classmethod
     def teardown_class(cls):
@@ -51,14 +55,7 @@ class TestSQLBackend(object):
         info.total_lumis = len(info.files.keys())
         info.path = ''
 
-        cfg = {
-                'dataset': '/Test',
-                'global tag': 'test',
-                'label': label,
-                'cmssw config': ''
-        }
-
-        return cfg, info
+        return Workflow(label, None, sandbox_release=''), info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
@@ -106,14 +103,7 @@ class TestSQLBackend(object):
 
         info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
-        cfg = {
-                'dataset': '/Test',
-                'global tag': 'test',
-                'label': label,
-                'cmssw config': ''
-        }
-
-        return cfg, info
+        return Workflow(label, None, sandbox_release=''), info
         # }}}
 
     def test_create_datasets(self):
@@ -134,7 +124,7 @@ class TestSQLBackend(object):
         self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_handler', lumis=11, filesize=2.2, tasksize=3))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_handler', 1)[0]
 
         handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
 
@@ -162,7 +152,7 @@ class TestSQLBackend(object):
         self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_obtain', lumis=20, filesize=2.2, tasksize=3))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_obtain', 1)[0]
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -190,7 +180,7 @@ class TestSQLBackend(object):
         self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_good', lumis=20, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_good', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -240,7 +230,7 @@ class TestSQLBackend(object):
     def test_return_bad(self):
         # {{{
         self.interface.register_dataset(*self.create_dbs_dataset('test_bad'))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_bad', 1)[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -285,7 +275,7 @@ class TestSQLBackend(object):
         # {{{
         self.interface.register_dataset(*self.create_dbs_dataset(
             'test_bad_again', lumis=20, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_bad_again', 1)[0]
 
         task_update = TaskUpdate(
             exit_code=123,
@@ -335,7 +325,7 @@ class TestSQLBackend(object):
         self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_ugly', lumis=11, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_ugly', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -397,7 +387,7 @@ class TestSQLBackend(object):
         self.interface.register_dataset(
                 *self.create_dbs_dataset(
                     'test_uglier', lumis=11, filesize=2.2, tasksize=6))
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_uglier', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id, submissions=1)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -415,7 +405,7 @@ class TestSQLBackend(object):
         self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         # grab another task
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_uglier', 1)[0]
 
         task_update.id = id
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -456,7 +446,7 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_obtain', 5, 3))
 
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_obtain', 1)[0]
 
         parameters = {'mask': {'lumis': None}}
         TaskHandler(id, label, files, lumis, None, True).adjust(parameters, [], [], se.StorageConfiguration({}))
@@ -484,7 +474,7 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_good', 5, 3))
 
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_good', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -523,7 +513,7 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_bad', 5, 3))
 
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_bad', 1)[0]
 
         task_update = TaskUpdate(exit_code=1234, host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
@@ -558,7 +548,7 @@ class TestSQLBackend(object):
                 *self.create_file_dataset(
                     'test_file_return_ugly', 5, 3))
 
-        (id, label, files, lumis, arg, _) = self.interface.pop_units()[0]
+        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_ugly', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)

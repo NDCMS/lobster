@@ -162,6 +162,7 @@ done
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 
+print_output "machine load" top -Mb\|head -n 50
 print_output "environment before execution" env
 
 echo "[$(date '+%F %T')] wrapper ready"

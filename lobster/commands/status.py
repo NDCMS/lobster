@@ -7,8 +7,7 @@ def status(args):
     config = args.config
     logger = logging.getLogger('lobster.status')
     store = unit.UnitStore(config)
-
-    data = store.dataset_status()
+    data = list(store.workflow_status())
 
     widths = \
             [max(map(len, (xs[0] for xs in data)))] + \
@@ -22,19 +21,18 @@ def status(args):
 
     logger.info("workflow summary:\n" + report)
 
-    wdir = config['workdir']
-    for cfg in config['tasks']:
-        label = cfg['label']
-        tasks = store.failed_units(label)
-        files = store.skipped_files(label)
+    wdir = config.workdir
+    for wflow in config.workflows:
+        tasks = store.failed_units(wflow.label)
+        files = store.skipped_files(wflow.label)
 
         if len(tasks) > 0:
-            msg = "tasks with failed units for {0}:".format(label)
+            msg = "tasks with failed units for {0}:".format(wflow.label)
             for task in tasks:
-                tdir = os.path.normpath(os.path.join(wdir, label, 'failed', util.id2dir(task)))
+                tdir = os.path.normpath(os.path.join(wdir, wflow.label, 'failed', util.id2dir(task)))
                 msg += "\n" + tdir
             logger.info(msg)
 
         if len(files) > 0:
-            msg = "files skipped for {0}:\n".format(label) + "\n".join(files)
+            msg = "files skipped for {0}:\n".format(wflow.label) + "\n".join(files)
             logger.info(msg)

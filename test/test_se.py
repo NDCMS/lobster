@@ -1,5 +1,5 @@
 # vim: foldmethod=marker
-from lobster.cmssw import dataset
+from lobster.core import dataset
 from lobster import fs, se
 import os
 import random
@@ -30,11 +30,12 @@ class TestSE(unittest.TestCase):
     def query(self, url):
         if not isinstance(url, list):
             url = [url]
-        s = se.StorageConfiguration({'input': url})
+        s = se.StorageConfiguration(output=[], input=url)
         s.activate()
 
         with fs.default():
-            info = dataset.MetaInterface().get_info({'label': 'ham', 'files': 'spam/'})
+            ds = dataset.Dataset(files='spam/')
+            info = ds.get_info()
             assert len(info.files) == 10
 
     def permissions(self, url):
@@ -42,7 +43,7 @@ class TestSE(unittest.TestCase):
             url = [url]
         url = [os.path.join(u, 'bacon') for u in url]
 
-        s = se.StorageConfiguration({'output': url})
+        s = se.StorageConfiguration(output=url)
         s.activate()
 
         assert not fs.exists('ham')

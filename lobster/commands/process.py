@@ -24,13 +24,13 @@ def kill(args):
     logger.info("setting flag to quit at the next checkpoint")
     logger.debug("Don't be alarmed.  The following stack trace doesn't indicate a crash.  It's just for debugging purposes.")
     logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
-    workdir = args.config['workdir']
+    workdir = args.config.workdir
     util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 def run(args):
     config = args.config
 
-    workdir = config['workdir']
+    workdir = config.workdir
     if not os.path.exists(workdir):
         os.makedirs(workdir)
 
@@ -39,30 +39,26 @@ def run(args):
     else:
         util.verify(workdir)
 
-    cmstask = False
-    if config.get('type', 'cmssw') == 'cmssw':
-        cmstask = True
-
-        from WMCore.Credential.Proxy import Proxy
-        cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
-        if cred.check() and cred.getTimeLeft() > 4 * 3600:
-            if not 'X509_USER_PROXY' in os.environ:
-                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
-        else:
-            if config.get('advanced', {}).get('renew proxy', True):
-                cred.renew()
-                if cred.getTimeLeft() < 4 * 3600:
-                    logger.error("could not renew proxy")
-                    sys.exit(1)
-            else:
-                logger.error("please renew your proxy")
+    from WMCore.Credential.Proxy import Proxy
+    cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+    if cred.check() and cred.getTimeLeft() > 4 * 3600:
+        if not 'X509_USER_PROXY' in os.environ:
+            os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
+    else:
+        if config.advanced.renew_proxy:
+            cred.renew()
+            if cred.getTimeLeft() < 4 * 3600:
+                logger.error("could not renew proxy")
                 sys.exit(1)
+        else:
+            logger.error("please renew your proxy")
+            sys.exit(1)
 
     if not args.foreground:
         ttyfile = open(os.path.join(workdir, 'process.err'), 'a')
         logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'process.err')))
 
-    if config.get('advanced', {}).get('dump core', False):
+    if config.advanced.dump_core:
         logger.info("setting core dump size to unlimited")
         resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
@@ -79,7 +75,7 @@ def run(args):
             prevent_core=False,
             initgroups=False,
             signal_map=signals):
-        t = threading.Thread(target=sprint, args=(config, workdir, cmstask))
+        t = threading.Thread(target=sprint, args=(config, workdir))
         t.start()
         t.join()
 
@@ -93,15 +89,11 @@ def run(args):
         except:
             pass
 
-def sprint(config, workdir, cmstask):
+def sprint(config, workdir):
     task_src = TaskProvider(config)
-    if cmstask:
-        action = actions.Actions(config)
-        from WMCore.Credential.Proxy import Proxy
-        proxy = Proxy({'logger': logging.getLogger("WMCore")})
-    else:
-        action = None
-        proxy = None
+    action = actions.Actions(config, task_src)
+    from WMCore.Credential.Proxy import Proxy
+    proxy = Proxy({'logger': logging.getLogger("WMCore")})
 
     logger.info("using wq from {0}".format(wq.__file__))
 
@@ -111,35 +103,31 @@ def sprint(config, workdir, cmstask):
 
     queue = wq.WorkQueue(-1)
     queue.specify_log(os.path.join(workdir, "work_queue.log"))
-    queue.specify_name("lobster_" + config["id"])
+    queue.specify_name("lobster_" + config.label)
     queue.specify_keepalive_timeout(300)
     # queue.tune("short-timeout", 600)
     queue.tune("transfer-outlier-factor", 4)
     queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-    if config.get('advanced', {}).get('full monitoring', False):
+    if config.advanced.full_monitoring:
         queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
     else:
         queue.enable_monitoring(os.path.join(workdir, "work_queue_monitoring"))
 
-    cores = config.get('cores per task', 1)
     logger.info("starting queue as {0}".format(queue.name))
-    logger.info("submit workers with: condor_submit_workers -M {0}{1} <num>".format(
-        queue.name, ' --cores {0}'.format(cores) if cores > 1 else ''))
 
-    payload = config.get('advanced', {}).get('payload', 10)
     abort_active = False
-    abort_threshold = config.get('advanced', {}).get('abort threshold', 400)
-    abort_multiplier = config.get('advanced', {}).get('abort multiplier', 4)
+    abort_threshold = config.advanced.abort_threshold
+    abort_multiplier = config.advanced.abort_multiplier
 
-    wq_max_retries = config.get('advanced', {}).get('wq max tries', 10)
+    wq_max_retries = config.advanced.wq_max_retries
 
     if util.checkpoint(workdir, 'KILLED') == 'PENDING':
         util.register_checkpoint(workdir, 'KILLED', 'RESTART')
 
     # time in seconds to wait for WQ to return tasks, with minimum wait
     # time in case no more tasks are waiting
-    interval = 60
-    interval_minimum = 10
+    interval = 120
+    interval_minimum = 30
 
     tasks_left = 0
     units_left = 0
@@ -164,16 +152,20 @@ def sprint(config, workdir, cmstask):
                 "total_cores " +
                 "units_left\n")
 
-    bad_exitcodes = task_src.bad_exitcodes
+    bad_exitcodes = config.advanced.bad_exit_codes
+    categories = []
 
     # Workflows can be assigned categories, with each category having
     # different cpu/memory/walltime requirements that WQ will automatically
     # fine-tune
-    for category, constraints in task_src.category_constraints().items():
-        queue.specify_max_category_resources(category, constraints)
-        logger.debug('Category {0}: {1}'.format(category,constraints))
+    for category in config.categories:
+        constraints = category.wq()
+        if category.name != 'merge':
+            categories.append(category.name)
+        queue.specify_max_category_resources(category.name, constraints)
+        logger.debug('Category {0}: {1}'.format(category.name ,constraints))
         if 'wall_time' not in constraints:
-            queue.activate_fast_abort_category(category, abort_multiplier)
+            queue.activate_fast_abort_category(category.name, abort_multiplier)
 
     while not task_src.done():
         tasks_left = task_src.tasks_left()
@@ -228,15 +220,8 @@ def sprint(config, workdir, cmstask):
                 stats.tasks_running,
                 stats.tasks_waiting))
 
-        # FIXME switch to resource monitoring in WQ
-        need = max(payload, stats.total_cores / 10) + stats.total_cores - stats.committed_cores
-        hunger = max(need - stats.tasks_waiting, 0)
-
-        logger.debug("total cores available (committed): {0} ({1})".format(stats.total_cores, stats.committed_cores))
-        logger.debug("trying to feed {0} tasks to work queue".format(hunger))
-
         expiry = None
-        if proxy and hunger > 0:
+        if proxy:
             left = proxy.getTimeLeft()
             if left == 0:
                 logger.error("proxy expired!")
@@ -246,37 +231,37 @@ def sprint(config, workdir, cmstask):
                 logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
             expiry = int(time.time()) + left
 
+        have = {}
+        for c in categories:
+            cstats = queue.stats_category(c)
+            have[c] = cstats.tasks_running + cstats.tasks_waiting
+
         t = time.time()
-        while hunger > 0:
-            tasks = task_src.obtain(hunger)
+        tasks = task_src.obtain(stats.total_cores, have)
 
-            if tasks == None or len(tasks) == 0:
-                break
+        for category, cmd, id, inputs, outputs in tasks:
+            task = wq.Task(cmd)
+            task.specify_category(category)
+            task.specify_tag(id)
+            task.specify_max_retries(wq_max_retries)
 
-            hunger -= len(tasks)
-            for category, cmd, id, inputs, outputs in tasks:
-                task = wq.Task(cmd)
-                task.specify_category(category)
-                task.specify_tag(id)
-                task.specify_max_retries(wq_max_retries)
+            for (local, remote, cache) in inputs:
+                if os.path.isfile(local):
+                    cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
+                    task.specify_input_file(str(local), str(remote), cache_opt)
+                elif os.path.isdir(local):
+                    task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
+                            wq.WORK_QUEUE_CACHE, recursive=True)
+                else:
+                    logger.critical("cannot send file to worker: {0}".format(local))
+                    raise NotImplementedError
 
-                for (local, remote, cache) in inputs:
-                    if os.path.isfile(local):
-                        cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
-                        task.specify_input_file(str(local), str(remote), cache_opt)
-                    elif os.path.isdir(local):
-                        task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
-                                wq.WORK_QUEUE_CACHE, recursive=True)
-                    else:
-                        logger.critical("cannot send file to worker: {0}".format(local))
-                        raise NotImplementedError
+            for (local, remote) in outputs:
+                task.specify_output_file(str(local), str(remote))
 
-                for (local, remote) in outputs:
-                    task.specify_output_file(str(local), str(remote))
-
-                if expiry:
-                    task.specify_end_time(expiry * 10**6)
-                queue.submit(task)
+            if expiry:
+                task.specify_end_time(expiry * 10**6)
+            queue.submit(task)
         creation_time += int((time.time() - t) * 1e6)
 
         task_src.update(queue)
@@ -292,7 +277,7 @@ def sprint(config, workdir, cmstask):
             tasks.append(task)
 
             remaining = int(starttime + interval - time.time())
-            if (interval - remaining > interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
+            if (interval - remaining < interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
                 task = queue.wait(remaining)
             else:
                 task = None

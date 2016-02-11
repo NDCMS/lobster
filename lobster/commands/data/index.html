@@ -21,7 +21,7 @@
         <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
         <script>
             $(document).ready(function() {
-                $("select#workflows").change(function() {
+                $("select#categories").change(function() {
                     var current = $(this).val();
                     window.location.href = current;
                 });
@@ -32,10 +32,10 @@
             <ul>
                 <li class="active"><a href="#"><span class="lobster">Lobster</span> project overview</a></li>
                 <li>Summary for
-                    <select id="workflows">
+                    <select id="categories">
                         <option value="" selected="selected" disabled>select…</option>
-                        <option value="all">all workflows</option>
-                        {% for label in workflows %}
+                        <option value="all">all categories</option>
+                        {% for label in categories %}
                         <option value="{{ label }}">{{ label }}</option>
                         {% endfor %}
                     </select>
@@ -77,12 +77,14 @@
             <tr>
                 <th>Workflow</th>
                 <th>Events</th>
-                <th>Events read</th>
-                <th>Events written</th>
+                <th>read</th>
+                <th>written</th>
                 <th>Units total</th>
-                <th>Units unmasked</th>
-                <th>Units written</th>
-                <th>Units failed</th>
+                <th>unmasked</th>
+                <th>written</th>
+                <th>paused</th>
+                <th>failed</th>
+                <th>skipped</th>
                 <th>Progress</th>
                 {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
             </tr>
@@ -94,8 +96,10 @@
             {% endif %}
                 {% for cell in row %}
                 <td{% if row == summary[-1] %} class="footer"{% endif %}>
-                    {% if cell == row[-2] and cell > 0 and row != summary[-1] %}
-                        <a href="logs/{{row[0]}}">{{cell}}</a>
+                    {% if loop.revindex == 2 and cell > 0 and row != summary[-1] %}
+                        <a href="logs/skipped_{{row[0]}}.txt">{{cell}}</a>
+                    {% elif loop.revindex == 3 and cell > 0 and row != summary[-1] %}
+                        <a href="logs/failed_{{row[0]}}">{{cell}}</a>
                     {% else %}
                         {{ cell }}
                     {% endif %}
@@ -106,7 +110,7 @@
                         {% else %}
                         <td>
                             {% for path, name in jsons[row[0]] %}
-                            <a href={{ path }}>{{ name }}</a>
+                            <a href="{{ path }}">{{ name }}</a>
                             {% endfor %}
                         </td>
                         {% endif %}

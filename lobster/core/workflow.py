@@ -1,71 +1,211 @@
+# -*- coding: utf8 -*-
 import imp
 import logging
 import os
+import re
 import shutil
 import sys
 
 from lobster import fs, util
 from lobster.cmssw import sandbox
+from lobster.core.dataset import ProductionDataset
 from lobster.core.task import *
+from lobster.util import Configurable
 
 logger = logging.getLogger('lobster.workflow')
 
-class Workflow(object):
-    def __init__(self, workdir, config, basedirs):
-        self.config = config
-        self.label = config['label']
-        self.workdir = os.path.join(workdir, self.label)
-        self.category = config.get('category', self.label)
+class Category(Configurable):
+    """
+    Resource specification for a group of
+    :class:`~lobster.core.workflow.Workflow`s.
 
-        self.cores = config.get('cores per task', 1)
-        self._runtime = config.get('task runtime')
-        self.memory = config.get('task memory')
-        self.disk = config.get('task disk')
-        self.mergesize = self.__check_merge(config.get('merge size', -1))
+    This information will be passed on to `WorkQueue`, which will forcibly
+    terminate tasks of :class:`Workflow` in the group that exceed the
+    specified resources.
 
-        if 'sandbox' in config:
-            self.version, self.sandbox = sandbox.recycle(config['sandbox'], workdir)
-        else:
-            releaseDir = ''
-            # Check whether a release is currently set up
-            if 'LOCALRT' in os.environ:
-                releaseDir = os.environ['LOCALRT']
-            # See if we've requested a specific release
-            releaseDir = config.get('sandbox release',releaseDir)
-            if releaseDir == '':
-                raise Exception('Either need to run Lobster after running cmsenv in desired release or need to specify "sandbox release" in config for this workflow.')
+    Parameters
+    ----------
+        name : str
+            The name of the resource group.
+        cores : int
+            The number of cores a task of the group should use.
+        runtime : int
+            The runtime of the task in seconds.  Lobster will add a grace
+            period to this time, and try to adjust the task size such that
+            this runtime is achieved.
+        memory : int
+            How much memory a task is allowed to use, in megabytes.
+        disk : int
+            How much disk a task is allowed to use, in megabytes.
+        tasks : int
+            How many tasks should be in the queue (running or waiting) at
+            the same time.
+    """
+    _mutable = {
+            'tasks': (None, None, tuple())
+    }
 
-            self.version, self.sandbox = sandbox.package(
-                    releaseDir,
-                    workdir,
-                    config.get('sandbox blacklist', []))
+    def __init__(self,
+            name,
+            cores=1,
+            runtime=None,
+            memory=None,
+            disk=None,
+            tasks=None
+            ):
+        self.name = name
+        self.cores = cores
+        self.runtime = runtime
+        self.memory = memory
+        self.disk = disk
+        self.tasks = tasks
 
-        self.cmd = config.get('cmd', 'cmsRun')
-        self.extra_inputs = config.get('extra inputs', [])
-        self.args = config.get('parameters', [])
-        self._outputs = config.get('outputs')
-        self.outputformat = config.get("output format", "{base}_{id}.{ext}")
+    def __eq__(self, other):
+        return self.name == other.name
 
-        self.events_per_task = config.get('events per task', -1)
-        self.events_per_lumi = config.get('events per lumi', -1)
-        self.randomize_seeds = config.get('randomize seeds', True)
+    def __hash__(self):
+        return hash(self.name)
+
+    def wq(self):
+        res = {}
+        if self.runtime:
+            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * int(1e6)
+        if self.memory:
+            res['memory'] = self.memory
+        if self.cores:
+            res['cores'] = self.cores
+        if self.disk:
+            res['disk'] = self.disk
+        return res
+
+class Workflow(Configurable):
+    """
+    A specification for processing a dataset.
+
+    Parameters
+    ----------
+        label : str
+            The shorthand name of the workflow.  This is used as a
+            reference throughout Lobster.
+        dataset : Dataset
+            The specification of data to be processed.  Can be any of the
+            dataset related classes.
+        category : Category
+            The category of resource specification this workflow belongs
+            to.
+        publish_label : str
+            The label to be used for the publication database.
+        merge_cleanup : bool
+            Delete merged output files.
+        merge_size : str
+            Activates output file merging when set.  Accepts the suffixes
+            *k*, *m*, *g* for kilobyte, megabyte, …
+        sandbox : str
+            Path to a sandbox to re-use.  This sandbox will be copied over
+            to the current working directory.
+        sandbox_release : str
+            The path to the CMSSW release to be used as a sandbox.
+            Defaults to the environment variable `LOCALRT`.
+        sandbox_blacklist : list
+            A specification of paths to not pack into the sandbox.
+        command : str
+            Which executable to run (for non-CMSSW workflows)
+        extra_inputs : list
+            Additional inputs outside the sandbox needed to process the
+            workflow.
+        arguments : list
+            Arguments to pass to the executable.
+        unique_arguments : list
+            A list of arguments.  Each element of the dataset is processed
+            once for each argument in this list.  The unique argument is
+            also passed to the executable.
+
+            TODO: should really be in the dataset specification
+        outputs : list
+            A list of strings which specifies the files produced by the
+            workflow.  Will be automatically determined for CMSSW
+            workflows.
+        output_format : str
+            How the output files should be renamed on the storage element.
+            This is a new-style format string, allowing for the fields
+            `base`, `id`, and `ext`, for the basename of the output file,
+            the ID of the task, and the extension of the output file.
+        parent : str
+            The label of the parent workflow, if any.
+
+            TODO: should really be a dataset specfication
+        local : bool
+            If set to `True`, Lobster will assume this workflow's input is
+            present on the output storage element.
+        cmssw_config : str
+            The CMSSW configuration to use, if any.
+        globaltag : str
+            Which GlobalTag this workflow uses.  Needed for publication of
+            CMSSW workflows, and can be automatically determined for these.
+
+            TODO: check that the globaltag is determined independently of
+            the outputs.
+        edm_output : bool
+            Autodetermined when outputs are determined automatically.
+            Tells Lobster if the output of this workflow is in EDM format.
+    """
+    _mutable = {}
+    def __init__(self,
+            label,
+            dataset,
+            category=None,
+            publish_label=None,
+            merge_cleanup=True,
+            merge_size=-1,
+            sandbox=None,
+            sandbox_release=None,
+            sandbox_blacklist=None,
+            command='cmsRun',
+            extra_inputs=None,
+            arguments=None,
+            unique_arguments=None,
+            outputs=None,
+            output_format="{base}_{id}.{ext}",
+            parent=None,
+            local=False,
+            cmssw_config=None,
+            globaltag=None,
+            edm_output=True):
+        self.label = label
+        if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
+            raise ValueError("Workflow label contains illegal characters: {}".format(label))
+        self.category = category if category else label
+        self.dataset = dataset
+
+        self.publish_label = publish_label if publish_label else label
+
+        self.merge_size = self.__check_merge(merge_size)
+        self.merge_cleanup = merge_cleanup
+
+        self.cmd = command
+        self.extra_inputs = extra_inputs if extra_inputs else []
+        self.args = arguments if arguments else []
+        self.unique_args = unique_arguments if unique_arguments else [None]
+        self._outputs = outputs
+        self.outputformat = output_format
 
         self.dependents = []
-        self.prerequisite = config.get('parent dataset')
+        self.prerequisite = parent
 
-        self.pset = config.get('cmssw config')
-        self.local = config.get('local', 'files' in config)
-        self.edm_output = config.get('edm output', True)
+        self.pset = cmssw_config
+        self.globaltag = globaltag
+        self.local = local or hasattr(dataset, 'files')
+        self.edm_output = edm_output
 
-        self.copy_inputs(basedirs)
-        if self.pset and not self._outputs:
-            self.determine_outputs(basedirs)
-
-    @property
-    def runtime(self):
-        if not self._runtime:
-            return None
-        return self._runtime + 15 * 60
+        self.sandbox = sandbox
+        if sandbox_release is not None:
+            self.sandbox_release = sandbox_release
+        else:
+            try:
+                self.sandbox_release = os.environ['LOCALRT']
+            except:
+                raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
+        self.sandbox_blacklist = sandbox_blacklist
 
     def __check_merge(self, size):
         if size <= 0:
@@ -98,7 +238,15 @@ class Workflow(object):
         logger.info("marking {0} to be downstream of {1}".format(wflow.label, self.label))
         if len(self._outputs) != 1:
             raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self._outputs)))
-        self.dependents.append(wflow.label)
+        self.dependents.append(wflow)
+
+    def family(self):
+        """Returns a flattened hierarchy tree
+        """
+        yield self
+        for d in self.dependents:
+            for member in d.family():
+                yield member
 
     def copy_inputs(self, basedirs, overwrite=False):
         """Make a copy of extra input files.
@@ -112,7 +260,7 @@ class Workflow(object):
         if self.pset:
             shutil.copy(util.findpath(basedirs, self.pset), os.path.join(self.workdir, os.path.basename(self.pset)))
 
-        if 'extra inputs' not in self.config:
+        if self.extra_inputs is None:
             return []
 
         def copy_file(fn):
@@ -133,8 +281,7 @@ class Workflow(object):
 
             return target
 
-        files = map(copy_file, self.config['extra inputs'])
-        self.config['extra inputs'] = files
+        files = map(copy_file, self.extra_inputs)
         self.extra_inputs = files
 
     def determine_outputs(self, basedirs):
@@ -151,19 +298,30 @@ class Workflow(object):
             source = imp.load_source('cms_config_source', self.pset, f)
             process = source.process
             if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
-                self.config['global tag'] = process.GlobalTag.globaltag.value()
+                self.global_tag = process.GlobalTag.globaltag.value()
             for label, module in process.outputModules.items():
                 self._outputs.append(module.fileName.value())
             if 'TFileService' in process.services:
                 self._outputs.append(process.services['TFileService'].fileName.value())
                 self.edm_output = False
 
-            self.config['edm output'] = self.edm_output
-            self.config['outputs'] = self._outputs
-
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self._outputs)))
 
-    def create(self):
+    def setup(self, workdir, basedirs):
+        self.workdir = os.path.join(workdir, self.label)
+
+        if self.sandbox:
+            self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
+        else:
+            self.version, self.sandbox = sandbox.package(
+                    self.sandbox_release,
+                    workdir,
+                    self.sandbox_blacklist)
+
+        self.copy_inputs(basedirs)
+        if self.pset and not self._outputs:
+            self.determine_outputs(basedirs)
+
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that
         # constitutes an error, since we really should create the workflow!
@@ -180,7 +338,7 @@ class Workflow(object):
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
             return MergeTaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir)
-        elif self.events_per_task > 0:
+        elif isinstance(self.dataset, ProductionDataset):
             return ProductionTaskHandler(id_, self.label, lumis, list(self.outputs(id_)), taskdir)
         else:
             return TaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir, local=self.local)
@@ -221,11 +379,11 @@ class Workflow(object):
                 args.append(unique)
             if pset:
                 pset = os.path.join(self.workdir, pset)
-            if self._runtime:
+            if self.category.runtime:
                 # cap task runtime at desired runtime + 10 minutes grace
                 # period (CMSSW 7.4 and higher only)
-                params['task runtime'] = self._runtime + 10 * 60
-            params['cores'] = self.cores
+                params['task runtime'] = self.category.runtime + 10 * 60
+            params['cores'] = self.category.cores
 
         if pset:
             inputs.append((pset, os.path.basename(pset), True))
@@ -235,7 +393,9 @@ class Workflow(object):
 
         params['executable'] = cmd
         params['arguments'] = args
-        params['mask']['events'] = self.events_per_task
-        if self.events_per_lumi > 0:
-            params['mask']['events per lumi'] = self.events_per_lumi
-            params['randomize seeds'] = self.randomize_seeds
+        if isinstance(self.dataset, ProductionDataset):
+            params['mask']['events'] = self.dataset.events_per_task
+            params['mask']['events per lumi'] = self.dataset.events_per_lumi
+            params['randomize seeds'] = self.dataset.randomize_seeds
+        else:
+            params['mask']['events'] = -1

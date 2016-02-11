@@ -15,16 +15,13 @@ for f in rm:
 from lobster.cmssw.publish import publish
 from lobster.commands.process import kill, run
 from lobster.commands.plot import plot
+from lobster.commands.reconfigure import reconfigure
 from lobster.commands.status import status
 from lobster.commands.validate import validate
+from lobster.core import config, legacy
 from lobster import util
 
 logger = logging.getLogger('lobster')
-
-def check_deprecated(config):
-    if 'task runtime' in config:
-        logger.error("parameter 'task runtime' is now specified per workflow'")
-        sys.exit(1)
 
 def boil():
     parser = ArgumentParser(description='A task submission tool for CMS')
@@ -66,6 +63,11 @@ def boil():
     parser_status = subparsers.add_parser('status', help='show a workflow status summary')
     parser_status.set_defaults(func=status)
 
+    parser_reconf = subparsers.add_parser('reconfigure', help='change the configuration of a running lobster process')
+    parser_reconf.add_argument('setting', help='the configuration setting to alter')
+    parser_reconf.add_argument('value', help='the value to assign to the configuration setting')
+    parser_reconf.set_defaults(func=reconfigure)
+
     parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
     parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
     parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
@@ -82,31 +84,32 @@ def boil():
 
     if os.path.isfile(args.checkpoint):
         configfile = args.checkpoint
-        if util.checkpoint(os.path.dirname(configfile), 'version'):
-            # If we are resuming, the working directory might have been moved.
-            # Thus check checkpoint of configfile directory!
-            workdir = os.path.dirname(configfile)
-        else:
-            # Otherwise load the working directory from the configuration
-            # and use the configuration file stored there (if available)
+        if configfile.endswith('.yaml') or configfile.endswith('.yml'):
             with open(configfile) as f:
-                workdir = yaml.load(f)['workdir']
-            fn = os.path.join(workdir, 'lobster_config.yaml')
-            if os.path.isdir(workdir) and os.path.isfile(fn):
-                configfile = fn
+                cfg = legacy.pythonize_yaml(yaml.load(f))
+        else:
+            import imp
+            cfg = imp.load_source('userconfig', configfile).config
+
+        if util.checkpoint(cfg.workdir, 'version'):
+            cfg = config.Config.load(cfg.workdir)
+        else:
+            # This is the original configuration file!
+            cfg.base_directory = os.path.abspath(os.path.dirname(configfile))
+            cfg.base_configuration = os.path.abspath(configfile)
+            cfg.startup_directory = os.path.abspath(os.getcwd())
     else:
         # Load configuration from working directory passed to us
         workdir = args.checkpoint
-        configfile = os.path.join(workdir, 'lobster_config.yaml')
-        if not os.path.isfile(configfile):
-            parser.error("the working directory '{0}' does not contain a configuration".format(workdir))
-
-    with open(configfile) as f:
-        args.config = yaml.load(f)
-    args.config['workdir'] = workdir
+        try:
+            cfg = config.Config.load(workdir)
+        except:
+            parser.error("the working directory '{0}' does not contain a valid configuration".format(workdir))
+        cfg.workdir = workdir
+    args.config = cfg
 
     # Handle logging for everything in only one place!
-    level = max(1, args.config.get('advanced', {}).get('log level', 2) + args.quiet - args.verbose) * 10
+    level = max(1, args.config.advanced.log_level + args.quiet - args.verbose) * 10
     logger.setLevel(level)
 
     formatter = logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -117,10 +120,10 @@ def boil():
 
     if args.func in (run, publish):
         fn = ('process' if args.func == run else 'publish') + '.log'
-        logger.info("saving log to {0}".format(os.path.join(workdir, fn)))
-        if not os.path.isdir(workdir):
-            os.makedirs(workdir)
-        fileh = logging.handlers.RotatingFileHandler(os.path.join(workdir, fn), maxBytes=500e6, backupCount=10)
+        logger.info("saving log to {0}".format(os.path.join(cfg.workdir, fn)))
+        if not os.path.isdir(cfg.workdir):
+            os.makedirs(cfg.workdir)
+        fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(formatter)
         args.preserve = fileh.stream
         logger.addHandler(fileh)
@@ -130,20 +133,11 @@ def boil():
 
         if args.func == run:
             if args.finalize:
-                args.config['threshold for failure'] = 0
-                args.config['threshold for skipping'] = 0
+                args.config.advanced.threshold_for_failure = 0
+                args.config.advanced.threshold_for_skipping = 0
             if args.increase_thresholds:
-                args.config['threshold for failure'] = args.config.get('threshold for failure', 30) + args.increase_thresholds
-                args.config['threshold for skipping'] = args.config.get('threshold for skipping', 30) + args.increase_thresholds
-                with open(os.path.join(workdir, 'lobster_config.yaml'), 'w') as f:
-                    yaml.dump(args.config, f, default_flow_style=False)
-
-    if configfile == args.checkpoint:
-        # This is the original configuration file!
-        args.config['base directory'] = os.path.abspath(os.path.dirname(configfile))
-        args.config['base configuration'] = os.path.abspath(configfile)
-        args.config['startup directory'] = os.path.abspath(os.getcwd())
-
-    check_deprecated(args.config)
+                args.config.advanced.threshold_for_failure += args.increase_thresholds
+                args.config.advanced.threshold_for_skipping += args.increase_thresholds
+                args.config.save()
 
     args.func(args)

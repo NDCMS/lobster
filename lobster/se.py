@@ -321,7 +321,49 @@ class SRM(StorageElement):
             paths = paths[50:]
 
 class StorageConfiguration(object):
-    """Container for storage element configuration.
+    """
+    Container for storage element configuration.
+
+    Uses URLs of the form `{protocol}://{server}/{path}` to specify input
+    and output locations, where the `server` is omitted for `file` and
+    `hadoop` access.  All output URLs should point to the same physical
+    storage, to ensure consistent data handling.  Storage elements within
+    CMS, as in `T2_CH_CERN` will be expanded for the `srm` and `root`
+    protocol.  Protocols supported:
+
+    * `file`
+    * `hadoop`
+    * `chirp`
+    * `srm`
+    * `root`
+
+    The `chirp` protocol requires an instance of a `Chirp` server.
+
+    Parameters
+    ----------
+        output : list
+            A list of URLs to access output storage
+        input : list
+            A list of URLs to access input data
+        use_work_queue_for_inputs : bool
+            Use `WorkQueue` to transfer input data.  Will encur a severe
+            running penalty when used.
+        use_work_queue_for_outputs : bool
+            Use `WorkQueue` to transfer output data.  Will encur a severe
+            running penalty when used.
+        shuffle_inputs : bool
+            Shuffle the list of input URLs when passing them to the task.
+            Will provide basic load-distribution.
+        shuffle_outputs : bool
+            Shuffle the list of output URLs when passing them to the task.
+            Will provide basic load-distribution.
+        disable_input_streaming : bool
+            Turn of streaming input data via, e.g., `XrootD`.
+        disable_stage_in_acceleration : bool
+            By default, tasks with many input files will test input URLs
+            for the first successful one, which will then be used to access
+            the remaining input files.  By using this setting, all input
+            URLs will be attempted for all input files.
     """
 
     # Map protocol shorthands to actual protocol names
@@ -334,18 +376,29 @@ class StorageConfiguration(object):
     # /cvmfs/cms.cern.ch/SITECONF/
     __site_re = re.compile(r'^T[0123]_(?:[A-Z]{2}_)?[A-Za-z0-9_\-]+$')
 
-    def __init__(self, config):
-        self.__input = map(self._expand_site, config.get('input', []))
-        self.__output = map(self._expand_site, config.get('output', []))
+    def __init__(self,
+            output,
+            input=None,
+            use_work_queue_for_inputs=False,
+            use_work_queue_for_outputs=False,
+            shuffle_inputs=False,
+            shuffle_outputs=False,
+            disable_input_streaming=False,
+            disable_stage_in_acceleration=False):
+        if input is None:
+            self.__input = []
+        else:
+            self.__input = map(self._expand_site, input)
+        self.__output = map(self._expand_site, output)
 
-        self.__wq_inputs = config.get('use work queue for inputs', False)
-        self.__wq_outputs = config.get('use work queue for outputs', False)
+        self.__wq_inputs = use_work_queue_for_inputs
+        self.__wq_outputs = use_work_queue_for_outputs
 
-        self.__shuffle_inputs = config.get('shuffle inputs', False)
-        self.__shuffle_outputs = config.get('shuffle outputs', False)
+        self.__shuffle_inputs = shuffle_inputs
+        self.__shuffle_outputs = shuffle_outputs
 
-        self.__no_streaming = config.get('disable input streaming', False)
-        self.__no_fast_stagein = config.get('disable stage-in acceleration', False)
+        self.__no_streaming = disable_input_streaming
+        self.__no_fast_stagein = disable_stage_in_acceleration
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))

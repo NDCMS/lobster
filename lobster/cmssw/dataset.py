@@ -1,4 +1,3 @@
-from collections import defaultdict
 import math
 import os
 import re
@@ -6,50 +5,12 @@ import requests
 from retrying import retry
 import shutil
 import tempfile
-from lobster import util, fs
+
+from lobster.core.dataset import FileInfo, DatasetInfo
+from lobster.util import Configurable
 
 from dbs.apis.dbsClient import DbsApi
 from WMCore.DataStructs.LumiList import LumiList
-
-
-class FileInfo(object):
-    def __init__(self):
-        self.lumis = []
-        self.events = 0
-        self.size = 0
-
-    def __repr__(self):
-        descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
-        return 'FileInfo({0})'.format(',\n'.join(descriptions))
-
-class DatasetInfo(object):
-    def __init__(self):
-        self.file_based = False
-        self.files = defaultdict(FileInfo)
-        self.tasksize = 1
-        self.total_events = 0
-        self.total_lumis = 0
-        self.unmasked_lumis = 0
-        self.masked_lumis = 0
-
-    def __repr__(self):
-        descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
-        return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
-
-
-class MetaInterface:
-    def __init__(self):
-        self.__file_interface = FileInterface()
-        self.__das_interface = DASInterface()
-
-    def get_info(self, cfg):
-        info = None
-        if 'dataset' in cfg:
-            info = self.__das_interface.get_info(cfg)
-        else:
-            info = self.__file_interface.get_info(cfg)
-        info.path = cfg['label']
-        return info
 
 
 class DASWrapper(DbsApi):
@@ -70,21 +31,56 @@ class DASWrapper(DbsApi):
         return super(DASWrapper, self).listBlocks(*args, **kwargs)
 
 
-class DASInterface:
+class Cache(object):
     def __init__(self):
-        self.__apis = {}
-        self.__dsets = {}
-        self.__cache = tempfile.mkdtemp()
-
+        self.cache = tempfile.mkdtemp()
     def __del__(self):
-        shutil.rmtree(self.__cache)
+        shutil.rmtree(self.cache)
 
-    def __get_mask(self, url, cfg):
+class Dataset(Configurable):
+    """
+    Specification for processing a dataset stored in DBS.
+
+    Parameters
+    ----------
+        dataset : str
+            The full dataset name as in DBS.
+        lumis_per_task : int
+            How many luminosity sections to process in one task.  May be
+            modified by Lobster to match the user-specified task runtime.
+        events_per_task : int
+            Adjust `lumis_per_task` to contain as many luminosity sections
+            to process the specified amount of events.
+        lumi_mask : str
+            The URL or filename of a JSON luminosity section mask, as
+            customary in CMS.
+        file_based : bool
+            Process whole files instead of single luminosity sections.
+        dbs_instance : str
+            Which DBS instance to query for the `dataset`.
+    """
+    _mutable = {}
+
+    __apis = {}
+    __dsets = {}
+    __cache = Cache()
+
+    def __init__(self, dataset, lumis_per_task=25, events_per_task=None, lumi_mask=None, file_based=False, dbs_instance='global'):
+        self.dataset = dataset
+        self.lumi_mask = lumi_mask
+        self.lumis_per_task = lumis_per_task
+        self.events_per_task = events_per_task
+        self.file_based = file_based
+        self.dbs_instance = dbs_instance
+
+        self.total_units = 0
+
+    def __get_mask(self, url):
         if not re.match(r'https?://', url):
-            return util.findpath(cfg['basedirs'], url)
+            return url
 
         fn = os.path.basename(url)
-        cached = os.path.join(self.__cache, fn)
+        cached = os.path.join(Dataset.__cache.cache, fn)
         if not os.path.isfile(cached):
             r = requests.get(url)
             if not r.ok:
@@ -93,25 +89,21 @@ class DASInterface:
                 f.write(r.text)
         return cached
 
-    def get_info(self, cfg):
-        dataset = cfg['dataset']
-        if dataset not in self.__dsets:
-            instance = cfg.get('dbs instance', 'global')
-            mask = cfg.get('lumi mask')
-            if mask:
-                mask = self.__get_mask(mask, cfg)
-            file_based = cfg.get('file based', False)
-            res = self.query_database(dataset, instance, mask, file_based)
+    def get_info(self):
+        if self.dataset not in Dataset.__dsets:
+            if self.lumi_mask:
+                self.lumi_mask = self.__get_mask(self.lumi_mask)
+            res = self.query_database(self.dataset, self.dbs_instance, self.lumi_mask, self.file_based)
 
-            num = cfg.get('events per task')
-            if num:
-                res.tasksize = int(math.ceil(num / float(res.total_events) * res.total_lumis))
+            if self.events_per_task:
+                res.tasksize = int(math.ceil(self.events_per_task / float(res.total_events) * res.total_lumis))
             else:
-                res.tasksize = cfg.get('lumis per task', 25)
+                res.tasksize = self.lumis_per_task
 
-            self.__dsets[dataset] = res
+            Dataset.__dsets[self.dataset] = res
 
-        return self.__dsets[dataset]
+        self.total_units = Dataset.__dsets[self.dataset].total_lumis
+        return Dataset.__dsets[self.dataset]
 
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
@@ -146,53 +138,7 @@ class DASInterface:
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
-        result.total_lumis = sum([len(f.lumis) for fn, f in result.files.items()])
+        result.total_lumis = sum([len(f.lumis) for f in result.files.values()])
         result.masked_lumis = result.unmasked_lumis - result.total_lumis
 
         return result
-
-
-class FileInterface:
-    def __init__(self):
-        self.__dsets = {}
-
-    def get_info(self, cfg):
-        label = cfg['label']
-        files = cfg.get('files', None)
-
-        if label not in self.__dsets:
-            dset = DatasetInfo()
-            dset.file_based = True
-
-            if not files and 'parent dataset' in cfg:
-                dset.file_based = False
-            elif not files:
-                ntasks = cfg.get('num tasks', 1)
-                nlumis = 1
-                if 'events per lumi' in cfg:
-                    nlumis = int(math.ceil(float(cfg['events per task']) / cfg['events per lumi']))
-                dset.files[None].lumis = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
-                dset.total_lumis = cfg.get('num tasks', 1)
-
-                # we don't cache gen-tasks (avoid overwriting num tasks
-                # etc...)
-            else:
-                dset.tasksize = cfg.get("files per task", 1)
-                allfiles = []
-                if not isinstance(files, list):
-                    files = [files]
-                for entry in files:
-                    entry = os.path.expanduser(entry)
-                    if fs.isdir(entry):
-                        allfiles += filter(fs.isfile, fs.ls(entry))
-                    elif fs.isfile(entry):
-                        allfiles.append(entry)
-                dset.total_lumis = len(allfiles)
-
-                for fn in allfiles:
-                    # hack because it will be slow to open all the input files to read the run/lumi info
-                    dset.files[fn].lumis = [(-1, -1)]
-                    dset.files[fn].size = fs.getsize(fn)
-            self.__dsets[label] = dset
-
-        return self.__dsets[label]

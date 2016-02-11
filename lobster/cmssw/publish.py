@@ -17,8 +17,7 @@ from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
 from lobster.core.unit import UnitStore
-from lobster.core.source import apply_matching
-from lobster.cmssw.dataset import MetaInterface
+from lobster.cmssw.dataset import Dataset
 
 logger = logging.getLogger('lobster.publish.')
 
@@ -275,7 +274,7 @@ class BlockDump(object):
         self.data[key] = value
 
 def publish(args):
-    config = apply_matching(args.config)
+    config = args.config
 
     if len(args.datasets) == 0:
         args.datasets = [workflow['label'] for workflow in config.get('workflows', [])]

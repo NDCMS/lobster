@@ -1,10 +1,15 @@
 import datetime
 import logging
 import multiprocessing
+import os
+import re
 
 from lobster.commands.plot import Plotter
+from lobster.util import PartiallyMutable
 
 logger = logging.getLogger('lobster.actions')
+
+cmd_re = re.compile('^.* = [0-9]+$')
 
 class DummyQueue(object):
     def start(*args):
@@ -17,23 +22,30 @@ class DummyQueue(object):
         return None
 
 class Actions(object):
-    def __init__(self, config):
-        if 'plotdir' not in config:
+    def __init__(self, config, source):
+        fn = os.path.join(config.workdir, 'ipc')
+        if not os.path.exists(fn):
+            os.mkfifo(fn)
+        self.fifo = os.fdopen(os.open(fn, os.O_RDONLY|os.O_NONBLOCK))
+        self.config = config
+        self.source = source
+
+        if not config.plotdir:
             self.plotq = DummyQueue()
         else:
-            logger.info('plots in {0} will be updated automatically'.format(config['plotdir']))
-            if 'foremen logs' in config:
-                logger.info('foremen logs will be included from: {0}'.format(', '.join(config['foremen logs'])))
-            plotter = Plotter(config, config['plotdir'])
+            logger.info('plots in {0} will be updated automatically'.format(config.plotdir))
+            if config.foremen_logs:
+                logger.info('foremen logs will be included from: {0}'.format(', '.join(config.foremen_logs)))
+            plotter = Plotter(config)
 
             def plotf(q):
                 while q.get() not in ('stop', None):
                     try:
-                        plotter.make_plots(foremen=config.get('foremen logs'))
+                        plotter.make_plots(foremen=config.foremen_logs)
                     except Exception as e:
+                        logger.error("plotting failed with: {}".format(e))
                         import traceback
-                        traceback.print_stack()
-                        print e
+                        traceback.print_exc()
 
             self.plotq = multiprocessing.Queue()
             self.plotp = multiprocessing.Process(target=plotf, args=(self.plotq,))
@@ -47,7 +59,27 @@ class Actions(object):
         self.plotq.put('stop')
         self.plotp.join()
 
+    def __communicate(self):
+        cmds = map(str.strip, self.fifo.readlines())
+        for cmd in cmds:
+            logger.debug('received commands: {}'.format(cmd))
+            if not cmd_re.match(cmd):
+                logger.error('invalid command received: {}'.format(cmd))
+                continue
+            try:
+                with PartiallyMutable.lockdown():
+                    exec cmd in {'config': self.config}, {}
+                    self.config.save()
+            except Exception as e:
+                logger.error('caught exeption from command: {}'.format(e))
+        for component, attr, args in PartiallyMutable.changes():
+            if attr is not None:
+                logger.info('updating setup by calling {} of {} with {}'.format(attr, component, args))
+                getattr(getattr(self, component), attr)(*args)
+
     def take(self, force=False):
+        self.__communicate()
+
         now = datetime.datetime.now()
         if (now - self.__last).seconds > 15 * 60 or force:
             self.plotq.put('plot')

@@ -1,7 +1,9 @@
-@import url(http://fonts.googleapis.com/css?family=Lobster+Two:700italic);
+@import url(https://fonts.googleapis.com/css?family=Lobster+Two:700italic);
+@import url(https://code.cdn.mozilla.net/fonts/fira.css);
 
 body {
-    font-family:"Trebuchet MS";
+    font-family: "Fira Sans", sans-serif;
+    color: #222;
     margin: 0 auto;
     margin-top: 5em;
     padding: 0;
@@ -10,7 +12,8 @@ body {
 }
 
 nav {
-    background-color: #aaa;
+    background-color: #ccc;
+    border-bottom: solid #aaa 2px;
 
     position: fixed;
     top: 0;
@@ -37,6 +40,7 @@ nav ul {
 }
 
 nav li {
+    display: inline-block;
     font-size: 1.2em;
     line-height: 2em;
     padding: .5em;
@@ -48,7 +52,7 @@ nav li.active {
 }
 
 nav select {
-    font-family:"Trebuchet MS";
+    font-family: "Fira Sans", sans-serif;
     font-size: .8em;
 }
 
@@ -59,7 +63,7 @@ nav li a {
 }
 
 nav li:hover {
-    background-color: #ccc;
+    background-color: #aaa;
 }
 
 .lobster {font-family: 'Lobster Two', cursive;}
@@ -76,10 +80,6 @@ nav li:hover {
         padding: 10px;
         width: 800px;
         max-width: 800px;
-    }
-
-    nav li {
-        display: inline-block;
     }
 }
 @media screen and (max-width: 1239px) {
@@ -108,7 +108,7 @@ nav li:hover {
 
 h2, h3 {
     clear: both;
-    border-bottom: solid 1px;
+    border-bottom: solid #aaa 1px;
 }
 
 h1:target h2:target {
@@ -116,24 +116,25 @@ h1:target h2:target {
 }
 
 table.fancy {
+    margin: 0 auto;
     border-collapse:collapse;
 }
 
-table.fancy td, th {
+table.fancy th, table.fancy td {
     border:1px solid #333;
     padding:3px 7px 2px 7px;
+    background-color: #eee;
 }
 
-table.fancy th, td.footer {
+table.fancy th, table.fancy tr.footer td {
     text-align:left;
     padding-top:5px;
     padding-bottom:4px;
-    background-color:#333;
-    color:#ffffff;
+    background-color:#666;
+    color:#eee;
 }
 
 table.fancy tr.alt td {
-    color:#000000;
     background-color:#ccc;
 }
 
@@ -185,7 +186,7 @@ ul.img-list li:hover span.text-content {
 }
 
 .button a {
-    color: black;
+    color: #111;
     text-decoration: none;
 }
 

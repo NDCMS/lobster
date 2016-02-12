@@ -72,48 +72,32 @@
             </tr>
         </table>
 
-        <h1 id="navwflow">Workflow Summary</h1>
+        <h1 id="navwflow">Category Summary</h1>
         <table class="fancy">
             <tr>
-                <th>Workflow</th>
+                <th>Category</th>
                 <th>Events</th>
                 <th>read</th>
                 <th>written</th>
-                <th>Units total</th>
+                <th>Units</th>
                 <th>unmasked</th>
                 <th>written</th>
                 <th>paused</th>
                 <th>failed</th>
                 <th>skipped</th>
                 <th>Progress</th>
-                {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
             </tr>
             {% for row in summary %}
-            {% if row[0] is sum %}
-            <tr>
+            {% if loop.revindex == 1 %}
+            <tr class="footer">
             {% else %}
             <tr{{ loop.cycle('', ' class="alt"') }}>
             {% endif %}
                 {% for cell in row %}
-                <td{% if row == summary[-1] %} class="footer"{% endif %}>
-                    {% if loop.revindex == 2 and cell > 0 and row != summary[-1] %}
-                        <a href="logs/skipped_{{row[0]}}.txt">{{cell}}</a>
-                    {% elif loop.revindex == 3 and cell > 0 and row != summary[-1] %}
-                        <a href="logs/failed_{{row[0]}}">{{cell}}</a>
+                    {% if loop.index == 1 and cell != 'Total' %}
+                    <td><a href="{{ cell }}">{{ cell }}</a></td>
                     {% else %}
-                        {{ cell }}
-                    {% endif %}
-                </td>
-                    {% if cell == row[-1] and jsons|length > 0%}
-                        {% if row == summary[-1] %}
-                        <td class="footer"></td>
-                        {% else %}
-                        <td>
-                            {% for path, name in jsons[row[0]] %}
-                            <a href="{{ path }}">{{ name }}</a>
-                            {% endfor %}
-                        </td>
-                        {% endif %}
+                    <td>{{ cell }}</td>
                     {% endif %}
                 {% endfor %}
             </tr>

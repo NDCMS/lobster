@@ -1004,6 +1004,7 @@ class Plotter(object):
         # ----------
 
         categories = [c.name for c in self.config.categories if c.name != 'merge']
+        category_summary_data = []
 
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
@@ -1016,22 +1017,6 @@ class Plotter(object):
 
         shutil.copy(os.path.join(os.path.dirname(__file__), 'data', 'styles.css'),
                 os.path.join(self.__plotdir, 'styles.css'))
-
-        with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
-            f.write(overview.render(
-                id=self.config.label,
-                plot_time=time.time(),
-                plot_starttime=self.__xmin,
-                plot_endtime=self.__xmax,
-                run_starttime=self.__total_xmin,
-                run_endtime=self.__total_xmax,
-                summary=summary_data,
-                jsons=jsons,
-                bad_tasks=len(failed_tasks) > 0,
-                good_tasks=len(success_tasks) > 0,
-                foremen=foremen_names,
-                categories=categories
-            ).encode('utf-8'))
 
         # -----------------------
         # Category specific plots
@@ -1062,6 +1047,12 @@ class Plotter(object):
                 categories=categories
             ).encode('utf-8'))
 
+        def add_total(summaries):
+            numbers = zip(*[s[1:-1] for s in summaries])
+            total = map(sum, numbers)
+            return summaries + \
+                    [['Total'] + total + ['{} %'.format(round(total[-4] * 100. / total[-5], 1))]]
+
         for category in self.config.categories:
             label = category.name
             if label == 'merge':
@@ -1089,6 +1080,9 @@ class Plotter(object):
                     wf_merge_tasks,
                     xmin, xmax)
 
+            summary = add_total([xs for xs in summary_data if xs[0] in labels])
+            category_summary_data.append([label] + summary[-1][1:])
+
             with open(os.path.join(self.__plotdir, label, 'index.html'), 'w') as f:
                 f.write(wflow.render(
                     id=self.config.label,
@@ -1096,12 +1090,27 @@ class Plotter(object):
                     bad_tasks=len(wf_failed_tasks) > 0,
                     good_tasks=len(wf_success_tasks) > 0,
                     merge_tasks=len(wf_merge_tasks) > 0,
-                    summary=[xs for xs in summary_data if xs[0] in labels],
+                    summary=summary,
                     jsons=jsons,
                     bad_logs=logs,
                     foremen=foremen_names,
                     categories=categories
                 ).encode('utf-8'))
+
+        with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
+            f.write(overview.render(
+                id=self.config.label,
+                plot_time=time.time(),
+                plot_starttime=self.__xmin,
+                plot_endtime=self.__xmax,
+                run_starttime=self.__total_xmin,
+                run_endtime=self.__total_xmax,
+                summary=add_total(category_summary_data),
+                bad_tasks=len(failed_tasks) > 0,
+                good_tasks=len(success_tasks) > 0,
+                foremen=foremen_names,
+                categories=categories
+            ).encode('utf-8'))
 
         p = multiprocessing.Pool(10)
         p.map(mp_call, self.__plotargs)

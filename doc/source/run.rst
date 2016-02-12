@@ -12,7 +12,7 @@ Basic procedure
 ---------------
 
 This is the most basic usage of Lobster.  For more information about the
-commands 
+commands, use ``lobster -h`` and ``lobster <cmd> -h``.
 
 1. Obtain a valid proxy::
 

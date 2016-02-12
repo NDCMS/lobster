@@ -379,10 +379,10 @@ def copy_outputs(data, config, env):
     transferred = []
     for localname, remotename in config['output files']:
         # prevent stageout of data for failed tasks
-        if os.path.exists(localname) and data['cmssw exit code'] != 0:
+        if os.path.exists(localname) and data['exe exit code'] != 0:
             os.remove(localname)
             break
-        elif data['cmssw exit code'] != 0:
+        elif data['exe exit code'] != 0:
             break
 
         outsize += os.path.getsize(localname)
@@ -566,7 +566,7 @@ def parse_fwk_report(config, data, report_filename):
     data['files']['output info'] = outinfos
     data['files']['skipped'] = skipped
     data['events written'] = written
-    data['cmssw exit code'] = exit_code
+    data['exe exit code'] = exit_code
     # For efficiency, we care only about the CPU time spent processing
     # events
     data['cpu time'] = cputime
@@ -754,7 +754,6 @@ else:
     data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
     data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
     data['cpu time'] = usage.ru_stime
-    data['cmssw exit code'] = data['exe exit code']
 
 with check_execution(data, 191):
     data['task timing']['wrapper start'] = extract_time('t_wrapper_start')

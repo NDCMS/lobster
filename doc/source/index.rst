@@ -14,6 +14,7 @@ Contents:
    install
    config
    run
+   monitor
 
 Indices and tables
 ==================

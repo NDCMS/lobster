@@ -139,10 +139,10 @@ class TaskHandler(object):
             files_info = data['files']['info']
             files_skipped = data['files']['skipped']
             events_written = data['events written']
-            cmssw_exit_code = data['cmssw exit code']
+            exe_exit_code = data['exe exit code']
             stageout_exit_code = data['stageout exit code']
             task_exit_code = data['task exit code']
-            return files_info, files_skipped, events_written, cmssw_exit_code, stageout_exit_code, task_exit_code
+            return files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code
 
     def process_wq_info(self, task, task_update):
         """Extract useful information from the Work Queue task object.
@@ -162,7 +162,6 @@ class TaskHandler(object):
         task_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
         task_update.workdir_num_files = task.resources_measured.total_files
         task_update.workdir_footprint = task.resources_measured.disk
-        task_update.limits_exceeded = task.resources_measured.limits_exceeded
         task_update.memory_resident = task.resources_measured.memory
         task_update.memory_swap = task.resources_measured.swap_memory
         task_update.memory_virtual = task.resources_measured.virtual_memory
@@ -185,14 +184,14 @@ class TaskHandler(object):
         # CMS stats to update
         files_info = {}
         files_skipped = []
-        cmssw_exit_code = None
+        exe_exit_code = None
         stageout_exit_code = None
         task_exit_code = None
         events_written = 0
 
         # May not all be there for failed tasks
         try:
-            files_info, files_skipped, events_written, cmssw_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update)
+            files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update)
         except (ValueError, EOFError) as e:
             failed = True
             logger.error("error processing {0}:\n{1}".format(task.tag, e))
@@ -201,21 +200,46 @@ class TaskHandler(object):
             logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
         # Determine true status
-        if task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
-            exit_code = 100000 + task.result
+        if task.result != wq.WORK_QUEUE_RESULT_SUCCESS and task.result != wq.WORK_QUEUE_RESULT_OUTPUT_MISSING:
             failed = True
             summary.wq(task.result, task.tag)
-        else:
-            if cmssw_exit_code not in (None, 0):
-                exit_code = cmssw_exit_code
-                failed = True
-            if stageout_exit_code not in (None, 0):
-                exit_code = stageout_exit_code
-                failed = True
-            if task_exit_code not in (None, 0):
-                exit_code = task_exit_code
-                failed = True
+
+            if task.result & wq.WORK_QUEUE_RESULT_MAX_RETRIES:
+                exit_code = 10020
+            elif task.result & wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME:
+                exit_code = 10030
+            elif task.result & wq.WORK_QUEUE_RESULT_TASK_TIMEOUT:
+                exit_code = 10010
+            elif task.result & wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION:
+                if task.resources_measured.limits_exceeded.wall_time > 0:
+                    exit_code = 10030
+                elif task.resources_measured.limits_exceeded.memory > 0:
+                    exit_code = 10040
+                elif task.resources_measured.limits_exceeded.disk > 0:
+                    exit_code = 10050
+            else:
+                exit_code = 10001
+        # If the executable failed, everything else is going to fail.
+        # If stage-out fails, the task is going to fail.  If neither
+        # has happened, something else has gone wrong.
+        elif exe_exit_code not in (None, 0):
+            exit_code = exe_exit_code
+            failed = True
             summary.exe(exit_code, task.tag)
+        elif stageout_exit_code not in (None, 0):
+            exit_code = stageout_exit_code
+            failed = True
+            summary.exe(exit_code, task.tag)
+        elif task_exit_code not in (None, 0):
+            exit_code = task_exit_code
+            failed = True
+            summary.exe(exit_code, task.tag)
+        # Catch remaining tasks that somehow failed, but we could find
+        # nothing wrong with them, yet WQ tells us output is missing.
+        elif task.result != wq.WORK_QUEUE_RESULT_SUCCESS:
+            exit_code = 10001
+            failed = True
+            summary.wq(task.result, task.tag)
 
         task_update.exit_code = exit_code
 

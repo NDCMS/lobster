@@ -1,10 +1,34 @@
-from collections import namedtuple
 import os
 import pickle
 import re
 
 from lobster.core.workflow import Category
 from lobster.util import Configurable
+
+class Items(object):
+    """
+    Collection similar to `namedtuple`, but can be pickled.
+
+    Parameters
+    ----------
+        args : list
+            List of objects the collection should contain
+        key : function
+            Function to obtain the key of an object in the collection
+    """
+    def __init__(self, args, key=None):
+        for arg in args:
+            attr = key(arg) if key else arg
+            if attr in self.__dict__:
+                raise AttributeError("Attribute already defined: {}".format(attr))
+            setattr(self, attr, arg)
+        self.__sequence = args
+
+    def __iter__(self):
+        return iter(self.__sequence)
+
+    def __len__(self):
+        return len(self.__sequence)
 
 class Config(Configurable):
     """
@@ -51,19 +75,15 @@ class Config(Configurable):
         self.plotdir = plotdir
         self.foremen_logs = foremen_logs
         self.storage = storage
-        self.workflows = namedtuple('workflows', [w.label for w in workflows])(*workflows)
+        self.workflows = Items(workflows, key=lambda w: w.label)
         self.advanced = advanced if advanced else AdvancedOptions()
 
         cats = list(set([w.category for w in workflows])) + [Category(name='merge', cores=1, memory=900)]
-        self.categories = namedtuple('categories', [c.name for c in cats])(*cats)
+        self.categories = Items(cats, key=lambda c: c.name)
 
         self.base_directory = base_directory
         self.base_configuration = base_configuration
         self.startup_directory = startup_directory
-
-        # hack to allow pickling of the config object
-        globals()['categories'] = type(self.categories)
-        globals()['workflows'] = type(self.workflows)
 
     @classmethod
     def load(cls, path):

@@ -103,8 +103,8 @@ def boil():
         workdir = args.checkpoint
         try:
             cfg = config.Config.load(workdir)
-        except:
-            parser.error("the working directory '{0}' does not contain a valid configuration".format(workdir))
+        except Exception as e:
+            parser.error("the working directory '{0}' does not contain a valid configuration: {1}".format(workdir, e))
         cfg.workdir = workdir
     args.config = cfg
 

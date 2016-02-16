@@ -643,17 +643,14 @@ data = {
     'output size': 0,
     'output bare size': 0,
     'task timing': {
-        'stage in end': None,
-        'prologue end': None,
-        'wrapper start': None,
-        'wrapper ready': None,
-        'wrapper end': None,
-        'file requested': None,
-        'file opened': None,
-        'file processing': None,
-        'processing end': None,
-        'epilogue end': None,
-        'stage out end': None,
+        'stage in end': 0,
+        'prologue end': 0,
+        'wrapper start': 0,
+        'wrapper ready': 0,
+        'wrapper end': 0,
+        'processing end': 0,
+        'epilogue end': 0,
+        'stage out end': 0,
     },
     'events per run': 0
 }
@@ -760,17 +757,6 @@ with check_execution(data, 191):
     data['task timing']['wrapper ready'] = extract_time('t_wrapper_ready')
 
 now = int(datetime.now().strftime('%s'))
-firstevent = now
-
-if cmsRun:
-    with check_execution(data, 192):
-        frequest, fopen, fprocess = extract_cmssw_times('executable.log', now)
-        data['task timing']['file requested'] = frequest
-        data['task timing']['file opened'] = fopen
-        data['task timing']['file processing'] = fprocess
-
-        firstevent = fprocess
-
 data['task timing']['processing end'] = now
 
 if epilogue and len(epilogue) > 0:
@@ -814,7 +800,7 @@ if 'PARROT_ENABLED' in os.environ:
         # point in processing, almost everything should have been pulled
         # from CVMFS.
         with open(cachefile, 'w') as f:
-            f.write(str(firstevent))
+            f.write(str(data['task timing']['processing end']))
         data['cache']['type'] = 0
     else:
         with open(cachefile) as f:

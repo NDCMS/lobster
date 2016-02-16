@@ -29,7 +29,6 @@ Code  Reason
 180   Prologue failure
 190   Failed to parse report.xml
 191   Failed to parse wrapper timing information
-192   Failed to parse CMSSW timing information
 193   Failed to write report information
 194   Failed to compress output files
 199   Epilogue failure

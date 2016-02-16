@@ -272,19 +272,24 @@
             <table class="fancy">
                 <tr>
                     <th>Exit code</th>
-                    <th>occurences</th>
-                    <th>logs 1</th>
-                    <th>logs 2</th>
-                    <th>logs 3</th>
-                    <th>logs 4</th>
-                    <th>logs 5</th>
+                    <th>Count</th>
+                    <th>#1</th>
+                    <th>#2</th>
+                    <th>#3</th>
+                    <th>#4</th>
+                    <th>#5</th>
+                    <th>#6</th>
+                    <th>#7</th>
+                    <th>#8</th>
+                    <th>#9</th>
+                    <th>#10</th>
                 </tr>
                 {% for code, values in bad_logs|dictsort %}
                 <tr {{ loop.cycle('', 'class="alt"') }}>
                     <td>{{ code }}</td>
                     <td>{{ values[0] }}</td>
-                    {% for id, files in values[1]|dictsort|reverse %}
-                    <td>{% for file in files %} <a href="../logs/{{ id }}/{{ file }}">{{ file }}</a>{% endfor %}</td>
+                    {% for id in values[1]|reverse %}
+                    <td>{% if id != "" %}<a href="../logs/{{ id }}.log">{{ id }}</a>{% endif %}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}

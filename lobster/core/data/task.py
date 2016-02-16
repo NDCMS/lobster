@@ -731,14 +731,10 @@ else:
         cmd.extend([str(f) for f in config['mask']['files']])
 
 print ">>> running {0}".format(' '.join(cmd))
-# Open a file handle for the executable log
-with open('executable.log', 'w') as logfile:
-    p = run_subprocess(cmd, stdout=logfile, stderr=subprocess.STDOUT, env=env)
+p = run_subprocess(cmd, stderr=subprocess.STDOUT, env=env)
+print ">>> executable returned with exit code {0}.".format(p.returncode)
 data['exe exit code'] = p.returncode
 data['task exit code'] = data['exe exit code']
-
-if p.returncode != 0:
-    print ">>> Executable returned non-zero exit code {0}.".format(p.returncode)
 
 if cmsRun:
     apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging, monalisa)
@@ -818,13 +814,13 @@ with check_execution(data, 193):
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)
 
-for filename in 'executable.log report.xml'.split():
-    if os.path.isfile(filename):
-        with check_execution(data, 194):
-            with open(filename) as f:
-                zipf = gzip.open(filename + ".gz", "wb")
-                zipf.writelines(f)
-                zipf.close()
+filename = 'report.xml'
+if os.path.isfile(filename):
+    with check_execution(data, 194):
+        with open(filename) as f:
+            zipf = gzip.open(filename + ".gz", "wb")
+            zipf.writelines(f)
+            zipf.close()
 
 cputime = data['cpu time']
 total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']

@@ -396,7 +396,7 @@ class Plotter(object):
 
         return res
 
-    def savelogs(self, failed_tasks, samples=5):
+    def savelogs(self, failed_tasks, samples=10):
         logdir = os.path.join(self.__plotdir, 'logs')
         work = []
         codes = {}
@@ -405,28 +405,20 @@ class Plotter(object):
             if exit_code == 0:
                 continue
 
-            codes[exit_code] = [len(tasks), {}]
+            codes[exit_code] = [len(tasks), []]
 
             logger.info("Copying sample logs for exit code {0}".format(exit_code))
             for id, e in list(tasks[-samples:]):
-                codes[exit_code][1][id] = []
-
                 try:
                     source = glob.glob(os.path.join(self.config.workdir, '*', 'failed', util.id2dir(id)))[0]
                 except IndexError:
                     continue
 
-                target = os.path.join(logdir, str(id))
-                if not os.path.exists(target):
-                    os.makedirs(target)
-
-                files = []
-                for l in ['executable.log.gz', 'task.log.gz']:
-                    s = os.path.join(source, l)
-                    t = os.path.join(target, l[:-3])
-                    if os.path.exists(s):
-                        codes[exit_code][1][id].append(l[:-3])
-                        work.append([s, t])
+                s = os.path.join(source, 'task.log.gz')
+                t = os.path.join(logdir, str(id) + '.log')
+                if os.path.exists(s):
+                    codes[exit_code][1].append(str(id))
+                    work.append([s, t])
 
         for label, _, _, _, _, _, _, paused, failed, skipped, _ in list(self.__store.workflow_status())[1:-1]:
             if paused == 0:
@@ -441,8 +433,7 @@ class Plotter(object):
                 if not os.path.exists(target):
                     os.makedirs(target)
 
-                files = []
-                for l in ['executable.log.gz', 'task.log.gz']:
+                for l in ['task.log.gz']:
                     s = os.path.join(source, l)
                     t = os.path.join(target, str(id) + "_" + l[:-3])
                     if os.path.exists(s):
@@ -461,7 +452,7 @@ class Plotter(object):
 
         for code in codes:
             for id in range(samples - len(codes[code][1])):
-                codes[code][1][-id] = []
+                codes[code][1].insert(0, "")
 
         return codes
 

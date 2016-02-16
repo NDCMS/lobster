@@ -359,7 +359,7 @@ class TaskProvider(object):
             jdir = util.taskdir(wflow.workdir, id)
             inputs = list(self._inputs)
             inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
-            outputs = [(os.path.join(jdir, f), f) for f in ['executable.log.gz', 'report.json']]
+            outputs = [(os.path.join(jdir, f), f) for f in ['report.json']]
 
             monitorid, syncid = self.__dash.register_task(id)
 

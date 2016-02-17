@@ -18,6 +18,7 @@ setup(
         'core/data/merge_cfg.py',
         'core/data/merge_reports.py',
         'commands/data/index.html',
+        'commands/data/gh.png',
         'commands/data/styles.css',
         'commands/data/category.html'
     ]},

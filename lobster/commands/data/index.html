@@ -30,7 +30,10 @@
 
         <nav>
             <ul>
-                <li class="active"><a href="#"><span class="lobster">Lobster</span> project overview</a></li>
+                <li class="inactive" style="float:left;">
+                    <span class="lobster" style="display:block;transform: scale(1.5) translate(.5em,0);">Lobster</span>
+                </li>
+                <li class="active"><a href="#">Project Overview</a></li>
                 <li>Summary for
                     <select id="categories">
                         <option value="" selected="selected" disabled>select…</option>
@@ -39,6 +42,9 @@
                         <option value="{{ label }}">{{ label }}</option>
                         {% endfor %}
                     </select>
+                </li>
+                <li class="inactive" style="float:right;line-height:0em;">
+                    <a href="https://github.com/matz-e/lobster"><img alt="GitHub logo" src="gh.png" style="height: 2em;width: 2em;transform: translate(0,2.5px);"></img></a>
                 </li>
             </ul>
         </nav>

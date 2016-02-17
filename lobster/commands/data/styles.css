@@ -12,7 +12,7 @@ body {
 }
 
 nav {
-    background-color: #ccc;
+    background-color: #eee;
     border-bottom: solid #aaa 2px;
 
     position: fixed;
@@ -43,12 +43,12 @@ nav li {
     display: inline-block;
     font-size: 1.2em;
     line-height: 2em;
-    padding: .5em;
-    transition: .3s background-color;
+    padding: .25em;
 }
 
 nav li.active {
-    background: #eee;
+    font-weight: bold;
+    border-bottom: 5px solid #aaa
 }
 
 nav select {
@@ -63,41 +63,66 @@ nav li a {
 }
 
 nav li:hover {
-    background-color: #aaa;
+    border-bottom: 5px solid #aaa;
+}
+
+nav li.inactive {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+nav li.inactive:hover {
+    border-bottom: 0;
 }
 
 .lobster {font-family: 'Lobster Two', cursive;}
+
+img {
+    max-width: 800px;
+    width: 100%;
+}
+
+img.side {
+    max-width: 400px;
+    width: 100%;
+}
 
 @media screen and (min-width: 1240px) {
     .sidebar {
         float: left;
         padding: 10px;
-        width: 400px;
+        width: 34%;
+        max-width: 400px;
     }
 
     .maincontent {
         float: left;
         padding: 10px;
-        width: 800px;
+        width: 66%;
         max-width: 800px;
     }
 }
 @media screen and (max-width: 1239px) {
     .sidebar {
         padding: 10px;
-        width: 400px;
+        max-width: 400px;
         margin: auto;
     }
 
     .maincontent {
         padding: 10px;
-        width: 800px;
+        width: 100%;
         max-width: 800px;
         margin: auto;
     }
 
     body {
-        width: 800px;
+        width: 100%;
+        max-width: 800px;
+    }
+
+    table.fancy {
+        font-size: 75%;
     }
 }
 
@@ -118,6 +143,8 @@ h1:target h2:target {
 table.fancy {
     margin: 0 auto;
     border-collapse:collapse;
+    max-width: 1240px;
+    width: auto;
 }
 
 table.fancy th, table.fancy td {

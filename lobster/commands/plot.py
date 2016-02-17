@@ -895,8 +895,9 @@ class Plotter(object):
 
         jsons = self.savejsons(units_processed)
 
-        shutil.copy(os.path.join(os.path.dirname(__file__), 'data', 'styles.css'),
-                os.path.join(self.__plotdir, 'styles.css'))
+        for fn in ['styles.css', 'gh.png']:
+            shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
+                    os.path.join(self.__plotdir, fn))
 
         # -----------------------
         # Category specific plots

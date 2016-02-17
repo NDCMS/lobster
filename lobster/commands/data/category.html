@@ -96,7 +96,10 @@
         </script>
         <nav>
             <ul>
-                <li><a href=".."><span class="lobster">Lobster</span> project overview</a></li>
+                <li class="inactive" style="float:left;">
+                    <span class="lobster" style="display:block;transform: scale(1.5) translate(.5em,0);">Lobster</span>
+                </li>
+                <li><a href="..">Project Overview</a></li>
                 <li class="active">
                     Summary for
                     <select id="categories">
@@ -106,6 +109,9 @@
                         <option value="{{ c }}"{% if label == c %} selected="selected"{% endif %}>{{ c }}</option>
                         {% endfor %}
                     </select>
+                </li>
+                <li class="inactive" style="float:right;line-height:0em;">
+                    <a href="https://github.com/matz-e/lobster"><img alt="GitHub logo" src="../gh.png" style="height: 2em;width: 2em;transform: translate(0,2.5px);"></img></a>
                 </li>
             </ul>
         </nav>
@@ -162,7 +168,7 @@
         <h1 id="navtasks">Task Summary</h1>
         {% if good_tasks or bad_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="time-pie.png"><img alt="" src="time-pie.png"/></a>
+            <a class="workflow" href="time-pie.png"><img class="side" alt="" src="time-pie.png"/></a>
         </div>
         <div class="maincontent">
             <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
@@ -172,7 +178,7 @@
         <h2 id="navgood">Successful Tasks</h2>
         {% if good_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="good-time-detail-pie.png"><img alt="" src="good-time-detail-pie.png"/></a>
+            <a class="workflow" href="good-time-detail-pie.png"><img class="side" alt="" src="good-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Footprint</h3>
@@ -216,7 +222,7 @@
         <h2 id="navmerge">Merge tasks</h2>
         {% if merge_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="merge-time-detail-pie.png"><img alt="" src="merge-time-detail-pie.png"/></a>
+            <a class="workflow" href="merge-time-detail-pie.png"><img class="side" alt="" src="merge-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Footprint</h3>
@@ -260,7 +266,7 @@
         <h2 id="navbad">Failed tasks</h2>
         {% if bad_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="failed-pie.png"><img alt="" src="failed-pie.png"/></a>
+            <a class="workflow" href="failed-pie.png"><img class="side" alt="" src="failed-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Failure Modes</h3>

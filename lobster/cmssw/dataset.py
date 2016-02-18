@@ -184,7 +184,10 @@ class FileInterface:
                 for entry in files:
                     entry = os.path.expanduser(entry)
                     if fs.isdir(entry):
-                        allfiles += filter(fs.isfile, fs.ls(entry))
+                        for f in fs.ls(entry):
+                            # This is a hack to speed up large lists of ROOT files.  Is there a better way?
+                            if f.endswith('.root') or fs.isfile(f):
+                                allfiles.append(f)
                     elif fs.isfile(entry):
                         allfiles.append(entry)
                 dset.total_lumis = len(allfiles)
@@ -192,7 +195,10 @@ class FileInterface:
                 for fn in allfiles:
                     # hack because it will be slow to open all the input files to read the run/lumi info
                     dset.files[fn].lumis = [(-1, -1)]
-                    dset.files[fn].size = fs.getsize(fn)
+                    # Another hack because it takes a long time to get the size of all these files too
+                    # QUESTION: IS THIS FIELD EVER USED?  It looks like it doesn't really come into play...
+                    # dset.files[fn].size = fs.getsize(fn)
+                    dset.files[fn].size = 0
             self.__dsets[label] = dset
 
         return self.__dsets[label]

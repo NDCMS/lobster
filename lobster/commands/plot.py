@@ -996,7 +996,7 @@ class Plotter(object):
                     summary=summary,
                     jsons=jsons,
                     bad_logs=logs,
-                    bad_hosts=self.find_failure_hosts(failed_tasks),
+                    bad_hosts=self.find_failure_hosts(wf_failed_tasks),
                     foremen=foremen_names,
                     categories=categories
                 ).encode('utf-8'))

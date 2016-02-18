@@ -279,16 +279,7 @@
                 <tr>
                     <th>Exit code</th>
                     <th>Count</th>
-                    <th>#1</th>
-                    <th>#2</th>
-                    <th>#3</th>
-                    <th>#4</th>
-                    <th>#5</th>
-                    <th>#6</th>
-                    <th>#7</th>
-                    <th>#8</th>
-                    <th>#9</th>
-                    <th>#10</th>
+                    <th colspan="10" style="text-align: center;">Samples</th>
                 </tr>
                 {% for code, values in bad_logs|dictsort %}
                 <tr {{ loop.cycle('', 'class="alt"') }}>
@@ -296,6 +287,24 @@
                     <td>{{ values[0] }}</td>
                     {% for id in values[1]|reverse %}
                     <td>{% if id != "" %}<a href="../logs/{{ id }}.log">{{ id }}</a>{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+
+            <h3>Hosts with Task Failures</h3>
+            <table class="fancy">
+                <tr>
+                    <th rowspan="2">Hostname</th>
+                    <th colspan="{{ bad_hosts[0]|length }}" style="text-align: center;">Exit Code(s)</th>
+                </tr>
+                {% for row in bad_hosts %}
+                {% set outer_loop = loop %}
+                {% if loop.index == 1 %}<tr>{% else %}<tr {{ loop.cycle('class="alt"', '') }}>{% endif %}
+                    {% for item in row %}
+                    {% if outer_loop.index == 1 %}<th>{% else %}<td>{% endif %}
+                        {{ item }}
+                    {% if outer_loop.index == 1 %}</th>{% else %}</td>{% endif %}
                     {% endfor %}
                 </tr>
                 {% endfor %}

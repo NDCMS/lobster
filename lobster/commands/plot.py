@@ -578,6 +578,26 @@ class Plotter(object):
 
         return names
 
+    def find_failure_hosts(self, failed_tasks, samples=10):
+        if len(failed_tasks) == 0:
+            return []
+
+        hosts, counts = np.unique(failed_tasks['host'], return_counts=True)
+        ind = np.argpartition(counts, -1)[-samples:]
+        ind = ind[np.argsort(counts[ind])]
+        hosts = hosts[ind]
+        counts = counts[ind]
+
+        failures, errors = np.unique(failed_tasks[np.in1d(failed_tasks['host'], hosts)]['exit_code'], return_counts=True)
+        ind = np.argpartition(errors, -1)[-samples:]
+        ind = ind[np.argsort(errors[ind])]
+        failures = failures[ind][::-1]
+        table = [["All"] + list(failures)]
+        for h, c in reversed(zip(hosts, counts)):
+            host_tasks = failed_tasks[failed_tasks['host'] == h]
+            table.append([h, c] + [len(host_tasks[host_tasks['exit_code'] == f]) for f in failures])
+        return table
+
     def make_workflow_plots(self, subdir, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
             self.pie(
@@ -914,6 +934,7 @@ class Plotter(object):
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         logs = self.make_workflow_plots('all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
+
         with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
             f.write(wflow.render(
                 id=self.config.label,
@@ -924,6 +945,7 @@ class Plotter(object):
                 summary=summary_data,
                 jsons=jsons,
                 bad_logs=logs,
+                bad_hosts=self.find_failure_hosts(failed_tasks),
                 foremen=foremen_names,
                 categories=categories
             ).encode('utf-8'))
@@ -974,6 +996,7 @@ class Plotter(object):
                     summary=summary,
                     jsons=jsons,
                     bad_logs=logs,
+                    bad_hosts=self.find_failure_hosts(failed_tasks),
                     foremen=foremen_names,
                     categories=categories
                 ).encode('utf-8'))

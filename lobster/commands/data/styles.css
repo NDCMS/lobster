@@ -148,7 +148,6 @@ table.fancy {
 }
 
 table.fancy th, table.fancy td {
-    border:1px solid #333;
     padding:3px 7px 2px 7px;
     background-color: #eee;
 }

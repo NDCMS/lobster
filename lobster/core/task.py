@@ -237,6 +237,8 @@ class TaskHandler(object):
             exit_code = 10001
             failed = True
             summary.wq(task.result, task.tag)
+        else:
+            summary.exe(exit_code, task.tag)
 
         task_update.exit_code = exit_code
 

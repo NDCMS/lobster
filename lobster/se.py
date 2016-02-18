@@ -175,13 +175,13 @@ class Hadoop(StorageElement):
         args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + list(paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            p.wait()
+            pout, perr = p.communicate()
             if p.returncode != 0 and not kwargs.get('safe', False):
-                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), perr, pout)
                 raise IOError(msg)
         except OSError:
             raise AttributeError("hadoop filesystem utilities not available")
-        return p.stdout.read()
+        return pout
 
     def exists(self, path):
         try:
@@ -267,13 +267,13 @@ class SRM(StorageElement):
         args = ['gfal-' + cmds[0]] + cmds[1:] + list(paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
-            p.wait()
+            pout,err = p.communicate()
             if p.returncode != 0 and not kwargs.get('safe', False):
-                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), p.stderr.read(), p.stdout.read())
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), perr,pout)
                 raise IOError(msg)
         except OSError:
             raise AttributeError("srm utilities not available")
-        return p.stdout.read()
+        return pout
 
     def exists(self, path):
         try:

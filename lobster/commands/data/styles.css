@@ -160,6 +160,10 @@ table.fancy th, table.fancy tr.footer td {
     color:#eee;
 }
 
+table.fancy th a {
+    color: #eee
+}
+
 table.fancy tr.alt td {
     background-color:#ccc;
 }

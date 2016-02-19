@@ -269,6 +269,7 @@
             <a class="workflow" href="failed-pie.png"><img class="side" alt="" src="failed-pie.png"/></a>
         </div>
         <div class="maincontent">
+            <p>A mapping of the exit codes can be found in the <a href="http://lobster.readthedocs.org/en/latest/monitor.html#task-exit-codes">documentation</a>.</p>
             <h3>Failure Modes</h3>
             <a class="workflow" href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
             <h3>Task Footprint</h3>
@@ -277,7 +278,7 @@
             <h3>Task Logs</h3>
             <table class="fancy">
                 <tr>
-                    <th>Exit code</th>
+                    <th><a href="http://lobster.readthedocs.org/en/latest/monitor.html#task-exit-codes">Exit code</a></th>
                     <th>Count</th>
                     <th colspan="10" style="text-align: center;">Samples</th>
                 </tr>
@@ -296,7 +297,7 @@
             <table class="fancy">
                 <tr>
                     <th rowspan="2">Hostname</th>
-                    <th colspan="{{ bad_hosts[0]|length }}" style="text-align: center;">Exit Code(s)</th>
+                    <th colspan="{{ bad_hosts[0]|length }}" style="text-align: center;"><a href="http://lobster.readthedocs.org/en/latest/monitor.html#task-exit-codes">Exit Codes</a></th>
                 </tr>
                 {% for row in bad_hosts %}
                 {% set outer_loop = loop %}

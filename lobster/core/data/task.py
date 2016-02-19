@@ -731,7 +731,7 @@ else:
         cmd.extend([str(f) for f in config['mask']['files']])
 
 print ">>> running {0}".format(' '.join(cmd))
-p = run_subprocess(cmd, stderr=subprocess.STDOUT, env=env)
+p = run_subprocess(cmd, stdout=None, env=env)
 print ">>> executable returned with exit code {0}.".format(p.returncode)
 data['exe exit code'] = p.returncode
 data['task exit code'] = data['exe exit code']

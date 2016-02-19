@@ -380,9 +380,9 @@ class Workflow(Configurable):
             if pset:
                 pset = os.path.join(self.workdir, pset)
             if self.category.runtime:
-                # cap task runtime at desired runtime + 10 minutes grace
-                # period (CMSSW 7.4 and higher only)
-                params['task runtime'] = self.category.runtime + 10 * 60
+                # cap task runtime at desired runtime (CMSSW 7.4 and higher
+                # only)
+                params['task runtime'] = self.category.runtime
             params['cores'] = self.category.cores
 
         if pset:

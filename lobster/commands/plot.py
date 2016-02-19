@@ -128,7 +128,7 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
 
     return mp_saveimg(plotdir, name)
 
-def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=100, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
+def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
     if not modes:
         modes = [Plotter.HIST, Plotter.PROF|Plotter.TIME]
 
@@ -489,7 +489,7 @@ class Plotter(object):
 
         return cputime
 
-    def plot(self, a, xlabel, stub=None, ylabel='tasks', bins=100, modes=None, **kwargs_raw):
+    def plot(self, a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, **kwargs_raw):
         args = [a, xlabel]
         kwargs = {
             'stub': stub,
@@ -668,14 +668,14 @@ class Plotter(object):
             self.plot(
                     [(success_tasks['time_retrieved'], success_tasks['bytes_output'] * scale)],
                     'Output / (GB/h)', os.path.join(subdir, 'output'),
-                    bins=100,
+                    bins=50,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
             self.plot(
                     [(centers, total_output)],
                     'Output / GB', os.path.join(subdir, 'output-total'),
-                    bins=100,
+                    bins=50,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
 
@@ -734,6 +734,13 @@ class Plotter(object):
                 self.plot(
                     [(tasks['time_retrieved'], tasks['workdir_footprint'])],
                     'working directory footprint / MB', os.path.join(subdir, prefix + 'workdir-footprint'),
+                )
+
+                bandwidth = tasks['network_bytes_received'] / 1e6 / tasks['time_on_worker']
+                self.plot(
+                    [(tasks['time_retrieved'], bandwidth)],
+                    'bandwidth / Mb/s', os.path.join(subdir, prefix + 'network-bandwidth'),
+                    modes=[Plotter.PROF|Plotter.TIME]
                 )
 
 
@@ -811,7 +818,7 @@ class Plotter(object):
                 label=['running']
         )
 
-        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=100, weights=stats[:,headers['total_send_time']])
+        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=50, weights=stats[:,headers['total_send_time']])
         received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
         created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
         returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
@@ -835,7 +842,7 @@ class Plotter(object):
                     (centers, np.divide(other, all))
                 ],
                 'Fraction', 'fraction',
-                bins=100,
+                bins=50,
                 modes=[Plotter.HIST|Plotter.TIME],
                 label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
                 ymax=1.
@@ -870,7 +877,7 @@ class Plotter(object):
             self.plot(
                     [(centers, total_completed * (-1.) + start_units)],
                     'units remaining', 'units-total',
-                    bins=100,
+                    bins=50,
                     modes=[Plotter.PLOT|Plotter.TIME]
             )
 
@@ -894,7 +901,7 @@ class Plotter(object):
             self.plot(
                     [(centers, ratio)],
                     'CPU / Wall', 'cpu-wall',
-                    bins=100,
+                    bins=50,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 
@@ -903,7 +910,7 @@ class Plotter(object):
             self.plot(
                     [(centers, ratio)],
                     'Integrated CPU / Wall', 'cpu-wall-int',
-                    bins=100,
+                    bins=50,
                     modes=[Plotter.HIST|Plotter.TIME]
             )
 

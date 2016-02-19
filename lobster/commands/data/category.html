@@ -140,10 +140,11 @@
             <tr{{ loop.cycle('', ' class="alt"') }}>
             {% endif %}
                 {% for cell in row %}
-                <td>
-                    {% if loop.revindex == 2 and cell > 0 and row != summary[-1] %}
+                {% if loop.index != 1 and loop.revindex > 1 %}{% set cell = "{0:,}".format(cell).replace(",", "&nbsp;") %}{% set attr=' class="right"' %}{% else %}{% set attr='' %}{% endif %}
+                <td{{attr}}>
+                    {% if loop.revindex == 2 and cell != '0' and row != summary[-1] %}
                         <a href="../logs/skipped_{{row[0]}}.txt">{{cell}}</a>
-                    {% elif loop.revindex == 3 and cell > 0 and row != summary[-1] %}
+                    {% elif loop.revindex == 3 and cell != '0' and row != summary[-1] %}
                         <a href="../logs/failed_{{row[0]}}">{{cell}}</a>
                     {% else %}
                         {{ cell }}
@@ -181,10 +182,11 @@
             <a class="workflow" href="good-time-detail-pie.png"><img class="side" alt="" src="good-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
-            <h3>Task Footprint</h3>
+            <h3>Task Resources</h3>
             <a class="workflow" href="good-memory-hist.png"><img alt="" src="good-memory-hist.png"/></a>
             <a class="workflow" href="good-workdir-footprint-hist.png"><img alt="" src="good-workdir-footprint-hist.png"/></a>
-            <h3>Task Breakdown</h3>
+            <a class="workflow" href="good-network-bandwidth-prof.png"><img alt="" src="good-network-bandwidth-prof.png"/></a>
+            <h3>Task Timing</h3>
             <p>
                 <span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
                 <span id="goodmore" class="button depressed"><a href="#" id="goodmore">show timeline breakdown</a></span>
@@ -225,10 +227,11 @@
             <a class="workflow" href="merge-time-detail-pie.png"><img class="side" alt="" src="merge-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
-            <h3>Task Footprint</h3>
+            <h3>Task Resources</h3>
             <a class="workflow" href="merge-memory-hist.png"><img alt="" src="merge-memory-hist.png"/></a>
             <a class="workflow" href="merge-workdir-footprint-hist.png"><img alt="" src="merge-workdir-footprint-hist.png"/></a>
-            <h3>Task Breakdown</h3>
+            <a class="workflow" href="merge-network-bandwidth-prof.png"><img alt="" src="merge-network-bandwidth-prof.png"/></a>
+            <h3>Task Timing</h3>
             <p>
                 <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
                 <span id="mergemore" class="button depressed"><a href="#" id="mergemore">show timeline breakdown</a></span>
@@ -272,9 +275,10 @@
             <p>A mapping of the exit codes can be found in the <a href="http://lobster.readthedocs.org/en/latest/monitor.html#task-exit-codes">documentation</a>.</p>
             <h3>Failure Modes</h3>
             <a class="workflow" href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
-            <h3>Task Footprint</h3>
+            <h3>Task Resources</h3>
             <a class="workflow" href="failed-memory-hist.png"><img alt="" src="failed-memory-hist.png"/></a>
             <a class="workflow" href="failed-workdir-footprint-hist.png"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="failed-network-bandwidth-prof.png"><img alt="" src="failed-network-bandwidth-prof.png"/></a>
             <h3>Task Logs</h3>
             <table class="fancy">
                 <tr>

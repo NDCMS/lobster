@@ -100,10 +100,11 @@
             <tr{{ loop.cycle('', ' class="alt"') }}>
             {% endif %}
                 {% for cell in row %}
+                {% if loop.index != 1 and loop.revindex > 1 %}{% set cell = "{0:,}".format(cell).replace(",", "&nbsp;") %}{% set attr=' class="right"' %}{% else %}{% set attr='' %}{% endif %}
                     {% if loop.index == 1 and cell != 'Total' %}
                     <td><a href="{{ cell }}">{{ cell }}</a></td>
                     {% else %}
-                    <td>{{ cell }}</td>
+                    <td{{attr}}>{{ cell }}</td>
                     {% endif %}
                 {% endfor %}
             </tr>

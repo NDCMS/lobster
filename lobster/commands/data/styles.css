@@ -160,6 +160,10 @@ table.fancy th, table.fancy tr.footer td {
     color:#eee;
 }
 
+table.fancy .right, table.fancy tr.footer .right {
+    text-align: right;
+}
+
 table.fancy th a {
     color: #eee
 }

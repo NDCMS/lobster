@@ -294,6 +294,14 @@ class Plotter(object):
         formats = ['i4' if f not in textfields else 'a100' for f in fields]
         tasks = np.array(cur.fetchall(), dtype={'names': fields, 'formats': formats})
 
+        # XXX Protect against non-sensical eviction values: if the
+        # total_time_on_worker exceeds the timespan between submission and
+        # retrieval, reset it to the processing time and warn.
+        bogus_total = tasks['time_total_on_worker'] > tasks['time_retrieved'] - tasks['time_submit']
+        if np.any(bogus_total):
+            logger.warning("resetting eviction times exceeding work_queue lifetimes!")
+            tasks['time_total_on_worker'] = np.where(bogus_total, tasks['time_on_worker'], tasks['time_total_on_worker'])
+
         failed_tasks = tasks[tasks['status'] == 3] if len(tasks) > 0 else []
         success_tasks = tasks[np.in1d(tasks['status'], (2, 6, 7, 8))] if len(tasks) > 0 else []
 

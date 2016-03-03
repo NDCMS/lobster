@@ -32,7 +32,11 @@ class PartiallyMutable(type):
         type.__init__(self, name, bases, attrs)
 
     def __call__(cls, *args, **kwargs):
-        res = type.__call__(cls, *args, **kwargs)
+        try:
+            res = type.__call__(cls, *args, **kwargs)
+        except Exception as e:
+            import sys
+            raise type(e), type(e)('{0!s}: {1}'.format(cls, e.message)), sys.exc_info()[2]
         return res
 
     @classmethod

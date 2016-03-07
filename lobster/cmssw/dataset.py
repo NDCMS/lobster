@@ -37,6 +37,7 @@ class Cache(object):
     def __del__(self):
         shutil.rmtree(self.cache)
 
+
 class Dataset(Configurable):
     """
     Specification for processing a dataset stored in DBS.
@@ -107,8 +108,10 @@ class Dataset(Configurable):
 
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
+            # FIXME Where should we pull CAINFO from?
+            ca_info = os.environ['GIT_SSL_CAINFO']
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-            self.__apis[instance] = DASWrapper(dbs_url)
+            self.__apis[instance] = DASWrapper(dbs_url, ca_info=ca_info)
 
         result = DatasetInfo()
 

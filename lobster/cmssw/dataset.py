@@ -1,17 +1,21 @@
+import logging
 import math
 import os
 import re
 import requests
 from retrying import retry
 import shutil
+import sys
 import tempfile
 
 from lobster.core.dataset import DatasetInfo
 from lobster.util import Configurable
 
 from dbs.apis.dbsClient import DbsApi
+from WMCore.Credential.Proxy import Proxy
 from WMCore.DataStructs.LumiList import LumiList
 
+logger = logging.getLogger('lobster.cmssw.dataset')
 
 class DASWrapper(DbsApi):
     @retry(stop_max_attempt_number=10)
@@ -108,10 +112,13 @@ class Dataset(Configurable):
 
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
-            # FIXME Where should we pull CAINFO from?
-            ca_info = os.environ['GIT_SSL_CAINFO']
-            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-            self.__apis[instance] = DASWrapper(dbs_url, ca_info=ca_info)
+            cred = Proxy({'logger': logger})
+            if cred.getTimeLeft() < 5 * 60 * 60:
+                logger.error('please renew your proxy')
+                sys.exit(1)
+            else:
+                dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
+                self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
 
         result = DatasetInfo()
 

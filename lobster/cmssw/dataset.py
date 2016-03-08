@@ -6,7 +6,7 @@ from retrying import retry
 import shutil
 import tempfile
 
-from lobster.core.dataset import FileInfo, DatasetInfo
+from lobster.core.dataset import DatasetInfo
 from lobster.util import Configurable
 
 from dbs.apis.dbsClient import DbsApi
@@ -124,7 +124,6 @@ class Dataset(Configurable):
             result.files[fn].events = info['event_count']
             result.files[fn].size = info['file_size']
 
-        files = set()
         if file_based:
             for info in self.__apis[instance].listFiles(dataset=dataset):
                 fn = info['logical_file_name']

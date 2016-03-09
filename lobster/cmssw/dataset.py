@@ -1,17 +1,21 @@
+import logging
 import math
 import os
 import re
 import requests
 from retrying import retry
 import shutil
+import sys
 import tempfile
 
-from lobster.core.dataset import FileInfo, DatasetInfo
+from lobster.core.dataset import DatasetInfo
 from lobster.util import Configurable
 
 from dbs.apis.dbsClient import DbsApi
+from WMCore.Credential.Proxy import Proxy
 from WMCore.DataStructs.LumiList import LumiList
 
+logger = logging.getLogger('lobster.cmssw.dataset')
 
 class DASWrapper(DbsApi):
     @retry(stop_max_attempt_number=10)
@@ -36,6 +40,7 @@ class Cache(object):
         self.cache = tempfile.mkdtemp()
     def __del__(self):
         shutil.rmtree(self.cache)
+
 
 class Dataset(Configurable):
     """
@@ -107,8 +112,13 @@ class Dataset(Configurable):
 
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
-            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-            self.__apis[instance] = DASWrapper(dbs_url)
+            cred = Proxy({'logger': logger})
+            if cred.getTimeLeft() < 5 * 60 * 60:
+                logger.error('please renew your proxy')
+                sys.exit(1)
+            else:
+                dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
+                self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
 
         result = DatasetInfo()
 
@@ -121,7 +131,6 @@ class Dataset(Configurable):
             result.files[fn].events = info['event_count']
             result.files[fn].size = info['file_size']
 
-        files = set()
         if file_based:
             for info in self.__apis[instance].listFiles(dataset=dataset):
                 fn = info['logical_file_name']

@@ -7,8 +7,10 @@ import yaml
 # FIXME pycurl shipping with CMSSW is too old to harmonize with modern DBS!
 rm = []
 for f in sys.path:
-    if '/cvmfs' in f and 'pycurl' in f:
-        rm.append(f)
+    if '/cvmfs' in f:
+        for pkg in ('pycurl', 'numpy', 'matplotlib'):
+            if pkg in f:
+                rm.append(f)
 for f in rm:
     sys.path.remove(f)
 

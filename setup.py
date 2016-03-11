@@ -26,7 +26,9 @@ setup(
         'argparse',
         'httplib2', # actually a WMCore dependency
         'jinja2',
+        'matplotlib',
         'nose',
+        'numpy>=1.9',
         'pycurl',
         'pyyaml',
         'python-cjson', # actually a DBS dependency

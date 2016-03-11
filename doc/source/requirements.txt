@@ -1,3 +1,0 @@
-lockfile
-retrying
-git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2

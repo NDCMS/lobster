@@ -16,6 +16,7 @@ from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
 
 from lobster import util
+from lobster.core.command import Command
 from lobster.core.unit import UnitStore
 from lobster.cmssw.dataset import Dataset
 
@@ -273,145 +274,158 @@ class BlockDump(object):
     def __setitem__(self, key, value):
         self.data[key] = value
 
-def publish(args):
-    config = args.config
+class Publish(Command):
+    @property
+    def help(self):
+        return 'publish results in the CMS Data Aggregation System'
 
-    if len(args.datasets) == 0:
-        args.datasets = [workflow['label'] for workflow in config.get('workflows', [])]
+    def setup(self, argparser):
+        argparser.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
+        argparser.add_argument('--block-size', dest='block_size', type=int, default=400,
+                help='number of files to publish per file block.')
+        argparser.add_argument('datasets', nargs='*', help='dataset labels to publish (default is all datasets)')
+        argparser.add_argument('-f', '--foreground', action='store_true', default=False,
+                help='do not daemonize;  run in the foreground instead')
 
-    workdir = config['workdir']
-    user = config.get('publish user', os.environ['USER'])
-    publish_instance = config.get('dbs instance', 'phys03')
-    published = {'dataset': '', 'dbs instance': publish_instance}
+    def run(self, args):
+        config = args.config
 
-    if not args.foreground:
-        ttyfile = open(os.path.join(workdir, 'publish.err'), 'a')
-        logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'publish.err')))
+        if len(args.datasets) == 0:
+            args.datasets = [workflow['label'] for workflow in config.get('workflows', [])]
 
-    with daemon.DaemonContext(
-            detach_process=not args.foreground,
-            stdout=sys.stdout if args.foreground else ttyfile,
-            stderr=sys.stderr if args.foreground else ttyfile,
-            files_preserve=[args.preserve],
-            working_directory=workdir,
-            pidfile=util.get_lock(workdir)):
-        db = UnitStore(config)
-        das_interface = MetaInterface()
+        workdir = config['workdir']
+        user = config.get('publish user', os.environ['USER'])
+        publish_instance = config.get('dbs instance', 'phys03')
+        published = {'dataset': '', 'dbs instance': publish_instance}
 
-        dbs = {}
-        for path, key in [[('global', 'DBSReader'), 'global'],
-                          [(publish_instance, 'DBSWriter'), 'local'],
-                          [(publish_instance, 'DBSReader'), 'reader'],
-                          [(publish_instance, 'DBSMigrate'), 'migrator']]:
-            dbs[key] = DbsApi('https://cmsweb.cern.ch/dbs/prod/{0}/'.format(os.path.join(*path)))
+        if not args.foreground:
+            ttyfile = open(os.path.join(workdir, 'publish.err'), 'a')
+            logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'publish.err')))
 
-        for label in args.datasets:
-            (dset,
-             stageout_path,
-             release,
-             gtag,
-             publish_label,
-             cfg,
-             pset_hash,
-             ds_id,
-             publish_hash) = [str(x) for x in db.dataset_info(label)]
+        with daemon.DaemonContext(
+                detach_process=not args.foreground,
+                stdout=sys.stdout if args.foreground else ttyfile,
+                stderr=sys.stderr if args.foreground else ttyfile,
+                files_preserve=[args.preserve],
+                working_directory=workdir,
+                pidfile=util.get_lock(workdir)):
+            db = UnitStore(config)
+            das_interface = MetaInterface()
 
-            dset = dset.strip('/').split('/')[0]
-            if not pset_hash or pset_hash == 'None':
-                logger.info('the parameter set hash has not been calculated')
-                logger.info('calculating parameter set hash now (may take a few minutes)')
-                cfg_path = os.path.join(workdir, label, os.path.basename(cfg))
-                tmp_path = cfg_path.replace('.py', '_tmp.py')
-                with open(cfg_path, 'r') as infile:
-                    with open(tmp_path, 'w') as outfile:
-                        fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
-                        outfile.write(fix.format(tmp_path))
-                        outfile.write(infile.read())
+            dbs = {}
+            for path, key in [[('global', 'DBSReader'), 'global'],
+                              [(publish_instance, 'DBSWriter'), 'local'],
+                              [(publish_instance, 'DBSReader'), 'reader'],
+                              [(publish_instance, 'DBSMigrate'), 'migrator']]:
+                dbs[key] = DbsApi('https://cmsweb.cern.ch/dbs/prod/{0}/'.format(os.path.join(*path)))
+
+            for label in args.datasets:
+                (dset,
+                 stageout_path,
+                 release,
+                 gtag,
+                 publish_label,
+                 cfg,
+                 pset_hash,
+                 ds_id,
+                 publish_hash) = [str(x) for x in db.dataset_info(label)]
+
+                dset = dset.strip('/').split('/')[0]
+                if not pset_hash or pset_hash == 'None':
+                    logger.info('the parameter set hash has not been calculated')
+                    logger.info('calculating parameter set hash now (may take a few minutes)')
+                    cfg_path = os.path.join(workdir, label, os.path.basename(cfg))
+                    tmp_path = cfg_path.replace('.py', '_tmp.py')
+                    with open(cfg_path, 'r') as infile:
+                        with open(tmp_path, 'w') as outfile:
+                            fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
+                            outfile.write(fix.format(tmp_path))
+                            outfile.write(infile.read())
+                    try:
+                        pset_hash = hash_pset(tmp_path)
+                        db.update_pset_hash(pset_hash, label)
+                    except:
+                        logger.warning('error calculating the cmssw parameter set hash')
+                    os.remove(tmp_path)
+
+                block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
+
+                if len(dbs['local'].listAcquisitionEras(acquisition_era_name=user)) == 0:
+                    try:
+                        dbs['local'].insertAcquisitionEra({'acquisition_era_name': user})
+                    except Exception, ex:
+                        logger.warn(ex)
                 try:
-                    pset_hash = hash_pset(tmp_path)
-                    db.update_pset_hash(pset_hash, label)
-                except:
-                    logger.warning('error calculating the cmssw parameter set hash')
-                os.remove(tmp_path)
-
-            block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
-
-            if len(dbs['local'].listAcquisitionEras(acquisition_era_name=user)) == 0:
-                try:
-                    dbs['local'].insertAcquisitionEra({'acquisition_era_name': user})
+                    dbs['local'].insertPrimaryDataset(block.data['primds'])
+                    dbs['local'].insertDataset(block.data['dataset'])
                 except Exception, ex:
                     logger.warn(ex)
-            try:
-                dbs['local'].insertPrimaryDataset(block.data['primds'])
-                dbs['local'].insertDataset(block.data['dataset'])
-            except Exception, ex:
-                logger.warn(ex)
-                raise
+                    raise
 
-            tasks = db.finished_tasks(label)
+                tasks = db.finished_tasks(label)
 
-            first_task = 0
-            inserted = False
-            logger.info('found %d successful %s tasks to publish' % (len(tasks), label))
-            missing = []
-            while first_task < len(tasks):
-                block.reset()
-                chunk = tasks[first_task:first_task+args.block_size]
-                logger.info('preparing DBS entry for %i task block: %s' % (len(chunk), block['block']['block_name']))
+                first_task = 0
+                inserted = False
+                logger.info('found %d successful %s tasks to publish' % (len(tasks), label))
+                missing = []
+                while first_task < len(tasks):
+                    block.reset()
+                    chunk = tasks[first_task:first_task+args.block_size]
+                    logger.info('preparing DBS entry for %i task block: %s' % (len(chunk), block['block']['block_name']))
 
-                for task, merged_task in chunk:
-                    id = merged_task if merged_task else task
+                    for task, merged_task in chunk:
+                        id = merged_task if merged_task else task
 
-                    f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
-                    report = readtaskReport(f)[0]
+                        f = gzip.open(os.path.join(workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
+                        report = readtaskReport(f)[0]
 
-                    with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'report.json')) as f:
-                        report = json.load(f)
-                    with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'parameters.json')) as f:
-                        parameters = json.load(f)
+                        with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'report.json')) as f:
+                            report = json.load(f)
+                        with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'parameters.json')) as f:
+                            parameters = json.load(f)
 
-                    local, remote = parameters['output files'][0]
-                    PFN = os.path.join(stageout_path, os.path.basename(remote))
-                    LFN = block.get_LFN(PFN)
-                    matched_PFN = block.get_matched_PFN(PFN, LFN)
-                    if not matched_PFN:
-                        logger.warn('could not find expected output for task(s) {0}'.format(task))
-                        missing.append(task)
-                    else:
-                        fileinfo = report['files']['output info'][local]
-                        logger.info('adding %s to block' % LFN)
-                        block.add_file_config(LFN)
-                        block.add_file(LFN, fileinfo, task, merged_task)
-                        block.add_dataset_config()
-                        if args.migrate_parents:
-                            block.add_file_parents(LFN, report)
+                        local, remote = parameters['output files'][0]
+                        PFN = os.path.join(stageout_path, os.path.basename(remote))
+                        LFN = block.get_LFN(PFN)
+                        matched_PFN = block.get_matched_PFN(PFN, LFN)
+                        if not matched_PFN:
+                            logger.warn('could not find expected output for task(s) {0}'.format(task))
+                            missing.append(task)
+                        else:
+                            fileinfo = report['files']['output info'][local]
+                            logger.info('adding %s to block' % LFN)
+                            block.add_file_config(LFN)
+                            block.add_file(LFN, fileinfo, task, merged_task)
+                            block.add_dataset_config()
+                            if args.migrate_parents:
+                                block.add_file_parents(LFN, report)
 
-                if args.migrate_parents:
-                    parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
-                    migrate_parents(parents_to_migrate, dbs)
+                    if args.migrate_parents:
+                        parents_to_migrate = list(set([p['parent_logical_file_name'] for p in block['file_parent_list']]))
+                        migrate_parents(parents_to_migrate, dbs)
 
-                if len(block.data['files']) > 0:
-                    try:
-                        inserted = True
-                        dbs['local'].insertBulkBlock(block.data)
-                        db.update_published(block.get_publish_update())
-                        logger.info('block inserted: %s' % block['block']['block_name'])
-                    except HTTPError, e:
-                        logger.critical(e)
+                    if len(block.data['files']) > 0:
+                        try:
+                            inserted = True
+                            dbs['local'].insertBulkBlock(block.data)
+                            db.update_published(block.get_publish_update())
+                            logger.info('block inserted: %s' % block['block']['block_name'])
+                        except HTTPError, e:
+                            logger.critical(e)
 
-                first_task += args.block_size
+                    first_task += args.block_size
 
-            if inserted:
-                published.update({'dataset': block['dataset']['dataset']})
-                info = das_interface.get_info(published)
-                lumis = LumiList(lumis=sum(info.lumis.values(), []))
-                json = os.path.join(workdir, label, 'published.json')
-                lumis.writeJSON(json)
+                if inserted:
+                    published.update({'dataset': block['dataset']['dataset']})
+                    info = das_interface.get_info(published)
+                    lumis = LumiList(lumis=sum(info.lumis.values(), []))
+                    json = os.path.join(workdir, label, 'published.json')
+                    lumis.writeJSON(json)
 
-                logger.info('publishing dataset %s complete' % label)
-                logger.info('json file of published runs and lumis saved to %s' % json)
+                    logger.info('publishing dataset %s complete' % label)
+                    logger.info('json file of published runs and lumis saved to %s' % json)
 
-            if len(missing) > 0:
-                template = "the following task(s) have not been published because their output could not be found: {0}"
-                logger.warning(template.format(", ".join(map(str, missing))))
+                if len(missing) > 0:
+                    template = "the following task(s) have not been published because their output could not be found: {0}"
+                    logger.warning(template.format(", ".join(map(str, missing))))
 

@@ -14,13 +14,13 @@ for f in sys.path:
 for f in rm:
     sys.path.remove(f)
 
-from lobster.cmssw.publish import publish
-from lobster.commands.process import kill, run
-from lobster.commands.plot import plot
-from lobster.commands.reconfigure import reconfigure
-from lobster.commands.status import status
-from lobster.commands.validate import validate
-from lobster.core import config, legacy
+# from lobster.cmssw.publish import publish
+# from lobster.commands.process import kill, run
+# from lobster.commands.plot import plot
+# from lobster.commands.reconfigure import reconfigure
+# from lobster.commands.status import status
+# from lobster.commands.validate import validate
+from lobster.core import command, config, legacy
 from lobster import util
 
 logger = logging.getLogger('lobster')
@@ -29,55 +29,8 @@ def boil():
     parser = ArgumentParser(description='A task submission tool for CMS')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
     parser.add_argument('--quiet', '-q', action='count', default=0, help='decrease verbosity')
-    subparsers = parser.add_subparsers(title='commands')
 
-    parser_run = subparsers.add_parser('process', help='process configuration')
-    parser_run.add_argument('--finalize', action='store_true', default=False,
-            help='do not process any additional data; wrap project up by merging everything')
-    parser_run.add_argument('--increase-thresholds', const=10, nargs='?', type=int,
-            help='increase failure/skipping thresholds')
-    parser_run.add_argument('--foreground', action='store_true', default=False,
-            help='do not daemonize; run in the foreground instead')
-    parser_run.add_argument('-f', '--force', action='store_true', default=False,
-            help='force processing, even if the working directory is locked by a previous instance')
-    parser_run.set_defaults(func=run)
-
-    parser_kill = subparsers.add_parser('terminate', help='terminate running lobster instance')
-    parser_kill.set_defaults(func=kill)
-
-    parser_plot = subparsers.add_parser('plot', help='plot progress of processing')
-    parser_plot.add_argument("--from", default=None, metavar="START", dest="xmin",
-            help="plot data from START.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
-    parser_plot.add_argument("--to", default=None, metavar="END", dest="xmax",
-            help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
-    parser_plot.add_argument("--foreman-logs", default=None, metavar="FOREMAN_LIST", dest="foreman_list", nargs='+', type=str,
-            help="specify log files for foremen;  valid values: log1 log2 log3...logN")
-    parser_plot.add_argument('--outdir', help="specify output directory")
-    parser_plot.set_defaults(func=plot)
-
-    parser_validate = subparsers.add_parser('validate', help='validate task output and remove output files for failed tasks')
-    parser_validate.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
-            help='only print (do not remove) files to be cleaned')
-    parser_validate.add_argument('--delete-merged', action='store_true', dest='delete_merged', default=False,
-            help='remove intermediate files that have been merged')
-    parser_validate.set_defaults(func=validate)
-
-    parser_status = subparsers.add_parser('status', help='show a workflow status summary')
-    parser_status.set_defaults(func=status)
-
-    parser_reconf = subparsers.add_parser('reconfigure', help='change the configuration of a running lobster process')
-    parser_reconf.add_argument('setting', help='the configuration setting to alter')
-    parser_reconf.add_argument('value', help='the value to assign to the configuration setting')
-    parser_reconf.set_defaults(func=reconfigure)
-
-    parser_publish = subparsers.add_parser('publish', help='publish results in the CMS Data Aggregation System')
-    parser_publish.add_argument('--migrate-parents', dest='migrate_parents', default=False, help='migrate parents to local DBS')
-    parser_publish.add_argument('--block-size', dest='block_size', type=int, default=400,
-            help='number of files to publish per file block.')
-    parser_publish.add_argument('datasets', nargs='*', help='dataset labels to publish (default is all datasets)')
-    parser_publish.add_argument('-f', '--foreground', action='store_true', default=False,
-            help='do not daemonize;  run in the foreground instead')
-    parser_publish.set_defaults(func=publish)
+    command.Command.register([os.path.join(os.path.dirname(__file__), d, 'commands') for d in ['.', 'cmssw']], parser)
 
     parser.add_argument(metavar='{configfile,workdir}', dest='checkpoint',
             help='configuration file to use or working directory to resume.')
@@ -120,8 +73,8 @@ def boil():
     console.setFormatter(formatter)
     logger.addHandler(console)
 
-    if args.func in (run, publish):
-        fn = ('process' if args.func == run else 'publish') + '.log'
+    if args.plugin.daemonizable:
+        fn = args.plugin.__class__.__name__.lower() + '.log'
         logger.info("saving log to {0}".format(os.path.join(cfg.workdir, fn)))
         if not os.path.isdir(cfg.workdir):
             os.makedirs(cfg.workdir)
@@ -130,16 +83,7 @@ def boil():
         args.preserve = fileh.stream
         logger.addHandler(fileh)
 
-        if not args.foreground:
+        if not getattr(args, "foreground", False):
             logger.removeHandler(console)
 
-        if args.func == run:
-            if args.finalize:
-                args.config.advanced.threshold_for_failure = 0
-                args.config.advanced.threshold_for_skipping = 0
-            if args.increase_thresholds:
-                args.config.advanced.threshold_for_failure += args.increase_thresholds
-                args.config.advanced.threshold_for_skipping += args.increase_thresholds
-                args.config.save()
-
-    args.func(args)
+    args.plugin.run(args)

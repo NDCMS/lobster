@@ -390,7 +390,7 @@ class TaskProvider(object):
 
                 for task, _, _, _ in lumis:
                     report = self.get_report(label, task)
-                    _, infile = list(wflow.outputs(task))[0]
+                    _, infile = list(wflow.get_outputs(task))[0]
 
                     if os.path.isfile(report):
                         inreports.append(report)

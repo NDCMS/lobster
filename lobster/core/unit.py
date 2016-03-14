@@ -537,7 +537,8 @@ class UnitStore:
 
             if tasks > 10:
                 bettersize = max(1, int(math.ceil(targettime / unittime)))
-                if abs(float(bettersize - size) / size) > .1:
+                logger.debug("newly calculated task size for {}: {} (old: {})".format(label, bettersize, size))
+                if abs(float(bettersize - size) / size) > .05:
                     logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
                     self.db.execute("update workflows set tasksize=? where id=?", (bettersize, id))
 

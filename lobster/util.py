@@ -23,17 +23,22 @@ class PartiallyMutable(type):
     """
     actions = set()
 
-    def __init__(self, name, bases, attrs):
+    def __init__(cls, name, bases, attrs):
         key = '_mutable'
         if key not in attrs:
             raise AttributeError('class {} does not set the attribute _mutable'.format(name))
         elif not isinstance(attrs[key], dict):
             raise AttributeError('class {} does not define the attribute _mutable as dict'.format(name))
-        type.__init__(self, name, bases, attrs)
+        type.__init__(cls, name, bases, attrs)
 
     def __call__(cls, *args, **kwargs):
         try:
             res = type.__call__(cls, *args, **kwargs)
+            name = cls.__name__
+            module = cls.__module__.split('.')[1]
+            if module not in ('core', 'se'):
+                name = ".".join([module, name])
+            res._store(name, args, kwargs)
         except Exception as e:
             import sys
             raise type(e), type(e)('{0!s}: {1}'.format(cls, e.message)), sys.exc_info()[2]
@@ -75,6 +80,28 @@ class Configurable(object):
             self.__class__.actions.add(self._mutable[attr])
         else:
             raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
+
+    def _store(self, name, args, kwargs):
+        self.__name = name
+        self.__args = args
+        self.__kwargs = kwargs
+
+    def __repr__(self, override=None):
+        def indent(text):
+            lines = text.splitlines()
+            if len(lines) <= 1:
+                return text
+            return "\n".join("    " + l for l in lines).strip()
+        def attr(k):
+            if override and k in override:
+                return override[k]
+            elif not hasattr(self, k):
+                return repr(getattr(self, '_{}__{}'.format(self.__class__.__name__, k)))
+            return repr(getattr(self, k))
+        args = ["\n    {},".format(indent(arg)) for arg in self.__args]
+        kwargs = ["\n    {}={}".format(k, indent(attr(k))) for k, v in self.__kwargs.items()]
+        s = self.__name + "({}\n)".format(",".join(args + kwargs))
+        return s
 
 
 def record(cls, *fields, **defaults):

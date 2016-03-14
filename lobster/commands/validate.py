@@ -34,7 +34,7 @@ class Validate(Command):
             delete = []
 
             for task, task_type in store.failed_tasks(wflow.label):
-                for _, filename in wflow.outputs(task):
+                for _, filename in wflow.get_outputs(task):
                     if filename in files:
                         logger.info("found output from failed task: {0}".format(filename))
                         stats[wflow.label][0] += 1
@@ -42,7 +42,7 @@ class Validate(Command):
                             delete.append(filename)
 
             for task, task_type in store.merged_tasks(wflow.label):
-                for _, filename in wflow.outputs(task):
+                for _, filename in wflow.get_outputs(task):
                     if filename in files:
                         logger.info("found output from intermediate merged task: {0}".format(filename))
                         stats[wflow.label][1] += 1
@@ -53,7 +53,7 @@ class Validate(Command):
                 fs.remove(fn)
 
             for task, task_type in store.successful_tasks(wflow.label):
-                for _, filename in wflow.outputs(task):
+                for _, filename in wflow.get_outputs(task):
                     if filename not in files:
                         missing.append(task)
                         logger.warning('output file is missing for {0}'.format(task))

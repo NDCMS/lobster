@@ -10,6 +10,8 @@ import xml.dom.minidom
 from contextlib import contextmanager
 from functools import partial, wraps
 
+from util import Configurable
+
 import Chirp as chirp
 
 logger = logging.getLogger('lobster.se')
@@ -320,7 +322,7 @@ class SRM(StorageElement):
             self.execute('rm -r', *(paths[:50]), safe=True)
             paths = paths[50:]
 
-class StorageConfiguration(object):
+class StorageConfiguration(Configurable):
     """
     Container for storage element configuration.
 
@@ -365,6 +367,7 @@ class StorageConfiguration(object):
             the remaining input files.  By using this setting, all input
             URLs will be attempted for all input files.
     """
+    _mutable = {}
 
     # Map protocol shorthands to actual protocol names
     __protocols = {

@@ -182,15 +182,15 @@ class Workflow(Configurable):
         self.merge_size = self.__check_merge(merge_size)
         self.merge_cleanup = merge_cleanup
 
-        self.cmd = command
+        self.command = command
         self.extra_inputs = extra_inputs if extra_inputs else []
-        self.args = arguments if arguments else []
-        self.unique_args = unique_arguments if unique_arguments else [None]
+        self.arguments = arguments if arguments else []
+        self.unique_arguments = unique_arguments if unique_arguments else [None]
         self.outputs = outputs
-        self.outputformat = output_format
+        self.output_format = output_format
 
         self.dependents = []
-        self.prerequisite = parent
+        self.parent = parent
 
         self.pset = pset
         self.globaltag = globaltag
@@ -297,7 +297,7 @@ class Workflow(Configurable):
         update_config = True
 
         # To avoid problems loading configs that use the VarParsing module
-        sys.argv = [os.path.basename(self.pset)] + self.args
+        sys.argv = [os.path.basename(self.pset)] + self.arguments
         with open(util.findpath(basedirs, self.pset), 'r') as f:
             source = imp.load_source('cms_config_source', self.pset, f)
             process = source.process
@@ -350,12 +350,12 @@ class Workflow(Configurable):
     def get_outputs(self, id):
         for fn in self.outputs:
             base, ext = os.path.splitext(fn)
-            outfn = self.outputformat.format(base=base, ext=ext[1:], id=id)
+            outfn = self.output_format.format(base=base, ext=ext[1:], id=id)
             yield fn, os.path.join(self.label, outfn)
 
     def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
-        cmd = self.cmd
-        args = self.args
+        cmd = self.command
+        args = self.arguments
         pset = self.pset
 
         inputs.append((self.sandbox, 'sandbox.tar.bz2', True))

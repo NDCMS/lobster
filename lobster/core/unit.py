@@ -158,7 +158,7 @@ class UnitStore:
 
     def register_dataset(self, wflow, dataset_info, taskruntime=None):
         label = wflow.label
-        unique_args = wflow.unique_args
+        unique_args = wflow.unique_arguments
 
         cur = self.db.cursor()
         cur.execute("""insert into workflows
@@ -513,7 +513,7 @@ class UnitStore:
         workflow is changed.
         """
         if roots is None:
-            roots = [w for w in self.config.workflows if not w.prerequisite]
+            roots = [w for w in self.config.workflows if not w.parent]
         for r in roots:
             merged, paused = self.db.execute("select merged, units_paused from workflows where label=?", (r.label,)).fetchone()
             if paused > 0:

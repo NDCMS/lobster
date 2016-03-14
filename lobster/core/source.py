@@ -128,7 +128,7 @@ class TaskProvider(object):
             # or use 'noncmsRun' if task cmds are different
             # Using this for dashboard exe name reporting
             cmsconfigs = [wflow.pset for wflow in self.config.workflows]
-            cmds = [wflow.cmd for wflow in self.config.workflows]
+            cmds = [wflow.command for wflow in self.config.workflows]
             if any(cmsconfigs):
                 exename = 'cmsRun'
             elif all(x == cmds[0] and x is not None for x in cmds):
@@ -153,10 +153,10 @@ class TaskProvider(object):
                     util.move(wflow.workdir, id, 'failed')
 
         for wflow in self.config.workflows:
-            if wflow.prerequisite:
-                getattr(self.config.workflows, wflow.prerequisite).register(wflow)
+            if wflow.parent:
+                getattr(self.config.workflows, wflow.parent).register(wflow)
                 if create:
-                    self.__store.register_dependency(wflow.label, wflow.prerequisite, wflow.dataset.parent.total_units)
+                    self.__store.register_dependency(wflow.label, wflow.parent, wflow.dataset.parent.total_units)
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
@@ -185,8 +185,8 @@ class TaskProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
     def __find_root(self, label):
-        while getattr(self.config.workflows, label).prerequisite:
-            label = getattr(self.config.workflows, label).prerequisite
+        while getattr(self.config.workflows, label).parent:
+            label = getattr(self.config.workflows, label).parent
         return label
 
     def __setup_inputs(self):
@@ -420,7 +420,7 @@ class TaskProvider(object):
             handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
             # set input/output transfer parameters
-            self._storage.preprocess(config, merge or wflow.prerequisite)
+            self._storage.preprocess(config, merge or wflow.parent)
             # adjust file and lumi information in config, add task specific
             # input/output files
             handler.adjust(config, inputs, outputs, self._storage)

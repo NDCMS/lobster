@@ -109,7 +109,8 @@ class Config(Configurable):
         try:
             with open(os.path.join(path, 'config.pkl'), 'rb') as f:
                 return pickle.load(f)
-        except IOError:
+        except IOError as e:
+            print e
             raise IOError("can't load configuration from {0}".format(os.path.join(path, 'config.pkl')))
 
     def save(self):

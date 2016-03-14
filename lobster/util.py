@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8 :
 
 import collections
+import inspect
 import logging
 import os
 import shutil
@@ -29,6 +30,13 @@ class PartiallyMutable(type):
             raise AttributeError('class {} does not set the attribute _mutable'.format(name))
         elif not isinstance(attrs[key], dict):
             raise AttributeError('class {} does not define the attribute _mutable as dict'.format(name))
+        if '__init__' in attrs:
+            args = inspect.getargspec(cls.__init__).args
+            for attr in attrs['_mutable']:
+                if attr not in args:
+                    raise AttributeError('class {} defines {} as mutable, but does not list it in the constructor'.format(name))
+        elif len(attrs['_mutable']) > 0:
+            raise AttributeError('class {} defines mutable attributes, but does not list them in the constructor'.format(name))
         type.__init__(cls, name, bases, attrs)
 
     def __call__(cls, *args, **kwargs):
@@ -39,6 +47,10 @@ class PartiallyMutable(type):
             if module not in ('core', 'se'):
                 name = ".".join([module, name])
             res._store(name, args, kwargs)
+            for arg in inspect.getargspec(res.__init__).args[1:]:
+                private_arg = '_{}__{}'.format(name, arg)
+                if arg not in vars(res) and private_arg not in vars(res):
+                    raise AttributeError('class {} uses {} in the constructor, but does define it as property'.format(name, arg))
         except Exception as e:
             import sys
             raise type(e), type(e)('{0!s}: {1}'.format(cls, e.message)), sys.exc_info()[2]
@@ -87,6 +99,18 @@ class Configurable(object):
         self.__kwargs = kwargs
 
     def __repr__(self, override=None):
+        argspec = inspect.getargspec(self.__init__)
+        defaults = dict(zip(reversed(argspec.args), reversed(argspec.defaults)))
+        # Look for altered mutable properties, add them to constructor
+        # arguments
+        for arg in self._mutable:
+            narg = arg
+            if not hasattr(self, arg):
+                narg = '_{}__{}'.format(self.__class__.__name__, arg)
+            if getattr(self, narg) != defaults[arg]:
+                self.__kwargs[arg] = getattr(self, narg)
+            elif arg in self.__kwargs:
+                del self.__kwargs[arg]
         def indent(text):
             lines = text.splitlines()
             if len(lines) <= 1:
@@ -99,7 +123,7 @@ class Configurable(object):
                 return repr(getattr(self, '_{}__{}'.format(self.__class__.__name__, k)))
             return repr(getattr(self, k))
         args = ["\n    {},".format(indent(arg)) for arg in self.__args]
-        kwargs = ["\n    {}={}".format(k, indent(attr(k))) for k, v in self.__kwargs.items()]
+        kwargs = ["\n    {}={}".format(k, indent(attr(k))) for k, v in sorted(self.__kwargs.items(), key=lambda (x, y): x)]
         s = self.__name + "({}\n)".format(",".join(args + kwargs))
         return s
 

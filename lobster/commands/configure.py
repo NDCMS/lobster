@@ -5,7 +5,7 @@ from lobster import util
 from lobster.core.command import Command
 from lockfile import AlreadyLocked
 
-class Reconfigure(Command):
+class Configure(Command):
     @property
     def help(self):
         return 'change the configuration of a running lobster process'
@@ -16,7 +16,7 @@ class Reconfigure(Command):
 
     def run(self, args):
         config = args.config
-        logger = logging.getLogger('lobster.reconfigure')
+        logger = logging.getLogger('lobster.configure')
 
         try:
             pidfile = util.get_lock(config.workdir)

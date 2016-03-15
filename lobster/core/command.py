@@ -17,7 +17,7 @@ class CommandRegistry(ABCMeta):
                 name = os.path.basename(fn)[:-3]
                 source = imp.load_source(name, fn)
         subparsers = parser.add_subparsers(title='commands')
-        for name, plugin in cls.plugins.items():
+        for name, plugin in sorted(cls.plugins.items(), key=lambda (x, y): x):
             parser = subparsers.add_parser(name, help=plugin.help)
             plugin.setup(parser)
             parser.set_defaults(plugin=plugin)

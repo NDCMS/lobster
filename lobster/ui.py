@@ -14,12 +14,6 @@ for f in sys.path:
 for f in rm:
     sys.path.remove(f)
 
-# from lobster.cmssw.publish import publish
-# from lobster.commands.process import kill, run
-# from lobster.commands.plot import plot
-# from lobster.commands.reconfigure import reconfigure
-# from lobster.commands.status import status
-# from lobster.commands.validate import validate
 from lobster.core import command, config, legacy
 from lobster import util
 

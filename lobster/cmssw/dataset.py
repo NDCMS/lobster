@@ -112,13 +112,9 @@ class Dataset(Configurable):
 
     def query_database(self, dataset, instance, mask, file_based):
         if instance not in self.__apis:
-            cred = Proxy({'logger': logger})
-            if cred.getTimeLeft() < 5 * 60 * 60:
-                logger.error('please renew your proxy')
-                sys.exit(1)
-            else:
-                dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-                self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
+            cred = Proxy({'logger': logging.getLogger("WMCore")})
+            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
+            self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
 
         result = DatasetInfo()
 

@@ -1,12 +1,14 @@
 import datetime
 import logging
 import os
+import socket
 import subprocess
 
 from hashlib import sha1
 
 from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
+from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 from lobster import util
 
 import time
@@ -45,10 +47,7 @@ class DummyMonitor(object):
         self._workflowid = util.checkpoint(workdir, 'id')
 
     def generate_ids(self, taskid):
-        monitorid = '{0}_{1}/{0}'.format(taskid, 'https://ndcms.crc.nd.edu/{0}'.format(sha1(self._workflowid).hexdigest()[-16:]))
-        syncid = 'https://ndcms.crc.nd.edu//{0}//12345.{1}'.format(self._workflowid, taskid)
-
-        return monitorid, syncid
+        return str(taskid), str(taskid)
 
     def register_run(self):
         pass
@@ -86,6 +85,12 @@ class Monitor(DummyMonitor):
         else:
             self.__executable = 'Unknown'
 
+        try:
+            self._ce = loadSiteLocalConfig().siteName
+        except SiteConfigError:
+            logger.error("can't load siteconfig, defaulting to hostname")
+            self._ce = socket.gethostname()
+
     def __del__(self):
         self.free()
 
@@ -94,6 +99,13 @@ class Monitor(DummyMonitor):
 
     def send(self, taskid, params):
         apmonSend(self._workflowid, taskid, params, logging, conf)
+
+    def generate_ids(self, taskid):
+        seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
+        monitorid = '{0}_{1}/{0}'.format(taskid, seid)
+        syncid = 'https://{}//{}//12345.{}'.format(self._ce, self._workflowid, taskid)
+
+        return monitorid, syncid
 
     def register_run(self):
         self.send('TaskMeta', {
@@ -125,7 +137,7 @@ class Monitor(DummyMonitor):
             'broker': 'condor',
             'bossId': str(id),
             'SubmissionType': 'Direct',
-            'TargetSE': 'ndcms.crc.nd.edu',
+            'TargetSE': 'Many_Sites', # XXX This should be the SE where input data is stored
             'localId' : '',
             'tool': 'lobster',
             'JSToolVersion': '3.2.1',
@@ -153,7 +165,7 @@ class Monitor(DummyMonitor):
             'StatusValue': status,
             'StatusEnterTime':
             "{0:%F_%T}".format(datetime.datetime.utcnow()),
-            'StatusDestination': 'ndcms.crc.nd.edu',
+            'StatusDestination': self._ce,
             'RBname': 'condor'
             })
 

@@ -5,7 +5,7 @@ storage = StorageConfiguration(
         output=[
             "hdfs:///store/user/matze/test_shuffle_take29",
             "file:///hadoop/store/user/matze/test_shuffle_take29",
-            "root://ndcms.crc.nd.edu//store/user/matze/test_shuffle_take29",
+            "root://T3_US_NotreDame/store/user/matze/test_shuffle_take29",
             "srm://T3_US_NotreDame/store/user/matze/test_shuffle_take29",
         ]
 )

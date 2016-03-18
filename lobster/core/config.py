@@ -30,6 +30,16 @@ class Items(object):
     def __len__(self):
         return len(self.__sequence)
 
+    def __repr__(self):
+        if len(self.__sequence) == 0:
+            return '[]'
+        def indent(text):
+            lines = text.splitlines()
+            if len(lines) <= 1:
+                return text
+            return "\n".join("    " + l for l in lines).strip()
+        return '[\n    {}\n]'.format(',\n'.join(indent(repr(e)) for e in self.__sequence))
+
 class Config(Configurable):
     """
     Top-level Lobster configuration object
@@ -85,12 +95,22 @@ class Config(Configurable):
         self.base_configuration = base_configuration
         self.startup_directory = startup_directory
 
+    def __repr__(self):
+        s = "from lobster import cmssw\nfrom lobster.core import *\n\n"
+        for cat in self.categories:
+            if cat.name == 'merge':
+                continue
+            s += "category_{} = {}\n\n".format(cat.name, repr(cat))
+        s += "config = " + Configurable.__repr__(self)
+        return s
+
     @classmethod
     def load(cls, path):
         try:
             with open(os.path.join(path, 'config.pkl'), 'rb') as f:
                 return pickle.load(f)
-        except IOError:
+        except IOError as e:
+            print e
             raise IOError("can't load configuration from {0}".format(os.path.join(path, 'config.pkl')))
 
     def save(self):

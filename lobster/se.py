@@ -10,6 +10,8 @@ import xml.dom.minidom
 from contextlib import contextmanager
 from functools import partial, wraps
 
+from util import Configurable
+
 import Chirp as chirp
 
 logger = logging.getLogger('lobster.se')
@@ -320,7 +322,7 @@ class SRM(StorageElement):
             self.execute('rm -r', *(paths[:50]), safe=True)
             paths = paths[50:]
 
-class StorageConfiguration(object):
+class StorageConfiguration(Configurable):
     """
     Container for storage element configuration.
 
@@ -365,6 +367,7 @@ class StorageConfiguration(object):
             the remaining input files.  By using this setting, all input
             URLs will be attempted for all input files.
     """
+    _mutable = {}
 
     # Map protocol shorthands to actual protocol names
     __protocols = {
@@ -391,14 +394,14 @@ class StorageConfiguration(object):
             self.__input = map(self._expand_site, input)
         self.__output = map(self._expand_site, output)
 
-        self.__wq_inputs = use_work_queue_for_inputs
-        self.__wq_outputs = use_work_queue_for_outputs
+        self.use_work_queue_for_inputs = use_work_queue_for_inputs
+        self.use_work_queue_for_outputs = use_work_queue_for_outputs
 
         self.__shuffle_inputs = shuffle_inputs
         self.__shuffle_outputs = shuffle_outputs
 
-        self.__no_streaming = disable_input_streaming
-        self.__no_fast_stagein = disable_stage_in_acceleration
+        self.disable_input_streaming = disable_input_streaming
+        self.disable_stage_in_acceleration = disable_stage_in_acceleration
 
         logger.debug("using input location {0}".format(self.__input))
         logger.debug("using output location {0}".format(self.__output))
@@ -446,12 +449,12 @@ class StorageConfiguration(object):
     def transfer_inputs(self):
         """Indicates whether input files need to be transferred manually.
         """
-        return self.__wq_inputs
+        return self.use_work_queue_for_inputs
 
     def transfer_outputs(self):
         """Indicates whether output files need to be transferred manually.
         """
-        return self.__wq_outputs
+        return self.use_work_queue_for_outputs
 
     def local(self, filename):
         for url in self.__input + self.__output:
@@ -519,6 +522,6 @@ class StorageConfiguration(object):
 
         parameters['input'] = self.__input if not merge else self.__output
         parameters['output'] = self.__output
-        parameters['disable streaming'] = self.__no_streaming
-        if not self.__no_fast_stagein:
+        parameters['disable streaming'] = self.disable_input_streaming
+        if not self.disable_stage_in_acceleration:
             parameters['accelerate stage-in'] = 3

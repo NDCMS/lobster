@@ -137,7 +137,7 @@ class Workflow(Configurable):
         local : bool
             If set to `True`, Lobster will assume this workflow's input is
             present on the output storage element.
-        cmssw_config : str
+        pset : str
             The CMSSW configuration to use, if any.
         globaltag : str
             Which GlobalTag this workflow uses.  Needed for publication of
@@ -168,7 +168,7 @@ class Workflow(Configurable):
             output_format="{base}_{id}.{ext}",
             parent=None,
             local=False,
-            cmssw_config=None,
+            pset=None,
             globaltag=None,
             edm_output=True):
         self.label = label
@@ -182,17 +182,17 @@ class Workflow(Configurable):
         self.merge_size = self.__check_merge(merge_size)
         self.merge_cleanup = merge_cleanup
 
-        self.cmd = command
+        self.command = command
         self.extra_inputs = extra_inputs if extra_inputs else []
-        self.args = arguments if arguments else []
-        self.unique_args = unique_arguments if unique_arguments else [None]
-        self._outputs = outputs
-        self.outputformat = output_format
+        self.arguments = arguments if arguments else []
+        self.unique_arguments = unique_arguments if unique_arguments else [None]
+        self.outputs = outputs
+        self.output_format = output_format
 
         self.dependents = []
-        self.prerequisite = parent
+        self.parent = parent
 
-        self.pset = cmssw_config
+        self.pset = pset
         self.globaltag = globaltag
         self.local = local or hasattr(dataset, 'files')
         self.edm_output = edm_output
@@ -206,6 +206,10 @@ class Workflow(Configurable):
             except:
                 raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
         self.sandbox_blacklist = sandbox_blacklist
+
+    def __repr__(self):
+        override = {'category': 'category_' + self.category.name}
+        return Configurable.__repr__(self, override)
 
     def __check_merge(self, size):
         if size <= 0:
@@ -236,8 +240,8 @@ class Workflow(Configurable):
         """Add the workflow `wflow` to the dependents.
         """
         logger.info("marking {0} to be downstream of {1}".format(wflow.label, self.label))
-        if len(self._outputs) != 1:
-            raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self._outputs)))
+        if len(self.outputs) != 1:
+            raise NotImplementedError("dependents for {0} output files not yet supported".format(len(self.outputs)))
         self.dependents.append(wflow)
 
     def family(self):
@@ -287,25 +291,25 @@ class Workflow(Configurable):
     def determine_outputs(self, basedirs):
         """Determine output files for CMSSW tasks.
         """
-        self._outputs = []
+        self.outputs = []
         # Save determined outputs to the configuration in the
         # working directory.
         update_config = True
 
         # To avoid problems loading configs that use the VarParsing module
-        sys.argv = [os.path.basename(self.pset)] + self.args
+        sys.argv = [os.path.basename(self.pset)] + self.arguments
         with open(util.findpath(basedirs, self.pset), 'r') as f:
             source = imp.load_source('cms_config_source', self.pset, f)
             process = source.process
             if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
                 self.global_tag = process.GlobalTag.globaltag.value()
             for label, module in process.outputModules.items():
-                self._outputs.append(module.fileName.value())
+                self.outputs.append(module.fileName.value())
             if 'TFileService' in process.services:
-                self._outputs.append(process.services['TFileService'].fileName.value())
+                self.outputs.append(process.services['TFileService'].fileName.value())
                 self.edm_output = False
 
-            logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self._outputs)))
+            logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
 
     def setup(self, workdir, basedirs):
         self.workdir = os.path.join(workdir, self.label)
@@ -319,7 +323,7 @@ class Workflow(Configurable):
                     self.sandbox_blacklist)
 
         self.copy_inputs(basedirs)
-        if self.pset and not self._outputs:
+        if self.pset and not self.outputs:
             self.determine_outputs(basedirs)
 
         # Working directory for workflow
@@ -337,21 +341,21 @@ class Workflow(Configurable):
 
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
-            return MergeTaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir)
+            return MergeTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)
         elif isinstance(self.dataset, ProductionDataset):
-            return ProductionTaskHandler(id_, self.label, lumis, list(self.outputs(id_)), taskdir)
+            return ProductionTaskHandler(id_, self.label, lumis, list(self.get_outputs(id_)), taskdir)
         else:
-            return TaskHandler(id_, self.label, files, lumis, list(self.outputs(id_)), taskdir, local=self.local)
+            return TaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir, local=self.local)
 
-    def outputs(self, id):
-        for fn in self._outputs:
+    def get_outputs(self, id):
+        for fn in self.outputs:
             base, ext = os.path.splitext(fn)
-            outfn = self.outputformat.format(base=base, ext=ext[1:], id=id)
+            outfn = self.output_format.format(base=base, ext=ext[1:], id=id)
             yield fn, os.path.join(self.label, outfn)
 
     def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
-        cmd = self.cmd
-        args = self.args
+        cmd = self.command
+        args = self.arguments
         pset = self.pset
 
         inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
@@ -361,11 +365,11 @@ class Workflow(Configurable):
             inputs.extend((r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in reports)
 
             if self.edm_output:
-                args = ['output=' + self._outputs[0]]
+                args = ['output=' + self.outputs[0]]
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
             else:
                 cmd = 'hadd'
-                args = ['-n', '0', '-f', self._outputs[0]]
+                args = ['-n', '0', '-f', self.outputs[0]]
                 pset = None
                 params['append inputs to args'] = True
 

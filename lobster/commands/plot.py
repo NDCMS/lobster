@@ -22,6 +22,7 @@ import numpy as np
 
 from lobster import util
 from lobster.core import unit
+from lobster.core.command import Command
 
 from WMCore.DataStructs.LumiList import LumiList
 
@@ -1036,6 +1037,20 @@ class Plotter(object):
         p.close()
         p.join()
 
-def plot(args):
-    p = Plotter(args.config, args.outdir)
-    p.make_plots(args.xmin, args.xmax, args.foreman_list)
+class Plot(Command):
+    @property
+    def help(self):
+        return "plot progess of processing"
+
+    def setup(self, argparser):
+        argparser.add_argument("--from", default=None, metavar="START", dest="xmin",
+                help="plot data from START.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+        argparser.add_argument("--to", default=None, metavar="END", dest="xmax",
+                help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+        argparser.add_argument("--foreman-logs", default=None, metavar="FOREMAN_LIST", dest="foreman_list", nargs='+', type=str,
+                help="specify log files for foremen;  valid values: log1 log2 log3...logN")
+        argparser.add_argument('--outdir', help="specify output directory")
+
+    def run(self, args):
+        p = Plotter(args.config, args.outdir)
+        p.make_plots(args.xmin, args.xmax, args.foreman_list)

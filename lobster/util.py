@@ -34,7 +34,7 @@ class PartiallyMutable(type):
             args = inspect.getargspec(cls.__init__).args
             for attr in attrs['_mutable']:
                 if attr not in args:
-                    raise AttributeError('class {} defines {} as mutable, but does not list it in the constructor'.format(name))
+                    raise AttributeError('class {} defines {} as mutable, but does not list it in the constructor'.format(name, attr))
         elif len(attrs['_mutable']) > 0:
             raise AttributeError('class {} defines mutable attributes, but does not list them in the constructor'.format(name))
         type.__init__(cls, name, bases, attrs)

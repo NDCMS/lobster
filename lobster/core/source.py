@@ -6,6 +6,7 @@ import math
 import os
 import re
 import shutil
+import socket
 import subprocess
 import work_queue as wq
 import yaml
@@ -18,6 +19,8 @@ from lobster.cmssw import dash
 from lobster.core import unit
 from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
+
+from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 
 logger = logging.getLogger('lobster.source')
 
@@ -99,6 +102,15 @@ class TaskProvider(object):
 
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
+
+        try:
+            siteconf = loadSiteLocalConfig()
+            self.__ce = siteconf.siteName
+            self.__se = siteconf.localStageOutSEName()
+        except SiteConfigError:
+            logger.error("can't load siteconfig, defaulting to hostname")
+            self.__ce = socket.gethostname()
+            self.__se = socket.gethostname()
 
         self.__taskhandlers = {}
         self.__store = unit.UnitStore(self.config)
@@ -374,6 +386,8 @@ class TaskProvider(object):
                     'syncid': syncid,
                     'taskid': self.taskid
                 },
+                'default ce': self.__ce,
+                'default se': self.__se,
                 'arguments': None,
                 'output files': None,
                 'want summary': True,

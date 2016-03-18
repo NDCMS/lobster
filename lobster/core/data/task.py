@@ -376,6 +376,9 @@ def copy_outputs(data, config, env):
     outsize = 0
     outsize_bare = 0
 
+    server_re = re.compile("[a-zA-Z]+://([a-zA-Z0-9:.\-]+)/")
+    target_se = []
+
     transferred = []
     for localname, remotename in config['output files']:
         # prevent stageout of data for failed tasks
@@ -415,6 +418,7 @@ def copy_outputs(data, config, env):
                         shutil.copy2(localname, rn)
                         if check_output(config, localname, remotename):
                             transferred.append(localname)
+                            target_se.append(default_se)
                             break
                     except Exception as e:
                         print e
@@ -444,6 +448,9 @@ def copy_outputs(data, config, env):
                 p = run_subprocess(args, env=pruned_env)
                 if p.returncode == 0 and check_output(config, localname, remotename):
                     transferred.append(localname)
+                    match = server_re.match(args[-1])
+                    if match:
+                        target_se.append(match.group(1))
                     break
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
@@ -459,6 +466,9 @@ def copy_outputs(data, config, env):
                 p = run_subprocess(args, env=env)
                 if p.returncode == 0 and check_output(config, localname, remotename):
                     transferred.append(localname)
+                    match = server_re.match(args[-1])
+                    if match:
+                        target_se.append(match.group(1))
                     break
             else:
                 print '>>> skipping unhandled stage-out method: {0}'.format(output)
@@ -468,6 +478,10 @@ def copy_outputs(data, config, env):
 
     data['output size'] = outsize
     data['output bare size'] = outsize_bare
+
+    if len(target_se) > 0:
+        return max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
+    return default_se
 
 def edit_process_source(pset, config):
     """Edit parameter set for task.
@@ -690,10 +704,13 @@ if prologue and len(prologue) > 0:
 
 data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
+sync_ce = os.environ.get("LOBSTER_SYNC_CE", config['default ce'])
+target_se = config['default se']
+
 parameters = {
             'ExeStart': str(config['executable']),
             'NCores': config.get('cores', 1),
-            'SyncCE': 'ndcms.crc.nd.edu',
+            'SyncCE': sync_ce,
             'SyncGridJobId': syncid,
             'WNHostName': os.environ.get('HOSTNAME', '')
             }
@@ -775,8 +792,9 @@ if epilogue and len(epilogue) > 0:
 
 data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
 
+stageout_se = target_se
 with check_execution(data, 210):
-    copy_outputs(data, config, env)
+    stageout_se = copy_outputs(data, config, env)
 # Also set stageout exit code if copy_outputs fails
 if data['task exit code'] == 210:
     data['stageout exit code'] = 210
@@ -834,6 +852,7 @@ print "Execution time", str(total_time)
 
 print "Exiting with code", str(task_exit_code)
 print "Reporting ExeExitCode", str(exe_exit_code)
+print "Reporting StageOutSE", str(stageout_se)
 print "Reporting StageOutExitCode", str(stageout_exit_code)
 
 parameters = {
@@ -841,7 +860,7 @@ parameters = {
             'ExeExitCode': str(exe_exit_code),
             'JobExitCode': str(task_exit_code),
             'JobExitReason': '',
-            'StageOutSE': 'ndcms.crc.nd.edu',
+            'StageOutSE': stageout_se,
             'StageOutExitStatus': str(stageout_exit_code),
             'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
             'CrabUserCpuTime': str(cputime),

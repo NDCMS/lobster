@@ -1,12 +1,14 @@
 from lobster import cmssw
 from lobster.core import *
 
+version = 'take31'
+
 storage = StorageConfiguration(
         output=[
-            "hdfs:///store/user/matze/test_shuffle_take29",
-            "file:///hadoop/store/user/matze/test_shuffle_take29",
-            "root://T3_US_NotreDame/store/user/matze/test_shuffle_take29",
-            "srm://T3_US_NotreDame/store/user/matze/test_shuffle_take29",
+            "hdfs:///store/user/matze/test_shuffle_" + version,
+            "file:///hadoop/store/user/matze/test_shuffle_" + version,
+            "root://T3_US_NotreDame/store/user/matze/test_shuffle" + version,
+            "srm://T3_US_NotreDame/store/user/matze/test_shuffle_" + version
         ]
 )
 
@@ -36,8 +38,8 @@ workflows.append(single_mu)
 
 config = Config(
         label='shuffle',
-        workdir='/tmpscratch/users/matze/test_shuffle_take30',
-        plotdir='/afs/crc.nd.edu/user/m/mwolf3/www/lobster/test_shuffle_take29',
+        workdir='/tmpscratch/users/matze/test_shuffle_' + version,
+        plotdir='/afs/crc.nd.edu/user/m/mwolf3/www/lobster/test_shuffle_' + version,
         storage=storage,
         workflows=workflows,
         advanced=AdvancedOptions(log_level=1)

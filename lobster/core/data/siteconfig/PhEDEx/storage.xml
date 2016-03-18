@@ -1,8 +1,4 @@
-<!-- storage.xml for T3_US_NotreDame
-
-    Storage element:  ndcms.crc.nd.edu
-    Storage software: bestman 2.2.1.2
-    Phedex host:      ndcms.crc.nd.edu
+<!-- storage.xml from T3_US_NotreDame
 
     All CMS data are stored using the /store convention
     Therefore we only need to map:

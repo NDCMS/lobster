@@ -655,7 +655,7 @@ class UnitStore:
                 """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
             row = row[:-1] + (failed, skipped, row[-1])
             if total is None:
-                total = row[1:-1]
+                total = list(row[1:-1])
             else:
                 total = map(sum, zip(total, row[1:-1]))
 

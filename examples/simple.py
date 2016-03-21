@@ -1,13 +1,15 @@
 from lobster import cmssw
 from lobster.core import *
 
-version = 'take31'
+version = 'take55'
 
 storage = StorageConfiguration(
         output=[
             "hdfs:///store/user/matze/test_shuffle_" + version,
             "file:///hadoop/store/user/matze/test_shuffle_" + version,
-            "root://T3_US_NotreDame/store/user/matze/test_shuffle" + version,
+            # ND is not in the XrootD redirector, thus hardcode server.
+            # Note the double-slash after the hostname!
+            "root://deepthought.crc.nd.edu//store/user/matze/test_shuffle_" + version,
             "srm://T3_US_NotreDame/store/user/matze/test_shuffle_" + version
         ]
 )

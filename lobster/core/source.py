@@ -103,6 +103,7 @@ class TaskProvider(object):
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
+        self.__host = socket.gethostname()
         try:
             siteconf = loadSiteLocalConfig()
             self.__ce = siteconf.siteName
@@ -242,19 +243,14 @@ class TaskProvider(object):
         base = os.path.dirname(WMCore.__file__)
         reqs = [
                 "__init__.py",
-                "__init__.pyc",
                 "Algorithms",
                 "Configuration.py",
-                "Configuration.pyc",
                 "DataStructs",
                 "FwkJobReport",
-                "Services/__init__.py",
-                "Services/__init__.pyc",
-                "Services/Dashboard",
+                "Services",
+                "Storage",
                 "WMException.py",
-                "WMException.pyc",
-                "WMExceptions.py",
-                "WMExceptions.pyc"
+                "WMExceptions.py"
                 ]
         for f in reqs:
             self._inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
@@ -412,6 +408,7 @@ class TaskProvider(object):
                     'syncid': syncid,
                     'taskid': self.taskid
                 },
+                'default host': self.__host,
                 'default ce': self.__ce,
                 'default se': self.__se,
                 'arguments': None,

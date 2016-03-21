@@ -165,7 +165,10 @@ class Monitor(DummyMonitor):
             'StatusValue': status,
             'StatusEnterTime':
             "{0:%F_%T}".format(datetime.datetime.utcnow()),
-            'StatusDestination': self._ce,
+            # Destination will be updated by the task once it sends a dashboard update.
+            # in line with
+            # https://github.com/dmwm/WMCore/blob/6f3570a741779d209f0f720647642d51b64845da/src/python/WMCore/Services/Dashboard/DashboardReporter.py#L136
+            'StatusDestination': 'Unknown',
             'RBname': 'condor'
             })
 

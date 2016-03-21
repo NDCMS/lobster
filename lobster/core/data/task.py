@@ -11,6 +11,7 @@ import re
 import resource
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import traceback
@@ -18,8 +19,9 @@ import traceback
 sys.path.append('python')
 
 from WMCore.DataStructs.LumiList import LumiList
-from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
 from WMCore.FwkJobReport.Report import Report
+from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 
 import ROOT
 
@@ -704,8 +706,25 @@ if prologue and len(prologue) > 0:
 
 data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
 
-sync_ce = os.environ.get("LOBSTER_SYNC_CE", config['default ce'])
+try:
+    if os.environ.get("PARROT_ENABLED", "FALSE") == "TRUE":
+        raise ValueError()
+    sync_ce = loadSiteLocalConfig().siteName
+except Exception as e:
+    for envvar in ["GLIDEIN_Gatekeeper", "OSG_HOSTNAME", "CONDORCE_COLLECTOR_HOST"]:
+        if envvar in os.environ:
+            sync_ce = os.environ[envvar]
+            break
+    else:
+        host = socket.gethostname()
+        sync_ce = config['default host']
+        if host.rsplit('.')[-2:] == sync_ce.rsplit('.')[-2:]:
+            sync_ce = config['default ce']
+        else:
+            sync_ce = 'Unknown'
 target_se = config['default se']
+
+print ">>> using sync CE", sync_ce
 
 parameters = {
             'ExeStart': str(config['executable']),

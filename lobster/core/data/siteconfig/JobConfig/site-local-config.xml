@@ -1,5 +1,5 @@
  <site-local-config>
- <site name="T3_OSG_Opportunistic">
+ <site name="T3_US_Lobster">
     <event-data>
       <catalog url="trivialcatalog_file:siteconfig/PhEDEx/storage.xml?protocol=xrootd"/>
     </event-data>

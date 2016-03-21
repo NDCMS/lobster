@@ -47,7 +47,7 @@ class DummyMonitor(object):
         self._workflowid = util.checkpoint(workdir, 'id')
 
     def generate_ids(self, taskid):
-        return str(taskid), str(taskid)
+        return "dummy", "dummy"
 
     def register_run(self):
         pass

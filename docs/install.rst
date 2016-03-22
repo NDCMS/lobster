@@ -4,7 +4,7 @@ Installation
 .. note::
    These steps should always be performed in a valid CMSSW environment
    (after executing `cmsenv`)!  Lobster will need python 2.7 or greater
-   (but not python 3).  CMSSW version `7_4_0` or above are recommended to
+   (but not python 3).  CMSSW version `7_6_1` or above are recommended to
    use.
 
 Prerequisites
@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=cctools-071-af2a6c89-cvmfs-40cf5bba
+      cctools=cctools-073-253b1861-cvmfs-40cf5bba
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 

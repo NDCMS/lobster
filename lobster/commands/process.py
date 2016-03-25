@@ -194,9 +194,9 @@ class Process(Command):
         queue.tune("transfer-outlier-factor", 4)
         queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
         if config.advanced.full_monitoring:
-            queue.enable_monitoring_full(os.path.join(workdir, "work_queue_monitoring"))
+            queue.enable_monitoring_full(None)
         else:
-            queue.enable_monitoring(os.path.join(workdir, "work_queue_monitoring"))
+            queue.enable_monitoring(None)
 
         logger.info("starting queue as {0}".format(queue.name))
 
@@ -283,11 +283,12 @@ class Process(Command):
             t = time.time()
             tasks = task_src.obtain(stats.total_cores, have)
 
-            for category, cmd, id, inputs, outputs, env in tasks:
+            for category, cmd, id, inputs, outputs, env, dir in tasks:
                 task = wq.Task(cmd)
                 task.specify_category(category)
                 task.specify_tag(id)
                 task.specify_max_retries(wq_max_retries)
+                task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
 
                 for k, v in env.items():
                     task.specify_environment_variable(k, v)

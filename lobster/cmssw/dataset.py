@@ -119,6 +119,8 @@ class Dataset(Configurable):
         result = DatasetInfo()
 
         infos = self.__apis[instance].listFileSummaries(dataset=dataset)
+        if infos is None:
+            raise IOError('dataset {} contains no files'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
         result.unmasked_lumis = sum([info['num_lumi'] for info in infos])
 

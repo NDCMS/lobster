@@ -471,7 +471,7 @@ class TaskProvider(object):
                 'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy
             }
 
-            tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env))
+            tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))
 
             self.__taskhandlers[id] = handler
 

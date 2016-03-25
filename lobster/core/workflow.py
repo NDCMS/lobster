@@ -318,7 +318,7 @@ class Workflow(Configurable):
             self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
         else:
             self.version, self.sandbox = sandbox.package(
-                    self.sandbox_release,
+                    util.findpath(basedirs, self.sandbox_release),
                     workdir,
                     self.sandbox_blacklist)
 

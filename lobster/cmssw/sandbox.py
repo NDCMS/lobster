@@ -50,6 +50,7 @@ def package(indir, outdir, blacklist=None):
         return False
 
     logger.info("packing sandbox into {0}".format(outfile))
+    logger.debug("using release name {1} with base directory {0}".format(indir, rtname))
     tarball = tarfile.open(outfile, "w|bz2")
 
     # package bin, etc

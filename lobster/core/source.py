@@ -103,7 +103,7 @@ class TaskProvider(object):
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
 
-        self.__host = socket.gethostname()
+        self.__host = socket.getfqdn()
         try:
             siteconf = loadSiteLocalConfig()
             self.__ce = siteconf.siteName
@@ -111,8 +111,8 @@ class TaskProvider(object):
             self.__frontier_proxy = siteconf.frontierProxies[0]
         except SiteConfigError:
             logger.error("can't load siteconfig, defaulting to hostname")
-            self.__ce = socket.gethostname()
-            self.__se = socket.gethostname()
+            self.__ce = socket.getfqdn()
+            self.__se = socket.getfqdn()
             try:
                 self.__frontier_proxy = os.environ['HTTP_PROXY']
             except KeyError:

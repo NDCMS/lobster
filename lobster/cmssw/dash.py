@@ -89,7 +89,7 @@ class Monitor(DummyMonitor):
             self._ce = loadSiteLocalConfig().siteName
         except SiteConfigError:
             logger.error("can't load siteconfig, defaulting to hostname")
-            self._ce = socket.gethostname()
+            self._ce = socket.getfqdn()
 
     def __del__(self):
         self.free()

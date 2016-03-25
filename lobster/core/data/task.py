@@ -716,7 +716,7 @@ except Exception as e:
             sync_ce = os.environ[envvar]
             break
     else:
-        host = socket.gethostname()
+        host = socket.getfqdn()
         sync_ce = config['default host']
         if host.rsplit('.')[-2:] == sync_ce.rsplit('.')[-2:]:
             sync_ce = config['default ce']
@@ -731,7 +731,7 @@ parameters = {
             'NCores': config.get('cores', 1),
             'SyncCE': sync_ce,
             'SyncGridJobId': syncid,
-            'WNHostName': os.environ.get('HOSTNAME', '')
+            'WNHostName': socket.getfdqn()
             }
 
 apmonSend(taskid, monitorid, parameters, logging, monalisa)

@@ -42,8 +42,8 @@ def boil():
             cfg = config.Config.load(cfg.workdir)
         else:
             # This is the original configuration file!
-            cfg.base_directory = os.path.abspath(os.path.dirname(configfile))
-            cfg.base_configuration = os.path.abspath(configfile)
+            cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
+            cfg.base_configuration = os.path.abspath(args.checkpoint)
             cfg.startup_directory = os.path.abspath(os.getcwd())
     else:
         # Load configuration from working directory passed to us

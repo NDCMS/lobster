@@ -88,7 +88,7 @@ class ProductionDataset(Configurable):
             How many events to generate in one task.
         events_per_lumi : int
             How many events should be in one luminosity section
-        numbor_of_tasks : int
+        number_of_tasks : int
             How many tasks to run.
         randomize_seeds : bool
             Use random seeds every time a task is run.

@@ -88,7 +88,7 @@ class Config(Configurable):
         self.workflows = Items(workflows, key=lambda w: w.label)
         self.advanced = advanced if advanced else AdvancedOptions()
 
-        cats = list(set([w.category for w in workflows])) + [Category(name='merge', cores=1, memory=900)]
+        cats = list(set([w.category for w in workflows])) + [Category(name='merge', cores=1)]
         self.categories = Items(cats, key=lambda c: c.name)
 
         self.base_directory = base_directory

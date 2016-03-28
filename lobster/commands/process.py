@@ -283,12 +283,15 @@ class Process(Command):
             t = time.time()
             tasks = task_src.obtain(stats.total_cores, have)
 
-            for category, cmd, id, inputs, outputs, dir in tasks:
+            for category, cmd, id, inputs, outputs, env, dir in tasks:
                 task = wq.Task(cmd)
                 task.specify_category(category)
                 task.specify_tag(id)
                 task.specify_max_retries(wq_max_retries)
                 task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
+
+                for k, v in env.items():
+                    task.specify_environment_variable(k, v)
 
                 for (local, remote, cache) in inputs:
                     if os.path.isfile(local):

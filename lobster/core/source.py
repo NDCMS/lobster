@@ -6,6 +6,7 @@ import math
 import os
 import re
 import shutil
+import socket
 import subprocess
 import work_queue as wq
 import yaml
@@ -18,6 +19,8 @@ from lobster.cmssw import dash
 from lobster.core import unit
 from lobster.core import MergeTaskHandler
 from lobster.core import Workflow
+
+from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 
 logger = logging.getLogger('lobster.source')
 
@@ -99,6 +102,42 @@ class TaskProvider(object):
 
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
+
+        self.__host = socket.getfqdn()
+        try:
+            siteconf = loadSiteLocalConfig()
+            self.__ce = siteconf.siteName
+            self.__se = siteconf.localStageOutSEName()
+            self.__frontier_proxy = siteconf.frontierProxies[0]
+        except SiteConfigError:
+            logger.error("can't load siteconfig, defaulting to hostname")
+            self.__ce = socket.getfqdn()
+            self.__se = socket.getfqdn()
+            try:
+                self.__frontier_proxy = os.environ['HTTP_PROXY']
+            except KeyError:
+                logger.error("can't determine proxy for Frontier via $HTTP_PROXY")
+                sys.exit(1)
+
+        try:
+            with open('/etc/cvmfs/default.local') as f:
+                lines = f.readlines()
+        except:
+            lines = []
+        for l in lines:
+            m = re.match('\s*CVMFS_HTTP_PROXY\s*=\s*[\'"]?(.*)[\'"]?', l)
+            if m:
+                self.__cvmfs_proxy = m.group(1)
+                break
+        else:
+            try:
+                self.__cvmfs_proxy = os.environ['HTTP_PROXY']
+            except KeyError:
+                logger.error("can't determine proxy for CVMFS via $HTTP_PROXY")
+                sys.exit(1)
+
+        logger.debug("using {} as proxy for CVMFS".format(self.__cvmfs_proxy))
+        logger.debug("using {} as proxy for Frontier".format(self.__frontier_proxy))
 
         self.__taskhandlers = {}
         self.__store = unit.UnitStore(self.config)
@@ -204,19 +243,14 @@ class TaskProvider(object):
         base = os.path.dirname(WMCore.__file__)
         reqs = [
                 "__init__.py",
-                "__init__.pyc",
                 "Algorithms",
                 "Configuration.py",
-                "Configuration.pyc",
                 "DataStructs",
                 "FwkJobReport",
-                "Services/__init__.py",
-                "Services/__init__.pyc",
-                "Services/Dashboard",
+                "Services",
+                "Storage",
                 "WMException.py",
-                "WMException.pyc",
-                "WMExceptions.py",
-                "WMExceptions.pyc"
+                "WMExceptions.py"
                 ]
         for f in reqs:
             self._inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
@@ -374,6 +408,9 @@ class TaskProvider(object):
                     'syncid': syncid,
                     'taskid': self.taskid
                 },
+                'default host': self.__host,
+                'default ce': self.__ce,
+                'default se': self.__se,
                 'arguments': None,
                 'output files': None,
                 'want summary': True,
@@ -429,8 +466,12 @@ class TaskProvider(object):
                 json.dump(config, f, indent=2)
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
+            env = {
+                'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
+                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy
+            }
 
-            tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, jdir))
+            tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))
 
             self.__taskhandlers[id] = handler
 

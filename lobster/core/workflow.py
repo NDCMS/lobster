@@ -304,9 +304,9 @@ class Workflow(Configurable):
             if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
                 self.global_tag = process.GlobalTag.globaltag.value()
             for label, module in process.outputModules.items():
-                self.outputs.append(module.fileName.value())
+                self.outputs.append(module.fileName.value().replace('file:', ''))
             if 'TFileService' in process.services:
-                self.outputs.append(process.services['TFileService'].fileName.value())
+                self.outputs.append(process.services['TFileService'].fileName.value().replace('file:', ''))
                 self.edm_output = False
 
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
@@ -318,7 +318,7 @@ class Workflow(Configurable):
             self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
         else:
             self.version, self.sandbox = sandbox.package(
-                    self.sandbox_release,
+                    util.findpath(basedirs, self.sandbox_release),
                     workdir,
                     self.sandbox_blacklist)
 
@@ -356,7 +356,7 @@ class Workflow(Configurable):
     def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
         cmd = self.command
         args = self.arguments
-        pset = self.pset
+        pset = os.path.basename(self.pset)
 
         inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
         if merge:

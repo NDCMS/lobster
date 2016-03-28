@@ -14,7 +14,7 @@ for f in sys.path:
 for f in rm:
     sys.path.remove(f)
 
-from lobster.core import command, config, legacy
+from lobster.core import command, config
 from lobster import util
 
 logger = logging.getLogger('lobster')
@@ -32,20 +32,18 @@ def boil():
     args = parser.parse_args()
 
     if os.path.isfile(args.checkpoint):
-        configfile = args.checkpoint
-        if configfile.endswith('.yaml') or configfile.endswith('.yml'):
-            with open(configfile) as f:
-                cfg = legacy.pythonize_yaml(yaml.load(f))
-        else:
+        try:
             import imp
-            cfg = imp.load_source('userconfig', configfile).config
+            cfg = imp.load_source('userconfig', args.checkpoint).config
+        except Exception as e:
+            parser.error("the configuration '{0}' is not valid: {1}".format(args.checkpoint, e))
 
         if util.checkpoint(cfg.workdir, 'version'):
             cfg = config.Config.load(cfg.workdir)
         else:
             # This is the original configuration file!
-            cfg.base_directory = os.path.abspath(os.path.dirname(configfile))
-            cfg.base_configuration = os.path.abspath(configfile)
+            cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
+            cfg.base_configuration = os.path.abspath(args.checkpoint)
             cfg.startup_directory = os.path.abspath(os.getcwd())
     else:
         # Load configuration from working directory passed to us

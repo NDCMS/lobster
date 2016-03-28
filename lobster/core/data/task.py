@@ -731,7 +731,7 @@ parameters = {
             'NCores': config.get('cores', 1),
             'SyncCE': sync_ce,
             'SyncGridJobId': syncid,
-            'WNHostName': socket.getfdqn()
+            'WNHostName': socket.getfqdn()
             }
 
 apmonSend(taskid, monitorid, parameters, logging, monalisa)

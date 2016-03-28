@@ -67,10 +67,15 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 
 	# Last safeguard, if everything else fails.  We need a
 	# proxy for parrot!
-	# export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128;DIRECT}
-	export HTTP_PROXY=${HTTP_PROXY:-http://eddie.crc.nd.edu:3128}
+	export FRONTIER_PROXY=${HTTP_PROXY:-$LOBSTER_FRONTIER_PROXY}
+	export HTTP_PROXY=${HTTP_PROXY:-$LOBSTER_CVMFS_PROXY}
 	export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
+
 	echo ">>> using CVMFS proxy: $HTTP_PROXY"
+	echo ">>> using Frontier proxy: $FRONTIER_PROXY"
+
+	frontier=$(echo $FRONTIER_PROXY|sed -e 's/[]\/$*.^|[]/\\&/g')
+	sed -i -e "s/\$HTTP_PROXY\\>/$frontier/" siteconfig/JobConfig/site-local-config.xml
 
 	# These are allowed to be modified via the environment
 	# passed to the job (e.g. via condor)

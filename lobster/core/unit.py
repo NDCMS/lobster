@@ -326,6 +326,8 @@ class UnitStore:
 
             tasksize = int(math.ceil(tasksize * taper))
 
+            logger.debug("creating tasks with adjusted size {}".format(tasksize))
+
             rows = []
             for i in range(0, len(files), 40):
                 chunk = files[i:i + 40]
@@ -334,6 +336,8 @@ class UnitStore:
                     from units_{0}
                     where file in ({1}) and status not in (1, 2, 6, 7, 8)
                     """.format(workflow, ', '.join('?' for _ in chunk)), chunk))
+
+            logger.debug("creating tasks from {} files, {} units".format(len(files), len(rows)))
 
             # files and lumis for individual tasks
             files = set()
@@ -361,6 +365,7 @@ class UnitStore:
 
             for id, file, run, lumi, arg, failed in rows:
                 if (run, lumi) in all_lumis or failed > self.config.advanced.threshold_for_failure:
+                    logger.debug("skipping run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     continue
 
                 if current_size == 0:
@@ -368,6 +373,7 @@ class UnitStore:
                         break
 
                 if failed == self.config.advanced.threshold_for_failure:
+                    logger.debug("creating isolation task for run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 

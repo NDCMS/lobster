@@ -272,3 +272,7 @@ class ProductionTaskHandler(TaskHandler):
     def adjust(self, parameters, inputs, outputs, se):
         super(ProductionTaskHandler, self).adjust(parameters, inputs, outputs, se)
         parameters['mask']['first lumi'] = self._units[0][3]
+
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
+        _, up = super(ProductionTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
+        return [(0, 0, 1)], up

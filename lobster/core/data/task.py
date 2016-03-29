@@ -380,6 +380,7 @@ def copy_outputs(data, config, env):
 
     server_re = re.compile("[a-zA-Z]+://([a-zA-Z0-9:.\-]+)/")
     target_se = []
+    default_se = config['default se']
 
     transferred = []
     for localname, remotename in config['output files']:

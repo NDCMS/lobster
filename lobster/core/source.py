@@ -193,9 +193,9 @@ class TaskProvider(object):
 
         for wflow in self.config.workflows:
             if wflow.parent:
-                getattr(self.config.workflows, wflow.parent).register(wflow)
+                getattr(self.config.workflows, wflow.parent.label).register(wflow)
                 if create:
-                    self.__store.register_dependency(wflow.label, wflow.parent, wflow.dataset.parent.total_units)
+                    self.__store.register_dependency(wflow.label, wflow.parent.label, wflow.dataset.total_units)
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')

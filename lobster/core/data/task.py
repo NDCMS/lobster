@@ -61,8 +61,12 @@ helper.populate()
 fragment_cores = """
 if hasattr(process, 'options'):
     process.options.numberOfThreads = cms.untracked.uint32({cores})
+    process.options.numberOfStreams = cms.untracked.uint32(0)
 else:
-    process.options = cms.untracked.PSet(numberOfThreads = cms.untracked.uint32({cores}))
+    process.options = cms.untracked.PSet(
+        numberOfThreads = cms.untracked.uint32({cores}),
+        numberOfStreams = cms.untracked.uint32(0)
+    )
 """
 
 sum_fragment = """

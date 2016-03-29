@@ -1,12 +1,13 @@
 from lobster import cmssw
 from lobster.core import *
 
-version = '_take5'
+version = '_take8'
 
 storage = StorageConfiguration(
         output=[
             "hdfs:///store/user/matze/test_mc" + version,
             "file:///hadoop/store/user/matze/test_mc" + version,
+            "chirp://earth:9666/test_mc" + version,
             "root://deepthought.crc.nd.edu//store/user/matze/test_mc" + version,
             "srm://T3_US_NotreDame/store/user/matze/test_mc" + version,
         ]
@@ -20,7 +21,7 @@ lhe = Workflow(
         sandbox_release='mc_gen/CMSSW_7_1_16_patch1',
         merge_size='3.5G',
         dataset=ProductionDataset(
-            events_per_task=4000,
+            events_per_task=500,
             events_per_lumi=50,
             number_of_tasks=1000
         ),

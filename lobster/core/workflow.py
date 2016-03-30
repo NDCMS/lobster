@@ -69,7 +69,7 @@ class Category(Configurable):
     def wq(self):
         res = {}
         if self.runtime:
-            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * int(1e6)
+            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * 10**6
         if self.memory:
             res['memory'] = self.memory
         if self.cores:

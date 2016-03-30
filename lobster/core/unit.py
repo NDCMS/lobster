@@ -695,9 +695,13 @@ class UnitStore:
 
         mergeable, units_complete = self.db.execute("""
             select
-                (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
-                    and
-                    (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
+                (
+                    (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
+                    or
+                    units_done + units_paused == units
+                )
+                and
+                (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
                 units_done + units_paused == units
             from workflows
             where label=?

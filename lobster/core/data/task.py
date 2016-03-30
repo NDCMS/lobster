@@ -135,14 +135,12 @@ def run_subprocess(*args, **kwargs):
         p = subprocess.Popen(*args, **kwargs)
 
     _, _ = p.communicate()
-    # Set to the result of communicate, otherwise caller will not receive
-    # any output.
-    p.stdout = out
 
     with open(outfn, 'r') as fd:
         outlines = fd.readlines()
         if len(outlines) > 2000:
             outlines = outlines[:1000] + ['[TRUNCATED]'] + outlines[-1000:]
+    p.stdout = "\n".join(outlines)
 
     with mangler.output('cmd'):
         for l in outlines:

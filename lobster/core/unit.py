@@ -575,6 +575,10 @@ class UnitStore:
                 units_left=units - (units_running + units_done + units_paused)
             where label=?""".format(label), (label,))
 
+        if self.db.execute("select units_paused where label=?", (label,)).fetchone()[0] > 0:
+            for (child,) in self.db.execute("select label from workflows where parent=?", (id,)):
+                self.update_workflow_stats(child)
+
         if logger.getEffectiveLevel() <= logging.DEBUG:
             size, total, running, done, paused, available, left = self.db.execute("""
                 select tasksize, units, units_running, units_done, units_paused, units_available, units_left

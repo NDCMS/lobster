@@ -1,7 +1,7 @@
 from lobster import cmssw
 from lobster.core import *
 
-version = '_take24'
+version = '_take27'
 
 storage = StorageConfiguration(
         output=[
@@ -27,7 +27,7 @@ lhe = Workflow(
         ),
         category=Category(
             name='lhe',
-            cores=2,
+            cores=1,
             memory=2000
         )
 )
@@ -43,9 +43,9 @@ gs = Workflow(
         ),
         category=Category(
             name='gs',
-            cores=4,
+            cores=1,
             memory=2000,
-            runtime=1800
+            runtime=45 * 60
         )
 )
 
@@ -60,9 +60,9 @@ digi = Workflow(
         ),
         category=Category(
             name='digi',
-            cores=4,
+            cores=1,
             memory=2600,
-            runtime=1800,
+            runtime=45 * 60,
         )
 )
 
@@ -81,9 +81,9 @@ reco = Workflow(
         ),
         category=Category(
             name='reco',
-            cores=4,
+            cores=1,
             memory=2800,
-            runtime=1800
+            runtime=45 * 60
         )
 )
 
@@ -100,7 +100,7 @@ maod = Workflow(
             name='mAOD',
             cores=1,
             memory=2000,
-            runtime=1800
+            runtime=30 * 60
         )
 )
 

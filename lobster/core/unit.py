@@ -539,7 +539,7 @@ class UnitStore:
                 select
                     count(*),
                     avg((time_epilogue_end - time_stage_in_end) * 1. / units)
-                from tasks where status in (2, 6, 7, 8) and workflow=1 and type=0""").fetchone()
+                from tasks where status in (2, 6, 7, 8) and workflow=? and type=0""", (id,)).fetchone()
 
             if tasks > 10:
                 bettersize = max(1, int(math.ceil(targettime / unittime)))

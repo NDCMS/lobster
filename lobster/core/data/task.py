@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import contextmanager
 from datetime import datetime
+import collections
 import gzip
 import json
 import logging
@@ -14,6 +15,8 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
+import time
 import traceback
 
 sys.path.append('python')
@@ -30,6 +33,36 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gErrorIgnoreLevel = ROOT.kError
 
 from ROOT import TFile
+
+class Mangler(logging.Formatter):
+    def __init__(self):
+        super(Mangler, self).__init__(fmt='%(message)s')
+        self.context = None
+
+    @contextmanager
+    def output(self, context):
+        old, self.context = self.context, context
+        yield
+        self.context = old
+
+    def format(self, record):
+        if record.levelno >= logging.INFO:
+            fmt = '{chevron} {message} @ {date}'
+        elif record.levelno == logging.DEBUG and self.context:
+            fmt = '{chevron} {context}: {message}'
+        else:
+            fmt = '{chevron} {message}'
+        chevron = '>' * (record.levelno / logging.DEBUG + 1)
+        return fmt.format(chevron=chevron, message=record.msg, date=time.strftime("%c"), context=self.context)
+
+mangler = Mangler()
+
+console = logging.StreamHandler()
+console.setFormatter(mangler)
+
+logger = logging.getLogger('prawn')
+logger.addHandler(console)
+logger.setLevel(logging.DEBUG)
 
 fragment = """
 import FWCore.ParameterSet.Config as cms
@@ -61,8 +94,12 @@ helper.populate()
 fragment_cores = """
 if hasattr(process, 'options'):
     process.options.numberOfThreads = cms.untracked.uint32({cores})
+    process.options.numberOfStreams = cms.untracked.uint32(0)
 else:
-    process.options = cms.untracked.PSet(numberOfThreads = cms.untracked.uint32({cores}))
+    process.options = cms.untracked.PSet(
+        numberOfThreads = cms.untracked.uint32({cores}),
+        numberOfStreams = cms.untracked.uint32(0)
+    )
 """
 
 sum_fragment = """
@@ -85,38 +122,38 @@ monalisa = {
 }
 
 def run_subprocess(*args, **kwargs):
-    print
-    print ">>> executing"
-    print " ".join(*args)
+    logger.info("executing '{}'".format(" ".join(*args)))
 
-    retry = {}
-    if 'retry' in kwargs:
-        retry = dict(kwargs['retry'])
-        del kwargs['retry']
+    retry = kwargs.pop('retry', {})
+    outfd, outfn = tempfile.mkstemp()
 
-    if 'stdout' not in kwargs.keys():
-        kwargs['stdout'] = subprocess.PIPE
-    if 'stderr' not in kwargs.keys():
+    logger.debug("using {} to store command output".format(outfn))
+
+    with open(outfn, 'wb') as out:
+        kwargs['stdout'] = out
         kwargs['stderr'] = subprocess.STDOUT
-    p = subprocess.Popen(*args, **kwargs)
-    out, err = p.communicate()
+        p = subprocess.Popen(*args, **kwargs)
+
+    _, _ = p.communicate()
+
+    with open(outfn, 'r') as fd:
+        outlines = fd.readlines()
+        if len(outlines) > 2000:
+            outlines = outlines[:1000] + ['[TRUNCATED]'] + outlines[-1000:]
+    p.stdout = "\n".join(outlines)
+
+    with mangler.output('cmd'):
+        for l in outlines:
+            logger.debug(l.strip())
+
+    os.unlink(outfn)
 
     if p.returncode in retry:
-        print 'retrying...'
+        logger.info("retrying command")
         if retry[p.returncode] > 0:
             retry[p.returncode] -= 1
             kwargs['retry'] = retry
             return run_subprocess(*args, **kwargs)
-
-    # Set to the result of communicate, otherwise caller will not receive
-    # any output.
-    p.stdout = out
-    p.stderr = err
-
-    if p.stdout:
-        print
-        print ">>> result is"
-        print p.stdout
 
     return p
 
@@ -147,7 +184,9 @@ def check_execution(data, code):
     try:
         yield
     except:
-        print traceback.format_exc()
+        with mangler.output('trace'):
+            for l in traceback.format_exc().splitlines():
+                logger.debug(l)
         if data['task exit code'] == 0:
             data['task exit code'] = code
 
@@ -169,9 +208,9 @@ def check_output(config, localname, remotename):
             if int(size) == int(match.groups()[0]):
                 return True
             else:
-                print ">>> size mismatch after transfer"
-                print "remote size: {0}".format(match.groups()[0])
-                print "local size: {0}".format(size)
+                logger.error("size mismatch after transfer")
+                logger.debug("remote size: {0}".format(match.groups()[0]))
+                logger.debug("local size: {0}".format(size))
                 return False
         else:
             return False
@@ -228,8 +267,7 @@ def copy_inputs(data, config, env):
             config['mask']['files'].append(filename)
             config['file map'][filename] = file
 
-            print ">>> WQ transfer of input file detected:"
-            print file
+            logger.info("WQ transfer of input file {} detected".format(file))
             continue
 
         # When the config specifies no "input," this implies to use
@@ -237,8 +275,7 @@ def copy_inputs(data, config, env):
         if len(config['input']) == 0:
             config['mask']['files'].append(file)
             config['file map'][file] = file
-            print ">>> AAA access to input file detected:"
-            print file
+            logger.info("AAA access to input file {} detected".format(file))
             continue
 
         # Since we didn't find the file already here and we're not
@@ -247,19 +284,18 @@ def copy_inputs(data, config, env):
         for input in config['input']:
             if input.startswith('file://'):
                 path = os.path.join(input.replace('file://', '', 1), file)
-                print ">>> Trying local access method:"
+                logger.info("Trying local access method")
                 if os.path.exists(path) and os.access(path, os.R_OK):
                     filename = 'file:' + path
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
-                    print ">>>> local access to input file detected:"
-                    print path
+                    logger.info("Local access to input file {} detected".format(path))
                     break
                 else:
-                    print ">>>> local access to input file unavailable."
+                    logger.info("Local access to input file unavailable")
             elif input.startswith('root://'):
-                print ">>> Trying xrootd access method:"
+                logger.info("Trying xrootd access method")
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
                 timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
@@ -273,7 +309,7 @@ def copy_inputs(data, config, env):
 
                 if fast_track or run_subprocess(args, retry={53: 5}).returncode == 0:
                     if config['disable streaming']:
-                        print ">>>> streaming has been disabled, attempting stage-in"
+                        logger.info("streaming has been disabled, attempting stage-in")
                         args = [
                             "xrdcp",
                             os.path.join(input, file),
@@ -287,15 +323,15 @@ def copy_inputs(data, config, env):
                             config['file map'][filename] = file
                             break
                     else:
-                        print ">>>> will stream using xrootd instead of copying."
+                        logger.info("will stream using xrootd instead of copying")
                         filename = os.path.join(input, file)
                         config['mask']['files'].append(filename)
                         config['file map'][filename] = file
                         break
                 else:
-                    print ">>>> xrootd access to input file unavailable."
+                    logger.info("xrootd access to input file unavailable")
             elif input.startswith('srm://'):
-                print ">>> Trying srm access method:"
+                logger.info("Trying srm access method")
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
@@ -314,15 +350,15 @@ def copy_inputs(data, config, env):
 
                 p = run_subprocess(args, env=pruned_env)
                 if p.returncode == 0:
-                    print '>>>> Successfully copied input with SRM:'
+                    logger.info('Successfully copied input with SRM')
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
                     break
                 else:
-                    print '>>>> Unable to copy input with SRM'
+                    logger.error('Unable to copy input with SRM')
             elif input.startswith("chirp://"):
-                print ">>> Trying chirp access method:"
+                logger.info("Trying chirp access method")
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
                 remotename = os.path.join(path, file)
 
@@ -338,33 +374,34 @@ def copy_inputs(data, config, env):
                 ]
                 p = run_subprocess(args, env=env)
                 if p.returncode == 0:
-                    print '>>>> Successfully copied input with Chirp:'
+                    logger.info('Successfully copied input with Chirp')
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
                     break
                 else:
-                    print '>>>> Unable to copy input with Chirp'
+                    logger.error('Unable to copy input with Chirp')
             else:
-                print '>>> skipping unhandled stage-in method: {0}'.format(input)
+                logger.warning('skipping unhandled stage-in method: {0}'.format(input))
         else:
-            print '>>> no stage out method succeeded for: {0}'.format(file)
+            logger.critical('no stage out method succeeded for: {0}'.format(file))
             successes[input] -= 1
         successes[input] += 1
 
         if config.get('accelerate stage-in', 0) > 0 and not fast_track:
             method, count = max(successes.items(), key=lambda (x, y): y)
             if count > config['accelerate stage-in']:
-                print ">>> Bypassing further access checks and using '{0}' for input".format(method)
+                logger.info("Bypassing further access checks and using '{0}' for input".format(method))
                 config['input'] = [method]
                 fast_track = True
 
     if not config['mask']['files']:
         raise RuntimeError("no stage-in method succeeded")
 
-    print ">>> modified input files:"
-    for fn in config['mask']['files']:
-        print fn
+    logger.info("modified input files")
+    with mangler.output('input'):
+        for fn in config['mask']['files']:
+            logger.debug(fn)
 
 def copy_outputs(data, config, env):
     """Copy output files.
@@ -380,6 +417,7 @@ def copy_outputs(data, config, env):
 
     server_re = re.compile("[a-zA-Z]+://([a-zA-Z0-9:.\-]+)/")
     target_se = []
+    default_se = config['default se']
 
     transferred = []
     for localname, remotename in config['output files']:
@@ -399,23 +437,22 @@ def copy_outputs(data, config, env):
         try:
             outsize_bare += get_bare_size(localname)
         except IOError as error:
-            print error
-            print 'Could not calculate size as EDM ROOT file, try treating as regular file.'
+            logger.warning(error)
+            logger.warning('Could not calculate size as EDM ROOT file, try treating as regular file')
 
             # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
             try:
                 outsize_bare += os.path.getsize(localname)
             except OSError as error:
-                print error
-                print 'Could not get size of output file {0} (may not exist).  Not adding its size.'
+                logger.error(error)
+                logger.error('Could not get size of output file {0} (may not exist)'.format(localname))
 
         for output in config['output']:
             if output.startswith('file://'):
                 rn = os.path.join(output.replace('file://', ''), remotename)
                 if os.path.isdir(os.path.dirname(rn)):
-                    print ">>> local access detected"
-                    print ">>> attempting stage-out with:"
-                    print "shutil.copy2('{0}', '{1}')".format(localname, rn)
+                    logger.info("local access detected")
+                    logger.info("attempting stage-out with `shutil.copy2('{0}', '{1}')`".format(localname, rn))
                     try:
                         shutil.copy2(localname, rn)
                         if check_output(config, localname, remotename):
@@ -423,7 +460,7 @@ def copy_outputs(data, config, env):
                             target_se.append(default_se)
                             break
                     except Exception as e:
-                        print e
+                        logger.critical(e)
             elif output.startswith('srm://'):
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
@@ -473,7 +510,7 @@ def copy_outputs(data, config, env):
                         target_se.append(match.group(1))
                     break
             else:
-                print '>>> skipping unhandled stage-out method: {0}'.format(output)
+                logger.warning('skipping unhandled stage-out method: {0}'.format(output))
 
     if set([ln for ln, rn in config['output files']]) - set(transferred):
         raise RuntimeError("no stage-out method succeeded")
@@ -521,9 +558,10 @@ def edit_process_source(pset, config):
         if cores:
             frag += fragment_cores.format(cores=cores)
 
-        print
-        print ">>> config file fragment:"
-        print frag
+        logger.info("config file fragment")
+        with mangler.output('pset'):
+            for l in frag.splitlines():
+                logger.debug(l)
         fp.write(frag)
 
 def parse_fwk_report(config, data, report_filename):
@@ -571,7 +609,7 @@ def parse_fwk_report(config, data, report_filename):
                 for lumi in run.lumis:
                     file_lumis.append((run.run, lumi))
         except AttributeError:
-            print 'Detected file-based task.'
+            logger.info('Detected file-based task')
         infos[filename] = (int(file['events']), file_lumis)
         eventsPerRun += infos[filename][0]
 
@@ -691,7 +729,7 @@ prologue = config.get('prologue', [])
 epilogue = config.get('epilogue', [])
 
 if prologue and len(prologue) > 0:
-    print ">>> prologue:"
+    logger.info("prologue")
     with check_execution(data, 180):
         p = run_subprocess(prologue,env=env)
 
@@ -724,7 +762,7 @@ except Exception as e:
             sync_ce = 'Unknown'
 target_se = config['default se']
 
-print ">>> using sync CE", sync_ce
+logger.info("using sync CE {}".format(sync_ce))
 
 parameters = {
             'ExeStart': str(config['executable']),
@@ -734,12 +772,13 @@ parameters = {
             'WNHostName': socket.getfqdn()
             }
 
-apmonSend(taskid, monitorid, parameters, logging, monalisa)
+apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
 apmonFree()
 
-print
-print ">>> updated parameters are:"
-print json.dumps(config, sort_keys=True, indent=2)
+logger.info("updated parameters are")
+with mangler.output("json"):
+    for l in json.dumps(config, sort_keys=True, indent=2).splitlines():
+        logger.debug(l)
 
 if cmsRun:
     #
@@ -766,14 +805,14 @@ else:
     if config.get('append inputs to args', False):
         cmd.extend([str(f) for f in config['mask']['files']])
 
-print ">>> running {0}".format(' '.join(cmd))
-p = run_subprocess(cmd, stdout=None, env=env)
-print ">>> executable returned with exit code {0}.".format(p.returncode)
+logger.info("running {0}".format(' '.join(cmd)))
+p = run_subprocess(cmd, env=env)
+logger.info("executable returned with exit code {0}.".format(p.returncode))
 data['exe exit code'] = p.returncode
 data['task exit code'] = data['exe exit code']
 
 if cmsRun:
-    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging, monalisa)
+    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
 
     with check_execution(data, 190):
         parse_fwk_report(config, data, 'report.xml')
@@ -795,7 +834,7 @@ if epilogue and len(epilogue) > 0:
     # Make data collected so far available to the epilogue
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)
-    print ">>> epilogue:"
+    logger.info("epilogue")
     with check_execution(data, 199):
         p = run_subprocess(epilogue, env=env)
 
@@ -867,12 +906,11 @@ stageout_exit_code = data['stageout exit code']
 events_per_run = data['events per run']
 exe_exit_code = data['{0} exit code'.format('cmssw' if cmsRun else 'exe')]
 
-print "Execution time", str(total_time)
-
-print "Exiting with code", str(task_exit_code)
-print "Reporting ExeExitCode", str(exe_exit_code)
-print "Reporting StageOutSE", str(stageout_se)
-print "Reporting StageOutExitCode", str(stageout_exit_code)
+logger.debug("Execution time {}".format(total_time))
+logger.debug("Exiting with code {}".format(task_exit_code))
+logger.debug("Reporting ExeExitCode {}".format(exe_exit_code))
+logger.debug("Reporting StageOutSE {}".format(stageout_se))
+logger.debug("Reporting StageOutExitCode {}".format(stageout_exit_code))
 
 parameters = {
             'ExeTime': str(exe_time),
@@ -894,7 +932,7 @@ try:
 except:
     pass
 
-apmonSend(taskid, monitorid, parameters, logging, monalisa)
+apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
 apmonFree()
 
 sys.exit(task_exit_code)

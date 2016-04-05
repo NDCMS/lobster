@@ -11,21 +11,25 @@ exit_on_error() {
 	fi
 }
 
-print_output() {
-	echo
-	echo ">>> $1"
-	shift
-	eval $*
-	echo
+log() {
+	if [ $# -gt 2 ]; then
+		short=$1
+		long=$2
+		shift; shift
+		echo "==== $long @ $(date) ===="
+		eval $*|while read line; do
+			echo "== $short: $line"
+		done
+	else
+		echo "=== $1 @ $(date)"
+	fi
 }
 
-echo "[$(date '+%F %T')] wrapper start"
 date +%s > t_wrapper_start
-echo "=hostname= "$(hostname)
-echo "=kernel= "$(uname -a)
+log "startup" "wrapper started" "echo -e 'hostname: $(hostname)\nkernel: $(uname -a)'"
 
-print_output "tracing google" traceroute -w 1 www.google.com
-print_output "environment at startup" env
+log "trace" "tracing google" traceroute -w 1 www.google.com
+log "env" "environment at startup" env
 
 # determine locally present stage-out method
 LOBSTER_LCG_CP=$(command -v lcg-cp)
@@ -45,17 +49,17 @@ else
 fi
 
 if [ "x$PARROT_ENABLED" != "x" ]; then
-	echo "=parrot= True"
-elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
-		&& -n "$LOBSTER_PROXY_INFO" \
-		&& ( -n "$LOBSTER_GFAL_COPY" || -n "$LOBSTER_LCG_CP" ) \
-		&& -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml) ]]; then
+	log "using parrot"
+elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
+		-a -n "$LOBSTER_PROXY_INFO" \
+		-a \( -n "$LOBSTER_GFAL_COPY" -o -n "$LOBSTER_LCG_CP" \) \
+		-a -f /cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml \) ]; then
 	if [ -f /etc/cvmfs/default.local ]; then
-		print_output "trying to determine proxy with" cat /etc/cvmfs/default.local
+		log "conf" "trying to determine proxy with" cat /etc/cvmfs/default.local
 
 		cvmfsproxy=$(cat /etc/cvmfs/default.local|perl -ne '$file  = ""; while (<>) { s/\\\n//; $file .= $_ }; my $proxy = (grep /PROXY/, split("\n", $file))[0]; $proxy =~ s/^.*="?|"$//g; print $proxy;')
 		# cvmfsproxy=$(awk -F = '/PROXY/ {print $2}' /etc/cvmfs/default.local|sed 's/"//g')
-		echo ">>> found CVMFS proxy: $cvmfsproxy"
+		log "found CVMFS proxy: $cvmfsproxy"
 		export HTTP_PROXY=${HTTP_PROXY:-$cvmfsproxy}
 	fi
 
@@ -71,8 +75,8 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	export HTTP_PROXY=${HTTP_PROXY:-$LOBSTER_CVMFS_PROXY}
 	export HTTP_PROXY=$(echo $HTTP_PROXY|perl -ple 's/(?<=:\/\/)([^|:;]+)/@ls=split(\/\s\/,`nslookup $1`);$ls[-1]||$1/eg')
 
-	echo ">>> using CVMFS proxy: $HTTP_PROXY"
-	echo ">>> using Frontier proxy: $FRONTIER_PROXY"
+	log "using CVMFS proxy: $HTTP_PROXY"
+	log "using Frontier proxy: $FRONTIER_PROXY"
 
 	frontier=$(echo $FRONTIER_PROXY|sed -e 's/[]\/$*.^|[]/\\&/g')
 	sed -i -e "s/\$HTTP_PROXY\\>/$frontier/" siteconfig/JobConfig/site-local-config.xml
@@ -90,38 +94,38 @@ elif [[ ! ( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	export PARROT_CACHE=${TMPDIR:-.}
 	export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
 
-	echo ">>> parrot helper: $PARROT_HELPER"
-	print_output "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
+	log "parrot helper: $PARROT_HELPER"
+	log "cache" "content of $PARROT_CACHE" ls -lt $PARROT_CACHE
 
 	# Variables needed to set symlinks in CVMFS
 	# FIXME add heuristic detection?
 	# FIXME setting the CMS local site should actually work!
 	# export CMS_LOCAL_SITE=${CMS_LOCAL_SITE:-$PWD/siteconfig}
-	# echo ">>> CMS local site: $CMS_LOCAL_SITE"
+	# log "CMS local site: $CMS_LOCAL_SITE"
 
 	export OASIS_CERTIFICATES=${OASIS_CERTIFICATES:-/cvmfs/oasis.opensciencegrid.org/mis/certificates}
-	echo ">>> OSG certificate location: $OASIS_CERTIFICATES"
+	log "OSG certificate location: $OASIS_CERTIFICATES"
 
-	echo ">>> testing parrot usage"
+	log "testing parrot usage"
 	if [ -n "$(ldd $PARROT_PATH/parrot_run 2>&1 | grep 'not found')" ]; then
-		print_output ldd $PARROT_PATH/parrot_run
+		log "ldd" "linkage of parrot" ldd $PARROT_PATH/parrot_run
 		exit 169
 	else
-		echo "parrot OK"
+		log "parrot OK"
 	fi
 
 	# FIXME the -M could be removed once local site setting via
 	# environment works
-	echo ">>> starting parrot to access CMSSW..."
+	log "starting parrot to access CMSSW..."
 	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 
-echo ">>> sourcing CMS setup"
+log "sourcing CMS setup"
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 
-if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_COPY" ) ]]; then
-	echo ">>> sourcing OSG setup"
+if [ -z "$LOBSTER_PROXY_INFO" -o \( -z "$LOBSTER_LCG_CP" -a -z "$LOBSTER_GFAL_COPY" \) ]; then
+	log "sourcing OSG setup"
 	slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
 	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/3.2/current/el$slc-$(uname -m)/setup.sh
 
@@ -129,9 +133,9 @@ if [[ -z "$LOBSTER_PROXY_INFO" || ( -z "$LOBSTER_LCG_CP" && -z "$LOBSTER_GFAL_CO
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)
 fi
 
-print_output "environment after sourcing startup scripts" env
-print_output "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
-print_output "working directory at startup" ls -l
+log "env" "environment after sourcing startup scripts" env
+log "proxy" "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
+log "dir" "working directory at startup" ls -l
 
 tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
@@ -143,15 +147,13 @@ old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment
 
 export SCRAM_ARCH=$arch
 
-print_output "working directory before release fixing" ls -l
-
-echo ">>> creating new release $rel"
+log "creating new release $rel"
 mkdir lobster_release_tmp || exit_on_error $? 173 "Failed to create temporary directory"
 cd lobster_release_tmp
 scramv1 project -f CMSSW $rel || exit_on_error $? 173 "Failed to create new release"
 new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
 cd $rel
-echo ">>> preparing sandbox release $rel"
+log "preparing sandbox release $rel"
 for i in bin cfipython config lib module python src; do
 	rm -rf "$i"
 	mv "$basedir/$rel/$i" .
@@ -159,7 +161,7 @@ for i in bin cfipython config lib module python src; do
 done
 
 
-echo ">>> fixing python paths"
+log "fixing python paths"
 for f in $(find -iname __init__.py); do
 	sed -i -e "s@$old_release_top@$new_release_top@" "$f"
 done
@@ -167,21 +169,19 @@ done
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 
-print_output "machine load" top -Mb\|head -n 50
-print_output "environment before execution" env
-
-echo "[$(date '+%F %T')] wrapper ready"
+log "top" "machine load" top -Mb\|head -n 50
+log "env" "environment before execution" env
+log "wrapper ready"
 date +%s > t_wrapper_ready
 
-print_output "working directory before execution" ls -l
+log "dir" "working directory before execution" ls -l
 
 $*
 res=$?
 
-print_output "working directory after execution" ls -l
+log "dir" "working directory after execution" ls -l
 
-echo "[$(date '+%F %T')] wrapper done"
-
-echo "Final return status = $res"
+log "wrapper done"
+log "final return status = $res"
 
 exit $res

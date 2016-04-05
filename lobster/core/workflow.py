@@ -69,7 +69,7 @@ class Category(Configurable):
     def wq(self):
         res = {}
         if self.runtime:
-            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * int(1e6)
+            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * 10**6
         if self.memory:
             res['memory'] = self.memory
         if self.cores:
@@ -130,10 +130,6 @@ class Workflow(Configurable):
             This is a new-style format string, allowing for the fields
             `base`, `id`, and `ext`, for the basename of the output file,
             the ID of the task, and the extension of the output file.
-        parent : str
-            The label of the parent workflow, if any.
-
-            TODO: should really be a dataset specfication
         local : bool
             If set to `True`, Lobster will assume this workflow's input is
             present on the output storage element.
@@ -166,7 +162,6 @@ class Workflow(Configurable):
             unique_arguments=None,
             outputs=None,
             output_format="{base}_{id}.{ext}",
-            parent=None,
             local=False,
             pset=None,
             globaltag=None,
@@ -190,7 +185,9 @@ class Workflow(Configurable):
         self.output_format = output_format
 
         self.dependents = []
-        self.parent = parent
+        self.parent = None
+        if hasattr(dataset, 'parent'):
+            self.parent = dataset.parent
 
         self.pset = pset
         self.globaltag = globaltag
@@ -397,7 +394,7 @@ class Workflow(Configurable):
 
         params['executable'] = cmd
         params['arguments'] = args
-        if isinstance(self.dataset, ProductionDataset):
+        if isinstance(self.dataset, ProductionDataset) and not merge:
             params['mask']['events'] = self.dataset.events_per_task
             params['mask']['events per lumi'] = self.dataset.events_per_lumi
             params['randomize seeds'] = self.dataset.randomize_seeds

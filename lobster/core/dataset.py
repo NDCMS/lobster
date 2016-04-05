@@ -125,8 +125,8 @@ class ParentDataset(Configurable):
 
     Parameters
     ----------
-        parent : Dataset
-            The parent dataset to process.
+        parent : Workflow
+            The parent workflow to process.
         units_per_task : int
             How much of the parent dataset to process at once.  Can be
             changed by Lobster to match the user-specified task runtime.
@@ -135,11 +135,11 @@ class ParentDataset(Configurable):
     def __init__(self, parent, units_per_task=1):
         self.parent = parent
         self.units_per_task = units_per_task
-        self.total_units = self.parent.total_units
+        self.total_units = self.parent.dataset.total_units
 
     def get_info(self):
         # in case the parent object gets updated in the meantime
-        self.total_units = self.parent.total_units
+        self.total_units = self.parent.dataset.total_units
 
         dset = DatasetInfo()
         dset.file_based = False

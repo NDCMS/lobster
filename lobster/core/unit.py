@@ -326,6 +326,8 @@ class UnitStore:
 
             tasksize = int(math.ceil(tasksize * taper))
 
+            logger.debug("creating tasks with adjusted size {}".format(tasksize))
+
             rows = []
             for i in range(0, len(files), 40):
                 chunk = files[i:i + 40]
@@ -334,6 +336,8 @@ class UnitStore:
                     from units_{0}
                     where file in ({1}) and status not in (1, 2, 6, 7, 8)
                     """.format(workflow, ', '.join('?' for _ in chunk)), chunk))
+
+            logger.debug("creating tasks from {} files, {} units".format(len(files), len(rows)))
 
             # files and lumis for individual tasks
             files = set()
@@ -361,6 +365,7 @@ class UnitStore:
 
             for id, file, run, lumi, arg, failed in rows:
                 if (run, lumi) in all_lumis or failed > self.config.advanced.threshold_for_failure:
+                    logger.debug("skipping run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     continue
 
                 if current_size == 0:
@@ -368,6 +373,7 @@ class UnitStore:
                         break
 
                 if failed == self.config.advanced.threshold_for_failure:
+                    logger.debug("creating isolation task for run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 
@@ -533,7 +539,7 @@ class UnitStore:
                 select
                     count(*),
                     avg((time_epilogue_end - time_stage_in_end) * 1. / units)
-                from tasks where status in (2, 6, 7, 8) and workflow=1 and type=0""").fetchone()
+                from tasks where status in (2, 6, 7, 8) and workflow=? and type=0""", (id,)).fetchone()
 
             if tasks > 10:
                 bettersize = max(1, int(math.ceil(targettime / unittime)))
@@ -568,6 +574,10 @@ class UnitStore:
                 units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + units_paused),
                 units_left=units - (units_running + units_done + units_paused)
             where label=?""".format(label), (label,))
+
+        if self.db.execute("select units_paused from workflows where label=?", (label,)).fetchone()[0] > 0:
+            for (child,) in self.db.execute("select label from workflows where parent=?", (id,)):
+                self.update_workflow_stats(child)
 
         if logger.getEffectiveLevel() <= logging.DEBUG:
             size, total, running, done, paused, available, left = self.db.execute("""
@@ -689,12 +699,17 @@ class UnitStore:
 
         mergeable, units_complete = self.db.execute("""
             select
-                (units_done + units_paused) * 10 >= units and
-                    (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
+                (
+                    (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
+                    or
+                    units_done + units_paused == units
+                )
+                and
+                (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
                 units_done + units_paused == units
             from workflows
             where label=?
-        """, (workflow,)).fetchone()
+        """, (bytes, workflow)).fetchone()
 
         if not mergeable:
             return []

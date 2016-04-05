@@ -577,9 +577,9 @@ class UnitStore:
 
         self.db.execute("""
             update workflows set
-                units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + units_paused),
+                units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + (units_paused - ?)),
                 units_left=units - (units_running + units_done + units_paused)
-            where label=?""".format(label), (label,))
+            where label=?""".format(label), (parent_paused, label))
 
         if self.db.execute("select units_paused from workflows where label=?", (label,)).fetchone()[0] > 0:
             for (child,) in self.db.execute("select label from workflows where parent=?", (id,)):

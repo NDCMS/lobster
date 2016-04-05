@@ -548,6 +548,18 @@ class UnitStore:
                     logger.info("adjusting task size for {0} from {1} to {2}".format(label, size, bettersize))
                     self.db.execute("update workflows set tasksize=? where id=?", (bettersize, id))
 
+        parent_paused = self.db.execute("""
+            select
+                ifnull((
+                    case when parent is not null
+                    then
+                        (select units_paused from workflows where workflows.id == wf.parent)
+                    else 0
+                    end
+                ), 0)
+            from workflows as wf where id == ?
+            """, (id,)).fetchone()[0]
+
         self.db.execute("""
             update workflows set
                 units_running=ifnull((select count(*) from units_{0} where status == 1), 0),
@@ -558,15 +570,9 @@ class UnitStore:
                         where
                             (failed > ? or file in (select id from files_{0} where skipped >= ?))
                             and status in (0, 3, 4)
-                    ), 0) + ifnull((
-                        case when parent is not null
-                        then
-                            (select units_paused from workflows where workflows.id == parent)
-                        else 0
-                        end
-                    ), 0)
+                    ), 0) + ?
             where label=?""".format(label),
-            (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label,)
+            (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, parent_paused, label,)
         )
 
         self.db.execute("""

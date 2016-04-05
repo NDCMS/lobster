@@ -299,7 +299,7 @@ class TaskProvider(object):
             # Then see what we can create still in terms of work
             complete, units_left, tasks_left = self.__store.work_left(wflow.label)
             if not complete and tasks_left < 1.:
-                logger.debug("workflow {} has not enough units available to form a new tasks".format(wflow.label))
+                logger.debug("workflow {} has not enough units available to form new tasks".format(wflow.label))
                 continue
             elif units_left == 0:
                 continue

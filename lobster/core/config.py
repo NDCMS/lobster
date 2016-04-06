@@ -38,7 +38,7 @@ class Items(object):
             if len(lines) <= 1:
                 return text
             return "\n".join("    " + l for l in lines).strip()
-        return '[\n    {}\n]'.format(',\n'.join(indent(repr(e)) for e in self.__sequence))
+        return '[\n    {}\n]'.format(',\n    '.join(indent(repr(e)) for e in self.__sequence))
 
 class Config(Configurable):
     """

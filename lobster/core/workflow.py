@@ -20,7 +20,7 @@ class Category(Configurable):
     :class:`~lobster.core.workflow.Workflow`s.
 
     This information will be passed on to `WorkQueue`, which will forcibly
-    terminate tasks of :class:`Workflow` in the group that exceed the
+    terminate tasks of :class:`.Workflow` in the group that exceed the
     specified resources.
 
     Parameters

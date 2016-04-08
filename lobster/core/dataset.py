@@ -137,6 +137,10 @@ class ParentDataset(Configurable):
         self.units_per_task = units_per_task
         self.total_units = self.parent.dataset.total_units
 
+    def __repr__(self):
+        override = {'parent': 'workflow_' + self.parent.label}
+        return Configurable.__repr__(self, override)
+
     def get_info(self):
         # in case the parent object gets updated in the meantime
         self.total_units = self.parent.dataset.total_units

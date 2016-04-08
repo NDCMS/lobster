@@ -16,8 +16,8 @@ logger = logging.getLogger('lobster.workflow')
 
 class Category(Configurable):
     """
-    Resource specification for a group of
-    :class:`~lobster.core.workflow.Workflow`s.
+    Resource specification for one or more
+    :class:`~lobster.core.workflow.Workflow`.
 
     This information will be passed on to `WorkQueue`, which will forcibly
     terminate tasks of :class:`.Workflow` in the group that exceed the

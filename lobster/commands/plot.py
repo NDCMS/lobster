@@ -942,6 +942,9 @@ class Plotter(object):
 
         jsons = self.savejsons(units_processed)
 
+        with open(os.path.join(self.__plotdir, 'config.py'), 'w') as fd:
+            fd.write(str(self.config))
+
         for fn in ['styles.css', 'gh.png']:
             shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),
                     os.path.join(self.__plotdir, fn))

@@ -352,7 +352,7 @@ class Workflow(Configurable):
 
     def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
         cmd = self.command
-        args = self.arguments
+        args = self.arguments[:]
         pset = os.path.basename(self.pset)
 
         inputs.append((self.sandbox, 'sandbox.tar.bz2', True))

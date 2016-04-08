@@ -365,7 +365,8 @@ class UnitStore:
 
             for id, file, run, lumi, arg, failed in rows:
                 if (run, lumi, arg) in all_lumis:
-                    logger.debug("skipping duplicate run {}, lumi {}".format(run, lumi))
+                    logger.debug("skipping already processed unit with "\
+                            "run {}, lumi {}, arg {}".format(run, lumi, arg))
                     continue
 
                 if failed > self.config.advanced.threshold_for_failure:
@@ -397,9 +398,10 @@ class UnitStore:
                             where
                                 run=? and
                                 lumi=? and
+                                arg=? and
                                 status not in (1, 2, 6, 7, 8) and
                                 failed < ?""".format(workflow),
-                            (run, lumi, self.config.advanced.threshold_for_failure)):
+                            (run, lumi, arg, self.config.advanced.threshold_for_failure)):
                         units.append((ls_id, ls_file, ls_run, ls_lumi))
                         files.add(ls_file)
                 else:

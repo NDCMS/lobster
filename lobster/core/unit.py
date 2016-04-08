@@ -364,8 +364,18 @@ class UnitStore:
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
-                if (run, lumi) in all_lumis or failed > self.config.advanced.threshold_for_failure:
-                    logger.debug("skipping run {}, lumi {} with failure count {}".format(run, lumi, failed))
+                if (run, lumi) in all_lumis:
+                    logger.debug("skipping duplicate run {}, lumi {}".format(run, lumi))
+                    continue
+
+                if failed > self.config.advanced.threshold_for_failure:
+                    logger.debug("skipping run {}, "\
+                        "lumi {} "\
+                        "with failure count {} "\
+                        "exceeding `config.advanced.threshold_for_failure={}`".format(
+                            run, lumi, failed, self.config.advanced.threshold_for_failure
+                        )
+                    )
                     continue
 
                 if current_size == 0:

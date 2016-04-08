@@ -8,7 +8,7 @@ import sys
 
 from lobster import fs, util
 from lobster.cmssw import sandbox
-from lobster.core.dataset import ProductionDataset
+from lobster.core.dataset import ParentDataset, ProductionDataset
 from lobster.core.task import *
 from lobster.util import Configurable
 
@@ -180,7 +180,15 @@ class Workflow(Configurable):
         self.command = command
         self.extra_inputs = extra_inputs if extra_inputs else []
         self.arguments = arguments if arguments else []
-        self.unique_arguments = unique_arguments if unique_arguments else [None]
+        if unique_arguments:
+            if any(x is None for x in unique_arguments):
+                raise ValueError("Unique arguments should not be None")
+            if isinstance(dataset, ParentDataset):
+                raise ValueError("Can't have a workflow with unique arguments "
+                        "as a dependent of another workflow")
+            self.unique_arguments = unique_arguments
+        else:
+            self.unique_arguments = [None]
         self.outputs = outputs
         self.output_format = output_format
 

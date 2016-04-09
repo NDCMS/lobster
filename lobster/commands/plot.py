@@ -1004,7 +1004,7 @@ class Plotter(object):
             wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)] if len(good_tasks) > 0 else []
             wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)] if len(failed_tasks) > 0 else []
             wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)] if len(success_tasks) > 0 else []
-            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)] if len(merge_tasks) >0 else []
+            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)] if len(merge_tasks) > 0 else []
 
             logs = self.make_workflow_plots(label, edges,
                     wf_good_tasks,

@@ -107,7 +107,7 @@ class Dataset(Configurable):
 
             Dataset.__dsets[self.dataset] = res
 
-        self.total_units = Dataset.__dsets[self.dataset].total_lumis
+        self.total_units = sum([len(f.lumis) for f in Dataset.__dsets[self.dataset].files.values()])
         return Dataset.__dsets[self.dataset]
 
     def query_database(self, dataset, instance, mask, file_based):

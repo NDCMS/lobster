@@ -107,7 +107,7 @@ class Dataset(Configurable):
 
             Dataset.__dsets[self.dataset] = res
 
-        self.total_units = Dataset.__dsets[self.dataset].total_lumis
+        self.total_units = sum([len(f.lumis) for f in Dataset.__dsets[self.dataset].files.values()])
         return Dataset.__dsets[self.dataset]
 
     def query_database(self, dataset, instance, mask, file_based):
@@ -122,6 +122,7 @@ class Dataset(Configurable):
         if infos is None:
             raise IOError('dataset {} contains no files'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
+        result.total_lumis = sum([info['num_lumi'] for info in infos])
         result.unmasked_lumis = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
@@ -145,7 +146,6 @@ class Dataset(Configurable):
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
-        result.total_lumis = sum([len(f.lumis) for f in result.files.values()])
-        result.masked_lumis = result.unmasked_lumis - result.total_lumis
+        result.masked_lumis = result.total_lumis - result.unmasked_lumis
 
         return result

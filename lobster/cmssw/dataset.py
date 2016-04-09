@@ -146,6 +146,6 @@ class Dataset(Configurable):
                         if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
-        result.masked_lumis = result.unmasked_lumis - result.total_lumis
+        result.masked_lumis = result.total_lumis - result.unmasked_lumis
 
         return result

@@ -1,7 +1,7 @@
 from lobster import cmssw
 from lobster.core import *
 
-version = '_take27'
+version = '_take29'
 
 storage = StorageConfiguration(
         output=[
@@ -34,8 +34,8 @@ lhe = Workflow(
 
 gs = Workflow(
         label='gs_step',
-        pset='mc_gen/HIG-RunIIWinter15GS-00301_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_1_16_patch2',
+        pset='mc_gen/HIG-RunIISummer15GS-00177_1_cfg.py',
+        sandbox_release='mc_gen/CMSSW_7_1_18',
         merge_size='500M',
         dataset=ParentDataset(
             parent=lhe,
@@ -43,7 +43,7 @@ gs = Workflow(
         ),
         category=Category(
             name='gs',
-            cores=1,
+            cores=2,
             memory=2000,
             runtime=45 * 60
         )
@@ -51,8 +51,8 @@ gs = Workflow(
 
 digi = Workflow(
         label='digi_step',
-        pset='mc_gen/HIG-RunIISpring15DR74-00280_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_4_1_patch4',
+        pset='mc_gen/HIG-RunIIFall15DR76-00243_1_cfg.py',
+        sandbox_release='mc_gen/CMSSW_7_6_1',
         merge_size='1G',
         dataset=ParentDataset(
             parent=gs,
@@ -68,12 +68,12 @@ digi = Workflow(
 
 reco = Workflow(
         label='reco_step',
-        pset='mc_gen/HIG-RunIISpring15DR74-00280_2_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_4_1_patch4',
+        pset='mc_gen/HIG-RunIIFall15DR76-00243_2_cfg.py',
+        sandbox_release='mc_gen/CMSSW_7_6_1',
         # Explicitly specify outputs, since the dependency processing only
         # works for workflows with one output file, but the configuration
         # includes two.
-        outputs=['HIG-RunIISpring15DR74-00280_step2.root'],
+        outputs=['HIG-RunIIFall15DR76-00243.root'],
         merge_size='1G',
         dataset=ParentDataset(
             parent=digi,
@@ -81,7 +81,7 @@ reco = Workflow(
         ),
         category=Category(
             name='reco',
-            cores=1,
+            cores=4,
             memory=2800,
             runtime=45 * 60
         )
@@ -89,8 +89,8 @@ reco = Workflow(
 
 maod = Workflow(
         label='mAOD_step',
-        pset='mc_gen/HIG-RunIISpring15MiniAODv2-00169_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_4_14',
+        pset='mc_gen/HIG-RunIIFall15MiniAODv2-00224_1_cfg.py',
+        sandbox_release='mc_gen/CMSSW_7_6_3',
         merge_size='500M',
         dataset=ParentDataset(
             parent=reco,
@@ -98,7 +98,7 @@ maod = Workflow(
         ),
         category=Category(
             name='mAOD',
-            cores=1,
+            cores=2,
             memory=2000,
             runtime=30 * 60
         )

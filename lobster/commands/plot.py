@@ -20,6 +20,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 import numpy as np
+from numpy.lib import recfunctions as rfn
 
 from lobster import util
 from lobster.core import unit
@@ -285,8 +286,10 @@ class Plotter(object):
         stats = {}
 
         wflow_ids = {}
+        wflow_cores = {}
         for id_, label in db.execute("select id, label from workflows"):
             wflow_ids[label] = id_
+            wflow_cores[id_] = getattr(self.config.workflows, label).category.cores
 
         cur = db.execute(
                 "select * from tasks where time_retrieved>=? and time_retrieved<=?",
@@ -303,6 +306,9 @@ class Plotter(object):
         if np.any(bogus_total):
             logger.warning("resetting eviction times exceeding work_queue lifetimes!")
             tasks['time_total_on_worker'] = np.where(bogus_total, tasks['time_on_worker'], tasks['time_total_on_worker'])
+
+        cores = [wflow_cores[n] for n in tasks['workflow']]
+        tasks = rfn.append_fields(tasks, 'cores', data=cores, usemask=False)
 
         failed_tasks = tasks[tasks['status'] == 3] if len(tasks) > 0 else []
         success_tasks = tasks[np.in1d(tasks['status'], (2, 6, 7, 8))] if len(tasks) > 0 else []
@@ -698,9 +704,7 @@ class Plotter(object):
                         ([(x['time_wrapper_start'], x['time_stage_in_end'] - x['time_wrapper_ready']) for x in split_tasks]                  , 'Stage-in'                   , 'stage-in'           , "gray"           , True)  , # gray
                         ([(x['time_wrapper_start'], x['time_prologue_end'] - x['time_stage_in_end']) for x in split_tasks]                       , 'Prologue'                   , 'prologue'           , "orange"         , True)  , # yellow
                         ([(x['time_wrapper_start'], x['time_wrapper_ready'] - x['time_wrapper_start']) for x in split_tasks]                     , 'Overhead'                   , 'overhead'           , "blue"           , False) , # blue]
-                        ([(x['time_wrapper_start'], x['time_cpu']) for x in split_tasks]                                              , 'Processing CPU'             , 'processing-cpu'     , "forestgreen"    , True)  , # green
-                        ([(x['time_wrapper_start'], x['time_processing_end'] - x['time_prologue_end'] - x['time_cpu']) for x in split_tasks]    , 'Non-CPU processing'         , 'processing-non-cpu' , "green"          , True)  , # green
-                        ([(x['time_wrapper_start'], x['time_processing_end'] - x['time_prologue_end']) for x in split_tasks]                 , 'Processing Total'           , 'processing'         , "mediumseagreen" , False) , # green
+                        ([(x['time_wrapper_start'], x['time_processing_end'] - x['time_prologue_end']) for x in split_tasks]                 , 'Executable'           , 'processing'         , "forestgreen" , True) , # green
                         ([(x['time_wrapper_start'], x['time_epilogue_end'] - x['time_processing_end']) for x in split_tasks]                 , 'Epilogue'                   , 'epilogue'           , "khaki"          , True)  , # yellow
                         ([(x['time_wrapper_start'], x['time_stage_out_end'] - x['time_epilogue_end']) for x in split_tasks]                      , 'Stage-out'                  , 'stage-out'          , "silver"         , True)  , # gray
                         ([(x['time_wrapper_start'], x['time_transfer_out_start'] - x['time_stage_out_end']) for x in split_tasks]                    , 'Output transfer wait'       , 'transfer-out-wait'  , "lightskyblue"   , True)  , # blue
@@ -745,6 +749,12 @@ class Plotter(object):
                     modes=[Plotter.PROF|Plotter.TIME]
                 )
 
+                efficiency = tasks['time_cpu'] / (1. * tasks['cores'] * (tasks['time_processing_end'] - tasks['time_prologue_end']))
+                self.plot(
+                    [(tasks['time_retrieved'], efficiency)],
+                    'Executable CPU/Wall time', os.path.join(subdir, prefix + 'exe-efficiency'),
+                    modes=[Plotter.HIST]
+                )
 
         if len(failed_tasks) > 0:
             logs = self.savelogs(failed_tasks)
@@ -931,6 +941,9 @@ class Plotter(object):
         wflow = env.get_template('category.html')
 
         jsons = self.savejsons(units_processed)
+
+        with open(os.path.join(self.__plotdir, 'config.py'), 'w') as fd:
+            fd.write(str(self.config))
 
         for fn in ['styles.css', 'gh.png']:
             shutil.copy(os.path.join(os.path.dirname(__file__), 'data', fn),

@@ -804,8 +804,8 @@ class Plotter(object):
         headers, stats = self.readlog()
         wflow_ids, good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
 
-        success_tasks = good_tasks[good_tasks['type'] == 0]
-        merge_tasks = good_tasks[good_tasks['type'] == 1]
+        success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else []
+        merge_tasks = good_tasks[good_tasks['type'] == 1] if len(good_tasks) > 0 else []
 
         # -------------
         # General plots
@@ -1001,10 +1001,10 @@ class Plotter(object):
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-            wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)]
-            wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)]
-            wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)]
-            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)]
+            wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)] if len(good_tasks) > 0 else []
+            wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)] if len(failed_tasks) > 0 else []
+            wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)] if len(success_tasks) > 0 else []
+            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)] if len(merge_tasks) >0 else []
 
             logs = self.make_workflow_plots(label, edges,
                     wf_good_tasks,

@@ -310,8 +310,8 @@ class Plotter(object):
         cores = [wflow_cores[n] for n in tasks['workflow']]
         tasks = rfn.append_fields(tasks, 'cores', data=cores, usemask=False)
 
-        failed_tasks = tasks[tasks['status'] == 3] if len(tasks) > 0 else []
-        success_tasks = tasks[np.in1d(tasks['status'], (2, 6, 7, 8))] if len(tasks) > 0 else []
+        failed_tasks = tasks[tasks['status'] == 3] if len(tasks) > 0 else np.array([], tasks.dtype)
+        success_tasks = tasks[np.in1d(tasks['status'], (2, 6, 7, 8))] if len(tasks) > 0 else np.array([], tasks.dtype)
 
         summary_data = list(self.__store.workflow_status())[1:]
 
@@ -804,8 +804,8 @@ class Plotter(object):
         headers, stats = self.readlog()
         wflow_ids, good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
 
-        success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else []
-        merge_tasks = good_tasks[good_tasks['type'] == 1] if len(good_tasks) > 0 else []
+        success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
+        merge_tasks = good_tasks[good_tasks['type'] == 1] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
 
         # -------------
         # General plots
@@ -1001,10 +1001,10 @@ class Plotter(object):
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-            wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)] if len(good_tasks) > 0 else []
-            wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)] if len(failed_tasks) > 0 else []
-            wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)] if len(success_tasks) > 0 else []
-            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)] if len(merge_tasks) > 0 else []
+            wf_good_tasks = good_tasks[np.in1d(good_tasks['workflow'], ids)]
+            wf_failed_tasks = failed_tasks[np.in1d(failed_tasks['workflow'], ids)]
+            wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)]
+            wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)]
 
             logs = self.make_workflow_plots(label, edges,
                     wf_good_tasks,

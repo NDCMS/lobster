@@ -146,6 +146,6 @@ class Dataset(Configurable):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
         result.total_units = sum([len(f.lumis) for f in result.files.values()])
-        result.masked_units = result.unmasked_units - result.total_units
+        result.masked_units = result.total_units - result.unmasked_units
 
         return result

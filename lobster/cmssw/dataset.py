@@ -135,17 +135,18 @@ class Dataset(Configurable):
         else:
             blocks = self.__apis[instance].listBlocks(dataset=dataset)
             if mask:
-                unmasked_units = LumiList(filename=mask)
+                unmasked_lumis = LumiList(filename=mask)
             for block in blocks:
                 runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
                 for run in runs:
                     fn = run['logical_file_name']
                     for lumi in run['lumi_section_num']:
-                        if not mask or ((run['run_num'], lumi) in unmasked_units):
+                        if not mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.files[fn].lumis.append((run['run_num'], lumi))
+                        elif mask and ((run['run_num'], lumi) not in unmasked_lumis):
+                            result.masked_units += 1
 
-        result.total_units = sum([len(f.lumis) for f in result.files.values()])
-        result.unmasked_units = len(unmasked_units) if mask else result.total_units
-        result.masked_units = result.total_units - result.unmasked_units
+        result.unmasked_units = sum([len(f.lumis) for f in result.files.values()])
+        result.total_units = result.unmasked_units + result.masked_units
 
         return result

@@ -669,7 +669,7 @@ class UnitStore:
                 ifnull((select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
                 ifnull((select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
                 units,
-                units,
+                units - units_masked,
                 units_done,
                 units_paused,
                 '' || round(

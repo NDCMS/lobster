@@ -101,13 +101,13 @@ class Dataset(Configurable):
             res = self.query_database(self.dataset, self.dbs_instance, self.lumi_mask, self.file_based)
 
             if self.events_per_task:
-                res.tasksize = int(math.ceil(self.events_per_task / float(res.total_events) * res.total_lumis))
+                res.tasksize = int(math.ceil(self.events_per_task / float(res.total_events) * res.total_units))
             else:
                 res.tasksize = self.lumis_per_task
 
             Dataset.__dsets[self.dataset] = res
 
-        self.total_units = Dataset.__dsets[self.dataset].total_lumis
+        self.total_units = Dataset.__dsets[self.dataset].total_units
         return Dataset.__dsets[self.dataset]
 
     def query_database(self, dataset, instance, mask, file_based):
@@ -122,7 +122,7 @@ class Dataset(Configurable):
         if infos is None:
             raise IOError('dataset {} contains no files'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
-        result.unmasked_lumis = sum([info['num_lumi'] for info in infos])
+        result.unmasked_units = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             fn = info['logical_file_name']
@@ -136,16 +136,16 @@ class Dataset(Configurable):
         else:
             blocks = self.__apis[instance].listBlocks(dataset=dataset)
             if mask:
-                unmasked_lumis = LumiList(filename=mask)
+                unmasked_units = LumiList(filename=mask)
             for block in blocks:
                 runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
                 for run in runs:
                     fn = run['logical_file_name']
                     for lumi in run['lumi_section_num']:
-                        if not mask or ((run['run_num'], lumi) in unmasked_lumis):
+                        if not mask or ((run['run_num'], lumi) in unmasked_units):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
-        result.total_lumis = sum([len(f.lumis) for f in result.files.values()])
-        result.masked_lumis = result.unmasked_lumis - result.total_lumis
+        result.total_units = sum([len(f.lumis) for f in result.files.values()])
+        result.masked_units = result.unmasked_units - result.total_units
 
         return result

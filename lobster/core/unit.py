@@ -189,9 +189,9 @@ class UnitStore:
                            dataset_info.file_based,
                            dataset_info.tasksize,
                            taskruntime,
-                           dataset_info.total_lumis * len(unique_args),
-                           dataset_info.masked_lumis,
-                           dataset_info.total_lumis * len(unique_args),
+                           dataset_info.total_units * len(unique_args),
+                           dataset_info.masked_units,
+                           dataset_info.total_units * len(unique_args),
                            dataset_info.total_events))
 
         self.db.execute("""create table if not exists files_{0}(

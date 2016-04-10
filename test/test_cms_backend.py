@@ -52,7 +52,7 @@ class TestSQLBackend(object):
         for fn in ['/test/{0}.root'.format(i) for i in range(files)]:
             info.files[fn].lumis = [(-1, -1)]
 
-        info.total_lumis = len(info.files.keys())
+        info.total_units = len(info.files.keys())
         info.path = ''
 
         return Workflow(label, None, sandbox_release=''), info
@@ -101,7 +101,7 @@ class TestSQLBackend(object):
             info.files[f].events = file_events
             info.files[f].lumis = file_lumis
 
-        info.total_lumis = sum([len(finfo.lumis) for f, finfo in info.files.items()])
+        info.total_units = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
         return Workflow(label, None, sandbox_release=''), info
         # }}}

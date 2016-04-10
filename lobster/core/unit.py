@@ -677,7 +677,7 @@ class UnitStore:
                     1) || ' %'
             from workflows""")
 
-        yield "Label Events read written Units unmasked done paused failed skipped Completion".split()
+        yield "Label Events read written Units unmasked written paused failed skipped Progress".split()
         total = None
         for row in cursor:
             failed, skipped = self.db.execute("""

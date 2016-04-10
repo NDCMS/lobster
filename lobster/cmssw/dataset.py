@@ -122,7 +122,6 @@ class Dataset(Configurable):
         if infos is None:
             raise IOError('dataset {} contains no files'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
-        result.unmasked_units = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             fn = info['logical_file_name']
@@ -146,6 +145,7 @@ class Dataset(Configurable):
                             result.files[fn].lumis.append((run['run_num'], lumi))
 
         result.total_units = sum([len(f.lumis) for f in result.files.values()])
+        result.unmasked_units = len(unmasked_units) if mask else result.total_units
         result.masked_units = result.total_units - result.unmasked_units
 
         return result

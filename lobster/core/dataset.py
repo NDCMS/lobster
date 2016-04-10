@@ -25,9 +25,9 @@ class DatasetInfo(object):
         self.files = defaultdict(FileInfo)
         self.tasksize = 1
         self.total_events = 0
-        self.total_lumis = 0
-        self.unmasked_lumis = 0
-        self.masked_lumis = 0
+        self.total_units = 0
+        self.unmasked_units = 0
+        self.masked_units = 0
 
     def __repr__(self):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
@@ -68,7 +68,7 @@ class Dataset(Configurable):
                 files += filter(fs.isfile, fs.ls(entry))
             elif fs.isfile(entry):
                 files.append(entry)
-        dset.total_lumis = len(files)
+        dset.total_units = len(files)
         self.total_units = len(files)
 
         for fn in files:
@@ -114,7 +114,7 @@ class ProductionDataset(Configurable):
         if self.events_per_lumi:
             nlumis = int(math.ceil(float(self.events_per_task) / self.events_per_lumi))
         dset.files[None].lumis = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
-        dset.total_lumis = ntasks
+        dset.total_units = ntasks
         self.total_units = ntasks * nlumis
 
         return dset
@@ -148,6 +148,6 @@ class ParentDataset(Configurable):
         dset = DatasetInfo()
         dset.file_based = False
         dset.tasksize = self.units_per_task
-        dset.total_lumis = self.total_units
+        dset.total_units = self.total_units
 
         return dset

@@ -189,9 +189,9 @@ class UnitStore:
                            dataset_info.file_based,
                            dataset_info.tasksize,
                            taskruntime,
-                           dataset_info.total_lumis * len(unique_args),
-                           dataset_info.masked_lumis,
-                           dataset_info.total_lumis * len(unique_args),
+                           dataset_info.total_units * len(unique_args),
+                           dataset_info.masked_units,
+                           dataset_info.total_units * len(unique_args),
                            dataset_info.total_events))
 
         self.db.execute("""create table if not exists files_{0}(
@@ -668,8 +668,8 @@ class UnitStore:
                 events,
                 ifnull((select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
                 ifnull((select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id), 0),
-                units + units_masked,
                 units,
+                units - units_masked,
                 units_done,
                 units_paused,
                 '' || round(
@@ -677,7 +677,7 @@ class UnitStore:
                     1) || ' %'
             from workflows""")
 
-        yield "Label Events read written Units unmasked done paused failed skipped Completion".split()
+        yield "Label Events read written Units unmasked written paused failed skipped Progress".split()
         total = None
         for row in cursor:
             failed, skipped = self.db.execute("""

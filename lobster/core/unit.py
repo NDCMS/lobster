@@ -351,7 +351,6 @@ class UnitStore:
             current_size = 0
 
             def insert_task(files, units, arg):
-                logger.error("INSERTING")
                 cur = self.db.cursor()
                 cur.execute("insert into tasks(workflow, status, type) values (?, 1, 0)", (workflow_id,))
                 task_id = cur.lastrowid
@@ -382,15 +381,12 @@ class UnitStore:
 
                 if current_size == 0:
                     if num <= 0:
-                        logger.error("BREAKING")
                         break
 
                 if failed == self.config.advanced.threshold_for_failure:
                     logger.debug("creating isolation task for run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
-
-                logger.error("LUMI %s", lumi)
 
                 if lumi > 0:
                     all_lumis.add((run, lumi, arg))
@@ -431,7 +427,6 @@ class UnitStore:
                     num -= 1
 
             if current_size > 0:
-                logger.error("CURRENT %s", current_size)
                 insert_task(files, units, arg)
 
             workflow_update = []
@@ -440,7 +435,6 @@ class UnitStore:
             unit_update = []
 
             for (task, label, files, units, arg, merge) in tasks:
-                logger.error("UNITS %s", units)
                 workflow_update += units
                 task_update[task] = len(units)
                 unit_update += [(task, id) for (id, file, run, lumi) in units]

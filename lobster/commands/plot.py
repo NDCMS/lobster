@@ -1002,10 +1002,13 @@ class Plotter(object):
             ).encode('utf-8'))
 
         def add_total(summaries):
-            numbers = zip(*[s[1:-1] for s in summaries])
+            numbers = zip(*[s[1:-2] for s in summaries])
             total = map(sum, numbers)
             return summaries + \
-                    [['Total'] + total + ['{} %'.format(round(total[-4] * 100. / total[-5], 1))]]
+                    [['Total'] + total + [
+                        '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
+                        '{} %'.format(round(total[-4] * 100. / total[-5] if total[-5] > 0 else 0, 1))
+                    ]]
 
         for category in self.config.categories:
             label = category.name

@@ -205,6 +205,7 @@ class Process(Command):
         bad_exitcodes = self.config.advanced.bad_exit_codes
         categories = []
 
+        self.setup_logging('all')
         # Workflows can be assigned categories, with each category having
         # different cpu/memory/walltime requirements that WQ will automatically
         # fine-tune
@@ -212,12 +213,11 @@ class Process(Command):
             constraints = category.wq()
             if category.name != 'merge':
                 categories.append(category.name)
+                self.setup_logging(category.name)
             self.queue.specify_max_category_resources(category.name, constraints)
             logger.debug('Category {0}: {1}'.format(category.name ,constraints))
             if 'wall_time' not in constraints:
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)
-
-        self.setup_logging('all')
 
         while not task_src.done():
             tasks_left = task_src.tasks_left()

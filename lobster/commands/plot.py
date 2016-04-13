@@ -628,6 +628,17 @@ class Plotter(object):
                 label=['busy', 'idle', 'connected']
         )
 
+        for resource in ['cores', 'memory', 'disk']:
+            self.plot(
+                    [
+                        (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]]),
+                        (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]])
+                    ],
+                    resource[0].upper() + resource[1:], os.path.join(category, resource),
+                    modes=[Plotter.PLOT|Plotter.TIME],
+                    label=['total', 'committed']
+            )
+
         self.plot(
                 [(stats[:,headers['timestamp']], stats[:,headers['tasks_running']])],
                 'Tasks', os.path.join(category, 'tasks'),

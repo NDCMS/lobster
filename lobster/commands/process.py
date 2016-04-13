@@ -1,5 +1,6 @@
 import daemon
 import datetime
+import inspect
 import logging
 import logging.handlers
 import os
@@ -36,55 +37,6 @@ class Terminate(Command):
         workdir = args.config.workdir
         util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
-def log_header(filename, categories):
-    with open(filename, "a") as statsfile:
-        statsfile.write(
-                "#timestamp " +
-                "total_workers_connected total_workers_joined total_workers_removed " +
-                "total_workers_lost total_workers_idled_out total_workers_fast_aborted " +
-                "workers_busy workers_idle " +
-                "tasks_running " +
-                "total_send_time total_receive_time " +
-                "total_create_time total_return_time " +
-                "idle_percentage " +
-                "capacity " +
-                "efficiency " +
-                "total_memory " +
-                "total_cores " +
-                "units_left\n")
-
-
-def log_stats(filename, categories, queue , creating, destroying, left):
-    stats = queue.stats_hierarchy
-
-    with open(filename, "a") as statsfile:
-        now = datetime.datetime.now()
-        statsfile.write(" ".join(map(str,
-            [
-                int(int(now.strftime('%s')) * 1e6 + now.microsecond),
-                stats.total_workers_connected,
-                stats.total_workers_joined,
-                stats.total_workers_removed,
-                stats.total_workers_lost,
-                stats.total_workers_idled_out,
-                stats.total_workers_fast_aborted,
-                stats.workers_busy,
-                stats.workers_idle,
-                stats.tasks_running,
-                stats.total_send_time,
-                stats.total_receive_time,
-                creating,
-                destroying,
-                stats.idle_percentage,
-                stats.capacity,
-                stats.efficiency,
-                stats.total_memory,
-                stats.total_cores,
-                left
-            ]
-            )) + "\n"
-        )
-
 class Process(Command):
     @property
     def help(self):
@@ -93,6 +45,36 @@ class Process(Command):
     @property
     def daemonizable(self):
         return True
+
+    def setup_logging(self, category):
+        filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))
+        if not hasattr(self, 'log_attributes'):
+            self.log_attributes = [m for (m, o) in inspect.getmembers(wq.work_queue_stats)
+                    if not inspect.isroutine(o) and not m.startswith('__')]
+
+        with open(filename, "a") as statsfile:
+            statsfile.write(
+                    " ".join(
+                        ["#timestamp", "total_create_time", "total_return_time", "units_left"] + self.log_attributes
+                    ) + "\n"
+            )
+
+    def log(self, category, creating, destroying, left):
+        filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))
+        if category == 'all':
+            stats = self.queue.stats_hierarchy
+        else:
+            stats = self.queue.stats_category(category)
+
+        with open(filename, "a") as statsfile:
+            now = datetime.datetime.now()
+            statsfile.write(" ".join(map(str,
+                [
+                    int(int(now.strftime('%s')) * 1e6 + now.microsecond),
+                    creating, destroying, left
+                ] + [getattr(stats, a) for a in self.log_attributes]
+                )) + "\n"
+            )
 
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,
@@ -105,7 +87,7 @@ class Process(Command):
                 help='force processing, even if the working directory is locked by a previous instance')
 
     def run(self, args):
-        config = args.config
+        self.config = args.config
 
         if args.finalize:
             args.config.advanced.threshold_for_failure = 0
@@ -115,14 +97,13 @@ class Process(Command):
             args.config.advanced.threshold_for_skipping += args.increase_thresholds
             args.config.save()
 
-        workdir = config.workdir
-        if not os.path.exists(workdir):
-            os.makedirs(workdir)
+        if not os.path.exists(self.config.workdir):
+            os.makedirs(self.config.workdir)
 
-        if not util.checkpoint(workdir, "version"):
-            util.register_checkpoint(workdir, "version", get_distribution('Lobster').version)
+        if not util.checkpoint(self.config.workdir, "version"):
+            util.register_checkpoint(self.config.workdir, "version", get_distribution('Lobster').version)
         else:
-            util.verify(workdir)
+            util.verify(self.config.workdir)
 
         from WMCore.Credential.Proxy import Proxy
         cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
@@ -130,7 +111,7 @@ class Process(Command):
             if not 'X509_USER_PROXY' in os.environ:
                 os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
         else:
-            if config.advanced.renew_proxy:
+            if self.config.advanced.renew_proxy:
                 cred.renew()
                 if cred.getTimeLeft() < 4 * 3600:
                     logger.error("could not renew proxy")
@@ -140,10 +121,10 @@ class Process(Command):
                 sys.exit(1)
 
         if not args.foreground:
-            ttyfile = open(os.path.join(workdir, 'process.err'), 'a')
-            logger.info("saving stderr and stdout to {0}".format(os.path.join(workdir, 'process.err')))
+            ttyfile = open(os.path.join(self.config.workdir, 'process.err'), 'a')
+            logger.info("saving stderr and stdout to {0}".format(os.path.join(self.config.workdir, 'process.err')))
 
-        if config.advanced.dump_core:
+        if self.config.advanced.dump_core:
             logger.info("setting core dump size to unlimited")
             resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
@@ -155,18 +136,18 @@ class Process(Command):
                 stdout=sys.stdout if args.foreground else ttyfile,
                 stderr=sys.stderr if args.foreground else ttyfile,
                 files_preserve=[args.preserve],
-                working_directory=workdir,
-                pidfile=util.get_lock(workdir, args.force),
+                working_directory=self.config.workdir,
+                pidfile=util.get_lock(self.config.workdir, args.force),
                 prevent_core=False,
                 initgroups=False,
                 signal_map=signals):
-            t = threading.Thread(target=self.sprint, args=(config, workdir))
+            t = threading.Thread(target=self.sprint)
             t.start()
             t.join()
 
             logger.info("lobster terminated")
             if not args.foreground:
-                logger.info("stderr and stdout saved in {0}".format(os.path.join(workdir, 'process.err')))
+                logger.info("stderr and stdout saved in {0}".format(os.path.join(self.config.workdir, 'process.err')))
 
             try:
                 # Fails if something with working directory creation went wrong
@@ -174,40 +155,40 @@ class Process(Command):
             except:
                 pass
 
-    def sprint(self, config, workdir):
-        task_src = TaskProvider(config)
-        action = actions.Actions(config, task_src)
+    def sprint(self):
+        task_src = TaskProvider(self.config)
+        action = actions.Actions(self.config, task_src)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logging.getLogger("WMCore")})
 
         logger.info("using wq from {0}".format(wq.__file__))
 
         wq.cctools_debug_flags_set("all")
-        wq.cctools_debug_config_file(os.path.join(workdir, "work_queue_debug.log"))
+        wq.cctools_debug_config_file(os.path.join(self.config.workdir, "work_queue_debug.log"))
         wq.cctools_debug_config_file_size(1 << 29)
 
-        queue = wq.WorkQueue(-1)
-        queue.specify_log(os.path.join(workdir, "work_queue.log"))
-        queue.specify_name("lobster_" + config.label)
-        queue.specify_keepalive_timeout(300)
-        # queue.tune("short-timeout", 600)
-        queue.tune("transfer-outlier-factor", 4)
-        queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
-        if config.advanced.full_monitoring:
-            queue.enable_monitoring_full(None)
+        self.queue = wq.WorkQueue(-1)
+        self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
+        self.queue.specify_name("lobster_" + self.config.label)
+        self.queue.specify_keepalive_timeout(300)
+        # self.queue.tune("short-timeout", 600)
+        self.queue.tune("transfer-outlier-factor", 4)
+        self.queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
+        if self.config.advanced.full_monitoring:
+            self.queue.enable_monitoring_full(None)
         else:
-            queue.enable_monitoring(None)
+            self.queue.enable_monitoring(None)
 
-        logger.info("starting queue as {0}".format(queue.name))
+        logger.info("starting queue as {0}".format(self.queue.name))
 
         abort_active = False
-        abort_threshold = config.advanced.abort_threshold
-        abort_multiplier = config.advanced.abort_multiplier
+        abort_threshold = self.config.advanced.abort_threshold
+        abort_multiplier = self.config.advanced.abort_multiplier
 
-        wq_max_retries = config.advanced.wq_max_retries
+        wq_max_retries = self.config.advanced.wq_max_retries
 
-        if util.checkpoint(workdir, 'KILLED') == 'PENDING':
-            util.register_checkpoint(workdir, 'KILLED', 'RESTART')
+        if util.checkpoint(self.config.workdir, 'KILLED') == 'PENDING':
+            util.register_checkpoint(self.config.workdir, 'KILLED', 'RESTART')
 
         # time in seconds to wait for WQ to return tasks, with minimum wait
         # time in case no more tasks are waiting
@@ -221,34 +202,35 @@ class Process(Command):
         creation_time = 0
         destruction_time = 0
 
-        bad_exitcodes = config.advanced.bad_exit_codes
+        bad_exitcodes = self.config.advanced.bad_exit_codes
         categories = []
 
         # Workflows can be assigned categories, with each category having
         # different cpu/memory/walltime requirements that WQ will automatically
         # fine-tune
-        for category in config.categories:
+        for category in self.config.categories:
             constraints = category.wq()
             if category.name != 'merge':
                 categories.append(category.name)
-            queue.specify_max_category_resources(category.name, constraints)
+            self.queue.specify_max_category_resources(category.name, constraints)
             logger.debug('Category {0}: {1}'.format(category.name ,constraints))
             if 'wall_time' not in constraints:
-                queue.activate_fast_abort_category(category.name, abort_multiplier)
+                self.queue.activate_fast_abort_category(category.name, abort_multiplier)
 
-        log_header(os.path.join(workdir, "lobster_stats.log"), categories)
+        self.setup_logging('all')
 
         while not task_src.done():
             tasks_left = task_src.tasks_left()
             units_left = task_src.work_left()
 
             logger.debug("expecting {0} tasks, still".format(tasks_left))
-            queue.specify_num_tasks_left(tasks_left)
+            self.queue.specify_num_tasks_left(tasks_left)
 
-            log_stats(os.path.join(workdir, "lobster_stats.log"), categories, queue, creation_time, destruction_time, units_left)
+            for c in categories + ['all']:
+                self.log(c, creation_time, destruction_time, units_left)
 
-            if util.checkpoint(workdir, 'KILLED') == 'PENDING':
-                util.register_checkpoint(workdir, 'KILLED', str(datetime.datetime.utcnow()))
+            if util.checkpoint(self.config.workdir, 'KILLED') == 'PENDING':
+                util.register_checkpoint(self.config.workdir, 'KILLED', str(datetime.datetime.utcnow()))
 
                 # let the task source shut down gracefully
                 logger.info("terminating task source")
@@ -256,7 +238,7 @@ class Process(Command):
                 logger.info("terminating gracefully")
                 break
 
-            stats = queue.stats_hierarchy
+            stats = self.queue.stats_hierarchy
             logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
                     stats.workers_busy,
                     stats.workers_busy + stats.workers_ready,
@@ -277,7 +259,7 @@ class Process(Command):
 
             have = {}
             for c in categories:
-                cstats = queue.stats_category(c)
+                cstats = self.queue.stats_category(c)
                 have[c] = cstats.tasks_running + cstats.tasks_waiting
 
             t = time.time()
@@ -309,24 +291,24 @@ class Process(Command):
 
                 if expiry:
                     task.specify_end_time(expiry * 10**6)
-                queue.submit(task)
+                self.queue.submit(task)
             creation_time += int((time.time() - t) * 1e6)
 
-            task_src.update(queue)
+            task_src.update(self.queue)
             starttime = time.time()
-            task = queue.wait(interval)
+            task = self.queue.wait(interval)
             tasks = []
             while task:
                 if task.return_status == 0:
                     successful_tasks += 1
                 elif task.return_status in bad_exitcodes:
                     logger.warning("blacklisting host {0} due to bad exit code from task {1}".format(task.hostname, task.tag))
-                    queue.blacklist(task.hostname)
+                    self.queue.blacklist(task.hostname)
                 tasks.append(task)
 
                 remaining = int(starttime + interval - time.time())
-                if (interval - remaining < interval_minimum or queue.stats.tasks_waiting > 0) and remaining > 0:
-                    task = queue.wait(remaining)
+                if (interval - remaining < interval_minimum or self.queue.stats.tasks_waiting > 0) and remaining > 0:
+                    task = self.queue.wait(remaining)
                 else:
                     task = None
             if len(tasks) > 0:
@@ -343,7 +325,7 @@ class Process(Command):
             if abort_threshold > 0 and successful_tasks >= abort_threshold and not abort_active:
                 logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
                 abort_active = True
-                queue.activate_fast_abort(abort_multiplier)
+                self.queue.activate_fast_abort(abort_multiplier)
 
             # recurring actions are triggered here
             if action:

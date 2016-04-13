@@ -152,18 +152,20 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             # num_bins = map(unix2matplotlib, bins)
             # ax.xaxis.set_major_locator(dates.MinuteLocator(byminute=range(0, 60, 15), interval=24*60))
             ax.xaxis.set_major_formatter(dates.DateFormatter("%m-%d\n%H:%M"))
-            ax.set_ylabel(xlabel)
+            ylabel = xlabel
         else:
             ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
+        ax.set_ylabel(ylabel)
 
         if mode & Plotter.HIST:
             filename += '-hist'
 
             if mode & Plotter.TIME:
                 borders = (unix2matplotlib(xmin), unix2matplotlib(xmax))
-                ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
+                count, bins, patches = ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
                         bins=bins, histtype='barstacked', range=borders, **kwargs)
+                if '/' not in ylabel:
+                    ax.set_ylabel('{} / {:.0f} min'.format(ylabel, (bins[1] - bins[0]) * 24 * 60.))
             else:
                 ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
         elif mode & Plotter.PROF:

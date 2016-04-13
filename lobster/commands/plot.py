@@ -161,8 +161,9 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             filename += '-hist'
 
             if mode & Plotter.TIME:
+                borders = (unix2matplotlib(xmin), unix2matplotlib(xmax))
                 ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
-                        bins=bins, histtype='barstacked', **kwargs)
+                        bins=bins, histtype='barstacked', range=borders, **kwargs)
             else:
                 ax.hist([y for (x, y) in a], bins=bins, histtype='barstacked', **kwargs)
         elif mode & Plotter.PROF:

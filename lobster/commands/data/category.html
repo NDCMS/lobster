@@ -173,6 +173,11 @@
         </div>
         <div class="maincontent">
             <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
+        {% if good_tasks %}
+            <h3>Efficiency</h3>
+            <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
+            <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
+        {% endif %}
         </div>
         {% endif %}
 

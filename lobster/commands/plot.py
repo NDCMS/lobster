@@ -348,11 +348,11 @@ class Plotter(object):
 
         return wflow_ids, success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, units_processed
 
-    def readlog(self, filename=None):
+    def readlog(self, filename=None, category='all'):
         if filename:
             fn = filename
         else:
-            fn = os.path.join(self.config.workdir, 'lobster_stats_all.log')
+            fn = os.path.join(self.config.workdir, 'lobster_stats_{}.log'.format(category))
 
         with open(fn) as f:
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
@@ -615,6 +615,114 @@ class Plotter(object):
             table.append([h, c] + [len(host_tasks[host_tasks['exit_code'] == f]) for f in failures])
         return table
 
+    def make_master_plots(self, category, good_tasks, success_tasks):
+        headers, stats = self.readlog(category=category)
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
+                ],
+                'Workers', os.path.join(category, 'workers'),
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=['busy', 'idle', 'connected']
+        )
+
+        self.plot(
+                [(stats[:,headers['timestamp']], stats[:,headers['tasks_running']])],
+                'Tasks', os.path.join(category, 'tasks'),
+                modes=[Plotter.PLOT|Plotter.TIME],
+                label=['running']
+        )
+
+        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=50, weights=stats[:,headers['total_send_time']])
+        received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
+        created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
+        returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
+        idle_total = np.multiply(
+                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
+                stats[:,headers['idle_percentage']]
+        )
+        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
+        idle, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
+        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - sent - received - created - returned - idle, 0)
+        all = other + sent + received + created + returned + idle
+        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+
+        self.plot(
+                [
+                    (centers, np.divide(sent, all)),
+                    (centers, np.divide(received, all)),
+                    (centers, np.divide(created, all)),
+                    (centers, np.divide(returned, all)),
+                    (centers, np.divide(idle, all)),
+                    (centers, np.divide(other, all))
+                ],
+                'Fraction', os.path.join(category, 'fraction'),
+                bins=50,
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
+                ymax=1.
+        )
+
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                ],
+                'Workers', os.path.join(category, 'turnover'),
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['joined', 'removed']
+        )
+
+        self.plot(
+                [
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_lost']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_idled_out']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_fast_aborted']]),
+                ],
+                'Workers', os.path.join(category, 'worker-deaths'),
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=['evicted', 'idled out', 'fast aborted']
+        )
+
+        if len(good_tasks) > 0:
+            def integrate_wall((x, y)):
+                indices = np.logical_and(stats[:,0] >= x, stats[:,0] < y)
+                values = stats[indices,headers['tasks_running']]
+                if len(values) > 0:
+                    return np.sum(values) * (y - x) / len(values)
+                return 0
+
+            walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
+            cputime = self.updatecpu(success_tasks, edges)
+
+            centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
+
+            cputime[walltime == 0] = 0.
+            walltime[walltime == 0] = 1e-6
+
+            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'CPU / Wall', os.path.join(category, 'cpu-wall'),
+                    bins=50,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+
+            self.plot(
+                    [(centers, ratio)],
+                    'Integrated CPU / Wall', os.path.join(category, 'cpu-wall-int'),
+                    bins=50,
+                    modes=[Plotter.HIST|Plotter.TIME]
+            )
+
+        return edges
+
+
     def make_workflow_plots(self, subdir, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
             self.pie(
@@ -802,7 +910,9 @@ class Plotter(object):
 
         self.__foremen = foremen if foremen else []
 
-        headers, stats = self.readlog()
+        # readlog() determines the time bounds of sql queries if not
+        # specified explicitly.
+        _, _ = self.readlog()
         wflow_ids, good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
 
         success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
@@ -812,75 +922,6 @@ class Plotter(object):
         # General plots
         # -------------
         foremen_names = self.make_foreman_plots()
-
-        self.plot(
-                [
-                    (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
-                ],
-                'Workers', 'workers',
-                modes=[Plotter.PLOT|Plotter.TIME],
-                label=['busy', 'idle', 'connected']
-        )
-
-        self.plot(
-                [(stats[:,headers['timestamp']], stats[:,headers['tasks_running']])],
-                'Tasks', 'tasks',
-                modes=[Plotter.PLOT|Plotter.TIME],
-                label=['running']
-        )
-
-        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=50, weights=stats[:,headers['total_send_time']])
-        received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
-        created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
-        returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
-        idle_total = np.multiply(
-                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
-                stats[:,headers['idle_percentage']]
-        )
-        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
-        idle, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
-        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - sent - received - created - returned - idle, 0)
-        all = other + sent + received + created + returned + idle
-        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-
-        self.plot(
-                [
-                    (centers, np.divide(sent, all)),
-                    (centers, np.divide(received, all)),
-                    (centers, np.divide(created, all)),
-                    (centers, np.divide(returned, all)),
-                    (centers, np.divide(idle, all)),
-                    (centers, np.divide(other, all))
-                ],
-                'Fraction', 'fraction',
-                bins=50,
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
-                ymax=1.
-        )
-
-        self.plot(
-                [
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
-                ],
-                'Workers', 'turnover',
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=['joined', 'removed']
-        )
-
-        self.plot(
-                [
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_lost']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_idled_out']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_fast_aborted']]),
-                ],
-                'Workers', 'worker-deaths',
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=['evicted', 'idled out', 'fast aborted']
-        )
 
         if len(good_tasks) > 0:
             completed, bins = np.histogram(completed_units['time_retrieved'], 100)
@@ -892,39 +933,6 @@ class Plotter(object):
                     'units remaining', 'units-total',
                     bins=50,
                     modes=[Plotter.PLOT|Plotter.TIME]
-            )
-
-            def integrate_wall((x, y)):
-                indices = np.logical_and(stats[:,0] >= x, stats[:,0] < y)
-                values = stats[indices,headers['tasks_running']]
-                if len(values) > 0:
-                    return np.sum(values) * (y - x) / len(values)
-                return 0
-
-            walltime = np.array(map(integrate_wall, zip(edges[:-1], edges[1:])))
-            cputime = self.updatecpu(success_tasks, edges)
-
-            centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
-
-            cputime[walltime == 0] = 0.
-            walltime[walltime == 0] = 1e-6
-
-            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
-
-            self.plot(
-                    [(centers, ratio)],
-                    'CPU / Wall', 'cpu-wall',
-                    bins=50,
-                    modes=[Plotter.HIST|Plotter.TIME]
-            )
-
-            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
-
-            self.plot(
-                    [(centers, ratio)],
-                    'Integrated CPU / Wall', 'cpu-wall-int',
-                    bins=50,
-                    modes=[Plotter.HIST|Plotter.TIME]
             )
 
         # ----------
@@ -964,6 +972,7 @@ class Plotter(object):
         outdir = os.path.join(self.__plotdir, 'all')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
+        edges = self.make_master_plots('all', good_tasks, success_tasks)
         logs = self.make_workflow_plots('all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
 
         with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
@@ -1007,6 +1016,7 @@ class Plotter(object):
             wf_success_tasks = success_tasks[np.in1d(success_tasks['workflow'], ids)]
             wf_merge_tasks = merge_tasks[np.in1d(merge_tasks['workflow'], ids)]
 
+            self.make_master_plots(label, wf_good_tasks, wf_success_tasks)
             logs = self.make_workflow_plots(label, edges,
                     wf_good_tasks,
                     wf_failed_tasks,

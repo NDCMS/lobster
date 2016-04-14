@@ -288,10 +288,12 @@ class Plotter(object):
         db = sqlite3.connect(os.path.join(self.config.workdir, 'lobster.db'), timeout=90)
         stats = {}
 
-        wflow_ids = {}
+        self.wflow_ids = {}
+        self.wflow_labels = {}
         wflow_cores = {}
         for id_, label in db.execute("select id, label from workflows"):
-            wflow_ids[label] = id_
+            self.wflow_ids[label] = id_
+            self.wflow_labels[id_] = label
             wflow_cores[id_] = getattr(self.config.workflows, label).category.cores
 
         cur = db.execute(
@@ -310,8 +312,8 @@ class Plotter(object):
             logger.warning("resetting eviction times exceeding work_queue lifetimes!")
             tasks['time_total_on_worker'] = np.where(bogus_total, tasks['time_on_worker'], tasks['time_total_on_worker'])
 
-        cores = [wflow_cores[n] for n in tasks['workflow']]
-        tasks = rfn.append_fields(tasks, 'cores', data=cores, usemask=False)
+        # cores = [wflow_cores[n] for n in tasks['workflow']]
+        # tasks = rfn.append_fields(tasks, 'cores', data=cores, usemask=False)
 
         failed_tasks = tasks[tasks['status'] == 3] if len(tasks) > 0 else np.array([], tasks.dtype)
         success_tasks = tasks[np.in1d(tasks['status'], (2, 6, 7, 8))] if len(tasks) > 0 else np.array([], tasks.dtype)
@@ -348,7 +350,7 @@ class Plotter(object):
 
         logger.debug('finished reading database')
 
-        return wflow_ids, success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, units_processed
+        return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, units_processed
 
     def readlog(self, filename=None, category='all'):
         if filename:
@@ -439,7 +441,7 @@ class Plotter(object):
                     codes[exit_code][1].append(str(id))
                     work.append([s, t])
 
-        for label, _, _, _, _, _, _, paused, failed, skipped, _ in list(self.__store.workflow_status())[1:-1]:
+        for label, _, _, _, _, _, _, _, paused, failed, skipped, _, _ in list(self.__store.workflow_status())[1:-1]:
             if paused == 0:
                 continue
 
@@ -630,13 +632,14 @@ class Plotter(object):
                 label=['busy', 'idle', 'connected']
         )
 
-        for resource in ['cores', 'memory', 'disk']:
+        for resource, unit in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
             self.plot(
                     [
                         (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]]),
                         (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]])
                     ],
-                    resource[0].upper() + resource[1:], os.path.join(category, resource),
+                    '{} {}'.format(resource[0].upper() + resource[1:], unit).strip(),
+                    os.path.join(category, resource),
                     modes=[Plotter.PLOT|Plotter.TIME],
                     label=['total', 'committed']
             )
@@ -878,6 +881,22 @@ class Plotter(object):
                     modes=[Plotter.HIST]
                 )
 
+                for resource, unit in (('cores', ''), ('disk', '/ MB'), ('memory', '/ MB')):
+                    self.plot(
+                        [(tasks['time_transfer_in_start'], tasks['requested_' + resource])],
+                        'requested {} {}'.format(resource, unit).strip(),
+                        os.path.join(subdir, prefix + 'requested-' + resource),
+                        modes=[Plotter.PROF|Plotter.TIME]
+                    )
+
+                wflows, wtasks = split_by_column(tasks, 'workflow')
+                self.plot(
+                    [(t['time_submit'], t['units']) for t in wtasks],
+                    'task size / units', os.path.join(subdir, prefix + 'tasksize'),
+                    modes=[Plotter.PROF|Plotter.TIME],
+                    label=[self.wflow_labels[w] for w in wflows]
+                )
+
         if len(failed_tasks) > 0:
             logs = self.savelogs(failed_tasks)
 
@@ -926,7 +945,7 @@ class Plotter(object):
         # readlog() determines the time bounds of sql queries if not
         # specified explicitly.
         _, _ = self.readlog()
-        wflow_ids, good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
+        good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
 
         success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
         merge_tasks = good_tasks[good_tasks['type'] == 1] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
@@ -1020,7 +1039,7 @@ class Plotter(object):
             labels = []
             for workflow in self.config.workflows:
                 if workflow.category == category:
-                    ids.append(wflow_ids[workflow.label])
+                    ids.append(self.wflow_ids[workflow.label])
                     labels.append(workflow.label)
 
             outdir = os.path.join(self.__plotdir, label)

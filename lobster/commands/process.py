@@ -7,7 +7,6 @@ import os
 import resource
 import signal
 import sys
-import threading
 import time
 import traceback
 
@@ -129,7 +128,8 @@ class Process(Command):
             resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         signals = daemon.daemon.make_default_signal_map()
-        signals[signal.SIGTERM] = lambda num, frame: kill(args)
+        signals[signal.SIGINT] = lambda num, frame: Terminate().run(args)
+        signals[signal.SIGTERM] = lambda num, frame: Terminate().run(args)
 
         with daemon.DaemonContext(
                 detach_process=not args.foreground,
@@ -141,9 +141,7 @@ class Process(Command):
                 prevent_core=False,
                 initgroups=False,
                 signal_map=signals):
-            t = threading.Thread(target=self.sprint)
-            t.start()
-            t.join()
+            self.sprint()
 
             logger.info("lobster terminated")
             if not args.foreground:

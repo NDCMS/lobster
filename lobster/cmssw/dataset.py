@@ -159,6 +159,7 @@ class Dataset(Configurable):
         result = self.__cache.cached(dataset, baseinfo)
         if result:
             return result
+        total_lumis = sum([info['num_lumi'] for info in baseinfo])
 
         result = DatasetInfo()
         result.total_events = sum([info['num_event'] for info in baseinfo])
@@ -190,5 +191,12 @@ class Dataset(Configurable):
         result.total_units = result.unmasked_units + result.masked_units
 
         self.__cache.cache(dataset, baseinfo, result)
+
+        result.stop_on_file_boundary = (result.total_units != total_lumis)
+        if result.stop_on_file_boundary:
+            logger.debug("split lumis detected in {} - "
+                         "{} unique (run, lumi) but "
+                         "{} unique (run, lumi, file) - "
+                         "enforcing a limit of one file per task".format(dataset, total_lumis, result.total_units))
 
         return result

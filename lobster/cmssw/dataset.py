@@ -79,6 +79,7 @@ class Dataset(Configurable):
         self.dbs_instance = dbs_instance
 
         self.total_units = 0
+        self.single_file_max = False
 
     def __get_mask(self, url):
         if not re.match(r'https?://', url):
@@ -122,6 +123,7 @@ class Dataset(Configurable):
         if infos is None:
             raise IOError('dataset {} contains no files'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
+        total_lumis = sum([info['num_lumi'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             fn = info['logical_file_name']
@@ -148,5 +150,15 @@ class Dataset(Configurable):
 
         result.unmasked_units = sum([len(f.lumis) for f in result.files.values()])
         result.total_units = result.unmasked_units + result.masked_units
+
+        self.single_file_max = (result.total_units != total_lumis)
+        if self.single_file_max:
+            logger.debug("split lumis detected in {}-- "\
+                "{} unique (run, lumi) but "\
+                "{} unique (run, lumi, file)-- "\
+                "enforcing a limit of one file per task".format(
+                    dataset, total_lumis, result.total_units
+                )
+            )
 
         return result

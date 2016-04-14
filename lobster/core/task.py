@@ -75,9 +75,11 @@ class TaskHandler(object):
                         unit_update.append((unit.FAILED, lumi_id))
                         units_processed -= 1
                 elif not self._file_based:
-                    file_lumis = set(map(tuple, files_info[file][1]))
+                    file_lumis = set(files_info[file][1])
                     for (lumi_id, lumi_file, r, l) in file_units:
+                        logger.error('FILE UNITS %s' % file_units)
                         if (r, l) not in file_lumis:
+                            logger.error('FILE LUMIS %s' % file_lumis)
                             unit_update.append((unit.FAILED, lumi_id))
                             units_processed -= 1
 

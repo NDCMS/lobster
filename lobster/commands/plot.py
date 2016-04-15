@@ -386,7 +386,7 @@ class Plotter(object):
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
         stats[:,headers['total_receive_time']] /= 60e6
 
-        if not filename:
+        if not filename and category == 'all':
             self.__total_xmin = stats[0,0]
             self.__total_xmax = stats[-1,0]
 

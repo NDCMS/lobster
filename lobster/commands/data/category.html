@@ -170,20 +170,22 @@
         </table>
 
         <h1 id="navtasks">Task Summary</h1>
-        {% if good_tasks or bad_tasks %}
         <div class="sidebar">
+        {% if good_tasks or bad_tasks %}
             <a class="workflow" href="time-pie.png"><img class="side" alt="" src="time-pie.png"/></a>
+        {% endif %}
         </div>
         <div class="maincontent">
             <a class="workflow" href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
+        {% if good_tasks or bad_tasks %}
             <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
         {% if good_tasks %}
             <h3>Efficiency</h3>
             <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
             <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
         {% endif %}
-        </div>
         {% endif %}
+        </div>
 
         <h2 id="navgood">Successful Tasks</h2>
         {% if good_tasks %}

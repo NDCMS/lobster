@@ -95,8 +95,8 @@ class Workflow(Configurable):
             to.
         publish_label : str
             The label to be used for the publication database.
-        merge_cleanup : bool
-            Delete merged output files.
+        cleanup_input : bool
+            Delete input files after processing.
         merge_size : str
             Activates output file merging when set.  Accepts the suffixes
             *k*, *m*, *g* for kilobyte, megabyte, …
@@ -151,7 +151,7 @@ class Workflow(Configurable):
             dataset,
             category=None,
             publish_label=None,
-            merge_cleanup=True,
+            cleanup_input=False,
             merge_size=-1,
             sandbox=None,
             sandbox_release=None,
@@ -175,7 +175,7 @@ class Workflow(Configurable):
         self.publish_label = publish_label if publish_label else label
 
         self.merge_size = self.__check_merge(merge_size)
-        self.merge_cleanup = merge_cleanup
+        self.cleanup_input = cleanup_input
 
         self.command = command
         self.extra_inputs = extra_inputs if extra_inputs else []

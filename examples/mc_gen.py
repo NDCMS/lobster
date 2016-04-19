@@ -43,7 +43,7 @@ gs = Workflow(
         ),
         category=Category(
             name='gs',
-            cores=2,
+            cores=1,
             memory=2000,
             runtime=45 * 60
         )

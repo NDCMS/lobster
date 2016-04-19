@@ -36,9 +36,13 @@ TaskUpdate = util.record('TaskUpdate',
                 'network_bandwidth',
                 'network_bytes_received',
                 'network_bytes_sent',
+                'requested_cores',
+                'requested_memory',
+                'requested_disk',
                 'cache',
                 'cache_end_size',
                 'cache_start_size',
+                'cores',
                 'exit_code',
                 'events_read',
                 'events_written',
@@ -127,6 +131,10 @@ class UnitStore:
             memory_resident int default 0 not null,
             memory_virtual int default 0 not null,
             memory_swap int default 0 not null,
+            cores int default 0 not null,
+            requested_cores int default 0 not null,
+            requested_memory int default 0 not null,
+            requested_disk int default 0 not null,
             published_file_block text,
             status int default 0 not null,
             submissions int default 0 not null,
@@ -665,13 +673,17 @@ class UnitStore:
                 units,
                 units - units_masked,
                 units_done,
+                ifnull((select count(*) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0),
                 units_paused,
                 '' || round(
                         units_done * 100.0 / units,
-                    1) || ' %'
+                    1) || ' %',
+                '' || ifnull(round(
+                        ifnull((select count(*) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units_done,
+                    1), 0.0) || ' %'
             from workflows""")
 
-        yield "Label Events read written Units unmasked written paused failed skipped Progress".split()
+        yield "Label Events read written Units unmasked written merged paused failed skipped Progress Merged".split()
         total = None
         for row in cursor:
             failed, skipped = self.db.execute("""
@@ -688,14 +700,17 @@ class UnitStore:
                     ), 0)
                 from workflows where label=?
                 """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
-            row = row[:-1] + (failed, skipped, row[-1])
+            row = row[:-2] + (failed, skipped) + row[-2:]
             if total is None:
-                total = list(row[1:-1])
+                total = list(row[1:-2])
             else:
-                total = map(sum, zip(total, row[1:-1]))
+                total = map(sum, zip(total, row[1:-2]))
 
             yield row
-        yield ['Total'] + total + ['{} %'.format(round(total[-4] * 100. / total[-5], 1))]
+        yield ['Total'] + total + [
+                '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
+                '{} %'.format(round(total[-4] * 100. / total[-5], 1))
+        ]
 
     @retry(stop_max_attempt_number=10)
     def pop_unmerged_tasks(self, workflow, bytes, num):

@@ -285,7 +285,7 @@ class TaskProvider(object):
                 Number of cores available.
             tasks : dict
                 Dictionary with category names as keys and the number of
-                tasks in the queu as values.
+                tasks in the queue as values.
         """
         # How many cores we need to occupy: have at least 10% of the
         # available cores provisioned with waiting work

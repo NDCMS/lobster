@@ -435,22 +435,16 @@ def copy_outputs(data, config, env):
 
         outsize += os.path.getsize(localname)
 
-        # using try just in case. Successful tasks should always
-        # have an existing Events::TTree though.
-        # Ha! Unless their output is not an EDM ROOT file, but
-        # some other kind of file.  Good thing you used a try!
         try:
             outsize_bare += get_bare_size(localname)
         except IOError as error:
-            logger.warning(error)
-            logger.warning('Could not calculate size as EDM ROOT file, try treating as regular file')
-
-            # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
+            logger.warning('detected non-EDM output; using filesystem-reported file size for merge calculation')
             try:
                 outsize_bare += os.path.getsize(localname)
-            except OSError as error:
-                logger.error(error)
-                logger.error('Could not get size of output file {0} (may not exist)'.format(localname))
+            except OSError as e:
+                logger.error('missing output file {}: {}'.format(localname, e))
+            except Exception as e:
+                logger.error("file size detection for {} failed with: {}".format(localname, e))
 
         for output in config['output']:
             if output.startswith('file://'):
@@ -666,6 +660,10 @@ def extract_cmssw_times(log_filename, default=None):
 
 def get_bare_size(filename):
     """Get the output bare size.
+
+    This size does not include space taken up by headers and other
+    metadata in EDM files. It is needed to predict how many input
+    files will result in a merged output file of a given size.
 
     Extracts Events->TTree::GetZipBytes()
     """

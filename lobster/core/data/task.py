@@ -770,12 +770,12 @@ target_se = config['default se']
 logger.info("using sync CE {}".format(sync_ce))
 
 parameters = {
-            'ExeStart': str(config['executable']),
-            'NCores': config.get('cores', 1),
-            'SyncCE': sync_ce,
-            'SyncGridJobId': syncid,
-            'WNHostName': socket.getfqdn()
-            }
+    'ExeStart': str(config['executable']),
+    'NCores': config.get('cores', 1),
+    'SyncCE': sync_ce,
+    'SyncGridJobId': syncid,
+    'WNHostName': socket.getfqdn()
+}
 
 apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
 apmonFree()
@@ -919,20 +919,20 @@ logger.debug("Reporting StageOutSE {}".format(stageout_se))
 logger.debug("Reporting StageOutExitCode {}".format(stageout_exit_code))
 
 parameters = {
-            'ExeTime': str(exe_time),
-            'ExeExitCode': str(exe_exit_code),
-            'JobExitCode': str(task_exit_code),
-            'JobExitReason': '',
-            'StageOutSE': stageout_se,
-            'StageOutExitStatus': str(stageout_exit_code),
-            'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
-            'CrabUserCpuTime': str(cputime),
-            'CrabWrapperTime': str(total_time),
-            'WCCPU': str(total_time),
-            'NoEventsPerRun': str(events_per_run),
-            'NbEvPerRun': str(events_per_run),
-            'NEventsProcessed': str(events_per_run)
-            }
+    'ExeTime': str(exe_time),
+    'ExeExitCode': str(exe_exit_code),
+    'JobExitCode': str(task_exit_code),
+    'JobExitReason': '',
+    'StageOutSE': stageout_se,
+    'StageOutExitStatus': str(stageout_exit_code),
+    'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
+    'CrabUserCpuTime': str(cputime),
+    'CrabWrapperTime': str(total_time),
+    'WCCPU': str(total_time),
+    'NoEventsPerRun': str(events_per_run),
+    'NbEvPerRun': str(events_per_run),
+    'NEventsProcessed': str(events_per_run)
+}
 try:
     parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
 except:

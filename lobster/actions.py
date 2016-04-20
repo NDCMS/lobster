@@ -73,7 +73,8 @@ class Actions(object):
             if not force and hasattr(self, 'p') and self.p.is_alive():
                 logger.info('plotting still running, skipping')
             else:
-                if force and hasattr(self, 'p'):
+                if hasattr(self, 'p'):
+                    logger.debug('joining plotting process')
                     self.p.join()
                 logger.info('starting plotting process')
                 self.p = multiprocessing.Process(target=runplots, args=(self.plotter, self.config.foremen_logs))

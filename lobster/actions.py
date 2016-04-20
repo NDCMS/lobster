@@ -69,14 +69,15 @@ class Actions(object):
         self.__communicate()
 
         now = datetime.datetime.now()
-        if (now - self.__last).seconds > 15 * 60 or force:
-            if not force and hasattr(self, 'p') and self.p.is_alive():
-                logger.info('plotting still running, skipping')
-            else:
-                if force and hasattr(self, 'p'):
-                    self.p.join()
-                logger.info('starting plotting process')
-                self.p = multiprocessing.Process(target=runplots, args=(self.plotter, self.config.foremen_logs))
-                self.p.start()
-            self.__last = now
+        if hasattr(self, 'plotter'):
+            if (now - self.__last).seconds > 15 * 60 or force:
+                if not force and hasattr(self, 'p') and self.p.is_alive():
+                    logger.info('plotting still running, skipping')
+                else:
+                    if force and hasattr(self, 'p'):
+                        self.p.join()
+                    logger.info('starting plotting process')
+                    self.p = multiprocessing.Process(target=runplots, args=(self.plotter, self.config.foremen_logs))
+                    self.p.start()
+                self.__last = now
 

@@ -74,7 +74,7 @@ space.  The factory can then be started with::
 
 .. _condor: http://condor.cse.nd.edu/condor_matrix.cgi
 .. _external bandwidth: http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0
-.. _squid server: http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=ndcms.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=
+.. _squid server: http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=eddie.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=
 
 Using a Chirp server
 --------------------
@@ -126,5 +126,5 @@ something like::
     cp -r /usr/lib/hadoop/ .
     cp /usr/lib64/libhdfs* hadoop/lib/
     env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop LIBHDFS_OPTS=-Xmx100m chirp_server \
-            --root=hdfs://ndcms.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop> \
+            --root=hdfs://eddie.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop> \
             -A ~/acl -p <your_port>

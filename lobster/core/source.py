@@ -508,7 +508,7 @@ class TaskProvider(object):
                     for dep in wflow.dependents:
                         propagate[dep.label][outfn] = outinfo
 
-                if merge and wflow.merge_cleanup:
+                if merge or wflow.cleanup_input:
                     files = handler.input_files
                     cleanup += files
 

@@ -207,13 +207,13 @@ class TaskHandler(object):
             failed = True
             summary.wq(task.result, task.tag)
 
-            if task.result & wq.WORK_QUEUE_RESULT_MAX_RETRIES:
+            if task.result == wq.WORK_QUEUE_RESULT_MAX_RETRIES:
                 exit_code = 10020
-            elif task.result & wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME:
+            elif task.result == wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME:
                 exit_code = 10030
-            elif task.result & wq.WORK_QUEUE_RESULT_TASK_TIMEOUT:
+            elif task.result == wq.WORK_QUEUE_RESULT_TASK_TIMEOUT:
                 exit_code = 10010
-            elif task.result & wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION:
+            elif task.result == wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION:
                 if task.resources_measured.limits_exceeded.wall_time > 0:
                     exit_code = 10030
                 elif task.resources_measured.limits_exceeded.memory > 0:

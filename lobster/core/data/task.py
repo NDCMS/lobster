@@ -334,7 +334,7 @@ def copy_inputs(data, config, env):
                 logger.info("Trying srm access method")
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
-                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
@@ -464,7 +464,7 @@ def copy_outputs(data, config, env):
             elif output.startswith('srm://'):
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
-                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2"]
+                    prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]

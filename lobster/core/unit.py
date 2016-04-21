@@ -673,13 +673,13 @@ class UnitStore:
                 units,
                 units - units_masked,
                 units_done,
-                ifnull((select count(*) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0),
+                ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0),
                 units_paused,
                 '' || round(
                         units_done * 100.0 / units,
                     1) || ' %',
                 '' || ifnull(round(
-                        ifnull((select count(*) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units_done,
+                        ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units_done,
                     1), 0.0) || ' %'
             from workflows""")
 

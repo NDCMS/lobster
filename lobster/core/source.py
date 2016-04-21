@@ -287,7 +287,18 @@ class TaskProvider(object):
                 Dictionary with category names as keys and the number of
                 tasks in the queu as values.
         """
-        logger.debug("creating tasks for {} cores total".format(total))
+        # How many cores we need to occupy: have at least 10% of the
+        # available cores provisioned with waiting work
+        need = total + max(int(0.1 * total), self.config.advanced.payload)
+        # Subtract all waiting cores
+        for name, queued in tasks.items():
+            need -= getattr(self.config.categories, name).cores * queued
+        hunger = max(need, 0)
+
+        if hunger == 0:
+            logger.debug("all cores occupied")
+            return []
+        logger.debug("need to fill {} cores".format(hunger))
 
         taskinfos = []
         sizes = {}
@@ -311,19 +322,6 @@ class TaskProvider(object):
                 wflows[cat] = [{}, {}]
             wflows[cat][0 if complete else 1][wflow.label] = int(math.ceil(tasks_left)) * wflow.category.cores
             sizes[cat] += int(math.ceil(tasks_left)) * wflow.category.cores
-
-        # How many cores we need to occupy: have at least 10% of the
-        # available cores provisioned with waiting work
-        need = total + max(int(0.1 * total), self.config.advanced.payload)
-        # Subtract all waiting cores
-        for name, queued in tasks.items():
-            need -= getattr(self.config.categories, name).cores * queued
-        hunger = max(need, 0)
-
-        logger.debug("need to fill {} cores".format(hunger))
-
-        if hunger == 0:
-            return []
 
         # Sort categories such that the smallest task limit is processed
         # first

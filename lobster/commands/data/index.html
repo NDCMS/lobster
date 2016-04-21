@@ -116,19 +116,22 @@
         </table>
 
         <h1 id="navtasks">Task Summary</h1>
-        {% if good_tasks or bad_tasks %}
         <div class="sidebar">
+        {% if good_tasks or bad_tasks %}
             <a class="workflow" href="all/time-pie.png"><img alt="" src="all/time-pie.png"/></a>
+        {% endif %}
         </div>
         <div class="maincontent">
+            <a class="workflow" href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
+        {% if good_tasks or bad_tasks %}
             <a class="workflow" href="all/all-tasks-hist.png"><img alt="" src="all/all-tasks-hist.png"/></a>
         {% if good_tasks %}
             <h3>Efficiency</h3>
             <a href="all/cpu-wall-hist.png"><img alt="" src="all/cpu-wall-hist.png"/></a>
             <a href="all/cpu-wall-int-hist.png"><img alt="" src="all/cpu-wall-int-hist.png"/></a>
         {% endif %}
-        </div>
         {% endif %}
+        </div>
 
         <h1 id="navlobster"><span class="lobster">Lobster</span> Summary</h1>
         <div class="sidebar" style="padding:0">

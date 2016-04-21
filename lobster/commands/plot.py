@@ -386,7 +386,7 @@ class Plotter(object):
         stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
         stats[:,headers['total_receive_time']] /= 60e6
 
-        if not filename:
+        if not filename and category == 'all':
             self.__total_xmin = stats[0,0]
             self.__total_xmax = stats[-1,0]
 
@@ -620,7 +620,8 @@ class Plotter(object):
         return table
 
     def make_master_plots(self, category, good_tasks, success_tasks):
-        headers, stats = self.readlog(category=category)
+        headers, stats = self.__category_stats[category]
+
         self.plot(
                 [
                     (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
@@ -944,7 +945,13 @@ class Plotter(object):
 
         # readlog() determines the time bounds of sql queries if not
         # specified explicitly.
-        _, _ = self.readlog()
+        self.__category_stats = {'all': self.readlog()}
+        for category in self.config.categories:
+            label = category.name
+            if label == 'merge':
+                continue
+            self.__category_stats[label] = self.readlog(category=label)
+
         good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
 
         success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
@@ -965,6 +972,18 @@ class Plotter(object):
                     'units remaining', 'units-total',
                     bins=50,
                     modes=[Plotter.PLOT|Plotter.TIME]
+            )
+
+            data = []
+            labels = []
+            for label, (headers, stats) in self.__category_stats.items():
+                data.append((stats[:,headers['timestamp']], stats[:,headers['tasks_running']]))
+                labels.append(label)
+
+            self.plot(
+                    data, 'Tasks running', 'tasks',
+                    modes=[Plotter.PLOT|Plotter.TIME],
+                    label=labels
             )
 
         # ----------

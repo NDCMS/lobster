@@ -57,7 +57,7 @@ class ReleaseSummary(object):
 
     def wq(self, status, taskid):
         for flag in ReleaseSummary.flags.keys():
-            if status & flag:
+            if status == flag:
                 try:
                     self.__wq[flag].append(taskid)
                 except KeyError:

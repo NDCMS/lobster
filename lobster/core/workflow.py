@@ -12,6 +12,8 @@ from lobster.core.dataset import ParentDataset, ProductionDataset
 from lobster.core.task import *
 from lobster.util import Configurable
 
+import work_queue as wq
+
 logger = logging.getLogger('lobster.workflow')
 
 class Category(Configurable):

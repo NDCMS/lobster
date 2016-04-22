@@ -40,6 +40,14 @@ class Category(Configurable):
         tasks : int
             How many tasks should be in the queue (running or waiting) at
             the same time.
+        mode : str
+            Dictates how `WorkQueue` handles exhausted resources. Possible
+            values are: `fixed` (task fails), `max` (task fails if a resource
+            is exhausted for which a max has been specified; unspecified
+            resources will be automatically adjusted and retried), `min_waste`
+            (same as `max` but allocations prioritize minimizing waste), or
+            `max_throughput` (same as `max`, but allocations prioritize
+            maximizing throughput).
     """
     _mutable = {
             'tasks': (None, None, tuple())
@@ -51,7 +59,8 @@ class Category(Configurable):
             runtime=None,
             memory=None,
             disk=None,
-            tasks=None
+            tasks=None,
+            allocation=None
             ):
         self.name = name
         self.cores = cores
@@ -59,6 +68,15 @@ class Category(Configurable):
         self.memory = memory
         self.disk = disk
         self.tasks = tasks
+
+        modes = {
+            'fixed': wq.WORK_QUEUE_ALLOCATION_MODE_FIXED,
+            'max': wq.WORK_QUEUE_ALLOCATION_MODE_MAX,
+            'min_waste': wq.WORK_QUEUE_ALLOCATION_MODE_MIN_WASTE,
+            'max_throughput': wq.WORK_QUEUE_ALLOCATION_MODE_MAX_THROUGHPUT
+        }
+
+        self.mode = modes[mode]
 
     def __eq__(self, other):
         return self.name == other.name

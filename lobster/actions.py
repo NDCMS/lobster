@@ -20,15 +20,6 @@ def runplots(plotter, foremen):
         import traceback
         traceback.print_exc()
 
-class DummyQueue(object):
-    def start(*args):
-        pass
-
-    def put(*args):
-        pass
-
-    def get(*args):
-        return None
 
 class Actions(object):
     def __init__(self, config, source):

@@ -62,7 +62,7 @@ class Category(Configurable):
             memory=None,
             disk=None,
             tasks=None,
-            allocation=None
+            mode='max_throughput'
             ):
         self.name = name
         self.cores = cores

@@ -233,6 +233,8 @@ def check_output(config, localname, remotename):
             server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
             args = [
                 os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                "--timeout",
+                "900",
                 server,
                 "stat",
                 os.path.join(path, remotename)
@@ -368,6 +370,8 @@ def copy_inputs(data, config, env):
                     "globus",
                     "-d",
                     "all",
+                    "--timeout",
+                    "900",
                     server,
                     remotename,
                     os.path.basename(remotename)
@@ -499,6 +503,8 @@ def copy_outputs(data, config, env):
                         "globus",
                         "-d",
                         "all",
+                        "--timout",
+                        "900",
                         localname,
                         server,
                         os.path.join(path, remotename)]

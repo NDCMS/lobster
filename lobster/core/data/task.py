@@ -503,7 +503,7 @@ def copy_outputs(data, config, env):
                         "globus",
                         "-d",
                         "all",
-                        "--timout",
+                        "--timeout",
                         "900",
                         localname,
                         server,
@@ -863,11 +863,12 @@ with check_execution(data, 210):
 if data['task exit code'] == 210:
     data['stageout exit code'] = 210
 
-transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
-if data['task exit code'] == 0 and not transfer_success:
-    data['task exit code'] = 211
-    data['stageout exit code'] = 211
-    data['output size'] = 0
+if data['stageout exit code'] != 210:
+    transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
+    if data['task exit code'] == 0 and not transfer_success:
+        data['task exit code'] = 211
+        data['stageout exit code'] = 211
+        data['output size'] = 0
 
 data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
 

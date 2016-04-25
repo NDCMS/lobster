@@ -167,6 +167,7 @@ class Process(Command):
 
         self.queue = wq.WorkQueue(-1)
         self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
+        self.queue.specify_transactions_log(os.path.join(self.config.workdir, "transactions.log"))
         self.queue.specify_name("lobster_" + self.config.label)
         self.queue.specify_keepalive_timeout(300)
         # self.queue.tune("short-timeout", 600)

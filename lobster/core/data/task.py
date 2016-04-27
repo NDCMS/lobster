@@ -233,6 +233,8 @@ def check_output(config, localname, remotename):
             server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
             args = [
                 os.path.join(os.environ.get("PARROT_PATH", "bin"), "chirp"),
+                "--timeout",
+                "900",
                 server,
                 "stat",
                 os.path.join(path, remotename)
@@ -368,6 +370,8 @@ def copy_inputs(data, config, env):
                     "globus",
                     "-d",
                     "all",
+                    "--timeout",
+                    "900",
                     server,
                     remotename,
                     os.path.basename(remotename)
@@ -499,6 +503,8 @@ def copy_outputs(data, config, env):
                         "globus",
                         "-d",
                         "all",
+                        "--timeout",
+                        "900",
                         localname,
                         server,
                         os.path.join(path, remotename)]
@@ -857,11 +863,12 @@ with check_execution(data, 210):
 if data['task exit code'] == 210:
     data['stageout exit code'] = 210
 
-transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
-if data['task exit code'] == 0 and not transfer_success:
-    data['task exit code'] = 211
-    data['stageout exit code'] = 211
-    data['output size'] = 0
+if data['stageout exit code'] != 210:
+    transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
+    if data['task exit code'] == 0 and not transfer_success:
+        data['task exit code'] = 211
+        data['stageout exit code'] = 211
+        data['output size'] = 0
 
 data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
 

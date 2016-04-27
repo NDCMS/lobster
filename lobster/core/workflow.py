@@ -29,27 +29,33 @@ class Category(Configurable):
     ----------
         name : str
             The name of the resource group.
+        mode : str
+            Dictates how `WorkQueue` handles exhausted resources. Possible
+            values are: `fixed` (task fails), `max` (the maximum allowed
+            resource consumption is set by the maximum seen in tasks of
+            that category; tasks are automatically adjusted and retried),
+            `min_waste` (same as `max`, but allocations prioritize
+            minimizing waste), or `max_throughput` (same as `max`, but
+            allocations prioritize maximizing throughput.)
         cores : int
-            The number of cores a task of the group should use.
+            The max number of cores required (`fixed` mode), or the
+            first guess for `WorkQueue` to determine the number of
+            cores required (all other modes).
+        memory : int
+            How much memory a task is allowed to use, in megabytes (`fixed`
+            mode), or the starting guess for `WorkQueue` to determine how
+            much memory a task requires (all other modes).
+        disk : int
+            How much disk a task is allowed to use, in megabytes (`fixed`
+            mode), or the starting guess for `WorkQueue` to determine how
+            much disk a task requires (all other modes.)
         runtime : int
             The runtime of the task in seconds.  Lobster will add a grace
             period to this time, and try to adjust the task size such that
             this runtime is achieved.
-        memory : int
-            How much memory a task is allowed to use, in megabytes.
-        disk : int
-            How much disk a task is allowed to use, in megabytes.
         tasks : int
             How many tasks should be in the queue (running or waiting) at
             the same time.
-        mode : str
-            Dictates how `WorkQueue` handles exhausted resources. Possible
-            values are: `fixed` (task fails), `max` (task fails if a resource
-            is exhausted for which a max has been specified; unspecified
-            resources will be automatically adjusted and retried), `min_waste`
-            (same as `max` but allocations prioritize minimizing waste), or
-            `max_throughput` (same as `max`, but allocations prioritize
-            maximizing throughput).
     """
     _mutable = {
             'tasks': (None, None, tuple())
@@ -57,12 +63,12 @@ class Category(Configurable):
 
     def __init__(self,
             name,
+            mode='max_throughput',
             cores=1,
-            runtime=None,
             memory=None,
             disk=None,
-            tasks=None,
-            mode='max_throughput'
+            runtime=None,
+            tasks=None
             ):
         self.name = name
         self.cores = cores

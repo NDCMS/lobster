@@ -106,7 +106,8 @@ class UnitStore:
             pset_hash text default null,
             publish_label text,
             release text,
-            uuid text)""")
+            uuid text,
+            single_file_max)""")
         self.db.execute("""create table if not exists tasks(
             bytes_bare_output int default 0 not null,
             bytes_output int default 0 not null,
@@ -184,8 +185,9 @@ class UnitStore:
                        units,
                        units_masked,
                        units_left,
-                       events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       events,
+                       single_file_max)
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
                            wflow.label,
                            label,
                            wflow.label,
@@ -200,7 +202,8 @@ class UnitStore:
                            dataset_info.total_units * len(unique_args),
                            dataset_info.masked_units,
                            dataset_info.total_units * len(unique_args),
-                           dataset_info.total_events))
+                           dataset_info.total_events,
+                           getattr(wflow, 'single_file_max', False)))
 
         self.db.execute("""create table if not exists files_{0}(
             id integer primary key autoincrement,
@@ -305,8 +308,8 @@ class UnitStore:
                 Factor to apply to the tasksize.
         """
         with self.db:
-            workflow_id, tasksize = self.db.execute(
-                    "select id, tasksize from workflows where label=?",
+            workflow_id, tasksize, single_file_max = self.db.execute(
+                    "select id, tasksize, single_file_max from workflows where label=?",
                     (workflow,)).fetchone()
 
             logger.debug(("creating {0} task(s) for workflow {1}:" +
@@ -343,6 +346,7 @@ class UnitStore:
                     select id, file, run, lumi, arg, failed
                     from units_{0}
                     where file in ({1}) and status not in (1, 2, 6, 7, 8)
+                    order by file
                     """.format(workflow, ', '.join('?' for _ in chunk)), chunk))
 
             logger.debug("creating tasks from {} files, {} units".format(len(files), len(rows)))
@@ -350,9 +354,6 @@ class UnitStore:
             # files and lumis for individual tasks
             files = set()
             units = []
-
-            # lumi veto to avoid duplicated processing
-            all_lumis = set()
 
             # task container and current task size
             tasks = []
@@ -372,11 +373,6 @@ class UnitStore:
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
-                if (run, lumi, arg) in all_lumis:
-                    logger.debug("skipping already processed unit with "\
-                            "run {}, lumi {}, arg {}".format(run, lumi, arg))
-                    continue
-
                 if failed > self.config.advanced.threshold_for_failure:
                     logger.debug("skipping run {}, "\
                         "lumi {} "\
@@ -387,41 +383,22 @@ class UnitStore:
                     )
                     continue
 
-                if current_size == 0:
-                    if num <= 0:
-                        break
-
                 if failed == self.config.advanced.threshold_for_failure:
                     logger.debug("creating isolation task for run {}, lumi {} with failure count {}".format(run, lumi, failed))
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 
-                if lumi > 0:
-                    all_lumis.add((run, lumi, arg))
-                    if arg is not None:
-                        cursor = self.db.execute("""
-                            select id, file, run, lumi
-                            from units_{0}
-                            where
-                                run=? and lumi=? and arg=? and
-                                status not in (1, 2, 6, 7, 8) and
-                                failed < ?""".format(workflow),
-                                (run, lumi, arg, self.config.advanced.threshold_for_failure))
-                    else:
-                        cursor = self.db.execute("""
-                            select id, file, run, lumi
-                            from units_{0}
-                            where
-                                run=? and lumi=? and
-                                status not in (1, 2, 6, 7, 8) and
-                                failed < ?""".format(workflow),
-                                (run, lumi, self.config.advanced.threshold_for_failure))
-                    for (ls_id, ls_file, ls_run, ls_lumi) in cursor:
-                        units.append((ls_id, ls_file, ls_run, ls_lumi))
-                        files.add(ls_file)
-                else:
-                    units.append((id, file, run, lumi))
-                    files.add(file)
+                if single_file_max and (len(files) == 1) and (file not in files):
+                    insert_task(files, units, arg)
+
+                    files = set()
+                    units = []
+
+                    current_size = 0
+                    num -= 1
+
+                units.append((id, file, run, lumi))
+                files.add(file)
 
                 current_size += 1
 
@@ -433,6 +410,10 @@ class UnitStore:
 
                     current_size = 0
                     num -= 1
+
+                if current_size == 0:
+                    if num <= 0:
+                        break
 
             if current_size > 0:
                 insert_task(files, units, arg)

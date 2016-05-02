@@ -923,3 +923,14 @@ class UnitStore:
             self.db.executemany("update tasks set status=3 where id=?", [(task,) for task in tasks])
             # reset merged tasks from merging
             self.db.executemany("update tasks set status=2 where task=?", [(task,) for task in tasks])
+
+    def finished_files(self, infos):
+        res = []
+        for label, files in infos.items():
+            res.extend(self.db.execute("""select filename
+                from files_{0}
+                where id in ({1}) and
+                (units_done == units)""".format(label, ', '.join('?' for _ in files)), tuple(files))
+            )
+
+        return (x[0] for x in res)

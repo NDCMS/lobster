@@ -119,12 +119,15 @@ Using a Hadoop backend
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Running `Chirp` with a direct connection to a Hadoop storage element may
-increase performance.  To set it up, which can end up quite complex, do
-something like::
+increase performance.  Setting it up, which can end up quite complex, at
+Notre Dame would look akin to the following::
 
     cd /var/tmp/
     cp -r /usr/lib/hadoop/ .
     cp /usr/lib64/libhdfs* hadoop/lib/
-    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop LIBHDFS_OPTS=-Xmx100m chirp_server \
+    env JAVA_HOME=/etc/alternatives/java_sdk/ HADOOP_HOME=$PWD/hadoop chirp_server \
             --root=hdfs://eddie.crc.nd.edu:19000/<your_stageout_directory_wo_leading_hadoop> \
             -A ~/acl -p <your_port>
+
+It may be necessary to adjust memory setting of the Java VM with, e.g.,
+the option ``LIBHDFS_OPTS=-Xmx100m``.

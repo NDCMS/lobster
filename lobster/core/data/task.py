@@ -62,6 +62,7 @@ console.setFormatter(mangler)
 
 logger = logging.getLogger('prawn')
 logger.addHandler(console)
+logger.propagate = False
 logger.setLevel(logging.DEBUG)
 
 fragment = """

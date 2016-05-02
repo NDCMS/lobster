@@ -709,7 +709,7 @@ class UnitStore:
             yield row
         yield ['Total'] + total + [
                 '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-                '{} %'.format(round(total[-4] * 100. / total[-5], 1))
+                '{} %'.format(round(total[-4] * 100. / total[-5], 1) if total[-5] > 0 else 0.)
         ]
 
     @retry(stop_max_attempt_number=10)

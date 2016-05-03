@@ -45,7 +45,7 @@ def boil():
             cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
             cfg.base_configuration = os.path.abspath(args.checkpoint)
             cfg.startup_directory = os.path.abspath(os.getcwd())
-    else:
+    elif os.path.isdir(args.checkpoint):
         # Load configuration from working directory passed to us
         workdir = args.checkpoint
         try:
@@ -53,6 +53,9 @@ def boil():
         except Exception as e:
             parser.error("the working directory '{0}' does not contain a valid configuration: {1}".format(workdir, e))
         cfg.workdir = workdir
+    else:
+        parser.error("the working directory or configuration '{0}' does not exist".format(args.checkpoint))
+
     args.config = cfg
 
     # Handle logging for everything in only one place!

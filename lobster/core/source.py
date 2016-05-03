@@ -483,6 +483,7 @@ class TaskProvider(object):
         cleanup = []
         update = defaultdict(list)
         propagate = defaultdict(dict)
+        input_files = defaultdict(set)
         summary = ReleaseSummary()
 
         for task in tasks:
@@ -508,9 +509,12 @@ class TaskProvider(object):
                     for dep in wflow.dependents:
                         propagate[dep.label][outfn] = outinfo
 
-                if merge or wflow.cleanup_input:
+                if merge:
                     files = handler.input_files
                     cleanup += files
+
+                if wflow.cleanup_input:
+                    input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
             self.__dash.update_task(task.tag, dash.RETRIEVED)
 
@@ -520,6 +524,13 @@ class TaskProvider(object):
 
         self.__dash.free()
 
+        if len(update) > 0:
+            logger.info(summary)
+            self.__store.update_units(update)
+
+        if wflow.cleanup_input and len(input_files) > 0:
+            cleanup.extend(self.__store.finished_files(input_files))
+
         if len(cleanup) > 0:
             try:
                 fs.remove(*cleanup)
@@ -527,10 +538,6 @@ class TaskProvider(object):
                 pass
             except ValueError as e:
                 logger.error("error removing {0}:\n{1}".format(task.tag, e))
-
-        if len(update) > 0:
-            logger.info(summary)
-            self.__store.update_units(update)
 
         for label, infos in propagate.items():
             self.__store.register_files(infos, label)

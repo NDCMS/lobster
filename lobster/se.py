@@ -367,7 +367,10 @@ class StorageConfiguration(Configurable):
             the remaining input files.  By using this setting, all input
             URLs will be attempted for all input files.
     """
-    _mutable = {}
+    _mutable = {
+            'input': (None, None, tuple()),
+            'output': (None, None, tuple())
+    }
 
     # Map protocol shorthands to actual protocol names
     __protocols = {
@@ -389,10 +392,10 @@ class StorageConfiguration(Configurable):
             disable_input_streaming=False,
             disable_stage_in_acceleration=False):
         if input is None:
-            self.__input = []
+            self.input = []
         else:
-            self.__input = map(self._expand_site, input)
-        self.__output = map(self._expand_site, output)
+            self.input = map(self.expand_site, input)
+        self.output = map(self.expand_site, output)
 
         self.use_work_queue_for_inputs = use_work_queue_for_inputs
         self.use_work_queue_for_outputs = use_work_queue_for_outputs
@@ -403,8 +406,8 @@ class StorageConfiguration(Configurable):
         self.disable_input_streaming = disable_input_streaming
         self.disable_stage_in_acceleration = disable_stage_in_acceleration
 
-        logger.debug("using input location {0}".format(self.__input))
-        logger.debug("using output location {0}".format(self.__output))
+        logger.debug("using input location {0}".format(self.input))
+        logger.debug("using output location {0}".format(self.output))
 
     def _find_match(self, protocol, site, path):
         """Extracts the LFN to PFN translation from the SITECONF.
@@ -429,10 +432,10 @@ class StorageConfiguration(Configurable):
             return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
         raise AttributeError("No match found for protocol {0} at site {1}, using {2}".format(protocol, site, path))
 
-    def _expand_site(self, url):
+    def expand_site(self, url):
         """Expands a CMS site label in a url to the corresponding server.
 
-        >>> StorageConfiguration({})._expand_site('root://T3_US_NotreDame/store/user/spam/ham/eggs')
+        >>> StorageConfiguration({}).expand_site('root://T3_US_NotreDame/store/user/spam/ham/eggs')
         u'root://xrootd.unl.edu//store/user/spam/ham/eggs'
         """
         protocol, server, path = url_re.match(url).groups()
@@ -457,7 +460,7 @@ class StorageConfiguration(Configurable):
         return self.use_work_queue_for_outputs
 
     def local(self, filename):
-        for url in self.__input + self.__output:
+        for url in self.input + self.output:
             protocol, server, path = url_re.match(url).groups()
 
             if protocol != 'file':
@@ -497,12 +500,12 @@ class StorageConfiguration(Configurable):
         """
         StorageElement.reset()
 
-        self._initialize(self.__input)
+        self._initialize(self.input)
 
         StorageElement.store()
         StorageElement.reset()
 
-        self._initialize(self.__output)
+        self._initialize(self.output)
 
     def preprocess(self, parameters, merge):
         """Adjust the storage transfer parameters sent with a task.
@@ -516,12 +519,12 @@ class StorageConfiguration(Configurable):
             Specify if this is a merging parameter set.
         """
         if self.__shuffle_inputs:
-            random.shuffle(self.__input)
+            random.shuffle(self.input)
         if self.__shuffle_outputs or (self.__shuffle_inputs and merge):
-            random.shuffle(self.__output)
+            random.shuffle(self.output)
 
-        parameters['input'] = self.__input if not merge else self.__output
-        parameters['output'] = self.__output
+        parameters['input'] = self.input if not merge else self.output
+        parameters['output'] = self.output
         parameters['disable streaming'] = self.disable_input_streaming
         if not self.disable_stage_in_acceleration:
             parameters['accelerate stage-in'] = 3

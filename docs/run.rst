@@ -131,3 +131,15 @@ Notre Dame would look akin to the following::
 
 It may be necessary to adjust memory setting of the Java VM with, e.g.,
 the option ``LIBHDFS_OPTS=-Xmx100m``.
+
+Changing configuration options
+------------------------------
+
+Lobster provides a ``configure`` command to change certain mutable
+parameters.  When running, the changes may take a while to show any effect.
+Parameters of the :class:`~lobster.core.config.Config` object may be
+changed with simple python expressions.  Example usage::
+
+    lobster configure "storage.output.append(storage.expand_site('root://T3_US_NotreDame/foo/bar'))" config.py
+    lobster configure "advanced_options.threshold_for_failure += 30"
+    lobster configure categories.io_intense.tasks=40

@@ -11,27 +11,23 @@ class Configure(Command):
         return 'change the configuration of a running lobster process'
 
     def setup(self, argparser):
-        argparser.add_argument('setting', help='the configuration setting to alter')
-        argparser.add_argument('value', help='the value to assign to the configuration setting')
+        argparser.add_argument('command', help='a python expression to change a mutable configuration setting')
 
     def run(self, args):
-        config = args.config
         logger = logging.getLogger('lobster.configure')
 
         try:
-            pidfile = util.get_lock(config.workdir)
+            pidfile = util.get_lock(args.config.workdir)
             logger.info("Lobster process not running, directly changing configuration.")
             with util.PartiallyMutable.lockdown():
-                cmd = 'config.{} = {}'.format(args.setting, args.value)
-                exec cmd in {'config': config}, {}
-                config.save()
+                exec args.command in {'config': args.config, 'storage': args.config.storage}, {}
+                args.config.save()
         except AlreadyLocked:
             logger.info("Lobster process still running, contacting process...")
-            cmd = 'config.{} = {}'.format(args.setting, args.value)
-            logger.info("sending command: " + cmd)
+            logger.info("sending command: " + args.command)
             logger.info("check the log of the main process for success")
 
-            icp = open(os.path.join(config.workdir, 'ipc'), 'w')
-            icp.write(cmd)
+            icp = open(os.path.join(args.config.workdir, 'ipc'), 'w')
+            icp.write(args.command)
         except Exception as e:
             logger.error("can't change values: {}".format(e))

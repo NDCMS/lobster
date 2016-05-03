@@ -107,7 +107,7 @@ class Configurable(object):
             narg = arg
             if not hasattr(self, arg):
                 narg = '_{}__{}'.format(self.__class__.__name__, arg)
-            if getattr(self, narg) != defaults[arg]:
+            if getattr(self, narg) != defaults.get(arg):
                 self.__kwargs[arg] = getattr(self, narg)
             elif arg in self.__kwargs:
                 del self.__kwargs[arg]

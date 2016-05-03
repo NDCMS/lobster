@@ -2,15 +2,12 @@ import datetime
 import logging
 import multiprocessing
 import os
-import re
 import time
 
 from lobster.commands.plot import Plotter
 from lobster.util import PartiallyMutable
 
 logger = logging.getLogger('lobster.actions')
-
-cmd_re = re.compile('^.* = [0-9]+$')
 
 def runplots(plotter, foremen):
     try:
@@ -42,12 +39,9 @@ class Actions(object):
         cmds = map(str.strip, self.fifo.readlines())
         for cmd in cmds:
             logger.debug('received commands: {}'.format(cmd))
-            if not cmd_re.match(cmd):
-                logger.error('invalid command received: {}'.format(cmd))
-                continue
             try:
                 with PartiallyMutable.lockdown():
-                    exec cmd in {'config': self.config}, {}
+                    exec cmd in {'config': self.config, 'storage': self.config.storage}, {}
                     self.config.save()
             except Exception as e:
                 logger.error('caught exeption from command: {}'.format(e))

@@ -59,5 +59,13 @@
   "output size": 15037503, 
   "events written": 4000, 
   "task exit code": 0, 
-  "stageout exit code": 0
+  "stageout exit code": 0,
+  "transfers": {
+    "chirp": {
+      "stageout success": 1
+    },
+    "srm": {
+      "stageout failure": 1
+    }
+  }
 }

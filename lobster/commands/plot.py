@@ -634,10 +634,16 @@ class Plotter(object):
         )
 
         for resource, unit in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
+            scale = 1
+            if unit == '/ MB' \
+                    and max(stats[:,headers['total_' + resource]]) > 1000 \
+                    and max(stats[:,headers['committed_' + resource]]) > 1000:
+                scale = 1000
+                unit = '/ GB'
             self.plot(
                     [
-                        (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]]),
-                        (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]])
+                        (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]] / scale),
+                        (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]] / scale)
                     ],
                     '{} {}'.format(resource[0].upper() + resource[1:], unit).strip(),
                     os.path.join(category, resource),

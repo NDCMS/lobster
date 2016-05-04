@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from collections import defaultdict, deque
+from collections import defaultdict, deque, Counter
 from contextlib import contextmanager
 from datetime import datetime
 import collections
@@ -271,6 +271,7 @@ def copy_inputs(data, config, env):
             config['file map'][filename] = file
 
             logger.info("WQ transfer of input file {} detected".format(file))
+            data['transfers']['wq']['stage-in success'] += 1
             continue
 
         # When the config specifies no "input," this implies to use
@@ -279,6 +280,7 @@ def copy_inputs(data, config, env):
             config['mask']['files'].append(file)
             config['file map'][file] = file
             logger.info("AAA access to input file {} detected".format(file))
+            data['transfers']['root']['stage-in success'] += 1
             continue
 
         # Since we didn't find the file already here and we're not
@@ -294,9 +296,11 @@ def copy_inputs(data, config, env):
                     config['file map'][filename] = file
 
                     logger.info("Local access to input file {} detected".format(path))
+                    data['transfers']['file']['stage-in success'] += 1
                     break
                 else:
                     logger.info("Local access to input file unavailable")
+                    data['transfers']['file']['stage-in failure'] += 1
             elif input.startswith('root://'):
                 logger.info("Trying xrootd access method")
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
@@ -324,12 +328,16 @@ def copy_inputs(data, config, env):
                             filename = 'file:' + os.path.basename(path)
                             config['mask']['files'].append(filename)
                             config['file map'][filename] = file
+                            data['transfers']['xrdcp']['stage-in success'] += 1
                             break
+                        else:
+                            data['transfers']['xrdcp']['stage-in failure'] += 1
                     else:
                         logger.info("will stream using xrootd instead of copying")
                         filename = os.path.join(input, file)
                         config['mask']['files'].append(filename)
                         config['file map'][filename] = file
+                        data['transfers']['root']['stage-in success'] += 1
                         break
                 else:
                     logger.info("xrootd access to input file unavailable")
@@ -357,9 +365,11 @@ def copy_inputs(data, config, env):
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
+                    data['transfers']['srm']['stage-in success'] += 1
                     break
                 else:
                     logger.error('Unable to copy input with SRM')
+                    data['transfers']['srm']['stage-in failure'] += 1
             elif input.startswith("chirp://"):
                 logger.info("Trying chirp access method")
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
@@ -383,9 +393,11 @@ def copy_inputs(data, config, env):
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
+                    data['transfers']['chirp']['stage-in success'] += 1
                     break
                 else:
                     logger.error('Unable to copy input with Chirp')
+                    data['transfers']['chirp']['stage-in failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-in method: {0}'.format(input))
         else:
@@ -457,9 +469,11 @@ def copy_outputs(data, config, env):
                         if check_output(config, localname, remotename):
                             transferred.append(localname)
                             target_se.append(default_se)
+                            data['transfers']['file']['stageout success'] += 1
                             break
                     except Exception as e:
                         logger.critical(e)
+                        data['transfers']['file']['stageout failure'] += 1
             elif output.startswith('srm://'):
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
@@ -489,7 +503,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
+                    data['transfers']['srm']['stageout success'] += 1
                     break
+                else:
+                    data['transfers']['srm']['stageout failure'] += 1
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 
@@ -509,7 +526,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
+                    data['transfers']['chirp']['stageout success'] += 1
                     break
+                else:
+                    data['transfers']['chirp']['stageout failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-out method: {0}'.format(output))
 
@@ -711,7 +731,8 @@ data = {
         'epilogue end': 0,
         'stage out end': 0,
     },
-    'events per run': 0
+    'events per run': 0,
+    'transfers': defaultdict(Counter)
 }
 
 env = os.environ

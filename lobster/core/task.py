@@ -1,3 +1,4 @@
+import collections
 import gzip
 import json
 import logging
@@ -109,7 +110,7 @@ class TaskHandler(object):
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
 
-    def process_report(self, task_update):
+    def process_report(self, task_update, transfers):
         """Read the report summary provided by `task.py`.
         """
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
@@ -139,6 +140,10 @@ class TaskHandler(object):
             exe_exit_code = data['exe exit code']
             stageout_exit_code = data['stageout exit code']
             task_exit_code = data['task exit code']
+
+            for protocol in data['transfers']:
+                transfers[self._dataset][protocol] += collections.Counter(data['transfers'][protocol])
+
             return files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code
 
     def process_wq_info(self, task, task_update):
@@ -172,7 +177,7 @@ class TaskHandler(object):
             task_update.network_bytes_received = task.resources_measured.bytes_received
             task_update.network_bytes_sent = task.resources_measured.bytes_sent
 
-    def process(self, task, summary):
+    def process(self, task, summary, transfers):
         exit_code = task.return_status
         failed = (exit_code != 0)
 
@@ -194,7 +199,7 @@ class TaskHandler(object):
 
         # May not all be there for failed tasks
         try:
-            files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update)
+            files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update, transfers)
         except (ValueError, EOFError) as e:
             failed = True
             logger.error("error processing {0}:\n{1}".format(task.tag, e))

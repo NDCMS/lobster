@@ -71,6 +71,9 @@ class StorageElement(object):
                 except (IOError, OSError) as e:
                     logger.debug("method {0} failed with {1}".format(imp, e))
                     lasterror = e
+                except TypeError as e:
+                    logger.debug("chirp binding received an unexpected type; method {0} failed with {1}".format(imp, e))
+                    lasterror = e
             raise AttributeError("no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch
 

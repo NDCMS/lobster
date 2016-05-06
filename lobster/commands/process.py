@@ -167,6 +167,7 @@ class Process(Command):
 
         self.queue = wq.WorkQueue(-1)
         self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
+        self.queue.specify_transactions_log(os.path.join(self.config.workdir, "transactions.log"))
         self.queue.specify_name("lobster_" + self.config.label)
         self.queue.specify_keepalive_timeout(300)
         # self.queue.tune("short-timeout", 600)
@@ -212,7 +213,11 @@ class Process(Command):
             if category.name != 'merge':
                 categories.append(category.name)
                 self.setup_logging(category.name)
-            self.queue.specify_max_category_resources(category.name, constraints)
+            self.queue.specify_category_mode(category.name, category.mode)
+            if category.mode == wq.WORK_QUEUE_ALLOCATION_MODE_FIXED:
+                self.queue.specify_category_max_resources(category.name, constraints)
+            else:
+                self.queue.specify_category_first_allocation_guess(category.name, constraints)
             logger.debug('Category {0}: {1}'.format(category.name ,constraints))
             if 'wall_time' not in constraints:
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)

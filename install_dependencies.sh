@@ -23,8 +23,8 @@ fi
 
 (
 	cd $VIRTUAL_ENV/src
-	wget -O - http://ccl.cse.nd.edu/software/files/cctools-current-source.tar.gz|tar xzf -
-	cd cctools*source
+	wget -O - https://github.com/btovar/cctools/archive/ndcms_mid2016_scale_run.tar.gz|tar xzf -
+	cd cctools*
 	sed -i 's/\(config_perl_path\)=auto/\1=no/' ./configure
 	./configure --prefix $VIRTUAL_ENV
 	make

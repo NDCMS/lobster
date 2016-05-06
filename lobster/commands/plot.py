@@ -917,9 +917,9 @@ class Plotter(object):
 
                 for resource, unit in (('cores', ''), ('disk', '/ MB'), ('memory', '/ MB')):
                     self.plot(
-                        [(tasks['time_transfer_in_start'], tasks['requested_' + resource])],
-                        'requested {} {}'.format(resource, unit).strip(),
-                        os.path.join(subdir, prefix + 'requested-' + resource),
+                        [(tasks['time_transfer_in_start'], tasks['allocated_' + resource])],
+                        'allocated {} {}'.format(resource, unit).strip(),
+                        os.path.join(subdir, prefix + 'allocated-' + resource),
                         modes=[Plotter.PROF|Plotter.TIME]
                     )
 

@@ -69,10 +69,11 @@ class StorageElement(object):
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
-                    logger.debug("method {0} failed with {1}".format(imp, e))
+                    logger.debug("method {0} failed with {1}, using args {2}, {3}".format(imp, e, args, kwargs))
                     lasterror = e
                 except TypeError as e:
-                    logger.debug("chirp binding received an unexpected type; method {0} failed with {1}".format(imp, e))
+                    logger.error("binding received an unexpected type; method {0} failed with {1}, using "
+                        "args {2}, {3}".format(imp, e, args, kwargs))
                     lasterror = e
             raise AttributeError("no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch

@@ -773,14 +773,16 @@ class Plotter(object):
                     [
                         np.sum(good_tasks['time_total_on_worker'] - good_tasks['time_on_worker'])
                             + np.sum(failed_tasks['time_total_on_worker'] - failed_tasks['time_on_worker']),
+                        np.sum(good_tasks['time_total_exhausted_execution'])
+                            + np.sum(failed_tasks['time_total_exhausted_execution']),
                         np.sum(failed_tasks['time_total_on_worker']),
                         np.sum(good_tasks['time_prologue_end'] - good_tasks['time_transfer_in_start']),
                         np.sum(good_tasks['time_processing_end'] - good_tasks['time_prologue_end']),
                         np.sum(good_tasks['time_transfer_out_end'] - good_tasks['time_processing_end'])
                     ],
-                    ["Eviction", "Failed", "Overhead", "Processing", "Stage-out"],
+                    ["Eviction", "Exhausted", "Failed", "Overhead", "Processing", "Stage-out"],
                     os.path.join(subdir, "time-pie"),
-                    colors=["crimson", "red", "dodgerblue", "green", "skyblue"]
+                    colors=["crimson", "coral", "red", "dodgerblue", "green", "skyblue"]
             )
 
             workflows = []
@@ -849,7 +851,8 @@ class Plotter(object):
                 # plot timeline
                 things_we_are_looking_at = [
                         # x-times              , y-times                                                                       , y-label                      , filestub             , color            , in pie
-                        ([(x['time_wrapper_start'], x['time_total_on_worker'] - x['time_on_worker']) for x in split_tasks]                          , 'Lost runtime'               , 'eviction'           , "crimson"        , False) , # red
+                        ([(x['time_wrapper_start'], x['time_total_until_worker_failure']) for x in split_tasks]                          , 'Eviction'               , 'eviction'           , "crimson"        , False) , # red
+                        ([(x['time_wrapper_start'], x['time_total_exhausted_execution']) for x in split_tasks]                          , 'Exhausted resources'               , 'exhaustion'           , "coral"        , False) , # orange
                         ([(x['time_wrapper_start'], x['time_processing_end'] - x['time_wrapper_start']) for x in split_tasks]            , 'Runtime'                    , 'runtime'            , "green"          , False) , # red
                         ([(x['time_wrapper_start'], x['time_transfer_in_end'] - x['time_transfer_in_start']) for x in split_tasks]                     , 'Input transfer'             , 'transfer-in'        , "black"          , True)  , # gray
                         ([(x['time_wrapper_start'], x['time_wrapper_start'] - x['time_transfer_in_end']) for x in split_tasks]                  , 'Startup'                    , 'startup'            , "darkorchid"     , True)  , # blue
@@ -925,6 +928,11 @@ class Plotter(object):
                     label=[self.wflow_labels[w] for w in wflows]
                 )
 
+                self.plot(
+                    [(tasks['time_retrieved'], tasks['exhausted_attempts'])],
+                    'exhausted attempts', os.path.join(subdir, prefix + 'exhausted-attempts'),
+                )
+
         if len(failed_tasks) > 0:
             logs = self.savelogs(failed_tasks)
 
@@ -956,6 +964,11 @@ class Plotter(object):
             self.plot(
                 [(failed_tasks['time_retrieved'], failed_tasks['workdir_footprint'])],
                 'working directory footprint / MB', os.path.join(subdir, 'failed-workdir-footprint'),
+            )
+
+            self.plot(
+                [(failed_tasks['time_retrieved'], failed_tasks['exhausted_attempts'])],
+                'exhausted attempts', os.path.join(subdir, 'failed-exhausted-attempts'),
             )
 
         else:

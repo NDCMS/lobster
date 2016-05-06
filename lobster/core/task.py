@@ -162,6 +162,8 @@ class TaskHandler(object):
         task_update.time_retrieved = task.finish_time / 1000000
         task_update.time_on_worker = task.cmd_execution_time / 1000000
         task_update.time_total_on_worker = task.total_cmd_execution_time / 1000000
+        task_update.time_total_exhausted_execution = task.total_cmd_exhausted_execute_time / 1000000
+        task_update.exhausted_attempts = task.exhausted_attempts
         if task.resources_requested:
             task_update.requested_cores = task.resources_requested.cores
             task_update.requested_disk = task.resources_requested.disk

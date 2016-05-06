@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from collections import defaultdict, deque
+from collections import defaultdict, deque, Counter
 from contextlib import contextmanager
 from datetime import datetime
 import collections
@@ -271,6 +271,7 @@ def copy_inputs(data, config, env):
             config['file map'][filename] = file
 
             logger.info("WQ transfer of input file {} detected".format(file))
+            data['transfers']['wq']['stage-in success'] += 1
             continue
 
         # When the config specifies no "input," this implies to use
@@ -279,6 +280,7 @@ def copy_inputs(data, config, env):
             config['mask']['files'].append(file)
             config['file map'][file] = file
             logger.info("AAA access to input file {} detected".format(file))
+            data['transfers']['root']['stage-in success'] += 1
             continue
 
         # Since we didn't find the file already here and we're not
@@ -294,9 +296,11 @@ def copy_inputs(data, config, env):
                     config['file map'][filename] = file
 
                     logger.info("Local access to input file {} detected".format(path))
+                    data['transfers']['file']['stage-in success'] += 1
                     break
                 else:
                     logger.info("Local access to input file unavailable")
+                    data['transfers']['file']['stage-in failure'] += 1
             elif input.startswith('root://'):
                 logger.info("Trying xrootd access method")
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
@@ -324,12 +328,16 @@ def copy_inputs(data, config, env):
                             filename = 'file:' + os.path.basename(path)
                             config['mask']['files'].append(filename)
                             config['file map'][filename] = file
+                            data['transfers']['xrdcp']['stage-in success'] += 1
                             break
+                        else:
+                            data['transfers']['xrdcp']['stage-in failure'] += 1
                     else:
                         logger.info("will stream using xrootd instead of copying")
                         filename = os.path.join(input, file)
                         config['mask']['files'].append(filename)
                         config['file map'][filename] = file
+                        data['transfers']['root']['stage-in success'] += 1
                         break
                 else:
                     logger.info("xrootd access to input file unavailable")
@@ -357,9 +365,11 @@ def copy_inputs(data, config, env):
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
+                    data['transfers']['srm']['stage-in success'] += 1
                     break
                 else:
                     logger.error('Unable to copy input with SRM')
+                    data['transfers']['srm']['stage-in failure'] += 1
             elif input.startswith("chirp://"):
                 logger.info("Trying chirp access method")
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
@@ -383,9 +393,11 @@ def copy_inputs(data, config, env):
                     filename = 'file:' + os.path.basename(file)
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
+                    data['transfers']['chirp']['stage-in success'] += 1
                     break
                 else:
                     logger.error('Unable to copy input with Chirp')
+                    data['transfers']['chirp']['stage-in failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-in method: {0}'.format(input))
         else:
@@ -435,22 +447,16 @@ def copy_outputs(data, config, env):
 
         outsize += os.path.getsize(localname)
 
-        # using try just in case. Successful tasks should always
-        # have an existing Events::TTree though.
-        # Ha! Unless their output is not an EDM ROOT file, but
-        # some other kind of file.  Good thing you used a try!
         try:
             outsize_bare += get_bare_size(localname)
         except IOError as error:
-            logger.warning(error)
-            logger.warning('Could not calculate size as EDM ROOT file, try treating as regular file')
-
-            # Be careful here: getsize can thrown an exception!  No unhandled exceptions!
+            logger.warning('detected non-EDM output; using filesystem-reported file size for merge calculation')
             try:
                 outsize_bare += os.path.getsize(localname)
-            except OSError as error:
-                logger.error(error)
-                logger.error('Could not get size of output file {0} (may not exist)'.format(localname))
+            except OSError as e:
+                logger.error('missing output file {}: {}'.format(localname, e))
+            except Exception as e:
+                logger.error("file size detection for {} failed with: {}".format(localname, e))
 
         for output in config['output']:
             if output.startswith('file://'):
@@ -463,9 +469,11 @@ def copy_outputs(data, config, env):
                         if check_output(config, localname, remotename):
                             transferred.append(localname)
                             target_se.append(default_se)
+                            data['transfers']['file']['stageout success'] += 1
                             break
                     except Exception as e:
                         logger.critical(e)
+                        data['transfers']['file']['stageout failure'] += 1
             elif output.startswith('srm://'):
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0:
@@ -495,7 +503,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
+                    data['transfers']['srm']['stageout success'] += 1
                     break
+                else:
+                    data['transfers']['srm']['stageout failure'] += 1
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 
@@ -515,7 +526,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
+                    data['transfers']['chirp']['stageout success'] += 1
                     break
+                else:
+                    data['transfers']['chirp']['stageout failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-out method: {0}'.format(output))
 
@@ -667,6 +681,10 @@ def extract_cmssw_times(log_filename, default=None):
 def get_bare_size(filename):
     """Get the output bare size.
 
+    This size does not include space taken up by headers and other
+    metadata in EDM files. It is needed to predict how many input
+    files will result in a merged output file of a given size.
+
     Extracts Events->TTree::GetZipBytes()
     """
     rootfile = TFile(filename, "READ")
@@ -713,7 +731,8 @@ data = {
         'epilogue end': 0,
         'stage out end': 0,
     },
-    'events per run': 0
+    'events per run': 0,
+    'transfers': defaultdict(Counter)
 }
 
 env = os.environ
@@ -772,12 +791,12 @@ target_se = config['default se']
 logger.info("using sync CE {}".format(sync_ce))
 
 parameters = {
-            'ExeStart': str(config['executable']),
-            'NCores': config.get('cores', 1),
-            'SyncCE': sync_ce,
-            'SyncGridJobId': syncid,
-            'WNHostName': socket.getfqdn()
-            }
+    'ExeStart': str(config['executable']),
+    'NCores': config.get('cores', 1),
+    'SyncCE': sync_ce,
+    'SyncGridJobId': syncid,
+    'WNHostName': socket.getfqdn()
+}
 
 apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
 apmonFree()
@@ -921,20 +940,20 @@ logger.debug("Reporting StageOutSE {}".format(stageout_se))
 logger.debug("Reporting StageOutExitCode {}".format(stageout_exit_code))
 
 parameters = {
-            'ExeTime': str(exe_time),
-            'ExeExitCode': str(exe_exit_code),
-            'JobExitCode': str(task_exit_code),
-            'JobExitReason': '',
-            'StageOutSE': stageout_se,
-            'StageOutExitStatus': str(stageout_exit_code),
-            'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
-            'CrabUserCpuTime': str(cputime),
-            'CrabWrapperTime': str(total_time),
-            'WCCPU': str(total_time),
-            'NoEventsPerRun': str(events_per_run),
-            'NbEvPerRun': str(events_per_run),
-            'NEventsProcessed': str(events_per_run)
-            }
+    'ExeTime': str(exe_time),
+    'ExeExitCode': str(exe_exit_code),
+    'JobExitCode': str(task_exit_code),
+    'JobExitReason': '',
+    'StageOutSE': stageout_se,
+    'StageOutExitStatus': str(stageout_exit_code),
+    'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
+    'CrabUserCpuTime': str(cputime),
+    'CrabWrapperTime': str(total_time),
+    'WCCPU': str(total_time),
+    'NoEventsPerRun': str(events_per_run),
+    'NbEvPerRun': str(events_per_run),
+    'NEventsProcessed': str(events_per_run)
+}
 try:
     parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
 except:

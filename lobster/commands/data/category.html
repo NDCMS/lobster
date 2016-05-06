@@ -184,6 +184,27 @@
             <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
             <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
         {% endif %}
+        {% if good_tasks or bad_tasks %}
+	    <h3>Transfer Protocol Summary</h3>
+    	    <table class="fancy">
+	    <tr>
+	        <th>Protocol</th>
+	        <th>Stage-in Success</th>
+	        <th>Stage-in Failure</th>
+	        <th>Stageout Success</th>
+	        <th>Stageout Failure</th>
+	    </tr>
+	    {% for protocol in transfers %}
+	    <tr {{ loop.cycle('', 'class="alt"') }}>
+	        <td>{{ protocol }}</td>
+	        <td>{{ transfers[protocol]['stage-in success'] }}</td>
+	        <td>{{ transfers[protocol]['stage-in failure'] }}</td>
+	        <td>{{ transfers[protocol]['stageout success'] }}</td>
+	        <td>{{ transfers[protocol]['stageout failure'] }}</td>
+	    </tr>
+	    {% endfor %}
+	    </table>
+        {% endif %}
         {% endif %}
         </div>
 

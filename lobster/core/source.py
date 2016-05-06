@@ -11,7 +11,7 @@ import subprocess
 import work_queue as wq
 import yaml
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 from hashlib import sha1
 
 from lobster import fs, se, util
@@ -285,7 +285,7 @@ class TaskProvider(object):
                 Number of cores available.
             tasks : dict
                 Dictionary with category names as keys and the number of
-                tasks in the queu as values.
+                tasks in the queue as values.
         """
         # How many cores we need to occupy: have at least 10% of the
         # available cores provisioned with waiting work
@@ -485,12 +485,13 @@ class TaskProvider(object):
         propagate = defaultdict(dict)
         input_files = defaultdict(set)
         summary = ReleaseSummary()
+        transfers = defaultdict(lambda: defaultdict(Counter))
 
         for task in tasks:
             self.__dash.update_task(task.tag, dash.DONE)
 
             handler = self.__taskhandlers[task.tag]
-            failed, task_update, file_update, unit_update = handler.process(task, summary)
+            failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
 
             wflow = getattr(self.config.workflows, handler.dataset)
 
@@ -541,6 +542,9 @@ class TaskProvider(object):
 
         for label, infos in propagate.items():
             self.__store.register_files(infos, label)
+
+        if len(transfers) > 0:
+            self.__store.update_transfers(transfers)
 
     def terminate(self):
         for id in self.__store.running_tasks():

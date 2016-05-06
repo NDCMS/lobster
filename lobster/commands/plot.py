@@ -1,5 +1,6 @@
 # vim: fileencoding=utf-8
 
+from collections import defaultdict, Counter
 from datetime import datetime
 import glob
 import gzip
@@ -14,6 +15,7 @@ import time
 import yaml
 import re
 import string
+import json
 
 import matplotlib
 matplotlib.use('Agg')
@@ -325,6 +327,7 @@ class Plotter(object):
         start_units = 0
         completed_units = []
         units_processed = {}
+        transfers = {}
         for (label,) in db.execute("select label from workflows"):
             total_units += db.execute("select count(*) from units_{0}".format(label)).fetchone()[0]
             start_units += db.execute("""
@@ -347,10 +350,14 @@ class Plotter(object):
                 from units_{0}, tasks
                 where units_{0}.task == tasks.id
                     and (units_{0}.status in (2, 6))""".format(label)).fetchall()
+            transfers[label] = json.loads(db.execute("""
+                select transfers
+                from workflows
+                where label=?""", (label,)).fetchone()[0])
 
         logger.debug('finished reading database')
 
-        return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, units_processed
+        return success_tasks, failed_tasks, summary_data, np.concatenate(completed_units), total_units, total_units - start_units, units_processed, transfers
 
     def readlog(self, filename=None, category='all'):
         if filename:
@@ -619,6 +626,20 @@ class Plotter(object):
             table.append([h, c] + [len(host_tasks[host_tasks['exit_code'] == f]) for f in failures])
         return table
 
+    def merge_transfers(self, transfers, labels):
+        res = defaultdict(lambda: Counter({
+                'stage-in success': 0,
+                'stageout success': 0,
+                'stage-in failure': 0,
+                'stageout failure': 0
+        }))
+
+        for label in labels:
+            for protocol in transfers[label]:
+                res[protocol].update(Counter(transfers[label][protocol]))
+
+        return res
+
     def make_master_plots(self, category, good_tasks, success_tasks):
         headers, stats = self.__category_stats[category]
 
@@ -634,10 +655,16 @@ class Plotter(object):
         )
 
         for resource, unit in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
+            scale = 1
+            if unit == '/ MB' \
+                    and max(stats[:,headers['total_' + resource]]) > 1000 \
+                    and max(stats[:,headers['committed_' + resource]]) > 1000:
+                scale = 1000
+                unit = '/ GB'
             self.plot(
                     [
-                        (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]]),
-                        (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]])
+                        (stats[:,headers['timestamp']], stats[:,headers['total_' + resource]] / scale),
+                        (stats[:,headers['timestamp']], stats[:,headers['committed_' + resource]] / scale)
                     ],
                     '{} {}'.format(resource[0].upper() + resource[1:], unit).strip(),
                     os.path.join(category, resource),
@@ -952,7 +979,7 @@ class Plotter(object):
                 continue
             self.__category_stats[label] = self.readlog(category=label)
 
-        good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed = self.readdb()
+        good_tasks, failed_tasks, summary_data, completed_units, total_units, start_units, units_processed, transfers = self.readdb()
 
         success_tasks = good_tasks[good_tasks['type'] == 0] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
         merge_tasks = good_tasks[good_tasks['type'] == 1] if len(good_tasks) > 0 else np.array([], good_tasks.dtype)
@@ -1026,6 +1053,8 @@ class Plotter(object):
         edges = self.make_master_plots('all', good_tasks, success_tasks)
         logs = self.make_workflow_plots('all', edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin, xmax)
 
+        labels = [w.label for w in self.config.workflows]
+
         with open(os.path.join(self.__plotdir, 'all', 'index.html'), 'w') as f:
             f.write(wflow.render(
                 id=self.config.label,
@@ -1038,7 +1067,8 @@ class Plotter(object):
                 bad_logs=logs,
                 bad_hosts=self.find_failure_hosts(failed_tasks),
                 foremen=foremen_names,
-                categories=categories
+                categories=categories,
+                transfers=self.merge_transfers(transfers, labels)
             ).encode('utf-8'))
 
         def add_total(summaries):
@@ -1093,7 +1123,8 @@ class Plotter(object):
                     bad_logs=logs,
                     bad_hosts=self.find_failure_hosts(wf_failed_tasks),
                     foremen=foremen_names,
-                    categories=categories
+                    categories=categories,
+                    transfers=self.merge_transfers(transfers, labels)
                 ).encode('utf-8'))
 
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:

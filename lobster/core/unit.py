@@ -1,4 +1,5 @@
-from collections import defaultdict
+from collections import Counter, defaultdict
+import json
 import logging
 import math
 import os
@@ -106,7 +107,8 @@ class UnitStore:
             pset_hash text default null,
             publish_label text,
             release text,
-            uuid text)""")
+            uuid text,
+            transfers text default '{}')""")
         self.db.execute("""create table if not exists tasks(
             bytes_bare_output int default 0 not null,
             bytes_output int default 0 not null,
@@ -934,3 +936,14 @@ class UnitStore:
             )
 
         return (x[0] for x in res)
+
+    def update_transfers(self, transfers):
+        for dataset in transfers:
+            data = json.loads(self.db.execute("select transfers from workflows where dataset=?", (dataset,)).fetchone()[0])
+
+            for protocol in transfers[dataset]:
+                if protocol in data:
+                    transfers[dataset][protocol] += Counter(data[protocol])
+
+            self.db.execute("update workflows set transfers=? where dataset=?", (json.dumps(transfers[dataset]), dataset))
+

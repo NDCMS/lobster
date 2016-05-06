@@ -1,3 +1,4 @@
+from collections import defaultdict, Counter
 import os
 import unittest
 
@@ -22,7 +23,7 @@ class TestTask(unittest.TestCase):
         summary = ReleaseSummary()
         handler = TaskHandler(1, "test", [], [], [],
                 os.path.join(os.path.dirname(__file__), "data/handler/successful"))
-        failed, task_update, file_update, unit_update = handler.process(DummyTask(), summary)
+        failed, task_update, file_update, unit_update = handler.process(DummyTask(), summary, defaultdict(lambda: defaultdict(Counter)))
         outinfo = handler.output_info
         assert outinfo.lumis == [(1, 261), (1, 262), (1, 263), (1, 264), (1, 265), (1, 266), (1, 267),
                 (1, 268), (1, 269), (1, 270), (1, 271), (1, 272), (1, 273), (1, 274), (1, 275),

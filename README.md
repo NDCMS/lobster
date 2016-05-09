@@ -14,6 +14,6 @@ event generation and analysis data processing, within the local
 
 # Read More
 
-See the [documentation](http://lobster.readthedocs.org) for installing and
+See the [documentation](http://lobster.readthedocs.io) for installing and
 running Lobster, and the [website](http://lobster.crc.nd.edu) for more
 general information.

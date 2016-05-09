@@ -306,6 +306,8 @@ def copy_inputs(data, config, env):
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
                 timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
+                    "env",
+                    "XRD_LOGLEVEL=Debug",
                     "timeout",
                     timeout,
                     "xrdfs",
@@ -318,6 +320,8 @@ def copy_inputs(data, config, env):
                     if config['disable streaming']:
                         logger.info("streaming has been disabled, attempting stage-in")
                         args = [
+                            "env",
+                            "XRD_LOGLEVEL=Debug",
                             "xrdcp",
                             os.path.join(input, file),
                             os.path.basename(file)
@@ -735,6 +739,7 @@ data = {
     'transfers': defaultdict(Counter)
 }
 
+logger.info('data is {0}'.format(str(data)))
 env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 

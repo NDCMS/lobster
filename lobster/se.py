@@ -233,36 +233,36 @@ class Chirp(StorageElement):
 
     def exists(self, path):
         try:
-            self.__c.stat(path)
+            self.__c.stat(str(path))
             return True
         except IOError:
             return False
 
     def getsize(self, path):
-        return self.__c.stat(path).size
+        return self.__c.stat(str(path)).size
 
     def isdir(self, path):
-        return len(self.__c.ls(path)) > 0
+        return len(self.__c.ls(str(path))) > 0
 
     def isfile(self, path):
-        return len(self.__c.ls(path)) == 0
+        return len(self.__c.ls(str(path))) == 0
 
     def ls(self, path):
-        for f in self.__c.ls(path):
+        for f in self.__c.ls(str(path)):
             if f.path not in ('.', '..'):
                 yield os.path.join(path, f.path)
 
     def mkdir(self, path, mode=None):
-        self.__c.mkdir(path)
+        self.__c.mkdir(str(path))
         if mode:
-            self.__c.chmod(path, mode)
+            self.__c.chmod(str(path), mode)
 
     def permissions(self, path):
-        return self.__c.stat(path).mode & 0777
+        return self.__c.stat(str(path)).mode & 0777
 
     def remove(self, *paths):
         for path in paths:
-            self.__c.rm(path)
+            self.__c.rm(str(path))
 
 class SRM(StorageElement):
     def __init__(self, pfnprefix):

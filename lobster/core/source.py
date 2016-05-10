@@ -292,7 +292,8 @@ class TaskProvider(object):
         need = total + max(int(0.1 * total), self.config.advanced.payload)
         # Subtract all waiting cores
         for name, queued in tasks.items():
-            need -= getattr(self.config.categories, name).cores * queued
+            cores = getattr(self.config.categories, name).cores if getattr(self.config.categories, name).cores else 1
+            need -= cores * queued
         hunger = max(need, 0)
 
         if hunger == 0:
@@ -320,13 +321,15 @@ class TaskProvider(object):
                 sizes[cat] = 0
             if cat not in wflows:
                 wflows[cat] = [{}, {}]
-            wflows[cat][0 if complete else 1][wflow.label] = int(math.ceil(tasks_left)) * wflow.category.cores
-            sizes[cat] += int(math.ceil(tasks_left)) * wflow.category.cores
+            cores = wflow.category.cores if wflow.category.cores else 1
+            wflows[cat][0 if complete else 1][wflow.label] = int(math.ceil(tasks_left)) * cores
+            sizes[cat] += int(math.ceil(tasks_left)) * cores
 
         # Sort categories such that the smallest task limit is processed
         # first
         def helper(cat):
-            return -cat.tasks * cat.cores if cat.tasks else None
+            cores = cat.cores if cat.cores else 1
+            return -cat.tasks * cores if cat.tasks else None
 
         # Go through categories, adjusting number of tasks
         count = sum(sizes.values())
@@ -334,45 +337,46 @@ class TaskProvider(object):
             if cat.name not in sizes or cat.name == 'merge':
                 continue
 
+            cores = cat.cores if cat.cores else 1
             ccores = int(math.ceil(hunger * sizes[cat.name] / float(count)))
             if cat.tasks:
-                ccores = min(ccores, (cat.tasks - tasks.get(cat.name, 0)) * cat.cores)
+                ccores = min(ccores, (cat.tasks - tasks.get(cat.name, 0)) * cores)
             ctotal = sizes[cat.name]
 
-            logger.debug(("creating tasks for category {c.name}:" +
-                    "\n\ttask limit:         {c.tasks}" +
+            logger.debug("creating tasks for category {c.name}:" +
+                    "\n\ttask limit:         {t}" +
                     "\n\ttasks in queue:     {cq}" +
-                    "\n\tcores per task:     {c.cores}" +
+                    "\n\tcores per task:     {c}" +
                     "\n\tcores to fill:      {cc}" +
-                    "\n\tcores able to fill: {ct}").format(
-                        c=cat, cc=ccores, ct=ctotal, cq=tasks.get(cat.name, 0)))
+                    "\n\tcores able to fill: {ct}".format(
+                        t=cat.tasks, cq=tasks.get(cat.name, 0), c=cores, cc=ccores, ct=ctotal))
 
             # Go through incomplete workflows associated with category
             for label, left in wflows[cat.name][1].items():
                 if ccores > 0:
-                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cat.cores))))
+                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cores))))
                     infos = self.__store.pop_units(label, ntasks)
                 else:
                     infos = []
                 logger.debug("created {} tasks for workflow {}".format(len(infos), label))
-                ccores -= len(infos) * cat.cores
-                hunger -= len(infos) * cat.cores
+                ccores -= len(infos) * cores
+                hunger -= len(infos) * cores
                 ctotal -= left
                 taskinfos += infos
 
             # Go through complete workflows associated with category
             for label, left in wflows[cat.name][0].items():
                 if ccores > 0:
-                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cat.cores))))
+                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cores))))
                     # If we should create more tasks than we can, calculate a
                     # scale factor to decrease the task size
-                    taper = min(1., float(left) / (ntasks * cat.cores))
+                    taper = min(1., float(left) / (ntasks * cores))
                     infos = self.__store.pop_units(label, ntasks, taper)
                 else:
                     infos = []
                 logger.debug("created {} tasks for workflow {}".format(len(infos), label))
-                ccores -= len(infos) * cat.cores
-                hunger -= len(infos) * cat.cores
+                ccores -= len(infos) * cores
+                hunger -= len(infos) * cores
                 ctotal -= left
                 taskinfos += infos
 

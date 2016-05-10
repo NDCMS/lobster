@@ -218,7 +218,7 @@ class Process(Command):
                 self.queue.specify_category_max_resources(category.name, constraints)
             else:
                 self.queue.specify_category_first_allocation_guess(category.name, constraints)
-            logger.debug('Category {0}: {1}'.format(category.name ,constraints))
+            logger.debug('Category {0}: {1}'.format(category.name, constraints))
             if 'wall_time' not in constraints:
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)
 

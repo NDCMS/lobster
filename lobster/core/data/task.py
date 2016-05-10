@@ -214,7 +214,7 @@ def check_output(config, localname, remotename):
                 logger.debug("local size: {0}".format(size))
                 return False
         else:
-            return False
+            raise RuntimeError('checking output for {0} failed: {1}'.format(file, stat))
 
     for output in config['output']:
         if output.startswith('root://'):
@@ -229,7 +229,10 @@ def check_output(config, localname, remotename):
                 os.path.join(path, remotename)
             ]
             p = run_subprocess(args, retry={53: 5})
-            return compare(p.stdout, localname)
+            try:
+                return compare(p.stdout, localname)
+            except RuntimeError as e:
+                logger.error(e)
         elif output.startswith("chirp://"):
             server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
             args = [
@@ -241,9 +244,12 @@ def check_output(config, localname, remotename):
                 os.path.join(path, remotename)
             ]
             p = run_subprocess(args)
-            return compare(p.stdout, localname)
+            try:
+                return compare(p.stdout, localname)
+            except RuntimeError as e:
+                logger.error(e)
 
-    return True
+    return False
 
 def copy_inputs(data, config, env):
     """Copies input files if desired.

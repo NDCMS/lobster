@@ -185,6 +185,7 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                 avg = np.divide(sums, counts)
                 avg_sq = np.divide(squares, counts)
                 err = np.sqrt(np.subtract(avg_sq, np.multiply(avg, avg)))
+                sel = counts > 0
 
                 newargs = dict(kwargs)
                 if 'color' in newargs:
@@ -192,8 +193,8 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                 if 'label' in newargs:
                     newargs['label'] = newargs['label'][i]
 
-                centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-                ax.errorbar(centers, avg, yerr=err, fmt='o', ms=3, capsize=0, **newargs)
+                centers = np.array([.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])])
+                ax.errorbar(centers[sel], avg[sel], yerr=err[sel], fmt='o', ms=3, capsize=0, **newargs)
 
                 data['data'].append((centers, avg, err))
 

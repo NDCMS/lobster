@@ -28,6 +28,6 @@ class Configure(Command):
             logger.info("check the log of the main process for success")
 
             icp = open(os.path.join(args.config.workdir, 'ipc'), 'w')
-            icp.write(args.command)
+            icp.write(args.command + '\n')
         except Exception as e:
             logger.error("can't change values: {}".format(e))

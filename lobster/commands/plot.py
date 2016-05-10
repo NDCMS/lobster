@@ -887,6 +887,11 @@ class Plotter(object):
                     )
 
                 self.plot(
+                    [(tasks['time_retrieved'], tasks['cores'])],
+                    'cores', os.path.join(subdir, prefix + 'cores'),
+                )
+
+                self.plot(
                     [
                         (tasks['time_retrieved'], tasks['memory_resident']),
                         (tasks['time_retrieved'], tasks['memory_virtual']),
@@ -952,6 +957,11 @@ class Plotter(object):
                     'Failed tasks', os.path.join(subdir, 'failed-tasks'),
                     modes=[Plotter.HIST|Plotter.TIME],
                     label=map(str, fail_labels)
+            )
+
+            self.plot(
+                [(tasks['time_retrieved'], tasks['cores'])],
+                'cores', os.path.join(subdir, 'failed-cores'),
             )
 
             self.plot(

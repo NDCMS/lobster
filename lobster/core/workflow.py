@@ -62,7 +62,7 @@ class Category(Configurable):
     }
 
     def __init__(self,
-            name,
+            name='default',
             mode='max_throughput',
             cores=None,
             memory=None,
@@ -84,7 +84,7 @@ class Category(Configurable):
             'max_throughput': wq.WORK_QUEUE_ALLOCATION_MODE_MAX_THROUGHPUT
         }
 
-        self.mode = modes[mode]
+        self.mode = modes[mode] if name != 'default' else modes['fixed']
 
     def __eq__(self, other):
         return self.name == other.name
@@ -175,7 +175,7 @@ class Workflow(Configurable):
     def __init__(self,
             label,
             dataset,
-            category=None,
+            category=Category(),
             publish_label=None,
             cleanup_input=False,
             merge_size=-1,

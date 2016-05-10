@@ -64,7 +64,7 @@ class Category(Configurable):
     def __init__(self,
             name,
             mode='max_throughput',
-            cores=1,
+            cores=None,
             memory=None,
             disk=None,
             runtime=None,

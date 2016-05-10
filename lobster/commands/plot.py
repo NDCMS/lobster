@@ -90,8 +90,8 @@ def mp_call(arg):
     fct, args, kwargs = arg
     try:
         fct(*args, **kwargs)
-    except ValueError as e:
-        logger.error('method {0} failed with {1}, using args {2}, {3}'.format(fct, e, args, kwargs))
+    except Exception as e:
+        logger.error('method {0} failed with "{1}", using args {2}, {3}'.format(fct, e, args, kwargs))
 
 def mp_pickle(plotdir, name, data):
     logger.debug("Saving data for {0}".format(name))

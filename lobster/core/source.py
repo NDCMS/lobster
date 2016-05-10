@@ -343,13 +343,13 @@ class TaskProvider(object):
                 ccores = min(ccores, (cat.tasks - tasks.get(cat.name, 0)) * cores)
             ctotal = sizes[cat.name]
 
-            logger.debug("creating tasks for category {c.name}:" +
-                    "\n\ttask limit:         {t}" +
+            logger.debug(("creating tasks for category {c.name}:" +
+                    "\n\ttask limit:         {c.tasks}" +
                     "\n\ttasks in queue:     {cq}" +
-                    "\n\tcores per task:     {c}" +
+                    "\n\tcores per task:     {cores}" +
                     "\n\tcores to fill:      {cc}" +
-                    "\n\tcores able to fill: {ct}".format(
-                        t=cat.tasks, cq=tasks.get(cat.name, 0), c=cores, cc=ccores, ct=ctotal))
+                    "\n\tcores able to fill: {ct}").format(
+                        c=cat, cq=tasks.get(cat.name, 0), cores=cores, cc=ccores, ct=ctotal))
 
             # Go through incomplete workflows associated with category
             for label, left in wflows[cat.name][1].items():

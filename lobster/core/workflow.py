@@ -175,7 +175,7 @@ class Workflow(Configurable):
     def __init__(self,
             label,
             dataset,
-            category=None,
+            category=Category('default', mode='fixed'),
             publish_label=None,
             cleanup_input=False,
             merge_size=-1,
@@ -195,7 +195,7 @@ class Workflow(Configurable):
         self.label = label
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
-        self.category = category if category else label
+        self.category = category
         self.dataset = dataset
 
         self.publish_label = publish_label if publish_label else label

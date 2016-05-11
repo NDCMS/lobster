@@ -62,7 +62,7 @@ class Category(Configurable):
     }
 
     def __init__(self,
-            name='default',
+            name,
             mode='max_throughput',
             cores=None,
             memory=None,
@@ -84,7 +84,7 @@ class Category(Configurable):
             'max_throughput': wq.WORK_QUEUE_ALLOCATION_MODE_MAX_THROUGHPUT
         }
 
-        self.mode = modes[mode] if name != 'default' else modes['fixed']
+        self.mode = modes[mode]
 
     def __eq__(self, other):
         return self.name == other.name
@@ -175,7 +175,7 @@ class Workflow(Configurable):
     def __init__(self,
             label,
             dataset,
-            category=Category(),
+            category=Category('default', mode='fixed'),
             publish_label=None,
             cleanup_input=False,
             merge_size=-1,
@@ -195,7 +195,7 @@ class Workflow(Configurable):
         self.label = label
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
-        self.category = category if category else label
+        self.category = category
         self.dataset = dataset
 
         self.publish_label = publish_label if publish_label else label

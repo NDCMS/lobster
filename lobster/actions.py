@@ -3,6 +3,7 @@ import logging
 import multiprocessing
 import os
 import time
+import traceback
 
 from lobster.commands.plot import Plotter
 from lobster.util import PartiallyMutable
@@ -13,9 +14,7 @@ def runplots(plotter, foremen):
     try:
         plotter.make_plots(foremen=foremen)
     except Exception as e:
-        logger.error("plotting failed with: {}".format(e))
-        import traceback
-        traceback.print_exc()
+        logger.error("plotting failed with: {}. Trace: {}".format(e, traceback.format_exc()))
 
 
 class Actions(object):

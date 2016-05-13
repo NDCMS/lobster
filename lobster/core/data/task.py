@@ -885,6 +885,13 @@ if epilogue and len(epilogue) > 0:
     with open('report.json', 'r') as f:
         data = json.load(f)
 
+        # Dumping `data` turns the defaultdict of Counters into a dict of
+        # dicts, so copy it back into a defaultdict of Counters
+        transfers = defaultdict(Counter)
+        for protocol in data['transfers']:
+            transfers[protocol].update(data['transfers'][protocol])
+        data['transfers'] = transfers
+
 data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
 
 stageout_se = target_se

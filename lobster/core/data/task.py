@@ -698,13 +698,17 @@ def get_bare_size(filename):
     Extracts Events->TTree::GetZipBytes()
     """
     rootfile = TFile(filename, "READ")
-    if rootfile.IsZombie() or not rootfile.GetListOfKeys().Contains('Events'):
-        raise IOError('The ROOT output file: {0} does not exist or does not contain TTree::Events'.format(filename))
-    else:
-        eventsTree = rootfile.Get("Events")
-        events_size = eventsTree.GetZipBytes()
-        rootfile.Close()
-        return events_size
+    if rootfile.IsZombie():
+        raise IOError("Can't open ROOT file '{0}'".format(filename))
+
+    size = 0
+    for treename in ("Events", "Runs", "Lumis"):
+        if not rootfile.GetListOfKeys().Contains(treename):
+            rootfile.Close()
+            raise IOError("Can't find tree '{1}' in  ROOT file '{0}'".format(filename, treename))
+        size += rootfile.Get(treename).GetZipBytes()
+    rootfile.Close()
+    return size
 
 
 configfile = sys.argv[1]

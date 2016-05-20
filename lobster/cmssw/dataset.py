@@ -1,12 +1,14 @@
 import logging
 import math
 import os
+import pickle
 import re
 import requests
 from retrying import retry
 import shutil
 import sys
 import tempfile
+import xdg.BaseDirectory
 
 from lobster.core.dataset import DatasetInfo
 from lobster.util import Configurable
@@ -37,9 +39,25 @@ class DASWrapper(DbsApi):
 
 class Cache(object):
     def __init__(self):
-        self.cache = tempfile.mkdtemp()
-    def __del__(self):
-        shutil.rmtree(self.cache)
+        self.cachedir = xdg.BaseDirectory.save_cache_path('lobster')
+
+    def cache(self, name, baseinfo, dataset):
+        logger.debug("writing dataset '{}' to cache".format(name))
+        cache = os.path.join(self.cachedir, name.replace('/', ':')) + '.pkl'
+        with open(cache, 'wb') as fd:
+            pickle.dump((baseinfo, dataset), fd)
+
+    def cached(self, name, baseinfo):
+        cache = os.path.join(self.cachedir, name.replace('/', ':')) + '.pkl'
+        try:
+            with open(cache, 'rb') as fd:
+                info, dset = pickle.load(fd)
+                if baseinfo == info:
+                    logger.debug("retrieved dataset '{}' from cache".format(name))
+                    return dset
+                return None
+        except:
+            return None
 
 
 class Dataset(Configurable):
@@ -85,7 +103,7 @@ class Dataset(Configurable):
             return url
 
         fn = os.path.basename(url)
-        cached = os.path.join(Dataset.__cache.cache, fn)
+        cached = os.path.join(Dataset.__cache.cachedir, fn)
         if not os.path.isfile(cached):
             r = requests.get(url)
             if not r.ok:
@@ -116,12 +134,17 @@ class Dataset(Configurable):
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
             self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
 
-        result = DatasetInfo()
 
-        infos = self.__apis[instance].listFileSummaries(dataset=dataset)
-        if infos is None or (len(infos) == 1 and infos[0] is None):
+        baseinfo = self.__apis[instance].listFileSummaries(dataset=dataset)
+        if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
             raise ValueError('unable to retrive information for dataset {}'.format(dataset))
-        result.total_events = sum([info['num_event'] for info in infos])
+
+        result = self.__cache.cached(dataset, baseinfo)
+        if result:
+            return result
+
+        result = DatasetInfo()
+        result.total_events = sum([info['num_event'] for info in baseinfo])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
             fn = info['logical_file_name']
@@ -148,5 +171,7 @@ class Dataset(Configurable):
 
         result.unmasked_units = sum([len(f.lumis) for f in result.files.values()])
         result.total_units = result.unmasked_units + result.masked_units
+
+        self.__cache.cache(dataset, baseinfo, result)
 
         return result

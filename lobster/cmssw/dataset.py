@@ -119,8 +119,8 @@ class Dataset(Configurable):
         result = DatasetInfo()
 
         infos = self.__apis[instance].listFileSummaries(dataset=dataset)
-        if infos is None:
-            raise IOError('dataset {} contains no files'.format(dataset))
+        if infos is None or (len(infos) == 1 and infos[0] is None):
+            raise ValueError('unable to retrive information for dataset {}'.format(dataset))
         result.total_events = sum([info['num_event'] for info in infos])
 
         for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):

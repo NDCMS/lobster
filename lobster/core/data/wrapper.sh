@@ -91,7 +91,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 *.opensciencegrid.org:pubkey=<BUILTIN-opensciencegrid.org.pub>,url=http://oasis-replica.opensciencegrid.org:8000/cvmfs/*;http://cvmfs.fnal.gov:8000/cvmfs/*;http://cvmfs.racf.bnl.gov:8000/cvmfs/*'
 
 	export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
-	export PARROT_CACHE=${TMPDIR:-.}
+	export PARROT_CACHE=${WORKER_TMPDIR:-${TMPDIR:-.}}
 	export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
 
 	log "parrot helper: $PARROT_HELPER"

@@ -241,14 +241,6 @@ class Process(Command):
                 logger.info("terminating gracefully")
                 break
 
-            stats = self.queue.stats_hierarchy
-            logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
-                    stats.workers_busy,
-                    stats.workers_busy + stats.workers_ready,
-                    units_left,
-                    stats.tasks_running,
-                    stats.tasks_waiting))
-
             expiry = None
             if proxy:
                 left = proxy.getTimeLeft()
@@ -266,6 +258,7 @@ class Process(Command):
                 have[c] = cstats.tasks_running + cstats.tasks_waiting
 
             t = time.time()
+            stats = self.queue.stats_hierarchy
             tasks = task_src.obtain(stats.total_cores, have)
 
             for category, cmd, id, inputs, outputs, env, dir in tasks:
@@ -297,7 +290,22 @@ class Process(Command):
                 self.queue.submit(task)
             creation_time += int((time.time() - t) * 1e6)
 
+            stats = self.queue.stats_hierarchy
+            logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
+                    stats.workers_busy,
+                    stats.workers_busy + stats.workers_ready,
+                    units_left,
+                    stats.tasks_running,
+                    stats.tasks_waiting))
+
             task_src.update(self.queue)
+
+            # recurring actions are triggered here; plotting etc should run
+            # while we have WQ hand us back tasks w/o any database
+            # interaction
+            if action:
+                action.take()
+
             starttime = time.time()
             task = self.queue.wait(interval)
             tasks = []
@@ -329,10 +337,6 @@ class Process(Command):
                 logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
                 abort_active = True
                 self.queue.activate_fast_abort(abort_multiplier)
-
-            # recurring actions are triggered here
-            if action:
-                action.take()
         if units_left == 0:
             logger.info("no more work left to do")
             if action:

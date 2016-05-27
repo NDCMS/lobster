@@ -1,0 +1,43 @@
+#!/bin/sh
+
+# A small script to test multiple branches at once.
+#
+# Use this script on your own risk!
+# Prerequisite for git actually finding this: export PATH=$PATH:.
+# Usage: git test-branches fix-bare-size cache-dbs-info ...
+
+if [ $# -le 0 ]; then
+	echo usage: $0 branch...
+	exit 1
+fi
+
+success=0
+
+git stash && stash=1
+
+git checkout master
+git fetch
+git pull --ff-only
+
+if [ !$? ]; then
+	git branch -D test
+	git checkout -b test
+	for i in $*; do
+		git merge -m "Merging $i" $i
+		if [ $? -ne 0 ]; then
+			echo "Merge failed for branch $i"
+			git merge --abort
+		else
+			success=1
+		fi
+	done
+fi
+
+if [ $success -eq 0 ]; then
+	echo "No merges succeeded - reverting to master"
+	git checkout master
+fi
+
+if [ "x$stash" != "x" ]; then
+	git stash pop
+fi

@@ -934,6 +934,7 @@ else:
 with check_execution(data, 193):
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)
+        f.write('\n')
 
 filename = 'report.xml'
 if os.path.isfile(filename):

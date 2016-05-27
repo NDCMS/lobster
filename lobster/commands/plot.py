@@ -31,6 +31,7 @@ from lobster.core.command import Command
 from WMCore.DataStructs.LumiList import LumiList
 
 matplotlib.rc('axes', labelsize='large')
+matplotlib.rc('axes.formatter', limits=(-3, 4))
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
@@ -644,8 +645,68 @@ class Plotter(object):
 
         return res
 
+    def make_time_fraction_plot(self, category):
+        headers, stats = self.__category_stats[category]
+
+        wq_labels = ['send', 'receive', 'idle']
+        lobster_labels = ['status', 'create', 'action', 'update', 'fetch', 'return']
+
+        edges = 50
+        def histogramize(label):
+            hist, edges_ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_{}_time'.format(label)]])
+            if isinstance(edges, int):
+                edges = edges_
+            return hist
+
+        wq_stats = dict((label, histogramize(label)) for label in wq_labels[:-1])
+        lobster_stats = dict((label, histogramize(label)) for label in lobster_labels)
+
+        everything = np.reduce(np.sum(lobster_stats.values()))
+        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - everything, 0)
+        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+
+        self.plot(
+                [
+                    (centers, np.divide(lobster_stats[label], everything)) for label in lobster_labels
+                ] + [
+                    (centers, np.divide(other, everything))
+                ],
+                'Fraction of time spent for Lobster', os.path.join(category, 'lobster-fraction'),
+                bins=edges,
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=lobster_labels,
+                ymax=1.
+        )
+
+        # This is the odd one out, since WQ only provides us with an idle
+        # fraction
+        idle_total = np.multiply(
+                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
+                stats[:,headers['idle_percentage']]
+        )
+        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
+        wq_stats['idle'] = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
+
+        everything = np.reduce(np.sum(wq_stats.values()))
+        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - everything, 0)
+
+        self.plot(
+                [
+                    (centers, np.divide(wq_stats[label], everything)) for label in wq_labels
+                ] + [
+                    (centers, np.divide(other, everything))
+                ],
+                'Fraction of time spent for WorkQueue', os.path.join(category, 'wq-fraction'),
+                bins=edges,
+                modes=[Plotter.HIST|Plotter.TIME],
+                label=wq_labels,
+                ymax=1.
+        )
+
     def make_master_plots(self, category, good_tasks, success_tasks):
         headers, stats = self.__category_stats[category]
+
+        self.make_time_fraction_plot(category)
 
         self.plot(
                 [
@@ -681,36 +742,6 @@ class Plotter(object):
                 'Tasks', os.path.join(category, 'tasks'),
                 modes=[Plotter.PLOT|Plotter.TIME],
                 label=['running']
-        )
-
-        sent, edges = np.histogram(stats[:,headers['timestamp']], bins=50, weights=stats[:,headers['total_send_time']])
-        received, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_receive_time']])
-        created, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_create_time']])
-        returned, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_return_time']])
-        idle_total = np.multiply(
-                stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
-                stats[:,headers['idle_percentage']]
-        )
-        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
-        idle, _ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
-        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - sent - received - created - returned - idle, 0)
-        all = other + sent + received + created + returned + idle
-        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
-
-        self.plot(
-                [
-                    (centers, np.divide(sent, all)),
-                    (centers, np.divide(received, all)),
-                    (centers, np.divide(created, all)),
-                    (centers, np.divide(returned, all)),
-                    (centers, np.divide(idle, all)),
-                    (centers, np.divide(other, all))
-                ],
-                'Fraction', os.path.join(category, 'fraction'),
-                bins=50,
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=['sending', 'receiving', 'creating', 'returning', 'idle', 'other'],
-                ymax=1.
         )
 
         self.plot(

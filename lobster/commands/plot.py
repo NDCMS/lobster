@@ -208,6 +208,14 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             else:
                 for (x, y) in a:
                     ax.plot(x, y)
+        elif mode & Plotter.STACK:
+            filename += '-stack'
+            t = []
+            ys = []
+            for x, y in a:
+                ys.append(y)
+                t = x
+            ax.stackplot(t, *ys, **kwargs)
 
         ax.grid(True)
 
@@ -232,8 +240,8 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                     '\n'.join([info.format(label + ':', avg, var, med) for label, (avg, var, med) in stats.items()]),
                     ha="center", transform=ax.transAxes, backgroundcolor='white')
 
-        if 'label' in kwargs:
-            ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs['label']), prop={'size': 7}, numpoints=1)
+        if 'label' in kwargs or 'labels' in kwargs:
+            ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(kwargs.get('label', kwargs.get('labels'))), prop={'size': 7}, numpoints=1)
 
         mp_pickle(plotdir, filename, data)
         mp_saveimg(plotdir, filename)
@@ -252,6 +260,7 @@ class Plotter(object):
     HIST = 2
     PLOT = 4
     PROF = 8
+    STACK = 16
 
     def __init__(self, config, outdir=None):
         self.config = config
@@ -384,19 +393,6 @@ class Plotter(object):
         stats[:,headers['total_workers_lost']] = np.maximum(stats[:,headers['total_workers_lost']] - np.roll(stats[:,headers['total_workers_lost']], 1, 0), 0)
         stats[:,headers['total_workers_idled_out']] = np.maximum(stats[:,headers['total_workers_idled_out']] - np.roll(stats[:,headers['total_workers_idled_out']], 1, 0), 0)
         stats[:,headers['total_workers_fast_aborted']] = np.maximum(stats[:,headers['total_workers_fast_aborted']] - np.roll(stats[:,headers['total_workers_fast_aborted']], 1, 0), 0)
-
-        if 'total_create_time' in headers:
-            # these are attributes present in the lobster stats log, but
-            # not wq logs
-            stats[:,headers['total_create_time']] -= np.roll(stats[:,headers['total_create_time']], 1, 0)
-            stats[:,headers['total_create_time']] /= 60e6
-            stats[:,headers['total_return_time']] -= np.roll(stats[:,headers['total_return_time']], 1, 0)
-            stats[:,headers['total_return_time']] /= 60e6
-
-        stats[:,headers['total_send_time']] -= np.roll(stats[:,headers['total_send_time']], 1, 0)
-        stats[:,headers['total_send_time']] /= 60e6
-        stats[:,headers['total_receive_time']] -= np.roll(stats[:,headers['total_receive_time']], 1, 0)
-        stats[:,headers['total_receive_time']] /= 60e6
 
         if not filename and category == 'all':
             self.__total_xmin = stats[0,0]
@@ -651,19 +647,21 @@ class Plotter(object):
         wq_labels = ['send', 'receive', 'idle']
         lobster_labels = ['status', 'create', 'action', 'update', 'fetch', 'return']
 
-        edges = 50
-        def histogramize(label):
-            hist, edges_ = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=stats[:,headers['total_{}_time'.format(label)]])
-            if isinstance(edges, int):
-                edges = edges_
-            return hist
+        times = stats[:,headers['timestamp']]
+        centers = ((times + np.roll(times, 1, 0)) * 0.5)[1:]
+        centers[0] = times[0]
+        centers[-1] = times[-1]
+        def diff(label):
+            label = 'total_{}_time'.format(label) if 'time' not in label else label
+            quant = stats[:,headers[label]]
+            return (quant - np.roll(quant, 1, 0))[1:]
 
-        wq_stats = dict((label, histogramize(label)) for label in wq_labels[:-1])
-        lobster_stats = dict((label, histogramize(label)) for label in lobster_labels)
+        wq_stats = dict((label, diff(label)) for label in wq_labels[:-1])
+        lobster_stats = dict((label, diff(label)) for label in lobster_labels)
 
-        everything = np.reduce(np.sum(lobster_stats.values()))
-        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - everything, 0)
-        centers = [.5 * (x + y) for x, y in zip(edges[:-1], edges[1:])]
+        time_diff = ((times - np.roll(times, 1, 0)) * 1e6)[1:]
+        everything = np.sum(lobster_stats.values(), axis=0)
+        other = time_diff - everything
 
         self.plot(
                 [
@@ -671,10 +669,9 @@ class Plotter(object):
                 ] + [
                     (centers, np.divide(other, everything))
                 ],
-                'Fraction of time spent for Lobster', os.path.join(category, 'lobster-fraction'),
-                bins=edges,
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=lobster_labels,
+                'Lobster fraction', os.path.join(category, 'lobster-fraction'),
+                modes=[Plotter.STACK|Plotter.TIME],
+                labels=lobster_labels + ['other'],
                 ymax=1.
         )
 
@@ -684,11 +681,10 @@ class Plotter(object):
                 stats[:,headers['timestamp']] - stats[0,headers['timestamp']],
                 stats[:,headers['idle_percentage']]
         )
-        idle_diff = (idle_total - np.roll(idle_total, 1, 0)) / 60.
-        wq_stats['idle'] = np.histogram(stats[:,headers['timestamp']], bins=edges, weights=idle_diff)
+        wq_stats['idle'] = (idle_total - np.roll(idle_total, 1, 0))[1:]
 
-        everything = np.reduce(np.sum(wq_stats.values()))
-        other = np.maximum([(y - x) / 60. for x, y in zip(edges[:-1], edges[1:])] - everything, 0)
+        everything = np.sum(wq_stats.values(), axis=0)
+        other = lobster_stats['fetch'] - everything
 
         self.plot(
                 [
@@ -696,15 +692,15 @@ class Plotter(object):
                 ] + [
                     (centers, np.divide(other, everything))
                 ],
-                'Fraction of time spent for WorkQueue', os.path.join(category, 'wq-fraction'),
-                bins=edges,
-                modes=[Plotter.HIST|Plotter.TIME],
-                label=wq_labels,
+                'WQ fraction', os.path.join(category, 'wq-fraction'),
+                modes=[Plotter.STACK|Plotter.TIME],
+                labels=wq_labels + ['other'],
                 ymax=1.
         )
 
     def make_master_plots(self, category, good_tasks, success_tasks):
         headers, stats = self.__category_stats[category]
+        edges = np.histogram(stats[:,headers['timestamp']], bins=50)[1]
 
         self.make_time_fraction_plot(category)
 

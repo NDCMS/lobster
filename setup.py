@@ -30,11 +30,12 @@ setup(
         'nose',
         'numpy>=1.9',
         'pycurl',
-        'pyyaml',
         'python-cjson', # actually a DBS dependency
         'python-daemon',
         'python-dateutil',
         'pytz',
+        'pyxdg',
+        'pyyaml',
         'requests',
         'retrying',
         'WMCore'

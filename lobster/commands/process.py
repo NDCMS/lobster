@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import daemon
 import datetime
 import inspect
@@ -37,6 +39,22 @@ class Terminate(Command):
         util.register_checkpoint(workdir, 'KILLED', 'PENDING')
 
 class Process(Command):
+    def __init__(self):
+        self.times = {
+                'action': 0,
+                'create': 0,
+                'fetch': 0,
+                'return': 0,
+                'status': 0,
+                'update': 0
+        }
+
+    @contextmanager
+    def measure(self, what):
+        t = time.time()
+        yield
+        self.times[what] += int((time.time() - t) * 1e6)
+
     @property
     def help(self):
         return "process configuration"
@@ -54,11 +72,13 @@ class Process(Command):
         with open(filename, "a") as statsfile:
             statsfile.write(
                     " ".join(
-                        ["#timestamp", "total_create_time", "total_return_time", "units_left"] + self.log_attributes
+                        ["#timestamp", "units_left"] +
+                        ["total_{}_time".format(k) for k in sorted(self.times.keys())] +
+                        self.log_attributes
                     ) + "\n"
             )
 
-    def log(self, category, creating, destroying, left):
+    def log(self, category, left):
         filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))
         if category == 'all':
             stats = self.queue.stats_hierarchy
@@ -68,10 +88,9 @@ class Process(Command):
         with open(filename, "a") as statsfile:
             now = datetime.datetime.now()
             statsfile.write(" ".join(map(str,
-                [
-                    int(int(now.strftime('%s')) * 1e6 + now.microsecond),
-                    creating, destroying, left
-                ] + [getattr(stats, a) for a in self.log_attributes]
+                [int(int(now.strftime('%s')) * 1e6 + now.microsecond), left] +
+                [self.times[k] for k in sorted(self.times.keys())] +
+                [getattr(stats, a) for a in self.log_attributes]
                 )) + "\n"
             )
 
@@ -198,9 +217,6 @@ class Process(Command):
         units_left = 0
         successful_tasks = 0
 
-        creation_time = 0
-        destruction_time = 0
-
         bad_exitcodes = self.config.advanced.bad_exit_codes
         categories = []
 
@@ -223,120 +239,126 @@ class Process(Command):
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)
 
         while not task_src.done():
-            tasks_left = task_src.tasks_left()
-            units_left = task_src.work_left()
+            with self.measure('status'):
+                tasks_left = task_src.tasks_left()
+                units_left = task_src.work_left()
 
-            logger.debug("expecting {0} tasks, still".format(tasks_left))
-            self.queue.specify_num_tasks_left(tasks_left)
+                logger.debug("expecting {0} tasks, still".format(tasks_left))
+                self.queue.specify_num_tasks_left(tasks_left)
 
-            for c in categories + ['all']:
-                self.log(c, creation_time, destruction_time, units_left)
+                for c in categories + ['all']:
+                    self.log(c, units_left)
 
-            if util.checkpoint(self.config.workdir, 'KILLED') == 'PENDING':
-                util.register_checkpoint(self.config.workdir, 'KILLED', str(datetime.datetime.utcnow()))
+                if util.checkpoint(self.config.workdir, 'KILLED') == 'PENDING':
+                    util.register_checkpoint(self.config.workdir, 'KILLED', str(datetime.datetime.utcnow()))
 
-                # let the task source shut down gracefully
-                logger.info("terminating task source")
-                task_src.terminate()
-                logger.info("terminating gracefully")
-                break
-
-            expiry = None
-            if proxy:
-                left = proxy.getTimeLeft()
-                if left == 0:
-                    logger.error("proxy expired!")
+                    # let the task source shut down gracefully
+                    logger.info("terminating task source")
                     task_src.terminate()
+                    logger.info("terminating gracefully")
                     break
-                elif left < 4 * 3600:
-                    logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
-                expiry = int(time.time()) + left
 
-            have = {}
-            for c in categories:
-                cstats = self.queue.stats_category(c)
-                have[c] = cstats.tasks_running + cstats.tasks_waiting
+            with self.measure('action'):
+                expiry = None
+                if proxy:
+                    left = proxy.getTimeLeft()
+                    if left == 0:
+                        logger.error("proxy expired!")
+                        task_src.terminate()
+                        break
+                    elif left < 4 * 3600:
+                        logger.warn("only {0}:{1:02} left in proxy lifetime!".format(left / 3600, left / 60))
+                    expiry = int(time.time()) + left
 
-            t = time.time()
-            stats = self.queue.stats_hierarchy
-            tasks = task_src.obtain(stats.total_cores, have)
+            with self.measure('create'):
+                have = {}
+                for c in categories:
+                    cstats = self.queue.stats_category(c)
+                    have[c] = cstats.tasks_running + cstats.tasks_waiting
 
-            for category, cmd, id, inputs, outputs, env, dir in tasks:
-                task = wq.Task(cmd)
-                task.specify_category(category)
-                task.specify_tag(id)
-                task.specify_max_retries(wq_max_retries)
-                task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
+                stats = self.queue.stats_hierarchy
+                tasks = task_src.obtain(stats.total_cores, have)
 
-                for k, v in env.items():
-                    task.specify_environment_variable(k, v)
+                for category, cmd, id, inputs, outputs, env, dir in tasks:
+                    task = wq.Task(cmd)
+                    task.specify_category(category)
+                    task.specify_tag(id)
+                    task.specify_max_retries(wq_max_retries)
+                    task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
 
-                for (local, remote, cache) in inputs:
-                    if os.path.isfile(local):
-                        cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
-                        task.specify_input_file(str(local), str(remote), cache_opt)
-                    elif os.path.isdir(local):
-                        task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
-                                wq.WORK_QUEUE_CACHE, recursive=True)
-                    else:
-                        logger.critical("cannot send file to worker: {0}".format(local))
-                        raise NotImplementedError
+                    for k, v in env.items():
+                        task.specify_environment_variable(k, v)
 
-                for (local, remote) in outputs:
-                    task.specify_output_file(str(local), str(remote))
+                    for (local, remote, cache) in inputs:
+                        if os.path.isfile(local):
+                            cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
+                            task.specify_input_file(str(local), str(remote), cache_opt)
+                        elif os.path.isdir(local):
+                            task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
+                                    wq.WORK_QUEUE_CACHE, recursive=True)
+                        else:
+                            logger.critical("cannot send file to worker: {0}".format(local))
+                            raise NotImplementedError
 
-                if expiry:
-                    task.specify_end_time(expiry * 10**6)
-                self.queue.submit(task)
-            creation_time += int((time.time() - t) * 1e6)
+                    for (local, remote) in outputs:
+                        task.specify_output_file(str(local), str(remote))
 
-            stats = self.queue.stats_hierarchy
-            logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
-                    stats.workers_busy,
-                    stats.workers_busy + stats.workers_ready,
-                    units_left,
-                    stats.tasks_running,
-                    stats.tasks_waiting))
+                    if expiry:
+                        task.specify_end_time(expiry * 10**6)
+                    self.queue.submit(task)
 
-            task_src.update(self.queue)
+            with self.measure('status'):
+                stats = self.queue.stats_hierarchy
+                logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
+                        stats.workers_busy,
+                        stats.workers_busy + stats.workers_ready,
+                        units_left,
+                        stats.tasks_running,
+                        stats.tasks_waiting))
+
+            with self.measure('update'):
+                task_src.update(self.queue)
 
             # recurring actions are triggered here; plotting etc should run
             # while we have WQ hand us back tasks w/o any database
             # interaction
-            if action:
-                action.take()
+            with self.measure('action'):
+                if action:
+                    action.take()
 
-            starttime = time.time()
-            task = self.queue.wait(interval)
-            tasks = []
-            while task:
-                if task.return_status == 0:
-                    successful_tasks += 1
-                elif task.return_status in bad_exitcodes:
-                    logger.warning("blacklisting host {0} due to bad exit code from task {1}".format(task.hostname, task.tag))
-                    self.queue.blacklist(task.hostname)
-                tasks.append(task)
+            with self.measure('fetch'):
+                starttime = time.time()
+                task = self.queue.wait(interval)
+                tasks = []
+                while task:
+                    if task.return_status == 0:
+                        successful_tasks += 1
+                    elif task.return_status in bad_exitcodes:
+                        logger.warning("blacklisting host {0} due to bad exit code from task {1}".format(task.hostname, task.tag))
+                        self.queue.blacklist(task.hostname)
+                    tasks.append(task)
 
-                remaining = int(starttime + interval - time.time())
-                if (interval - remaining < interval_minimum or self.queue.stats.tasks_waiting > 0) and remaining > 0:
-                    task = self.queue.wait(remaining)
-                else:
-                    task = None
+                    remaining = int(starttime + interval - time.time())
+                    if (interval - remaining < interval_minimum or self.queue.stats.tasks_waiting > 0) and remaining > 0:
+                        task = self.queue.wait(remaining)
+                    else:
+                        task = None
+                # TODO do we really need this?  We have everything based on
+                # categories by now, so this should not be needed.
+                if abort_threshold > 0 and successful_tasks >= abort_threshold and not abort_active:
+                    logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
+                    abort_active = True
+                    self.queue.activate_fast_abort(abort_multiplier)
             if len(tasks) > 0:
                 try:
-                    t = time.time()
-                    task_src.release(tasks)
-                    destruction_time += int((time.time() - t) * 1e6)
+                    with self.measure('return'):
+                        task_src.release(tasks)
                 except:
                     tb = traceback.format_exc()
                     logger.critical("cannot recover from the following exception:\n" + tb)
                     for task in tasks:
                         logger.critical("tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
-            if abort_threshold > 0 and successful_tasks >= abort_threshold and not abort_active:
-                logger.info("activating fast abort with multiplier: {0}".format(abort_multiplier))
-                abort_active = True
-                self.queue.activate_fast_abort(abort_multiplier)
         if units_left == 0:
             logger.info("no more work left to do")
             if action:

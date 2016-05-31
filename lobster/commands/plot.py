@@ -215,7 +215,7 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             for x, y in a:
                 ys.append(y)
                 t = x
-            ax.stackplot(t, *ys, **kwargs)
+            ax.stackplot(t, *ys, edgecolor='none', **kwargs)
 
         ax.grid(True)
 

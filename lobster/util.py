@@ -48,8 +48,7 @@ class PartiallyMutable(type):
                 name = ".".join([module, name])
             res._store(name, args, kwargs)
             for arg in inspect.getargspec(res.__init__).args[1:]:
-                private_arg = '_{}__{}'.format(name, arg)
-                if arg not in vars(res) and private_arg not in vars(res):
+                if arg not in vars(res):
                     raise AttributeError('class {} uses {} in the constructor, but does define it as property'.format(name, arg))
         except Exception as e:
             import sys
@@ -104,11 +103,9 @@ class Configurable(object):
         # Look for altered mutable properties, add them to constructor
         # arguments
         for arg in self._mutable:
-            narg = arg
-            if not hasattr(self, arg):
-                narg = '_{}__{}'.format(self.__class__.__name__, arg)
-            if getattr(self, narg) != defaults.get(arg):
-                self.__kwargs[arg] = getattr(self, narg)
+            arg = arg
+            if getattr(self, arg) != defaults.get(arg):
+                self.__kwargs[arg] = getattr(self, arg)
             elif arg in self.__kwargs:
                 del self.__kwargs[arg]
         def indent(text):
@@ -127,6 +124,52 @@ class Configurable(object):
         s = self.__name + "({}\n)".format(",".join(args + kwargs))
         return s
 
+    def update(self, other):
+        logger = logging.getLogger('lobster.configure')
+
+        if not isinstance(other, type(self)):
+            logger.error("can't compare {} and {}".format(type(self), type(other)))
+            return
+        argspec = inspect.getargspec(self.__init__)
+        for arg in argspec.args[1:]:
+            ours = getattr(self, arg)
+            our_original = self.__kwargs.get(arg, None)
+            theirs = getattr(other, arg)
+
+            if isinstance(ours, Configurable):
+                ours.update(theirs)
+            elif hasattr(ours, '__iter__'):
+                diff = len(ours) - len(theirs)
+                if diff != 0 and not arg in self._mutable:
+                    if our_original != theirs:
+                        logger.error("modified immutable list {}".format(arg))
+                elif diff > 0:
+                    logger.info("truncating list '{}' by removing elements {}".format(arg, ours[-diff:]))
+                    ours = ours[:-diff]
+                    setattr(self, arg, ours)
+                elif diff < 0:
+                    logger.info("expanding list '{}' by adding elements {}".format(arg, theirs[diff:]))
+                    ours += theirs[diff:]
+                    setattr(self, arg, ours)
+
+                for n in range(len(ours)):
+                    if hasattr(ours[n], '__iter__'):
+                        logger.error("nested list in attribute '{}' not supported".format(arg))
+                        continue
+                    elif isinstance(ours[n], Configurable):
+                        ours[n].update(theirs[n])
+                    elif ours[n] != theirs[n]:
+                        if our_original != theirs:
+                            logger.error("modified item in immutable list '{}'".format(arg))
+                            continue
+                        logger.info("updating item {} of list '{}' with value '{}' (old: '{}')".format(n, arg, theirs[n], ours[n]))
+                        ours[n] = theirs[n]
+            elif ours != theirs and our_original != theirs:
+                if arg not in self._mutable:
+                    logger.error("can't change value of immutable attribute '{}'".format(arg))
+                    continue
+                logger.info("updating attribute '{}' with value '{}' (old: '{}')".format(arg, theirs, ours))
+                ours = theirs
 
 def record(cls, *fields, **defaults):
     """

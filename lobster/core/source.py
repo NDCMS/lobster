@@ -150,6 +150,7 @@ class TaskProvider(object):
                 self.config.label,
                 sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
             util.register_checkpoint(self.workdir, 'id', self.taskid)
+            shutil.copy(self.config.base_configuration, os.path.join(self.workdir, 'config.py'))
         else:
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))

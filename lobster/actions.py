@@ -1,4 +1,5 @@
 import datetime
+import imp
 import logging
 import multiprocessing
 import os
@@ -6,7 +7,7 @@ import time
 import traceback
 
 from lobster.commands.plot import Plotter
-from lobster.util import PartiallyMutable
+from lobster import util
 
 logger = logging.getLogger('lobster.actions')
 
@@ -19,10 +20,6 @@ def runplots(plotter, foremen):
 
 class Actions(object):
     def __init__(self, config, source):
-        fn = os.path.join(config.workdir, 'ipc')
-        if not os.path.exists(fn):
-            os.mkfifo(fn)
-        self.fifo = os.fdopen(os.open(fn, os.O_RDONLY|os.O_NONBLOCK))
         self.config = config
         self.source = source
 
@@ -33,24 +30,26 @@ class Actions(object):
             self.plotter = Plotter(config)
 
         self.__last = datetime.datetime.now()
+        self.__last_config_update = util.checkpoint(config.workdir, 'configuration_check')
+        if not self.__last_config_update:
+            self.__last_config_update = time.time()
+            util.register_checkpoint(config.workdir, 'configuration_check', self.__last_config_update)
 
-    def __communicate(self):
-        cmds = map(str.strip, self.fifo.readlines())
-        for cmd in cmds:
-            logger.debug('received commands: {}'.format(cmd))
+    def update_configuration(self):
+        configfile = os.path.join(self.config.workdir, 'config.py')
+        if self.__last_config_update < os.path.getmtime(configfile):
             try:
-                with PartiallyMutable.lockdown():
-                    exec cmd in {'config': self.config, 'storage': self.config.storage}, {}
-                    self.config.save()
+                logger.info('updating configuration')
+                self.__last_config_update = time.time()
+                util.register_checkpoint(self.config.workdir, 'configuration_check', self.__last_config_update)
+                new_config = imp.load_source('userconfig', configfile).config
+                self.config.update(new_config)
+                self.config.save()
             except Exception as e:
-                logger.error('caught exeption from command: {}'.format(e))
-        for component, attr, args in PartiallyMutable.changes():
-            if attr is not None:
-                logger.info('updating setup by calling {} of {} with {}'.format(attr, component, args))
-                getattr(getattr(self, component), attr)(*args)
+                logger.error('failed to update configuration: {}'.format(e))
 
     def take(self, force=False):
-        self.__communicate()
+        self.update_configuration()
 
         now = datetime.datetime.now()
         if hasattr(self, 'plotter'):

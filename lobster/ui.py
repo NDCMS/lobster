@@ -81,4 +81,14 @@ def boil():
         if not getattr(args, "foreground", False):
             logger.removeHandler(console)
 
+    for p in args.plugin.additional_logs():
+        fn = p + '.log'
+        l = logging.getLogger('lobster.' + p)
+        logger.info("saving additional log for {1} to {0}".format(os.path.join(cfg.workdir, fn), p))
+        if not os.path.isdir(cfg.workdir):
+            os.makedirs(cfg.workdir)
+        fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
+        fileh.setFormatter(formatter)
+        l.addHandler(fileh)
+
     args.plugin.run(args)

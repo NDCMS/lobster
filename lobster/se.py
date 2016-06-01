@@ -404,8 +404,8 @@ class StorageConfiguration(Configurable):
         self.use_work_queue_for_inputs = use_work_queue_for_inputs
         self.use_work_queue_for_outputs = use_work_queue_for_outputs
 
-        self.__shuffle_inputs = shuffle_inputs
-        self.__shuffle_outputs = shuffle_outputs
+        self.shuffle_inputs = shuffle_inputs
+        self.shuffle_outputs = shuffle_outputs
 
         self.disable_input_streaming = disable_input_streaming
         self.disable_stage_in_acceleration = disable_stage_in_acceleration
@@ -522,9 +522,9 @@ class StorageConfiguration(Configurable):
         merge : bool
             Specify if this is a merging parameter set.
         """
-        if self.__shuffle_inputs:
+        if self.shuffle_inputs:
             random.shuffle(self.input)
-        if self.__shuffle_outputs or (self.__shuffle_inputs and merge):
+        if self.shuffle_outputs or (self.shuffle_inputs and merge):
             random.shuffle(self.output)
 
         parameters['input'] = self.input if not merge else self.output

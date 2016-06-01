@@ -63,6 +63,9 @@ class Process(Command):
     def daemonizable(self):
         return True
 
+    def additional_logs(self):
+        return ['configure']
+
     def setup_logging(self, category):
         filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))
         if not hasattr(self, 'log_attributes'):

@@ -33,6 +33,9 @@ class Command(object):
     def daemonizable(self):
         return False
 
+    def additional_logs(self):
+        return []
+
     @abstractmethod
     def setup(self, argparser):
         pass

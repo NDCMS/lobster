@@ -30,6 +30,9 @@ class Items(object):
     def __len__(self):
         return len(self.__sequence)
 
+    def __getitem__(self, n):
+        return self.__sequence[n]
+
     def __repr__(self):
         if len(self.__sequence) == 0:
             return '[]'
@@ -74,8 +77,7 @@ class Config(Configurable):
 
     _mutable = {}
 
-    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None,
-            foremen_logs=None,
+    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None, foremen_logs=None,
             base_directory=None, base_configuration=None, startup_directory=None):
         """
         Top-level configuration object for Lobster

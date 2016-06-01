@@ -740,7 +740,6 @@ data = {
         'prologue end': 0,
         'wrapper start': 0,
         'wrapper ready': 0,
-        'wrapper end': 0,
         'processing end': 0,
         'epilogue end': 0,
         'stage out end': 0,

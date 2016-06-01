@@ -176,7 +176,8 @@ class Process(Command):
                 pass
 
     def sprint(self):
-        task_src = TaskProvider(self.config)
+        with util.PartiallyMutable.unlock():
+            task_src = TaskProvider(self.config)
         action = actions.Actions(self.config, task_src)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logging.getLogger("WMCore")})

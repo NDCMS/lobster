@@ -22,8 +22,6 @@ class PartiallyMutable(type):
     sets the attribute `__fixed` to `True` after an instance has been
     constructed.
     """
-    actions = set()
-
     def __init__(cls, name, bases, attrs):
         key = '_mutable'
         if key not in attrs:
@@ -47,6 +45,7 @@ class PartiallyMutable(type):
             if module not in ('core', 'se'):
                 name = ".".join([module, name])
             res._store(name, args, kwargs)
+            res._constructed = True
             for arg in inspect.getargspec(res.__init__).args[1:]:
                 if arg not in vars(res):
                     raise AttributeError('class {} uses {} in the constructor, but does define it as property'.format(name, arg))
@@ -57,18 +56,10 @@ class PartiallyMutable(type):
 
     @classmethod
     @contextmanager
-    def lockdown(self):
-        try:
-            self.fixed = True
-            yield
-        finally:
-            self.fixed = False
-
-    @classmethod
-    def changes(self):
-        for tpl in self.actions:
-            yield tpl
-        self.actions.clear()
+    def unlock(self):
+        self._fixed = False
+        yield
+        self._fixed = True
 
 
 class Configurable(object):
@@ -84,7 +75,7 @@ class Configurable(object):
     _mutable = {}
 
     def __setattr__(self, attr, value):
-        if not hasattr(self.__class__, 'fixed') or not getattr(self.__class__, 'fixed'):
+        if getattr(self, '_constructed', False) == False or getattr(PartiallyMutable, '_fixed', True) == False:
             super(Configurable, self).__setattr__(attr, value)
         elif attr in self._mutable:
             super(Configurable, self).__setattr__(attr, value)

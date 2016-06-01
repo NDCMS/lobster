@@ -42,9 +42,10 @@ def boil():
             cfg = config.Config.load(cfg.workdir)
         else:
             # This is the original configuration file!
-            cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
-            cfg.base_configuration = os.path.abspath(args.checkpoint)
-            cfg.startup_directory = os.path.abspath(os.getcwd())
+            with util.PartiallyMutable.unlock():
+                cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
+                cfg.base_configuration = os.path.abspath(args.checkpoint)
+                cfg.startup_directory = os.path.abspath(os.getcwd())
     elif os.path.isdir(args.checkpoint):
         # Load configuration from working directory passed to us
         workdir = args.checkpoint

@@ -49,4 +49,4 @@ O(1k) may hint at a `CMS configuration or runtime problem`_.
 Codes O(10k) are internal Work Queue error codes and may be bitmasked
 together, i.e., 100514 is a combination of errors 100512 and 100002.
 
-.. _CMS configuration or runtime problem:: https://twiki.cern.ch/twiki/bin/view/CMSPublic/JobExitCodes
+.. _CMS configuration or runtime problem: https://twiki.cern.ch/twiki/bin/view/CMSPublic/JobExitCodes

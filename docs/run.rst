@@ -135,11 +135,8 @@ the option ``LIBHDFS_OPTS=-Xmx100m``.
 Changing configuration options
 ------------------------------
 
-Lobster provides a ``configure`` command to change certain mutable
-parameters.  When running, the changes may take a while to show any effect.
-Parameters of the :class:`~lobster.core.config.Config` object may be
-changed with simple python expressions.  Example usage::
-
-    lobster configure "storage.output.append(storage.expand_site('root://T3_US_NotreDame/foo/bar'))" config.py
-    lobster configure "advanced_options.threshold_for_failure += 30"
-    lobster configure categories.io_intense.tasks=40
+Lobster provides a ``configure`` command to change certain configuration
+settings.  The command will open an editor showing the current
+configuration.  Changes will be propagated when the configuration is
+re-read by the Lobster main-loop after saving the file.  This may take a
+few minutes for changes to have an effect

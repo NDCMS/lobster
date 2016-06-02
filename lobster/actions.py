@@ -41,12 +41,29 @@ class Actions(object):
             try:
                 logger.info('updating configuration')
                 self.__last_config_update = time.time()
-                util.register_checkpoint(self.config.workdir, 'configuration_check', self.__last_config_update)
                 new_config = imp.load_source('userconfig', configfile).config
                 self.config.update(new_config)
                 self.config.save()
+                util.register_checkpoint(self.config.workdir, 'configuration_check', self.__last_config_update)
             except Exception as e:
-                logger.error('failed to update configuration: {}'.format(e))
+                logger.exception('failed to update configuration:')
+                util.PartiallyMutable.purge()
+
+            for method, args in util.PartiallyMutable.changes():
+                if method is None:
+                    continue
+                logger.debug("executing callback '{}' with arguments {}".format(method, args))
+                attrs = method.split('.')
+                call = self
+                if attrs[0] not in ['config', 'source']:
+                    logger.error('invalid registered callback: {}'.format(method))
+                    continue
+                try:
+                    for attr in attrs:
+                        call = getattr(call, attr)
+                    call(*args)
+                except:
+                    logger.exception("caught exception while executing callback '{}' with arguments {}".format(method, args))
 
     def take(self, force=False):
         self.update_configuration()

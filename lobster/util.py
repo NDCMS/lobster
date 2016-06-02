@@ -19,9 +19,11 @@ class PartiallyMutable(type):
     """Support metaclass for partially mutable base object.
 
     This metaclass makes sure that classes have an attribute `_mutable` and
-    sets the attribute `__fixed` to `True` after an instance has been
+    sets the attribute `_constructed` to `True` after an instance has been
     constructed.
     """
+    _actions = set()
+
     def __init__(cls, name, bases, attrs):
         key = '_mutable'
         if key not in attrs:
@@ -56,10 +58,20 @@ class PartiallyMutable(type):
 
     @classmethod
     @contextmanager
-    def unlock(self):
-        self._fixed = False
+    def unlock(cls):
+        cls._fixed = False
         yield
-        self._fixed = True
+        cls._fixed = True
+
+    @classmethod
+    def changes(cls):
+        for tpl in cls._actions:
+            yield tpl
+        cls._actions.clear()
+
+    @classmethod
+    def purge(cls):
+        cls._actions.clear()
 
 
 class Configurable(object):
@@ -68,18 +80,28 @@ class Configurable(object):
     Subclasses will have to define a class attribute `_mutable`, a
     dictionary linking all attributes to an action to be performed.
     Attributes are given as strings, while the action to be performed is a
-    tuple consisting of the component to be changed, the method to be
-    called, and the arguments.
+    tuple consisting of the callback to be called, in the form of either
+    `source.spam` or `config.foo.bar` to be changed, the arguments to be
+    passed, and a bool indicating if the changed object should be appended
+    to the arguments.
     """
     __metaclass__ = PartiallyMutable
     _mutable = {}
 
     def __setattr__(self, attr, value):
-        if getattr(self, '_constructed', False) == False or getattr(PartiallyMutable, '_fixed', True) == False:
+        if getattr(self, '_constructed', False) == False:
             super(Configurable, self).__setattr__(attr, value)
-        elif attr in self._mutable:
+        elif attr in self._mutable or getattr(PartiallyMutable, '_fixed', True) == False:
             super(Configurable, self).__setattr__(attr, value)
-            self.__class__.actions.add(self._mutable[attr])
+            if attr in self._mutable and getattr(PartiallyMutable, '_fixed', True) == True:
+                method, args, append = self._mutable[attr]
+                # force a copy of the list into a tuple (for the actions,
+                # since it's a set)
+                if append:
+                    args = tuple(args + [self])
+                else:
+                    args = tuple(args)
+                self.__class__._actions.add((method, args))
         else:
             raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
 
@@ -129,11 +151,22 @@ class Configurable(object):
 
             if isinstance(ours, Configurable):
                 ours.update(theirs)
-            elif hasattr(ours, '__iter__'):
+            elif hasattr(ours, '__iter__') or hasattr(theirs, '__iter__'):
+                # protect against empty default lists
+                if ours is None:
+                    ours = []
+                if theirs is None:
+                    theirs = []
+                if our_original is None:
+                    our_original = []
+
                 diff = len(ours) - len(theirs)
-                if diff != 0 and not arg in self._mutable:
+                if diff != 0 and arg not in self._mutable:
                     if our_original != theirs:
                         logger.error("modified immutable list {}".format(arg))
+                    else:
+                        logger.warning("skipping immutable list {}".format(arg))
+                    continue
                 elif diff > 0:
                     logger.info("truncating list '{}' by removing elements {}".format(arg, ours[-diff:]))
                     ours = ours[:-diff]
@@ -143,6 +176,7 @@ class Configurable(object):
                     ours += theirs[diff:]
                     setattr(self, arg, ours)
 
+                changed = False
                 for n in range(len(ours)):
                     if hasattr(ours[n], '__iter__'):
                         logger.error("nested list in attribute '{}' not supported".format(arg))
@@ -150,17 +184,20 @@ class Configurable(object):
                     elif isinstance(ours[n], Configurable):
                         ours[n].update(theirs[n])
                     elif ours[n] != theirs[n]:
-                        if our_original != theirs:
+                        if our_original != theirs and arg not in self._mutable:
                             logger.error("modified item in immutable list '{}'".format(arg))
                             continue
                         logger.info("updating item {} of list '{}' with value '{}' (old: '{}')".format(n, arg, theirs[n], ours[n]))
                         ours[n] = theirs[n]
+                        changed = True
+                if changed:
+                    setattr(self, arg, ours)
             elif ours != theirs and our_original != theirs:
                 if arg not in self._mutable:
                     logger.error("can't change value of immutable attribute '{}'".format(arg))
                     continue
                 logger.info("updating attribute '{}' with value '{}' (old: '{}')".format(arg, theirs, ours))
-                ours = theirs
+                setattr(self, arg, theirs)
 
 def record(cls, *fields, **defaults):
     """

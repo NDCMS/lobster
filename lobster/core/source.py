@@ -577,6 +577,16 @@ class TaskProvider(object):
         """
         self.__store.update_workflow_stats_paused()
 
+    def update_runtime(self, category):
+        """Update the runtime for all workflows with the corresponding
+        category.
+        """
+        update = []
+        for wflow in self.config.workflows:
+            if wflow.category == category:
+                update.append((category.runtime, wflow.label))
+        self.__store.update_workflow_runtime(update)
+
     def tasks_left(self):
         return self.__store.estimate_tasks_left()
 

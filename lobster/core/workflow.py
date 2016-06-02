@@ -58,7 +58,8 @@ class Category(Configurable):
             the same time.
     """
     _mutable = {
-            'tasks': (None, None, tuple())
+            'tasks': (None, [], False),
+            'runtime': ('source.update_runtime', [], True)
     }
 
     def __init__(self,

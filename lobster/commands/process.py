@@ -100,8 +100,6 @@ class Process(Command):
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,
                 help='do not process any additional data; wrap project up by merging everything')
-        argparser.add_argument('--increase-thresholds', const=10, nargs='?', type=int,
-                help='increase failure/skipping thresholds')
         argparser.add_argument('--foreground', action='store_true', default=False,
                 help='do not daemonize; run in the foreground instead')
         argparser.add_argument('-f', '--force', action='store_true', default=False,
@@ -113,10 +111,6 @@ class Process(Command):
         if args.finalize:
             args.config.advanced.threshold_for_failure = 0
             args.config.advanced.threshold_for_skipping = 0
-        if args.increase_thresholds:
-            args.config.advanced.threshold_for_failure += args.increase_thresholds
-            args.config.advanced.threshold_for_skipping += args.increase_thresholds
-            args.config.save()
 
         if not os.path.exists(self.config.workdir):
             os.makedirs(self.config.workdir)

@@ -58,6 +58,7 @@ def boil():
         parser.error("the working directory or configuration '{0}' does not exist".format(args.checkpoint))
 
     args.config = cfg
+    args.preserve = []
 
     # Handle logging for everything in only one place!
     level = max(1, args.config.advanced.log_level + args.quiet - args.verbose) * 10
@@ -76,7 +77,7 @@ def boil():
             os.makedirs(cfg.workdir)
         fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(formatter)
-        args.preserve = fileh.stream
+        args.preserve.append(fileh.stream)
         logger.addHandler(fileh)
 
         if not getattr(args, "foreground", False):
@@ -90,6 +91,7 @@ def boil():
             os.makedirs(cfg.workdir)
         fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(formatter)
+        args.preserve.append(fileh.stream)
         l.addHandler(fileh)
 
     args.plugin.run(args)

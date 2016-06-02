@@ -157,7 +157,7 @@ class Process(Command):
                 detach_process=not args.foreground,
                 stdout=sys.stdout if args.foreground else ttyfile,
                 stderr=sys.stderr if args.foreground else ttyfile,
-                files_preserve=[args.preserve],
+                files_preserve=args.preserve,
                 working_directory=self.config.workdir,
                 pidfile=util.get_lock(self.config.workdir, args.force),
                 prevent_core=False,

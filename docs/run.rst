@@ -139,4 +139,6 @@ Lobster provides a ``configure`` command to change certain configuration
 settings.  The command will open an editor showing the current
 configuration.  Changes will be propagated when the configuration is
 re-read by the Lobster main-loop after saving the file.  This may take a
-few minutes for changes to have an effect
+few minutes for changes to have an effect.
+
+Modifiable attributes are listed in the documentation of each class.

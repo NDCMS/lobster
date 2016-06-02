@@ -127,6 +127,12 @@ class AdvancedOptions(Configurable):
     """
     Advanced options for tuning Lobster
 
+    Attributes modifiable at runtime:
+
+    * `payload`
+    * `threshold_for_failure`
+    * `threshold_for_skipping`
+
     Parameters
     ----------
         use_dashboard : bool

@@ -25,6 +25,11 @@ class Category(Configurable):
     terminate tasks of :class:`.Workflow` in the group that exceed the
     specified resources.
 
+    Attributs modifiable at runtime:
+
+    * `tasks`
+    * `runtime`
+
     Parameters
     ----------
         name : str

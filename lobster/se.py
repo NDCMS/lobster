@@ -345,6 +345,11 @@ class StorageConfiguration(Configurable):
 
     The `chirp` protocol requires an instance of a `Chirp` server.
 
+    Attributes modifiable at runtime:
+
+    * `input`
+    * `output`
+
     Parameters
     ----------
         output : list

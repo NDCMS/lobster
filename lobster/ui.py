@@ -42,9 +42,10 @@ def boil():
             cfg = config.Config.load(cfg.workdir)
         else:
             # This is the original configuration file!
-            cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
-            cfg.base_configuration = os.path.abspath(args.checkpoint)
-            cfg.startup_directory = os.path.abspath(os.getcwd())
+            with util.PartiallyMutable.unlock():
+                cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
+                cfg.base_configuration = os.path.abspath(args.checkpoint)
+                cfg.startup_directory = os.path.abspath(os.getcwd())
     elif os.path.isdir(args.checkpoint):
         # Load configuration from working directory passed to us
         workdir = args.checkpoint
@@ -57,6 +58,7 @@ def boil():
         parser.error("the working directory or configuration '{0}' does not exist".format(args.checkpoint))
 
     args.config = cfg
+    args.preserve = []
 
     # Handle logging for everything in only one place!
     level = max(1, args.config.advanced.log_level + args.quiet - args.verbose) * 10
@@ -75,10 +77,21 @@ def boil():
             os.makedirs(cfg.workdir)
         fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
         fileh.setFormatter(formatter)
-        args.preserve = fileh.stream
+        args.preserve.append(fileh.stream)
         logger.addHandler(fileh)
 
         if not getattr(args, "foreground", False):
             logger.removeHandler(console)
+
+    for p in args.plugin.additional_logs():
+        fn = p + '.log'
+        l = logging.getLogger('lobster.' + p)
+        logger.info("saving additional log for {1} to {0}".format(os.path.join(cfg.workdir, fn), p))
+        if not os.path.isdir(cfg.workdir):
+            os.makedirs(cfg.workdir)
+        fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=500e6, backupCount=10)
+        fileh.setFormatter(formatter)
+        args.preserve.append(fileh.stream)
+        l.addHandler(fileh)
 
     args.plugin.run(args)

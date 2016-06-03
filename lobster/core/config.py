@@ -30,6 +30,9 @@ class Items(object):
     def __len__(self):
         return len(self.__sequence)
 
+    def __getitem__(self, n):
+        return self.__sequence[n]
+
     def __repr__(self):
         if len(self.__sequence) == 0:
             return '[]'
@@ -74,8 +77,7 @@ class Config(Configurable):
 
     _mutable = {}
 
-    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None,
-            foremen_logs=None,
+    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None, foremen_logs=None,
             base_directory=None, base_configuration=None, startup_directory=None):
         """
         Top-level configuration object for Lobster
@@ -125,6 +127,12 @@ class AdvancedOptions(Configurable):
     """
     Advanced options for tuning Lobster
 
+    Attributes modifiable at runtime:
+
+    * `payload`
+    * `threshold_for_failure`
+    * `threshold_for_skipping`
+
     Parameters
     ----------
         use_dashboard : bool
@@ -168,9 +176,9 @@ class AdvancedOptions(Configurable):
     """
 
     _mutable = {
-            'payload': (None, None, tuple()),
-            'threshold_for_failure': ('source', 'update_paused', tuple()),
-            'threshold_for_skipping': ('source', 'update_paused', tuple())
+            'payload': (None, [], False),
+            'threshold_for_failure': ('source.update_paused', [], False),
+            'threshold_for_skipping': ('source.update_paused', [], False)
     }
 
     def __init__(self,

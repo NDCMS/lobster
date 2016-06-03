@@ -564,6 +564,15 @@ class UnitStore:
             elif len(r.dependents) > 0:
                 self.update_workflow_stats(r.dependents)
 
+    def update_workflow_runtime(self, updates):
+        """Update workflow runtimes in the database.
+
+        To synchronize runtimes present in the configuration with the ones
+        in the database used for task size calculations.
+        """
+        with self.db:
+            self.db.executemany("update workflows set taskruntime=? where label=?", updates)
+
     def update_workflow_stats(self, label):
         id, size, targettime = self.db.execute("select id, tasksize, taskruntime from workflows where label=?", (label,)).fetchone()
 

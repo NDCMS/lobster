@@ -25,6 +25,11 @@ class Category(Configurable):
     terminate tasks of :class:`.Workflow` in the group that exceed the
     specified resources.
 
+    Attributs modifiable at runtime:
+
+    * `tasks`
+    * `runtime`
+
     Parameters
     ----------
         name : str
@@ -58,7 +63,8 @@ class Category(Configurable):
             the same time.
     """
     _mutable = {
-            'tasks': (None, None, tuple())
+            'tasks': (None, [], False),
+            'runtime': ('source.update_runtime', [], True)
     }
 
     def __init__(self,

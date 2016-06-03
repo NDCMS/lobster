@@ -150,6 +150,7 @@ class TaskProvider(object):
                 self.config.label,
                 sha1(str(datetime.datetime.utcnow())).hexdigest()[-16:])
             util.register_checkpoint(self.workdir, 'id', self.taskid)
+            shutil.copy(self.config.base_configuration, os.path.join(self.workdir, 'config.py'))
         else:
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
@@ -575,6 +576,16 @@ class TaskProvider(object):
         """Have the unit store updated the statistics for paused units.
         """
         self.__store.update_workflow_stats_paused()
+
+    def update_runtime(self, category):
+        """Update the runtime for all workflows with the corresponding
+        category.
+        """
+        update = []
+        for wflow in self.config.workflows:
+            if wflow.category == category:
+                update.append((category.runtime, wflow.label))
+        self.__store.update_workflow_runtime(update)
 
     def tasks_left(self):
         return self.__store.estimate_tasks_left()

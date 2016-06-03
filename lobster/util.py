@@ -19,10 +19,10 @@ class PartiallyMutable(type):
     """Support metaclass for partially mutable base object.
 
     This metaclass makes sure that classes have an attribute `_mutable` and
-    sets the attribute `__fixed` to `True` after an instance has been
+    sets the attribute `_constructed` to `True` after an instance has been
     constructed.
     """
-    actions = set()
+    _actions = set()
 
     def __init__(cls, name, bases, attrs):
         key = '_mutable'
@@ -47,9 +47,9 @@ class PartiallyMutable(type):
             if module not in ('core', 'se'):
                 name = ".".join([module, name])
             res._store(name, args, kwargs)
+            res._constructed = True
             for arg in inspect.getargspec(res.__init__).args[1:]:
-                private_arg = '_{}__{}'.format(name, arg)
-                if arg not in vars(res) and private_arg not in vars(res):
+                if arg not in vars(res):
                     raise AttributeError('class {} uses {} in the constructor, but does define it as property'.format(name, arg))
         except Exception as e:
             import sys
@@ -58,18 +58,20 @@ class PartiallyMutable(type):
 
     @classmethod
     @contextmanager
-    def lockdown(self):
-        try:
-            self.fixed = True
-            yield
-        finally:
-            self.fixed = False
+    def unlock(cls):
+        cls._fixed = False
+        yield
+        cls._fixed = True
 
     @classmethod
-    def changes(self):
-        for tpl in self.actions:
+    def changes(cls):
+        for tpl in cls._actions:
             yield tpl
-        self.actions.clear()
+        cls._actions.clear()
+
+    @classmethod
+    def purge(cls):
+        cls._actions.clear()
 
 
 class Configurable(object):
@@ -78,18 +80,28 @@ class Configurable(object):
     Subclasses will have to define a class attribute `_mutable`, a
     dictionary linking all attributes to an action to be performed.
     Attributes are given as strings, while the action to be performed is a
-    tuple consisting of the component to be changed, the method to be
-    called, and the arguments.
+    tuple consisting of the callback to be called, in the form of either
+    `source.spam` or `config.foo.bar` to be changed, the arguments to be
+    passed, and a bool indicating if the changed object should be appended
+    to the arguments.
     """
     __metaclass__ = PartiallyMutable
     _mutable = {}
 
     def __setattr__(self, attr, value):
-        if not hasattr(self.__class__, 'fixed') or not getattr(self.__class__, 'fixed'):
+        if getattr(self, '_constructed', False) == False:
             super(Configurable, self).__setattr__(attr, value)
-        elif attr in self._mutable:
+        elif attr in self._mutable or getattr(PartiallyMutable, '_fixed', True) == False:
             super(Configurable, self).__setattr__(attr, value)
-            self.__class__.actions.add(self._mutable[attr])
+            if attr in self._mutable and getattr(PartiallyMutable, '_fixed', True) == True:
+                method, args, append = self._mutable[attr]
+                # force a copy of the list into a tuple (for the actions,
+                # since it's a set)
+                if append:
+                    args = tuple(args + [self])
+                else:
+                    args = tuple(args)
+                self.__class__._actions.add((method, args))
         else:
             raise AttributeError("can't change attribute {} of type {}".format(attr, type(self)))
 
@@ -104,11 +116,9 @@ class Configurable(object):
         # Look for altered mutable properties, add them to constructor
         # arguments
         for arg in self._mutable:
-            narg = arg
-            if not hasattr(self, arg):
-                narg = '_{}__{}'.format(self.__class__.__name__, arg)
-            if getattr(self, narg) != defaults.get(arg):
-                self.__kwargs[arg] = getattr(self, narg)
+            arg = arg
+            if getattr(self, arg) != defaults.get(arg):
+                self.__kwargs[arg] = getattr(self, arg)
             elif arg in self.__kwargs:
                 del self.__kwargs[arg]
         def indent(text):
@@ -127,6 +137,67 @@ class Configurable(object):
         s = self.__name + "({}\n)".format(",".join(args + kwargs))
         return s
 
+    def update(self, other):
+        logger = logging.getLogger('lobster.configure')
+
+        if not isinstance(other, type(self)):
+            logger.error("can't compare {} and {}".format(type(self), type(other)))
+            return
+        argspec = inspect.getargspec(self.__init__)
+        for arg in argspec.args[1:]:
+            ours = getattr(self, arg)
+            our_original = self.__kwargs.get(arg, None)
+            theirs = getattr(other, arg)
+
+            if isinstance(ours, Configurable):
+                ours.update(theirs)
+            elif hasattr(ours, '__iter__') or hasattr(theirs, '__iter__'):
+                # protect against empty default lists
+                if ours is None:
+                    ours = []
+                if theirs is None:
+                    theirs = []
+                if our_original is None:
+                    our_original = []
+
+                diff = len(ours) - len(theirs)
+                if diff != 0 and arg not in self._mutable:
+                    if our_original != theirs:
+                        logger.error("modified immutable list {}".format(arg))
+                    else:
+                        logger.warning("skipping immutable list {}".format(arg))
+                    continue
+                elif diff > 0:
+                    logger.info("truncating list '{}' by removing elements {}".format(arg, ours[-diff:]))
+                    ours = ours[:-diff]
+                    setattr(self, arg, ours)
+                elif diff < 0:
+                    logger.info("expanding list '{}' by adding elements {}".format(arg, theirs[diff:]))
+                    ours += theirs[diff:]
+                    setattr(self, arg, ours)
+
+                changed = False
+                for n in range(len(ours)):
+                    if hasattr(ours[n], '__iter__'):
+                        logger.error("nested list in attribute '{}' not supported".format(arg))
+                        continue
+                    elif isinstance(ours[n], Configurable):
+                        ours[n].update(theirs[n])
+                    elif ours[n] != theirs[n]:
+                        if our_original != theirs and arg not in self._mutable:
+                            logger.error("modified item in immutable list '{}'".format(arg))
+                            continue
+                        logger.info("updating item {} of list '{}' with value '{}' (old: '{}')".format(n, arg, theirs[n], ours[n]))
+                        ours[n] = theirs[n]
+                        changed = True
+                if changed:
+                    setattr(self, arg, ours)
+            elif ours != theirs and our_original != theirs:
+                if arg not in self._mutable:
+                    logger.error("can't change value of immutable attribute '{}'".format(arg))
+                    continue
+                logger.info("updating attribute '{}' with value '{}' (old: '{}')".format(arg, theirs, ours))
+                setattr(self, arg, theirs)
 
 def record(cls, *fields, **defaults):
     """

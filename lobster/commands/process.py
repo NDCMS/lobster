@@ -63,6 +63,9 @@ class Process(Command):
     def daemonizable(self):
         return True
 
+    def additional_logs(self):
+        return ['configure']
+
     def setup_logging(self, category):
         filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))
         if not hasattr(self, 'log_attributes'):
@@ -97,8 +100,6 @@ class Process(Command):
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,
                 help='do not process any additional data; wrap project up by merging everything')
-        argparser.add_argument('--increase-thresholds', const=10, nargs='?', type=int,
-                help='increase failure/skipping thresholds')
         argparser.add_argument('--foreground', action='store_true', default=False,
                 help='do not daemonize; run in the foreground instead')
         argparser.add_argument('-f', '--force', action='store_true', default=False,
@@ -110,10 +111,6 @@ class Process(Command):
         if args.finalize:
             args.config.advanced.threshold_for_failure = 0
             args.config.advanced.threshold_for_skipping = 0
-        if args.increase_thresholds:
-            args.config.advanced.threshold_for_failure += args.increase_thresholds
-            args.config.advanced.threshold_for_skipping += args.increase_thresholds
-            args.config.save()
 
         if not os.path.exists(self.config.workdir):
             os.makedirs(self.config.workdir)
@@ -154,7 +151,7 @@ class Process(Command):
                 detach_process=not args.foreground,
                 stdout=sys.stdout if args.foreground else ttyfile,
                 stderr=sys.stderr if args.foreground else ttyfile,
-                files_preserve=[args.preserve],
+                files_preserve=args.preserve,
                 working_directory=self.config.workdir,
                 pidfile=util.get_lock(self.config.workdir, args.force),
                 prevent_core=False,
@@ -173,7 +170,8 @@ class Process(Command):
                 pass
 
     def sprint(self):
-        task_src = TaskProvider(self.config)
+        with util.PartiallyMutable.unlock():
+            task_src = TaskProvider(self.config)
         action = actions.Actions(self.config, task_src)
         from WMCore.Credential.Proxy import Proxy
         proxy = Proxy({'logger': logging.getLogger("WMCore")})

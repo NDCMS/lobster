@@ -1,6 +1,6 @@
 # vim: foldmethod=marker
 from lobster.core import dataset
-from lobster import fs, se
+from lobster import fs, se, util
 import os
 import random
 import shutil
@@ -33,10 +33,11 @@ class TestSE(unittest.TestCase):
         s = se.StorageConfiguration(output=[], input=url)
         s.activate()
 
-        with fs.default():
-            ds = dataset.Dataset(files='spam/')
-            info = ds.get_info()
-            assert len(info.files) == 10
+        with util.PartiallyMutable.unlock():
+            with fs.default():
+                ds = dataset.Dataset(files='spam/')
+                info = ds.get_info()
+                assert len(info.files) == 10
 
     def permissions(self, url):
         if not isinstance(url, list):

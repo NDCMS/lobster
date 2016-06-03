@@ -1,9 +1,9 @@
 import logging
 import os
+import subprocess
 
 from lobster import util
 from lobster.core.command import Command
-from lockfile import AlreadyLocked
 
 class Configure(Command):
     @property
@@ -11,23 +11,16 @@ class Configure(Command):
         return 'change the configuration of a running lobster process'
 
     def setup(self, argparser):
-        argparser.add_argument('command', help='a python expression to change a mutable configuration setting')
+        pass
 
     def run(self, args):
         logger = logging.getLogger('lobster.configure')
 
         try:
-            pidfile = util.get_lock(args.config.workdir)
-            logger.info("Lobster process not running, directly changing configuration.")
-            with util.PartiallyMutable.lockdown():
-                exec args.command in {'config': args.config, 'storage': args.config.storage}, {}
-                args.config.save()
-        except AlreadyLocked:
-            logger.info("Lobster process still running, contacting process...")
-            logger.info("sending command: " + args.command)
-            logger.info("check the log of the main process for success")
-
-            icp = open(os.path.join(args.config.workdir, 'ipc'), 'w')
-            icp.write(args.command + '\n')
+            subprocess.check_call([
+                os.environ.get('EDITOR', 'vi'),
+                os.path.join(args.config.workdir, 'config.py')])
+            logger.info("check {} to see if changes got propagated (may take a few minutes)".format(
+                os.path.join(args.config.workdir, 'configure.log')))
         except Exception as e:
-            logger.error("can't change values: {}".format(e))
+            logger.error("error editing current configuration: {}".format(e))

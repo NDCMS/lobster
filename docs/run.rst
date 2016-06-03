@@ -135,11 +135,21 @@ the option ``LIBHDFS_OPTS=-Xmx100m``.
 Changing configuration options
 ------------------------------
 
-Lobster provides a ``configure`` command to change certain mutable
-parameters.  When running, the changes may take a while to show any effect.
-Parameters of the :class:`~lobster.core.config.Config` object may be
-changed with simple python expressions.  Example usage::
+Lobster copies the initial configuration to its working directory as
+`config.py`.  This configuration can be changed to modify the settings of
+a running Lobster instance.  These changes will be propagated when the
+configuration is re-read by the Lobster main-loop after saving the file.
+This may take a few minutes for changes to have an effect, Lobster show
+logging messages about changes in both the main log and `configure.log` in
+the working directory.
 
-    lobster configure "storage.output.append(storage.expand_site('root://T3_US_NotreDame/foo/bar'))" config.py
-    lobster configure "advanced_options.threshold_for_failure += 30"
-    lobster configure categories.io_intense.tasks=40
+Only attributes mentioned as modifiable in the documentation of each class
+can be changed.
+
+Lobster also provides a ``configure`` convenience command to edit the
+configuration, which will launch an editor to edit the current
+configuration.
+
+.. note::
+   The ``configure`` command uses the environment variable ``EDITOR`` to
+   determine which editor to use, and uses `vi` as a default.

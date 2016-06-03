@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 from lobster.core import Dataset
-from lobster import fs, se
+from lobster import fs, se, util
 
 class TestDataset(unittest.TestCase):
     @classmethod
@@ -30,15 +30,16 @@ class TestDataset(unittest.TestCase):
         shutil.rmtree(cls.workdir)
 
     def runTest(self):
-        s = se.StorageConfiguration(output=[], input=['file://' + self.workdir])
-        s.activate()
+        with util.PartiallyMutable.unlock():
+            s = se.StorageConfiguration(output=[], input=['file://' + self.workdir])
+            s.activate()
 
-        with fs.default():
-            info = Dataset(files='eggs').get_info()
-            assert len(info.files) == 10
+            with fs.default():
+                info = Dataset(files='eggs').get_info()
+                assert len(info.files) == 10
 
-            info = Dataset(files=['eggs', 'ham']).get_info()
-            assert len(info.files) == 15
+                info = Dataset(files=['eggs', 'ham']).get_info()
+                assert len(info.files) == 15
 
-            info = Dataset(files='eggs/1.txt').get_info()
-            assert len(info.files) == 1
+                info = Dataset(files='eggs/1.txt').get_info()
+                assert len(info.files) == 1

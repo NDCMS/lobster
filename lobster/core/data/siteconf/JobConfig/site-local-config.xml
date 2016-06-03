@@ -1,7 +1,7 @@
  <site-local-config>
  <site name="T3_US_Lobster">
     <event-data>
-      <catalog url="trivialcatalog_file:siteconfig/PhEDEx/storage.xml?protocol=xrootd"/>
+{xrootd_catalogs}
     </event-data>
     <calib-data>
      <frontier-connect>

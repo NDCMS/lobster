@@ -79,7 +79,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	log "using Frontier proxy: $FRONTIER_PROXY"
 
 	frontier=$(echo $FRONTIER_PROXY|sed -e 's/[]\/$*.^|[]/\\&/g')
-	sed -i -e "s/\$HTTP_PROXY\\>/$frontier/" siteconfig/JobConfig/site-local-config.xml
+	sed -i -e "s/\$HTTP_PROXY\\>/$frontier/" siteconf/JobConfig/site-local-config.xml
 
 	# These are allowed to be modified via the environment
 	# passed to the job (e.g. via condor)
@@ -100,7 +100,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	# Variables needed to set symlinks in CVMFS
 	# FIXME add heuristic detection?
 	# FIXME setting the CMS local site should actually work!
-	# export CMS_LOCAL_SITE=${CMS_LOCAL_SITE:-$PWD/siteconfig}
+	# export CMS_LOCAL_SITE=${CMS_LOCAL_SITE:-$PWD/siteconf}
 	# log "CMS local site: $CMS_LOCAL_SITE"
 
 	export OASIS_CERTIFICATES=${OASIS_CERTIFICATES:-/cvmfs/oasis.opensciencegrid.org/mis/certificates}
@@ -117,7 +117,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	# FIXME the -M could be removed once local site setting via
 	# environment works
 	log "starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconfig -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconf -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 

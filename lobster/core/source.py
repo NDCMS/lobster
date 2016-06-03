@@ -95,6 +95,7 @@ class TaskProvider(object):
         self._storage = config.storage
         self._storage.activate()
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
+        self.siteconf = os.path.join(self.workdir, 'siteconf')
 
         self.parrot_path = os.path.dirname(util.which('parrot_run'))
         self.parrot_bin = os.path.join(self.workdir, 'bin')
@@ -223,6 +224,32 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
+    def __copy_siteconf(self):
+        storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
+        storage_out = os.path.join(self.siteconf, 'PhEDEx', 'storage.xml')
+        if not os.path.exists(os.path.dirname(storage_out)):
+            os.makedirs(os.path.dirname(storage_out))
+        xml = ''
+        for n, server in enumerate(self.config.advanced.xrootd_servers):
+            xml += '  <lfn-to-pfn protocol="xrootd{}"'.format('' if n == 0 else '-fallback{}'.format(n)) \
+                    + ' destination-match=".*" path-match="/+store/(.*)"' \
+                    + ' result="root://{}//store/$1"/>\n'.format(server)
+        with open(storage_in) as fin:
+            with open(storage_out, 'w') as fout:
+                fout.write(fin.read().format(xrootd_rules=xml))
+
+        jobconfig_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'JobConfig', 'site-local-config.xml')
+        jobconfig_out = os.path.join(self.siteconf, 'JobConfig', 'site-local-config.xml')
+        if not os.path.exists(os.path.dirname(jobconfig_out)):
+            os.makedirs(os.path.dirname(jobconfig_out))
+        xml = ''
+        for n, server in enumerate(self.config.advanced.xrootd_servers):
+            xml += '      <catalog url="trivialcatalog_file:siteconfig/PhEDEx/storage.xml?protocol=xrootd{}"/>\n'.format(
+                    '' if n == 0 else '-fallback{}'.format(n))
+        with open(jobconfig_in) as fin:
+            with open(jobconfig_out, 'w') as fout:
+                fout.write(fin.read().format(xrootd_catalogs=xml))
+
     def __find_root(self, label):
         while getattr(self.config.workflows, label).parent:
             label = getattr(self.config.workflows, label).parent
@@ -230,7 +257,7 @@ class TaskProvider(object):
 
     def __setup_inputs(self):
         self._inputs = [
-                (os.path.join(os.path.dirname(__file__), 'data', 'siteconfig'), 'siteconfig', True),
+                (self.siteconf, 'siteconf', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),

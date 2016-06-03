@@ -165,6 +165,9 @@ class AdvancedOptions(Configurable):
             How often `WorkQueue` will attempt to process a task before
             handing it back to Lobster.  `WorkQueue` will only reprocess
             evicted tasks automatically.
+        xrootd_servers : list
+            A list of xrootd servers to use to access remote data.
+            Defaults to `cmsxrootd.fnal.gov`.
     """
 
     _mutable = {
@@ -185,7 +188,8 @@ class AdvancedOptions(Configurable):
             renew_proxy=True,
             threshold_for_failure=30,
             threshold_for_skipping=30,
-            wq_max_retries=10):
+            wq_max_retries=10,
+            xrootd_servers=None):
         self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold
         self.abort_multiplier = abort_multiplier
@@ -198,29 +202,4 @@ class AdvancedOptions(Configurable):
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries
-
-    def __init__(self,
-            use_dashboard=True,
-            abort_threshold=10,
-            abort_multiplier=4,
-            bad_exit_codes=None,
-            dump_core=False,
-            full_monitoring=False,
-            log_level=2,
-            payload=10,
-            renew_proxy=True,
-            threshold_for_failure=30,
-            threshold_for_skipping=30,
-            wq_max_retries=10):
-        self.use_dashboard = use_dashboard
-        self.abort_threshold = abort_threshold
-        self.abort_multiplier = abort_multiplier
-        self.bad_exit_codes = bad_exit_codes if bad_exit_codes else [169]
-        self.dump_core = dump_core
-        self.full_monitoring = full_monitoring
-        self.log_level = log_level
-        self.payload = payload
-        self.renew_proxy = renew_proxy
-        self.threshold_for_failure = threshold_for_failure
-        self.threshold_for_skipping = threshold_for_skipping
-        self.wq_max_retries = wq_max_retries
+        self.xrootd_servers = xrootd_servers if xrootd_servers else ['cmsxrootd.fnal.gov']

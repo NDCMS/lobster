@@ -14,8 +14,7 @@
   <lfn-to-pfn protocol="file"
     path-match="/+store/(.*)" result="file:/store/$1"/>
 <!-- Xrootd fallback rules -->
-  <lfn-to-pfn protocol="xrootd" destination-match=".*" path-match="/+store/(.*)" result="root://xrootd.unl.edu//store/$1"/>
-
+{xrootd_rules}
 
 <!-- Translation rules for PFN to LFN (Physical File Name to Logical File Name -->
 

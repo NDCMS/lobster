@@ -18,7 +18,7 @@ class Configure(Command):
 
         try:
             subprocess.check_call([
-                os.environ.get('EDITOR', os.environ.get('VISUAL', 'vi')),
+                os.environ.get('EDITOR', 'vi'),
                 os.path.join(args.config.workdir, 'config.py')])
             logger.info("check {} to see if changes got propagated (may take a few minutes)".format(
                 os.path.join(args.config.workdir, 'configure.log')))

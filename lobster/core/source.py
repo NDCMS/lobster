@@ -144,6 +144,7 @@ class TaskProvider(object):
         self.__store = unit.UnitStore(self.config)
 
         self.__setup_inputs()
+        self.__copy_siteconf()
 
         create = not util.checkpoint(self.workdir, 'id')
         if create:
@@ -244,7 +245,7 @@ class TaskProvider(object):
             os.makedirs(os.path.dirname(jobconfig_out))
         xml = ''
         for n, server in enumerate(self.config.advanced.xrootd_servers):
-            xml += '      <catalog url="trivialcatalog_file:siteconfig/PhEDEx/storage.xml?protocol=xrootd{}"/>\n'.format(
+            xml += '      <catalog url="trivialcatalog_file:siteconf/PhEDEx/storage.xml?protocol=xrootd{}"/>\n'.format(
                     '' if n == 0 else '-fallback{}'.format(n))
         with open(jobconfig_in) as fin:
             with open(jobconfig_out, 'w') as fout:

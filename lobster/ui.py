@@ -53,7 +53,8 @@ def boil():
             cfg = config.Config.load(workdir)
         except Exception as e:
             parser.error("the working directory '{0}' does not contain a valid configuration: {1}".format(workdir, e))
-        cfg.workdir = workdir
+        with util.PartiallyMutable.unlock():
+            cfg.workdir = workdir
     else:
         parser.error("the working directory or configuration '{0}' does not exist".format(args.checkpoint))
 

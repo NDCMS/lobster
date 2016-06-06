@@ -283,14 +283,12 @@ def check_parrot_cache(data):
         else:
             with open(cachefile) as f:
                 fullcache = int(f.read())
-                selfstart = extract_time('t_wrapper_start')
+                selfstart = data['task timing']['wrapper start']
 
                 # If our wrapper started before the cache was filled, we are
                 # still a cold cache task (value 0.)  Otherwise, we were
                 # operating on a hot cache.
                 data['cache']['type'] = int(selfstart > fullcache)
-    else:
-        data['cache']['type'] = 2
 
 @check_execution(exitcode=179)
 def copy_inputs(data, config, env):
@@ -948,7 +946,7 @@ data = {
     'cache': {
         'start size': 0,
         'end size': 0,
-        'type': None,
+        'type': 2,
     },
     'task exit code': 0,
     'exe exit code': 0,

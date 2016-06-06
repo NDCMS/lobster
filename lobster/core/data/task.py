@@ -3,6 +3,7 @@
 from collections import defaultdict, deque, Counter
 from contextlib import contextmanager
 from datetime import datetime
+import atexit
 import collections
 import gzip
 import json
@@ -175,21 +176,32 @@ def calculate_alder32(data):
             pass
         data['files']['output info'][fn]['adler32'] = checksum
 
-@contextmanager
-def check_execution(data, code):
-    """Check execution within context.
+def check_execution(exitcode, update=None):
+    """Decorator to quit upon exception.
 
-    Updates 'task exit code' in `data`, if not already set, and prints a
-    stack trace if the yield fails with an exception.
+    Execute the wrapper function, and, in case it throws an exception, set
+    the task exit code and update the first argument of the wrapped
+    function with the optional update passed to the decorator.
+
+    The first argument of the wrapped function **must** be a dictionary to
+    contain information about the Lobster task.
     """
-    try:
-        yield
-    except:
-        with mangler.output('trace'):
-            for l in traceback.format_exc().splitlines():
-                logger.debug(l)
-        if data['task exit code'] == 0:
-            data['task exit code'] = code
+    if update is None:
+        update = {}
+    def decorator(fct):
+        def wrapper(data, *args, **kwargs):
+            try:
+                fct(data, *args, **kwargs)
+            except:
+                with mangler.output('trace'):
+                    for l in traceback.format_exc().splitlines():
+                        logger.debug(l)
+                data['task exit code'] = exitcode
+                data.update(update)
+                logger.error("call to '{}' failed, exiting with exit code {}".format(fct.func_name, exitcode))
+                sys.exit(exitcode)
+        return wrapper
+    return decorator
 
 def check_output(config, localname, remotename):
     """Check that file has been transferred correctly.
@@ -251,6 +263,36 @@ def check_output(config, localname, remotename):
 
     return False
 
+@check_execution(exitcode=211, update={'stageout exit code': 211, 'output size': 0})
+def check_outputs(data, config):
+    for local, remote in config['output files']:
+        if not check_output(config, local, remote):
+            raise IOError("could not verify output file '{}'".format(remote))
+    data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
+
+def check_parrot_cache(data):
+    if 'PARROT_ENABLED' in os.environ:
+        cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
+        if not os.path.isfile(cachefile):
+            # Write the time of the first event to the cache file.  At that
+            # point in processing, almost everything should have been pulled
+            # from CVMFS.
+            with open(cachefile, 'w') as f:
+                f.write(str(data['task timing']['processing end']))
+            data['cache']['type'] = 0
+        else:
+            with open(cachefile) as f:
+                fullcache = int(f.read())
+                selfstart = extract_time('t_wrapper_start')
+
+                # If our wrapper started before the cache was filled, we are
+                # still a cold cache task (value 0.)  Otherwise, we were
+                # operating on a hot cache.
+                data['cache']['type'] = int(selfstart > fullcache)
+    else:
+        data['cache']['type'] = 2
+
+@check_execution(exitcode=179)
 def copy_inputs(data, config, env):
     """Copies input files if desired.
 
@@ -430,6 +472,9 @@ def copy_inputs(data, config, env):
         for fn in config['mask']['files']:
             logger.debug(fn)
 
+    data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
+
+@check_execution(exitcode=210, update={'stageout exit code': 210})
 def copy_outputs(data, config, env):
     """Copy output files.
 
@@ -548,10 +593,12 @@ def copy_outputs(data, config, env):
 
     data['output size'] = outsize
     data['output bare size'] = outsize_bare
+    data['output storage element'] = default_se
 
     if len(target_se) > 0:
-        return max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
-    return default_se
+        data['output storager element'] = max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
+
+    data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
 
 def edit_process_source(pset, config):
     """Edit parameter set for task.
@@ -595,7 +642,8 @@ def edit_process_source(pset, config):
                 logger.debug(l)
         fp.write(frag)
 
-def parse_fwk_report(config, data, report_filename):
+@check_execution(exitcode=190)
+def parse_fwk_report(data, config, report_filename):
     """Extract task data from a framework report.
 
     Analyze the CMSSW job framework report to get the CMSSW exit code,
@@ -657,11 +705,15 @@ def parse_fwk_report(config, data, report_filename):
     data['cpu time'] = cputime
     data['events per run'] = eventsPerRun
 
-def extract_time(filename):
+@check_execution(exitcode=191)
+def extract_wrapper_times(data):
     """Load file contents as integer timestamp.
     """
-    with open(filename) as f:
-        return int(f.readline())
+    for key, filename in [
+            ('wrapper start', 't_wrapper_start'),
+            ('wrapper ready', 't_wrapper_ready')]:
+        with open(filename) as f:
+            data['task timing'][key] = int(f.readline())
 
 def extract_cmssw_times(log_filename, default=None):
     """Get time information from a CMSSW stdout.
@@ -710,12 +762,182 @@ def get_bare_size(filename):
     rootfile.Close()
     return size
 
+@check_execution(exitcode=185)
+def run_command(data, config, env, monalisa):
+    cmd = config['executable']
+    args = config['arguments']
+    if config['executable'] == 'cmsRun':
+        pset = config['pset']
+        pset_mod = pset.replace(".py", "_mod.py")
+        shutil.copy2(pset, pset_mod)
 
-configfile = sys.argv[1]
-with open(configfile) as f:
-    config = json.load(f)
+        edit_process_source(pset_mod, config)
 
-cmsRun = True if config['executable'] == 'cmsRun' else False
+        cmd = ['cmsRun', '-j', 'report.xml', pset_mod]
+        cmd.extend([str(arg) for arg in args])
+    else:
+        usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        if isinstance(cmd, basestring):
+            cmd = shlex.split(cmd)
+        if os.path.isfile(cmd[0]):
+            cmd[0] = os.path.join(os.getcwd(), cmd[0])
+        cmd.extend([str(arg) for arg in args])
+
+        if config.get('append inputs to args', False):
+            cmd.extend([str(f) for f in config['mask']['files']])
+
+    logger.info("running {0}".format(' '.join(cmd)))
+    p = run_subprocess(cmd, env=env)
+    logger.info("executable returned with exit code {0}.".format(p.returncode))
+    data['exe exit code'] = p.returncode
+    data['task exit code'] = data['exe exit code']
+
+    # Dashboard does not like Unicode, just ASCII encoding
+    monitorid = str(config['monitoring']['monitorid'])
+    taskid = str(config['monitoring']['taskid'])
+    apmonSend(taskid, monitorid, {'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
+
+    if config['executable'] == 'cmsRun':
+        parse_fwk_report(data, config, 'report.xml')
+        calculate_alder32(data)
+    else:
+        data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
+        data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
+        data['cpu time'] = usage.ru_stime
+    data['task timing']['processing end'] = int(datetime.now().strftime('%s'))
+
+    if p.returncode != 0:
+        raise subprocess.CalledProcessError
+
+def run_step(data, config, env, name):
+    step = config.get(name, [])
+    if step and len(step) > 0:
+        logger.info(name)
+        p = run_subprocess(step, env=env)
+        # Was originally a subprocess.check_call, but this has the
+        # potential to confuse log file output because print buffers
+        # differently from the underlying process.  Therefore, do what
+        # check_call would do and raise a CalledProcessError if we get
+        # a non-zero return code.
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError
+    data['task timing']['{} end'.format(name)] = int(datetime.now().strftime('%s'))
+
+@check_execution(exitcode=180)
+def run_prologue(data, config, env):
+    run_step(data, config, env, 'prologue')
+
+@check_execution(exitcode=199)
+def run_epilogue(data, config, env):
+    with open('report.json', 'w') as f:
+        json.dump(data, f, indent=2)
+    run_step(data, config, env, 'epilogue')
+    with open('report.json', 'r') as f:
+        update = json.load(f)
+        # Update data in memory without changing the reference
+        for k in update.keys():
+            if k not in data:
+                del data[k]
+            else:
+                data[k] = update[k]
+        # Dumping `data` turns the defaultdict of Counters into a dict of
+        # dicts, so copy it back into a defaultdict of Counters
+        transfers = defaultdict(Counter)
+        for protocol in data['transfers']:
+            transfers[protocol].update(data['transfers'][protocol])
+        data['transfers'] = transfers
+
+def send_initial_dashboard_update(data, config, monalisa):
+    # Dashboard does not like Unicode, just ASCII encoding
+    monitorid = str(config['monitoring']['monitorid'])
+    syncid = str(config['monitoring']['syncid'])
+    taskid = str(config['monitoring']['taskid'])
+
+    try:
+        if os.environ.get("PARROT_ENABLED", "FALSE") == "TRUE":
+            raise ValueError()
+        sync_ce = loadSiteLocalConfig().siteName
+    except Exception as e:
+        for envvar in ["GLIDEIN_Gatekeeper", "OSG_HOSTNAME", "CONDORCE_COLLECTOR_HOST"]:
+            if envvar in os.environ:
+                sync_ce = os.environ[envvar]
+                break
+        else:
+            host = socket.getfqdn()
+            sync_ce = config['default host']
+            if host.rsplit('.')[-2:] == sync_ce.rsplit('.')[-2:]:
+                sync_ce = config['default ce']
+            else:
+                sync_ce = 'Unknown'
+
+    logger.info("using sync CE {}".format(sync_ce))
+
+    parameters = {
+        'ExeStart': str(config['executable']),
+        'NCores': config.get('cores', 1),
+        'SyncCE': sync_ce,
+        'SyncGridJobId': syncid,
+        'WNHostName': socket.getfqdn()
+    }
+
+    apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
+    apmonFree()
+
+def send_final_dashboard_update(data, config, monalisa):
+    cputime = data['cpu time']
+    events_per_run = data['events per run']
+    exe_exit_code = data['exe exit code']
+    exe_time = data['task timing']['stage out end'] - data['task timing']['prologue end']
+    task_exit_code = data['task exit code']
+    total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']
+    stageout_exit_code = data['stageout exit code']
+    stageout_se = data['output storage element']
+
+    logger.debug("Execution time {}".format(total_time))
+    logger.debug("Exiting with code {}".format(task_exit_code))
+    logger.debug("Reporting ExeExitCode {}".format(exe_exit_code))
+    logger.debug("Reporting StageOutSE {}".format(stageout_se))
+    logger.debug("Reporting StageOutExitCode {}".format(stageout_exit_code))
+
+    parameters = {
+        'ExeTime': str(exe_time),
+        'ExeExitCode': str(exe_exit_code),
+        'JobExitCode': str(task_exit_code),
+        'JobExitReason': '',
+        'StageOutSE': stageout_se,
+        'StageOutExitStatus': str(stageout_exit_code),
+        'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
+        'CrabUserCpuTime': str(cputime),
+        'CrabWrapperTime': str(total_time),
+        'WCCPU': str(total_time),
+        'NoEventsPerRun': str(events_per_run),
+        'NbEvPerRun': str(events_per_run),
+        'NEventsProcessed': str(events_per_run)
+    }
+    try:
+        parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
+    except:
+        pass
+
+    monitorid = str(config['monitoring']['monitorid'])
+    syncid = str(config['monitoring']['syncid'])
+    taskid = str(config['monitoring']['taskid'])
+
+    apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
+    apmonFree()
+
+def write_report(data):
+    with open('report.json', 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
+
+def write_zipfiles(data):
+    filename = 'report.xml'
+    if os.path.exists(filename):
+        with open(filename) as f:
+            zipf = gzip.open(filename + ".gz", "wb")
+            zipf.writelines(f)
+            zipf.close()
 
 data = {
     'files': {
@@ -729,12 +951,13 @@ data = {
         'type': None,
     },
     'task exit code': 0,
-    '{0} exit code'.format('cmssw' if cmsRun else 'exe'): 0,
+    'exe exit code': 0,
     'stageout exit code': 0,
     'cpu time': 0,
     'events written': 0,
     'output size': 0,
     'output bare size': 0,
+    'output storage element': '',
     'task timing': {
         'stage in end': 0,
         'prologue end': 0,
@@ -748,240 +971,34 @@ data = {
     'transfers': defaultdict(Counter)
 }
 
+configfile = sys.argv[1]
+with open(configfile) as f:
+    config = json.load(f)
+
+atexit.register(send_final_dashboard_update, data, config, monalisa)
+atexit.register(write_report, data)
+atexit.register(write_zipfiles, data)
+
 logger.info('data is {0}'.format(str(data)))
 env = os.environ
 env['X509_USER_PROXY'] = 'proxy'
 
-
-with check_execution(data, 179):
-    copy_inputs(data, config, env)
-
-data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
-
-# Dashboard does not like Unicode, just ASCII encoding
-monitorid = str(config['monitoring']['monitorid'])
-syncid = str(config['monitoring']['syncid'])
-taskid = str(config['monitoring']['taskid'])
-
-args = config['arguments']
-
-prologue = config.get('prologue', [])
-epilogue = config.get('epilogue', [])
-
-if prologue and len(prologue) > 0:
-    logger.info("prologue")
-    with check_execution(data, 180):
-        p = run_subprocess(prologue,env=env)
-
-        # Was originally a subprocess.check_call, but this has the
-        # potential to confuse log file output because print buffers
-        # differently from the underlying process.  Therefore, do what
-        # check_call would do and raise a CalledProcessError if we get
-        # a non-zero return code.
-        if p.returncode != 0:
-            raise subprocess.CalledProcessError
-
-
-data['task timing']['prologue end'] = int(datetime.now().strftime('%s'))
-
-try:
-    if os.environ.get("PARROT_ENABLED", "FALSE") == "TRUE":
-        raise ValueError()
-    sync_ce = loadSiteLocalConfig().siteName
-except Exception as e:
-    for envvar in ["GLIDEIN_Gatekeeper", "OSG_HOSTNAME", "CONDORCE_COLLECTOR_HOST"]:
-        if envvar in os.environ:
-            sync_ce = os.environ[envvar]
-            break
-    else:
-        host = socket.getfqdn()
-        sync_ce = config['default host']
-        if host.rsplit('.')[-2:] == sync_ce.rsplit('.')[-2:]:
-            sync_ce = config['default ce']
-        else:
-            sync_ce = 'Unknown'
-target_se = config['default se']
-
-logger.info("using sync CE {}".format(sync_ce))
-
-parameters = {
-    'ExeStart': str(config['executable']),
-    'NCores': config.get('cores', 1),
-    'SyncCE': sync_ce,
-    'SyncGridJobId': syncid,
-    'WNHostName': socket.getfqdn()
-}
-
-apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
-apmonFree()
+extract_wrapper_times(data)
+copy_inputs(data, config, env)
 
 logger.info("updated parameters are")
 with mangler.output("json"):
     for l in json.dumps(config, sort_keys=True, indent=2).splitlines():
         logger.debug(l)
 
-if cmsRun:
-    #
-    # Start proper CMSSW job
-    #
+send_initial_dashboard_update(data, config, monalisa)
 
-    pset = config['pset']
-    pset_mod = pset.replace(".py", "_mod.py")
-    shutil.copy2(pset, pset_mod)
+run_prologue(data, config, env)
+run_command(data, config, env, monalisa)
+run_epilogue(data, config, env)
 
-    edit_process_source(pset_mod, config)
-
-    cmd = ['cmsRun', '-j', 'report.xml', pset_mod]
-    cmd.extend([str(arg) for arg in args])
-else:
-    usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cmd = config['executable']
-    if isinstance(cmd, basestring):
-        cmd = shlex.split(cmd)
-    if os.path.isfile(cmd[0]):
-        cmd[0] = os.path.join(os.getcwd(), cmd[0])
-    cmd.extend([str(arg) for arg in args])
-
-    if config.get('append inputs to args', False):
-        cmd.extend([str(f) for f in config['mask']['files']])
-
-logger.info("running {0}".format(' '.join(cmd)))
-p = run_subprocess(cmd, env=env)
-logger.info("executable returned with exit code {0}.".format(p.returncode))
-data['exe exit code'] = p.returncode
-data['task exit code'] = data['exe exit code']
-
-if cmsRun:
-    apmonSend(taskid, monitorid, {'ExeEnd': 'cmsRun', 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
-
-    with check_execution(data, 190):
-        parse_fwk_report(config, data, 'report.xml')
-
-    calculate_alder32(data)
-else:
-    data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
-    data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
-    data['cpu time'] = usage.ru_stime
-
-with check_execution(data, 191):
-    data['task timing']['wrapper start'] = extract_time('t_wrapper_start')
-    data['task timing']['wrapper ready'] = extract_time('t_wrapper_ready')
-
-now = int(datetime.now().strftime('%s'))
-data['task timing']['processing end'] = now
-
-if epilogue and len(epilogue) > 0:
-    # Make data collected so far available to the epilogue
-    with open('report.json', 'w') as f:
-        json.dump(data, f, indent=2)
-    logger.info("epilogue")
-    with check_execution(data, 199):
-        p = run_subprocess(epilogue, env=env)
-
-        # Was originally a subprocess.check_call, but this has the
-        # potential to confuse log file output because print buffers
-        # differently from the underlying process.  Therefore, do what
-        # check_call would do and raise a CalledProcessError if we get
-        # a non-zero return code.
-        if p.returncode != 0:
-            raise subprocess.CalledProcessError
-    with open('report.json', 'r') as f:
-        data = json.load(f)
-
-        # Dumping `data` turns the defaultdict of Counters into a dict of
-        # dicts, so copy it back into a defaultdict of Counters
-        transfers = defaultdict(Counter)
-        for protocol in data['transfers']:
-            transfers[protocol].update(data['transfers'][protocol])
-        data['transfers'] = transfers
-
-data['task timing']['epilogue end'] = int(datetime.now().strftime('%s'))
-
-stageout_se = target_se
-with check_execution(data, 210):
-    stageout_se = copy_outputs(data, config, env)
-# Also set stageout exit code if copy_outputs fails
-if data['task exit code'] == 210:
-    data['stageout exit code'] = 210
-
-if data['stageout exit code'] != 210:
-    transfer_success = all(check_output(config, local, remote) for local, remote in config['output files'])
-    if data['task exit code'] == 0 and not transfer_success:
-        data['task exit code'] = 211
-        data['stageout exit code'] = 211
-        data['output size'] = 0
-
-data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
-
-if 'PARROT_ENABLED' in os.environ:
-    cachefile = os.path.join(os.environ['PARROT_CACHE'], 'hot_cache')
-    if not os.path.isfile(cachefile):
-        # Write the time of the first event to the cache file.  At that
-        # point in processing, almost everything should have been pulled
-        # from CVMFS.
-        with open(cachefile, 'w') as f:
-            f.write(str(data['task timing']['processing end']))
-        data['cache']['type'] = 0
-    else:
-        with open(cachefile) as f:
-            fullcache = int(f.read())
-            selfstart = extract_time('t_wrapper_start')
-
-            # If our wrapper started before the cache was filled, we are
-            # still a cold cache task (value 0.)  Otherwise, we were
-            # operating on a hot cache.
-            data['cache']['type'] = int(selfstart > fullcache)
-else:
-    data['cache']['type'] = 2
-
-with check_execution(data, 193):
-    with open('report.json', 'w') as f:
-        json.dump(data, f, indent=2)
-        f.write('\n')
-
-filename = 'report.xml'
-if os.path.isfile(filename):
-    with check_execution(data, 194):
-        with open(filename) as f:
-            zipf = gzip.open(filename + ".gz", "wb")
-            zipf.writelines(f)
-            zipf.close()
-
-cputime = data['cpu time']
-total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']
-exe_time = data['task timing']['stage out end'] - data['task timing']['prologue end']
-task_exit_code = data['task exit code']
-stageout_exit_code = data['stageout exit code']
-events_per_run = data['events per run']
-exe_exit_code = data['{0} exit code'.format('cmssw' if cmsRun else 'exe')]
-
-logger.debug("Execution time {}".format(total_time))
-logger.debug("Exiting with code {}".format(task_exit_code))
-logger.debug("Reporting ExeExitCode {}".format(exe_exit_code))
-logger.debug("Reporting StageOutSE {}".format(stageout_se))
-logger.debug("Reporting StageOutExitCode {}".format(stageout_exit_code))
-
-parameters = {
-    'ExeTime': str(exe_time),
-    'ExeExitCode': str(exe_exit_code),
-    'JobExitCode': str(task_exit_code),
-    'JobExitReason': '',
-    'StageOutSE': stageout_se,
-    'StageOutExitStatus': str(stageout_exit_code),
-    'StageOutExitStatusReason': 'Copy succedeed with srm-lcg utils',
-    'CrabUserCpuTime': str(cputime),
-    'CrabWrapperTime': str(total_time),
-    'WCCPU': str(total_time),
-    'NoEventsPerRun': str(events_per_run),
-    'NbEvPerRun': str(events_per_run),
-    'NEventsProcessed': str(events_per_run)
-}
-try:
-    parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
-except:
-    pass
-
-apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
-apmonFree()
-
-sys.exit(task_exit_code)
+copy_outputs(data, config, env)
+check_outputs(data, config)
+check_parrot_cache(data)
+write_report(data)
+write_zipfiles(data)

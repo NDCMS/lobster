@@ -72,7 +72,7 @@ process.Timing = cms.Service("Timing",
     summaryOnly = cms.untracked.bool(True))
 
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
-xrdstats = cms.Service("XrdAdaptor::XrdStatisticsService",  cms.untracked.PSet( reportToFJR = cms.untracked.bool(True)))
+xrdstats = cms.Service("XrdAdaptor::XrdStatisticsService",  cms.untracked.PSet(reportToFJR = cms.untracked.bool(True)))
 process.add_(xrdstats)
 
 for prod in process.producers.values():

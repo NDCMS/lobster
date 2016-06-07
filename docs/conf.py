@@ -307,5 +307,9 @@ if os.environ.get('READTHEDOCS', None) == 'True':
         def __getattr__(cls, name):
             return Mock()
 
-    MOCK_MODULES = ['httplib2', 'pycurl', 'work_queue', 'Chirp', 'dbs', 'dbs.apis', 'dbs.apis.dbsClient']
+    MOCK_MODULES = [
+        'httplib2', 'pycurl', 'work_queue', 'Chirp',
+        'dbs', 'dbs.apis', 'dbs.apis.dbsClient',
+        'xdg', 'xdg.BaseDirectory'
+    ]
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

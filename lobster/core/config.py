@@ -181,7 +181,8 @@ class AdvancedOptions(Configurable):
     _mutable = {
             'payload': (None, [], False),
             'threshold_for_failure': ('source.update_paused', [], False),
-            'threshold_for_skipping': ('source.update_paused', [], False)
+            'threshold_for_skipping': ('source.update_paused', [], False),
+            'xrootd_servers': ('source.copy_siteconf', [], False)
     }
 
     def __init__(self,

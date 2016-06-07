@@ -144,7 +144,7 @@ class TaskProvider(object):
         self.__store = unit.UnitStore(self.config)
 
         self.__setup_inputs()
-        self.__copy_siteconf()
+        self.copy_siteconf()
 
         create = not util.checkpoint(self.workdir, 'id')
         if create:
@@ -226,7 +226,7 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
-    def __copy_siteconf(self):
+    def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
         storage_out = os.path.join(self.siteconf, 'PhEDEx', 'storage.xml')
         if not os.path.exists(os.path.dirname(storage_out)):

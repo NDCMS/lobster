@@ -834,7 +834,10 @@ def run_epilogue(data, config, env):
         update = json.load(f)
         # Update data in memory without changing the reference
         for k in update.keys():
-            if k not in data:
+            # List of allowed keys to update: currently only file metadata
+            if k not in ('files',):
+                continue
+            elif k not in data:
                 del data[k]
             else:
                 data[k] = update[k]

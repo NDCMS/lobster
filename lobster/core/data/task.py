@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-from collections import defaultdict, deque, Counter
+from collections import defaultdict, Counter
 from contextlib import contextmanager
 from datetime import datetime
 import atexit
-import collections
 import gzip
 import json
 import logging
@@ -25,7 +24,7 @@ sys.path.append('python')
 from WMCore.DataStructs.LumiList import LumiList
 from WMCore.FwkJobReport.Report import Report
 from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
-from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
+from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig
 
 import ROOT
 
@@ -35,7 +34,9 @@ ROOT.gErrorIgnoreLevel = ROOT.kError
 
 from ROOT import TFile
 
+
 class Mangler(logging.Formatter):
+
     def __init__(self):
         super(Mangler, self).__init__(fmt='%(message)s')
         self.context = None
@@ -116,12 +117,13 @@ process.maxSecondsUntilRampdown = cms.untracked.PSet(input = cms.untracked.int32
 """
 
 monalisa = {
-        'cms-jobmon.cern.ch:8884': {
-            'sys_monitoring': 0,
-            'general_info': 0,
-            'job_monitoring': 0
-        }
+    'cms-jobmon.cern.ch:8884': {
+        'sys_monitoring': 0,
+        'general_info': 0,
+        'job_monitoring': 0
+    }
 }
+
 
 def run_subprocess(*args, **kwargs):
     logger.info("executing '{}'".format(" ".join(*args)))
@@ -159,6 +161,7 @@ def run_subprocess(*args, **kwargs):
 
     return p
 
+
 def calculate_alder32(data):
     """Try to calculate checksums for output files.
     """
@@ -171,10 +174,10 @@ def calculate_alder32(data):
 
             if p.returncode == 0:
                 checksum = stdout.split()[-2]
-                events = stdout.split()[-6]
         except:
             pass
         data['files']['output info'][fn]['adler32'] = checksum
+
 
 def check_execution(exitcode, update=None):
     """Decorator to quit upon exception.
@@ -188,6 +191,7 @@ def check_execution(exitcode, update=None):
     """
     if update is None:
         update = {}
+
     def decorator(fct):
         def wrapper(data, *args, **kwargs):
             try:
@@ -202,6 +206,7 @@ def check_execution(exitcode, update=None):
                 sys.exit(exitcode)
         return wrapper
     return decorator
+
 
 def check_output(config, localname, remotename):
     """Check that file has been transferred correctly.
@@ -231,7 +236,7 @@ def check_output(config, localname, remotename):
     for output in config['output']:
         if output.startswith('root://'):
             server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
-            timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
+            timeout = '300'  # if the server is bogus, xrdfs hangs instead of returning an error
             args = [
                 "timeout",
                 timeout,
@@ -263,12 +268,14 @@ def check_output(config, localname, remotename):
 
     return False
 
+
 @check_execution(exitcode=211, update={'stageout exit code': 211, 'output size': 0})
 def check_outputs(data, config):
     for local, remote in config['output files']:
         if not check_output(config, local, remote):
             raise IOError("could not verify output file '{}'".format(remote))
     data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
+
 
 def check_parrot_cache(data):
     if 'PARROT_ENABLED' in os.environ:
@@ -289,6 +296,7 @@ def check_parrot_cache(data):
                 # still a cold cache task (value 0.)  Otherwise, we were
                 # operating on a hot cache.
                 data['cache']['type'] = int(selfstart > fullcache)
+
 
 @check_execution(exitcode=179)
 def copy_inputs(data, config, env):
@@ -350,7 +358,7 @@ def copy_inputs(data, config, env):
             elif input.startswith('root://'):
                 logger.info("Trying xrootd access method")
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
-                timeout = '300' # if the server is bogus, xrdfs hangs instead of returning an error
+                timeout = '300'  # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
                     "env",
                     "XRD_LOGLEVEL=Debug",
@@ -472,6 +480,7 @@ def copy_inputs(data, config, env):
 
     data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
 
+
 @check_execution(exitcode=210, update={'stageout exit code': 210})
 def copy_outputs(data, config, env):
     """Copy output files.
@@ -502,7 +511,7 @@ def copy_outputs(data, config, env):
 
         try:
             outsize_bare += get_bare_size(localname)
-        except IOError as error:
+        except IOError:
             logger.warning('detected non-EDM output; using filesystem-reported file size for merge calculation')
             try:
                 outsize_bare += os.path.getsize(localname)
@@ -586,7 +595,7 @@ def copy_outputs(data, config, env):
             else:
                 logger.warning('skipping unhandled stage-out method: {0}'.format(output))
 
-    if set([ln for ln, rn in config['output files']]) - set(transferred):
+    if set([ln for ln, _ in config['output files']]) - set(transferred):
         raise RuntimeError("no stage-out method succeeded")
 
     data['output size'] = outsize
@@ -597,6 +606,7 @@ def copy_outputs(data, config, env):
         data['output storager element'] = max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
 
     data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
+
 
 def edit_process_source(pset, config):
     """Edit parameter set for task.
@@ -640,6 +650,7 @@ def edit_process_source(pset, config):
                 logger.debug(l)
         fp.write(frag)
 
+
 @check_execution(exitcode=190)
 def parse_fwk_report(data, config, report_filename):
     """Extract task data from a framework report.
@@ -667,8 +678,8 @@ def parse_fwk_report(data, config, report_filename):
     for file in report.getAllFiles():
         pfn = file['pfn']
         outinfos[pfn] = {
-                'runs': {},
-                'events': file['events'],
+            'runs': {},
+            'events': file['events'],
         }
         written += int(file['events'])
         for run in file['runs']:
@@ -703,6 +714,7 @@ def parse_fwk_report(data, config, report_filename):
     data['cpu time'] = cputime
     data['events per run'] = eventsPerRun
 
+
 @check_execution(exitcode=191)
 def extract_wrapper_times(data):
     """Load file contents as integer timestamp.
@@ -712,6 +724,7 @@ def extract_wrapper_times(data):
             ('wrapper ready', 't_wrapper_ready')]:
         with open(filename) as f:
             data['task timing'][key] = int(f.readline())
+
 
 def extract_cmssw_times(log_filename, default=None):
     """Get time information from a CMSSW stdout.
@@ -760,6 +773,7 @@ def get_bare_size(filename):
     rootfile.Close()
     return size
 
+
 @check_execution(exitcode=185)
 def run_command(data, config, env, monalisa):
     cmd = config['executable']
@@ -807,6 +821,7 @@ def run_command(data, config, env, monalisa):
     if p.returncode != 0:
         raise subprocess.CalledProcessError
 
+
 def run_step(data, config, env, name):
     step = config.get(name, [])
     if step and len(step) > 0:
@@ -821,9 +836,11 @@ def run_step(data, config, env, name):
             raise subprocess.CalledProcessError
     data['task timing']['{} end'.format(name)] = int(datetime.now().strftime('%s'))
 
+
 @check_execution(exitcode=180)
 def run_prologue(data, config, env):
     run_step(data, config, env, 'prologue')
+
 
 @check_execution(exitcode=199)
 def run_epilogue(data, config, env):
@@ -848,6 +865,7 @@ def run_epilogue(data, config, env):
             transfers[protocol].update(data['transfers'][protocol])
         data['transfers'] = transfers
 
+
 def send_initial_dashboard_update(data, config, monalisa):
     # Dashboard does not like Unicode, just ASCII encoding
     monitorid = str(config['monitoring']['monitorid'])
@@ -858,7 +876,7 @@ def send_initial_dashboard_update(data, config, monalisa):
         if os.environ.get("PARROT_ENABLED", "FALSE") == "TRUE":
             raise ValueError()
         sync_ce = loadSiteLocalConfig().siteName
-    except Exception as e:
+    except Exception:
         for envvar in ["GLIDEIN_Gatekeeper", "OSG_HOSTNAME", "CONDORCE_COLLECTOR_HOST"]:
             if envvar in os.environ:
                 sync_ce = os.environ[envvar]
@@ -883,6 +901,7 @@ def send_initial_dashboard_update(data, config, monalisa):
 
     apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
     apmonFree()
+
 
 def send_final_dashboard_update(data, config, monalisa):
     cputime = data['cpu time']
@@ -916,21 +935,22 @@ def send_final_dashboard_update(data, config, monalisa):
         'NEventsProcessed': str(events_per_run)
     }
     try:
-        parameters.update({'CrabCpuPercentage': str(float(cputime)/float(total_time))})
+        parameters.update({'CrabCpuPercentage': str(float(cputime) / float(total_time))})
     except:
         pass
 
     monitorid = str(config['monitoring']['monitorid'])
-    syncid = str(config['monitoring']['syncid'])
     taskid = str(config['monitoring']['taskid'])
 
     apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
     apmonFree()
 
+
 def write_report(data):
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)
         f.write('\n')
+
 
 def write_zipfiles(data):
     filename = 'report.xml'

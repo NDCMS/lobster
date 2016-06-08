@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 import logging
 import os
 import sys
-import yaml
 
 # FIXME pycurl shipping with CMSSW is too old to harmonize with modern DBS!
 rm = []
@@ -19,6 +18,7 @@ from lobster import util
 
 logger = logging.getLogger('lobster')
 
+
 def boil():
     parser = ArgumentParser(description='A task submission tool for CMS')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='increase verbosity')
@@ -27,7 +27,7 @@ def boil():
     command.Command.register([os.path.join(os.path.dirname(__file__), d, 'commands') for d in ['.', 'cmssw']], parser)
 
     parser.add_argument(metavar='{configfile,workdir}', dest='checkpoint',
-            help='configuration file to use or working directory to resume.')
+                        help='configuration file to use or working directory to resume.')
 
     args = parser.parse_args()
 
@@ -78,8 +78,17 @@ def boil():
             os.makedirs(cfg.workdir)
         fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=100e6, backupCount=10)
         fileh.setFormatter(formatter)
+        fileh.setLevel(logging.INFO)
         args.preserve.append(fileh.stream)
         logger.addHandler(fileh)
+
+        if level < logging.INFO:
+            fn = args.plugin.__class__.__name__.lower() + '_debug.log'
+            logger.info("saving debug log to {0}".format(os.path.join(cfg.workdir, fn)))
+            debugh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=100e6, backupCount=10)
+            debugh.setFormatter(formatter)
+            args.preserve.append(debugh.stream)
+            logger.addHandler(debugh)
 
         if not getattr(args, "foreground", False):
             logger.removeHandler(console)

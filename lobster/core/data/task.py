@@ -291,13 +291,16 @@ def check_parrot_cache(data):
             data['cache']['type'] = 0
         else:
             with open(cachefile) as f:
-                fullcache = int(f.read())
-                selfstart = data['task timing']['wrapper start']
+                try:
+                    fullcache = int(f.read())
+                    selfstart = data['task timing']['wrapper start']
 
-                # If our wrapper started before the cache was filled, we are
-                # still a cold cache task (value 0.)  Otherwise, we were
-                # operating on a hot cache.
-                data['cache']['type'] = int(selfstart > fullcache)
+                    # If our wrapper started before the cache was filled, we are
+                    # still a cold cache task (value 0.)  Otherwise, we were
+                    # operating on a hot cache.
+                    data['cache']['type'] = int(selfstart > fullcache)
+                except ValueError:
+                    data['cache']['type'] = 0
 
 
 @check_execution(exitcode=179)

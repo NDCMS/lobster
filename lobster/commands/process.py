@@ -121,7 +121,7 @@ class Process(Command):
             util.verify(self.config.workdir)
 
         from WMCore.Credential.Proxy import Proxy
-        cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+        cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '720:00'})
         if cred.check() and cred.getTimeLeft() > 4 * 3600:
             if not 'X509_USER_PROXY' in os.environ:
                 os.environ['X509_USER_PROXY'] = cred.getProxyFilename()

@@ -272,7 +272,7 @@ class Process(Command):
                 have = {}
                 for c in categories:
                     cstats = self.queue.stats_category(c)
-                    have[c] = cstats.tasks_running + cstats.tasks_waiting
+                    have[c] = {'running': cstats.tasks_running, 'queued': cstats.tasks_waiting}
 
                 stats = self.queue.stats_hierarchy
                 tasks = task_src.obtain(stats.total_cores, have)

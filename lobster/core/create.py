@@ -83,6 +83,9 @@ class Algo(object):
         fill_cores = total_cores + max(int(0.1 * total_cores), self.__config.advanced.payload)
         total_workload = sum(workloads.values())
 
+        if total_workload == 0:
+            return []
+
         # contains (workflow label, tasks, taper)
         data = []
         for wflow, (complete, units, tasks) in remaining.items():
@@ -103,6 +106,9 @@ class Algo(object):
 
             needed_category_tasks -= queued[wflow.category.name]['queued']
             needed_workflow_tasks = max(0, int(needed_category_tasks * workflow_fraction))
+
+            if needed_category_tasks <= 0:
+                continue
 
             taper = 1.
             if needed_workflow_tasks < tasks and complete:

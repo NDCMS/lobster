@@ -74,8 +74,12 @@ process.Timing = cms.Service("Timing",
     summaryOnly = cms.untracked.bool(True))
 
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
-xrdstats = cms.Service("XrdAdaptor::XrdStatisticsService",  cms.untracked.PSet(reportToFJR = cms.untracked.bool(True)))
-process.add_(xrdstats)
+
+import os
+_, major, minor, _ = os.environ["CMSSW_VERSION"].split('_', 3)
+if int(major) >= 7 and int(minor) >= 4:
+    xrdstats = cms.Service("XrdAdaptor::XrdStatisticsService",  cms.untracked.PSet(reportToFJR = cms.untracked.bool(True)))
+    process.add_(xrdstats)
 
 for prod in process.producers.values():
     if prod.hasParameter('nEvents') and prod.type_() == 'ExternalLHEProducer':
@@ -176,7 +180,7 @@ def calculate_alder32(data):
 
             if p.returncode == 0:
                 checksum = stdout.split()[-2]
-        except:
+        except Exception:
             pass
         data['files']['output info'][fn]['adler32'] = checksum
 
@@ -198,7 +202,7 @@ def check_execution(exitcode, update=None):
         def wrapper(data, *args, **kwargs):
             try:
                 fct(data, *args, **kwargs)
-            except:
+            except Exception:
                 with mangler.output('trace'):
                     for l in traceback.format_exc().splitlines():
                         logger.debug(l)
@@ -941,7 +945,7 @@ def send_final_dashboard_update(data, config, monalisa):
     }
     try:
         parameters.update({'CrabCpuPercentage': str(float(cputime) / float(total_time))})
-    except:
+    except Exception:
         pass
 
     monitorid = str(config['monitoring']['monitorid'])

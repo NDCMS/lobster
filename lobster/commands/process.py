@@ -131,6 +131,7 @@ class Process(Command):
                 if cred.getTimeLeft() < 4 * 3600:
                     logger.error("could not renew proxy")
                     sys.exit(1)
+                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
             else:
                 logger.error("please renew your proxy")
                 sys.exit(1)

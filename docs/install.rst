@@ -89,6 +89,13 @@ easy modification of the source::
     ./install_dependencies.sh
     pip install .
 
+Trouble shooting
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If Lobster can not be installed, try reinstalling `numpy`::
+
+    pip install numpy
+
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
 
 .. rubric:: Footnotes

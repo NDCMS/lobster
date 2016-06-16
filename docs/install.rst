@@ -89,10 +89,14 @@ easy modification of the source::
     ./install_dependencies.sh
     pip install .
 
-Trouble shooting
+Troubleshooting
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-If Lobster can not be installed, try reinstalling `numpy`::
+If Lobster installation fails with an error like 
+
+"Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-G1nd85/matplotlib/",
+
+try reinstalling `numpy`::
 
     pip install numpy
 

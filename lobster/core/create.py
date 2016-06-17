@@ -115,15 +115,15 @@ class Algo(object):
                 continue
 
             taper = 1.
-            if needed_workflow_tasks < tasks and complete:
+            if tasks < needed_workflow_tasks and complete:
                 taper = min(1., tasks / float(needed_workflow_tasks))
 
             logger.debug(("creating tasks for {w.label} (category: {w.category.name}):\n" +
                           "\tcategory task limit: ({w.category.tasks_min}, {w.category.tasks_max})\n" +
                           "\tcategory tasks needed: {0}\n" +
                           "\tworkflow tasks needed: {1}\n" +
-                          "\tworkflow tasks available: {2}\n" +
-                          "\ttask taper: {3}").format(needed_category_tasks, needed_workflow_tasks, tasks, taper, w=wflow))
+                          "\tworkflow tasks available: {2} (complete: {4})\n" +
+                          "\ttask taper: {3}").format(needed_category_tasks, needed_workflow_tasks, tasks, taper, complete, w=wflow))
 
             data.append((wflow.label, needed_workflow_tasks, taper))
 

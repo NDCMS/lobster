@@ -149,7 +149,7 @@ class Local(StorageElement):
         """
         def guarded(path):
             if not os.path.exists(path):
-                raise IOError()
+                raise IOError("path does not exist: {0}".format(path))
             return method(path)
         return guarded
 

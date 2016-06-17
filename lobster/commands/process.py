@@ -120,21 +120,22 @@ class Process(Command):
         else:
             util.verify(self.config.workdir)
 
-        from WMCore.Credential.Proxy import Proxy
-        cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
-        if cred.check() and cred.getTimeLeft() > 4 * 3600:
-            if not 'X509_USER_PROXY' in os.environ:
-                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
-        else:
-            if self.config.advanced.renew_proxy:
-                cred.renew()
-                if cred.getTimeLeft() < 4 * 3600:
-                    logger.error("could not renew proxy")
-                    sys.exit(1)
-                os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
+        if self.config.advanced.require_proxy:
+            from WMCore.Credential.Proxy import Proxy
+            cred = Proxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+            if cred.check() and cred.getTimeLeft() > 4 * 3600:
+                if not 'X509_USER_PROXY' in os.environ:
+                    os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
             else:
-                logger.error("please renew your proxy")
-                sys.exit(1)
+                if self.config.advanced.renew_proxy:
+                    cred.renew()
+                    if cred.getTimeLeft() < 4 * 3600:
+                        logger.error("could not renew proxy")
+                        sys.exit(1)
+                    os.environ['X509_USER_PROXY'] = cred.getProxyFilename()
+                else:
+                    logger.error("please renew your proxy")
+                    sys.exit(1)
 
         if not args.foreground:
             ttyfile = open(os.path.join(self.config.workdir, 'process.err'), 'a')

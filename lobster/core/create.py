@@ -25,6 +25,10 @@ class Algo(object):
     def run(self, total_cores, queued, remaining):
         """Run the task creation algorithm.
 
+        If not enough tasks can be created for a workflow, the available
+        tasks are scaled down in size/runtime ("tapered") to ensure that
+        the available resources are used most efficiently.
+
         Steps
         -----
         1. Calculate remaining workload, weighed by cores, per category

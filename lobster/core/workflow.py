@@ -27,7 +27,8 @@ class Category(Configurable):
 
     Attributs modifiable at runtime:
 
-    * `tasks`
+    * `tasks_min`
+    * `tasks_max`
     * `runtime`
 
     Parameters
@@ -58,12 +59,16 @@ class Category(Configurable):
             The runtime of the task in seconds.  Lobster will add a grace
             period to this time, and try to adjust the task size such that
             this runtime is achieved.
-        tasks : int
+        tasks_max : int
             How many tasks should be in the queue (running or waiting) at
             the same time.
+        tasks_min : int
+            The minimum of how many tasks should be in the queue (waiting)
+            at the same time.
     """
     _mutable = {
-            'tasks': (None, [], False),
+            'tasks_max': (None, [], False),
+            'tasks_min': (None, [], False),
             'runtime': ('source.update_runtime', [], True)
     }
 
@@ -74,14 +79,16 @@ class Category(Configurable):
             memory=None,
             disk=None,
             runtime=None,
-            tasks=None
+            tasks_max=None,
+            tasks_min=None
             ):
         self.name = name
         self.cores = cores
         self.runtime = runtime
         self.memory = memory
         self.disk = disk
-        self.tasks = tasks
+        self.tasks_max = tasks_max
+        self.tasks_min = tasks_min
 
         modes = {
             'fixed': wq.WORK_QUEUE_ALLOCATION_MODE_FIXED,

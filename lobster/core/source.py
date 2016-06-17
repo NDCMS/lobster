@@ -2,45 +2,46 @@ import datetime
 import glob
 import json
 import logging
-import math
 import os
 import re
 import shutil
 import socket
 import subprocess
+import sys
 import work_queue as wq
-import yaml
 
 from collections import defaultdict, Counter
 from hashlib import sha1
 
-from lobster import fs, se, util
+from lobster import fs, util
 from lobster.cmssw import dash
 from lobster.core import unit
+from lobster.core import Algo
 from lobster.core import MergeTaskHandler
-from lobster.core import Workflow
 
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 
 logger = logging.getLogger('lobster.source')
 
+
 class ReleaseSummary(object):
+
     """Summary of returned tasks.
 
     Prints a user-friendly summary of which tasks returned with what exit code/status.
     """
 
     flags = {
-            wq.WORK_QUEUE_RESULT_INPUT_MISSING: "missing input",                # 1
-            wq.WORK_QUEUE_RESULT_OUTPUT_MISSING: "missing output",              # 2
-            wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",                   # 4
-            wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",                     # 8
-            wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",    # 16
-            wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out",                      # 32
-            wq.WORK_QUEUE_RESULT_UNKNOWN: "unclassified error",                 # 64
-            wq.WORK_QUEUE_RESULT_FORSAKEN: "unrelated error",                   # 128
-            wq.WORK_QUEUE_RESULT_MAX_RETRIES: "exceed # retries",               # 256
-            wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME: "exceeded runtime"          # 512
+        wq.WORK_QUEUE_RESULT_INPUT_MISSING: "missing input",                # 1
+        wq.WORK_QUEUE_RESULT_OUTPUT_MISSING: "missing output",              # 2
+        wq.WORK_QUEUE_RESULT_STDOUT_MISSING: "no stdout",                   # 4
+        wq.WORK_QUEUE_RESULT_SIGNAL: "signal received",                     # 8
+        wq.WORK_QUEUE_RESULT_RESOURCE_EXHAUSTION: "exhausted resources",    # 16
+        wq.WORK_QUEUE_RESULT_TASK_TIMEOUT: "time out",                      # 32
+        wq.WORK_QUEUE_RESULT_UNKNOWN: "unclassified error",                 # 64
+        wq.WORK_QUEUE_RESULT_FORSAKEN: "unrelated error",                   # 128
+        wq.WORK_QUEUE_RESULT_MAX_RETRIES: "exceed # retries",               # 256
+        wq.WORK_QUEUE_RESULT_TASK_MAX_RUN_TIME: "exceeded runtime"          # 512
     }
 
     def __init__(self):
@@ -100,6 +101,8 @@ class TaskProvider(object):
         self.parrot_path = os.path.dirname(util.which('parrot_run'))
         self.parrot_bin = os.path.join(self.workdir, 'bin')
         self.parrot_lib = os.path.join(self.workdir, 'lib')
+
+        self.__algo = Algo(config)
 
         self.__dash = None
         self.__dash_checker = dash.TaskStateChecker(interval)
@@ -316,100 +319,15 @@ class TaskProvider(object):
                 Dictionary with category names as keys and the number of
                 tasks in the queue as values.
         """
-        # How many cores we need to occupy: have at least 10% of the
-        # available cores provisioned with waiting work
-        need = total + max(int(0.1 * total), self.config.advanced.payload)
-        # Subtract all waiting cores
-        for name, queued in tasks.items():
-            cores = getattr(self.config.categories, name).cores if getattr(self.config.categories, name).cores else 1
-            need -= cores * queued
-        hunger = max(need, 0)
-
-        if hunger == 0:
-            logger.debug("all cores occupied")
-            return []
-        logger.debug("need to fill {} cores".format(hunger))
+        remaining = dict((wflow, self.__store.work_left(wflow.label)) for wflow in self.config.workflows)
 
         taskinfos = []
-        sizes = {}
-        wflows = {}
         for wflow in self.config.workflows:
-            # First try to create a bunch of merge tasks
             taskinfos += self.__store.pop_unmerged_tasks(wflow.label, wflow.merge_size, 10)
-
-            # Then see what we can create still in terms of work
-            complete, units_left, tasks_left = self.__store.work_left(wflow.label)
-            if not complete and tasks_left < 1.:
-                logger.debug("workflow {} has not enough units available to form new tasks".format(wflow.label))
-                continue
-            elif units_left == 0:
-                continue
-
-            cat = wflow.category.name
-            if cat not in sizes:
-                sizes[cat] = 0
-            if cat not in wflows:
-                wflows[cat] = [{}, {}]
-            cores = wflow.category.cores if wflow.category.cores else 1
-            wflows[cat][0 if complete else 1][wflow.label] = int(math.ceil(tasks_left)) * cores
-            sizes[cat] += int(math.ceil(tasks_left)) * cores
-
-        # Sort categories such that the smallest task limit is processed
-        # first
-        def helper(cat):
-            cores = cat.cores if cat.cores else 1
-            return -cat.tasks * cores if cat.tasks else None
-
-        # Go through categories, adjusting number of tasks
-        count = sum(sizes.values())
-        for cat in sorted(self.config.categories, key=helper, reverse=True):
-            if cat.name not in sizes or cat.name == 'merge':
-                continue
-
-            cores = cat.cores if cat.cores else 1
-            ccores = int(math.ceil(hunger * sizes[cat.name] / float(count)))
-            if cat.tasks:
-                ccores = min(ccores, (cat.tasks - tasks.get(cat.name, 0)) * cores)
-            ctotal = sizes[cat.name]
-
-            logger.debug(("creating tasks for category {c.name}:" +
-                    "\n\ttask limit:         {c.tasks}" +
-                    "\n\ttasks in queue:     {cq}" +
-                    "\n\tcores per task:     {cores}" +
-                    "\n\tcores to fill:      {cc}" +
-                    "\n\tcores able to fill: {ct}").format(
-                        c=cat, cq=tasks.get(cat.name, 0), cores=cores, cc=ccores, ct=ctotal))
-
-            # Go through incomplete workflows associated with category
-            for label, left in wflows[cat.name][1].items():
-                if ccores > 0:
-                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cores))))
-                    infos = self.__store.pop_units(label, ntasks)
-                else:
-                    infos = []
-                logger.debug("created {} tasks for workflow {}".format(len(infos), label))
-                ccores -= len(infos) * cores
-                hunger -= len(infos) * cores
-                ctotal -= left
-                taskinfos += infos
-
-            # Go through complete workflows associated with category
-            for label, left in wflows[cat.name][0].items():
-                if ccores > 0:
-                    ntasks = max(1, int(math.ceil((ccores * left) / (float(ctotal) * cores))))
-                    # If we should create more tasks than we can, calculate a
-                    # scale factor to decrease the task size
-                    taper = min(1., float(left) / (ntasks * cores))
-                    infos = self.__store.pop_units(label, ntasks, taper)
-                else:
-                    infos = []
-                logger.debug("created {} tasks for workflow {}".format(len(infos), label))
-                ccores -= len(infos) * cores
-                hunger -= len(infos) * cores
-                ctotal -= left
-                taskinfos += infos
-
-            count -= sizes[cat.name]
+        for label, ntasks, taper in self.__algo.run(total, tasks, remaining):
+            infos = self.__store.pop_units(label, ntasks, taper)
+            logger.debug("created {} tasks for workflow {}".format(len(infos), label))
+            taskinfos += infos
 
         if not taskinfos or len(taskinfos) == 0:
             return []

@@ -175,8 +175,9 @@ class Process(Command):
         with util.PartiallyMutable.unlock():
             task_src = TaskProvider(self.config)
         action = actions.Actions(self.config, task_src)
-        from WMCore.Credential.Proxy import Proxy
-        proxy = Proxy({'logger': logging.getLogger("WMCore")})
+        if self.config.advanced.require_proxy:
+            from WMCore.Credential.Proxy import Proxy
+            proxy = Proxy({'logger': logging.getLogger("WMCore")})
 
         logger.info("using wq from {0}".format(wq.__file__))
 
@@ -260,7 +261,7 @@ class Process(Command):
 
             with self.measure('action'):
                 expiry = None
-                if proxy:
+                if self.config.advanced.require_proxy:
                     left = proxy.getTimeLeft()
                     if left == 0:
                         logger.error("proxy expired!")

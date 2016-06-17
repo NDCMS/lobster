@@ -217,7 +217,7 @@ def check_execution(exitcode, update=None):
 def check_output(config, localname, remotename):
     """Check that file has been transferred correctly.
 
-    If XrootD or Chirp are in the output access methods, tries
+    If file, XrootD or Chirp are in the output access methods, tries
     them in the order specified to compare the local and remote
     file sizes. If they agree, return True; otherwise, return False.
     """
@@ -240,6 +240,17 @@ def check_output(config, localname, remotename):
             raise RuntimeError('checking output for {0} failed: {1}'.format(file, stat))
 
     for output in config['output']:
+        if output.startswith('file://'):
+            path = output.replace('file://', '')
+            args = [
+                "stat",
+                os.path.join(path, remotename)
+            ]
+            p = run_subprocess(args, retry={53: 5})
+            try:
+                return compare(p.stdout, localname)
+            except RuntimeError as e:
+                logger.error(e)
         if output.startswith('root://'):
             server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
             timeout = '300'  # if the server is bogus, xrdfs hangs instead of returning an error

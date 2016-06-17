@@ -75,8 +75,8 @@ class Algo(object):
                 continue
             elif units == 0:
                 continue
-            ncores = wflow.category.cores or 1
-            workloads[wflow.category.name] += ncores * tasks
+            task_cores = wflow.category.cores or 1
+            workloads[wflow.category.name] += task_cores * tasks
 
         # How many cores we need to occupy: have at least 10% of the
         # available cores provisioned with waiting work
@@ -91,11 +91,11 @@ class Algo(object):
         for wflow, (complete, units, tasks) in remaining.items():
             if not complete and tasks < 1. or units == 0:
                 continue
-            ncores = wflow.category.cores or 1
+            task_cores = wflow.category.cores or 1
             category_fraction = workloads[wflow.category.name] / float(total_workload)
-            workflow_fraction = ncores * tasks / float(workloads[wflow.category.name])
+            workflow_fraction = task_cores * tasks / float(workloads[wflow.category.name])
 
-            needed_category_tasks = category_fraction * fill_cores / ncores
+            needed_category_tasks = category_fraction * fill_cores / task_cores
 
             if wflow.category.tasks_max:
                 allowed = wflow.category.tasks_max - sum(queued[wflow.category.name].values())

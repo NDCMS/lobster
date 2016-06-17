@@ -163,6 +163,11 @@ class AdvancedOptions(Configurable):
         renew_proxy : bool
             Have Lobster automatically renew CMS authentication
             credentials.
+        require_proxy : bool
+            Do not require CMS authentication credentials. Note that setting
+            to `False` only makes sense if both inputs and outputs can
+            be accessed locally by workers (`StorageConfiguration` protocols
+            are restricted to `file` and/or `hdfs`.)
         threshold_for_failure : int
             How often a single unit may fail to be processed before Lobster
             will not attempt to process it any longer.
@@ -195,6 +200,7 @@ class AdvancedOptions(Configurable):
             log_level=2,
             payload=10,
             renew_proxy=True,
+            require_proxy=False,
             threshold_for_failure=30,
             threshold_for_skipping=30,
             wq_max_retries=10,
@@ -208,6 +214,7 @@ class AdvancedOptions(Configurable):
         self.log_level = log_level
         self.payload = payload
         self.renew_proxy = renew_proxy
+        self.require_proxy = require_proxy
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries

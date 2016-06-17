@@ -220,6 +220,9 @@ def check_output(config, localname, remotename):
     If file, XrootD or Chirp are in the output access methods, tries
     them in the order specified to compare the local and remote
     file sizes. If they agree, return True; otherwise, return False.
+
+    If file, XrootD, or Chirp are not in the output access methods,
+    return True.
     """
     def compare(stat, file):
         # If there's no local file, there's nothing to compare
@@ -283,7 +286,7 @@ def check_output(config, localname, remotename):
             except RuntimeError as e:
                 logger.error(e)
 
-    return False
+    return True
 
 
 @check_execution(exitcode=211, update={'stageout exit code': 211, 'output size': 0})

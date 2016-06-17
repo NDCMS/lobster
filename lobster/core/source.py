@@ -160,7 +160,7 @@ class TaskProvider(object):
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        if self.config.advanced.use_dashboard:
+        if self.config.advanced.use_dashboard and not self.config.advanced.require_proxy:
             logger.info("using dashboard with task id {0}".format(self.taskid))
             monitor = dash.Monitor
         else:

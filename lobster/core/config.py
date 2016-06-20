@@ -200,7 +200,7 @@ class AdvancedOptions(Configurable):
             log_level=2,
             payload=10,
             renew_proxy=True,
-            require_proxy=False,
+            require_proxy=True,
             threshold_for_failure=30,
             threshold_for_skipping=30,
             wq_max_retries=10,

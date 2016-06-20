@@ -1,11 +1,12 @@
 import os
 import pickle
-import re
 
 from lobster.core.workflow import Category
 from lobster.util import Configurable
 
+
 class Items(object):
+
     """
     Collection similar to `namedtuple`, but can be pickled.
 
@@ -16,6 +17,7 @@ class Items(object):
         key : function
             Function to obtain the key of an object in the collection
     """
+
     def __init__(self, args, key=None):
         for arg in args:
             attr = key(arg) if key else arg
@@ -36,6 +38,7 @@ class Items(object):
     def __repr__(self):
         if len(self.__sequence) == 0:
             return '[]'
+
         def indent(text):
             lines = text.splitlines()
             if len(lines) <= 1:
@@ -43,7 +46,9 @@ class Items(object):
             return "\n".join("    " + l for l in lines).strip()
         return '[\n    {}\n]'.format(',\n    '.join(indent(repr(e)) for e in self.__sequence))
 
+
 class Config(Configurable):
+
     """
     Top-level Lobster configuration object
 
@@ -78,7 +83,7 @@ class Config(Configurable):
     _mutable = {}
 
     def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None, foremen_logs=None,
-            base_directory=None, base_configuration=None, startup_directory=None):
+                 base_directory=None, base_configuration=None, startup_directory=None):
         """
         Top-level configuration object for Lobster
         """
@@ -105,7 +110,8 @@ class Config(Configurable):
             s += "category_{} = {}\n\n".format(cat.name, repr(cat))
         for wflow in self.workflows:
             s += "workflow_{} = {}\n\n".format(wflow.label, repr(wflow))
-        override = {'workflows': '[{}]'.format(', '.join(['workflow_' + w.label for w in self.workflows]))}
+        override = {'workflows': '[{}]'.format(
+            ', '.join(['workflow_' + w.label for w in self.workflows]))}
         s += "config = " + Configurable.__repr__(self, override)
         return s
 
@@ -116,7 +122,8 @@ class Config(Configurable):
                 return pickle.load(f)
         except IOError as e:
             print e
-            raise IOError("can't load configuration from {0}".format(os.path.join(path, 'config.pkl')))
+            raise IOError("can't load configuration from {0}".format(
+                os.path.join(path, 'config.pkl')))
 
     def save(self):
         with open(os.path.join(self.workdir, 'config.pkl'), 'wb') as f:
@@ -124,6 +131,7 @@ class Config(Configurable):
 
 
 class AdvancedOptions(Configurable):
+
     """
     Advanced options for tuning Lobster
 
@@ -184,27 +192,27 @@ class AdvancedOptions(Configurable):
     """
 
     _mutable = {
-            'payload': (None, [], False),
-            'threshold_for_failure': ('source.update_paused', [], False),
-            'threshold_for_skipping': ('source.update_paused', [], False),
-            'xrootd_servers': ('source.copy_siteconf', [], False)
+        'payload': (None, [], False),
+        'threshold_for_failure': ('source.update_paused', [], False),
+        'threshold_for_skipping': ('source.update_paused', [], False),
+        'xrootd_servers': ('source.copy_siteconf', [], False)
     }
 
     def __init__(self,
-            use_dashboard=True,
-            abort_threshold=10,
-            abort_multiplier=4,
-            bad_exit_codes=None,
-            dump_core=False,
-            full_monitoring=False,
-            log_level=2,
-            payload=10,
-            renew_proxy=True,
-            require_proxy=True,
-            threshold_for_failure=30,
-            threshold_for_skipping=30,
-            wq_max_retries=10,
-            xrootd_servers=None):
+                 use_dashboard=True,
+                 abort_threshold=10,
+                 abort_multiplier=4,
+                 bad_exit_codes=None,
+                 dump_core=False,
+                 full_monitoring=False,
+                 log_level=2,
+                 payload=10,
+                 renew_proxy=True,
+                 require_proxy=True,
+                 threshold_for_failure=30,
+                 threshold_for_skipping=30,
+                 wq_max_retries=10,
+                 xrootd_servers=None):
         self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold
         self.abort_multiplier = abort_multiplier

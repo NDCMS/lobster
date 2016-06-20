@@ -55,7 +55,7 @@ class TestSQLBackend(object):
         info.total_units = len(info.files.keys())
         info.path = ''
 
-        return Workflow(label, None, sandbox_release=''), info
+        return Workflow(label, None, sandbox=cmssw.Sandbox(release='')), info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
@@ -103,7 +103,7 @@ class TestSQLBackend(object):
 
         info.total_units = sum([len(finfo.lumis) for f, finfo in info.files.items()])
 
-        return Workflow(label, None, sandbox_release=''), info
+        return Workflow(label, None, sandbox=cmssw.Sandbox(release='')), info
         # }}}
 
     def test_create_datasets(self):

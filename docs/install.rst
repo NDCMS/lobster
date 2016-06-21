@@ -90,13 +90,13 @@ easy modification of the source::
     pip install .
 
 Troubleshooting
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
-If Lobster installation fails with an error like 
+If Lobster installation fails with an error like::
 
-"Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-G1nd85/matplotlib/",
+    Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-G1nd85/matplotlib/
 
-try reinstalling `numpy`::
+Try mannually installing `numpy`::
 
     pip install numpy
 

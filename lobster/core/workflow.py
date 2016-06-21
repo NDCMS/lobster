@@ -139,8 +139,9 @@ class Workflow(Configurable):
             Activates output file merging when set.  Accepts the suffixes
             *k*, *m*, *g* for kilobyte, megabyte, …
         sandbox : Sandbox
-            Path to a sandbox to re-use.  This sandbox will be copied over
-            to the current working directory.
+            The sandbox to use.  Currently can be either a
+            :class:`~lobster.cmssw.Sandbox` or a
+            :class:`~lobster.core.Sandbox`.
         command : str
             Which executable to run (for non-CMSSW workflows)
         extra_inputs : list
@@ -152,8 +153,6 @@ class Workflow(Configurable):
             A list of arguments.  Each element of the dataset is processed
             once for each argument in this list.  The unique argument is
             also passed to the executable.
-
-            TODO: should really be in the dataset specification
         outputs : list
             A list of strings which specifies the files produced by the
             workflow.  Will be automatically determined for CMSSW

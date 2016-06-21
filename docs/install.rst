@@ -96,7 +96,7 @@ If Lobster installation fails with an error like::
 
     Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-G1nd85/matplotlib/
 
-Try mannually installing `numpy`::
+Try manually installing ``numpy``::
 
     pip install numpy
 

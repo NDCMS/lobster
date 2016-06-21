@@ -7,7 +7,6 @@ import shutil
 import sys
 
 from lobster import fs, util
-from lobster.cmssw import sandbox
 from lobster.core.dataset import ParentDataset, ProductionDataset
 from lobster.core.task import *
 from lobster.util import Configurable
@@ -139,14 +138,10 @@ class Workflow(Configurable):
         merge_size : str
             Activates output file merging when set.  Accepts the suffixes
             *k*, *m*, *g* for kilobyte, megabyte, …
-        sandbox : str
-            Path to a sandbox to re-use.  This sandbox will be copied over
-            to the current working directory.
-        sandbox_release : str
-            The path to the CMSSW release to be used as a sandbox.
-            Defaults to the environment variable `LOCALRT`.
-        sandbox_blacklist : list
-            A specification of paths to not pack into the sandbox.
+        sandbox : Sandbox
+            The sandbox to use.  Currently can be either a
+            :class:`~lobster.cmssw.Sandbox` or a
+            :class:`~lobster.core.Sandbox`.
         command : str
             Which executable to run (for non-CMSSW workflows)
         extra_inputs : list
@@ -158,8 +153,6 @@ class Workflow(Configurable):
             A list of arguments.  Each element of the dataset is processed
             once for each argument in this list.  The unique argument is
             also passed to the executable.
-
-            TODO: should really be in the dataset specification
         outputs : list
             A list of strings which specifies the files produced by the
             workflow.  Will be automatically determined for CMSSW
@@ -193,8 +186,6 @@ class Workflow(Configurable):
             cleanup_input=False,
             merge_size=-1,
             sandbox=None,
-            sandbox_release=None,
-            sandbox_blacklist=None,
             command='cmsRun',
             extra_inputs=None,
             arguments=None,
@@ -241,15 +232,8 @@ class Workflow(Configurable):
         self.local = local or hasattr(dataset, 'files')
         self.edm_output = edm_output
 
-        self.sandbox = sandbox
-        if sandbox_release is not None:
-            self.sandbox_release = sandbox_release
-        else:
-            try:
-                self.sandbox_release = os.environ['LOCALRT']
-            except:
-                raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
-        self.sandbox_blacklist = sandbox_blacklist
+        from lobster.cmssw.sandbox import Sandbox
+        self.sandbox = sandbox or Sandbox()
 
     def __repr__(self):
         override = {'category': 'category_' + self.category.name}
@@ -336,9 +320,6 @@ class Workflow(Configurable):
         """Determine output files for CMSSW tasks.
         """
         self.outputs = []
-        # Save determined outputs to the configuration in the
-        # working directory.
-        update_config = True
 
         # To avoid problems loading configs that use the VarParsing module
         sys.argv = [os.path.basename(self.pset)] + self.arguments
@@ -358,13 +339,7 @@ class Workflow(Configurable):
     def setup(self, workdir, basedirs):
         self.workdir = os.path.join(workdir, self.label)
 
-        if self.sandbox:
-            self.version, self.sandbox = sandbox.recycle(self.sandbox, workdir)
-        else:
-            self.version, self.sandbox = sandbox.package(
-                    util.findpath(basedirs, self.sandbox_release),
-                    workdir,
-                    self.sandbox_blacklist)
+        self.version, self.sandbox = self.sandbox.package(basedirs, workdir)
 
         self.copy_inputs(basedirs)
         if self.pset and not self.outputs:

@@ -18,7 +18,7 @@ workflows = []
 lhe = Workflow(
         label='lhe_step',
         pset='mc_gen/HIG-RunIIWinter15wmLHE-00196_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_1_16_patch1',
+        sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_1_16_patch1'),
         merge_size='125M',
         dataset=ProductionDataset(
             events_per_task=250,
@@ -35,7 +35,7 @@ lhe = Workflow(
 gs = Workflow(
         label='gs_step',
         pset='mc_gen/HIG-RunIISummer15GS-00177_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_1_18',
+        sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_1_18'),
         merge_size='500M',
         dataset=ParentDataset(
             parent=lhe,
@@ -52,7 +52,7 @@ gs = Workflow(
 digi = Workflow(
         label='digi_step',
         pset='mc_gen/HIG-RunIIFall15DR76-00243_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_6_1',
+        sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_6_1'),
         merge_size='1G',
         dataset=ParentDataset(
             parent=gs,
@@ -69,7 +69,7 @@ digi = Workflow(
 reco = Workflow(
         label='reco_step',
         pset='mc_gen/HIG-RunIIFall15DR76-00243_2_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_6_1',
+        sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_6_1'),
         # Explicitly specify outputs, since the dependency processing only
         # works for workflows with one output file, but the configuration
         # includes two.
@@ -90,7 +90,7 @@ reco = Workflow(
 maod = Workflow(
         label='mAOD_step',
         pset='mc_gen/HIG-RunIIFall15MiniAODv2-00224_1_cfg.py',
-        sandbox_release='mc_gen/CMSSW_7_6_3',
+        sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_6_3'),
         merge_size='500M',
         dataset=ParentDataset(
             parent=reco,

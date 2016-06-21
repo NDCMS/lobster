@@ -944,11 +944,13 @@ class UnitStore:
     def finished_files(self, infos):
         res = []
         for label, files in infos.items():
-            res.extend(self.db.execute("""select filename
-                from files_{0}
-                where id in ({1}) and
-                (units_done == units)""".format(label, ', '.join('?' for _ in files)), tuple(files))
-            )
+            for i in range(0, len(files), 999):
+                chunk = list(files)[i:i + 999]
+                res.extend(self.db.execute("""select filename
+                    from files_{0}
+                    where id in ({1})
+                    and (units_done == units)""".format(label, ', '.join('?' for _ in chunk)), tuple(chunk))
+                )
 
         return (x[0] for x in res)
 

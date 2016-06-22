@@ -33,8 +33,22 @@ class ElkInterface(Configurable):
         self.user = user
         self.project = project
         self.modules = modules or ['core']
+        self.prefix = '[' + self.user + '_' + self.project + ']'
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
+
+        indices = self.client.indices.get_aliases().keys()
+        if any(self.prefix in s for s in indices):
+            raise AttributeError("Elasticsearch indices with prefix " +
+                                 self.prefix + " already exist.")
+
+        search = es_dsl.Search(using=self.client, index='.kibana') \
+                 .filter('prefix', _id=self.prefix)
+        response = search.execute()
+        if len(response) > 0:
+            raise AttributeError("Kibana objects with prefix " +
+                                 self.prefix + " already exist.")
+
         self.generate_kibana_objects()
 
     def __getstate__(self):
@@ -42,7 +56,8 @@ class ElkInterface(Configurable):
                  'port': self.port,
                  'user': self.user,
                  'project': self.project,
-                 'modules': self.modules}
+                 'modules': self.modules,
+                 'prefix': self.prefix}
         return state
 
     def __setstate__(self, state):
@@ -51,12 +66,13 @@ class ElkInterface(Configurable):
         self.user = state['user']
         self.project = state['project']
         self.modules = state['modules']
+        self.prefix = state['prefix']
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
 
     def generate_kibana_objects(self):
         temp_prefix = '[template]'
-        new_prefix = '[' + self.user + '_' + self.project + ']'
+        self.prefix = '[' + self.user + '_' + self.project + ']'
         other_prefix = re.compile('\[.*\]')
 
         search_index = es_dsl.Search(using=self.client, index='.kibana') \
@@ -65,14 +81,14 @@ class ElkInterface(Configurable):
         response_index = search_index.execute()
 
         for index in response_index:
-            index.meta.id = index.meta.id.replace(temp_prefix, new_prefix, 1)
-            index.title = index.title.replace(temp_prefix, new_prefix, 1)
+            index.meta.id = index.meta.id.replace(temp_prefix, self.prefix, 1)
+            index.title = index.title.replace(temp_prefix, self.prefix, 1)
             self.client.index(index='.kibana', doc_type=index.meta.doc_type,
                               id=index.meta.id, body=index.to_dict())
 
         for module in self.modules:
             temp_mod_prefix = temp_prefix + '[' + module + ']'
-            new_mod_prefix = new_prefix + '[' + module + ']'
+            new_mod_prefix = self.prefix + '[' + module + ']'
 
             search_vis = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id=temp_mod_prefix) \
@@ -92,7 +108,8 @@ class ElkInterface(Configurable):
                                               new_mod_prefix, 1)
 
                 source = json.loads(vis.kibanaSavedObjectMeta.searchSourceJSON)
-                source['index'] = other_prefix.sub(new_prefix, source['index'])
+                source['index'] = other_prefix.sub(
+                    self.prefix, source['index'])
                 vis.kibanaSavedObjectMeta.searchSourceJSON = json.dumps(source)
 
                 self.client.index(index='.kibana', doc_type=vis.meta.doc_type,

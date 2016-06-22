@@ -96,7 +96,10 @@ class Config(Configurable):
             label or datetime.datetime.now().strftime('%Y%m%d')
         )
         self.workdir = os.path.expanduser(os.path.expandvars(workdir))
-        self.plotdir = os.path.expanduser(os.path.expandvars(plotdir))
+        if plotdir is not None:
+            self.plotdir = os.path.expanduser(os.path.expandvars(plotdir))
+        else:
+            self.plotdir = None
         self.foremen_logs = foremen_logs
         self.storage = storage
         self.workflows = Items(workflows, key=lambda w: w.label)

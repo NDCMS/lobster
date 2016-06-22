@@ -38,14 +38,19 @@ class ElkInterface(Configurable):
         self.generate_kibana_objects()
 
     def __getstate__(self):
-        return self.host, self.port, self.user, self.project, self.modules
+        state = {'host': self.host,
+                 'port': self.port,
+                 'user': self.user,
+                 'project': self.project,
+                 'modules': self.modules}
+        return state
 
-    def __setstate__(self, host, port, user, project, modules):
-        self.host = host
-        self.port = port
-        self.user = user
-        self.project = project
-        self.modules = modules
+    def __setstate__(self, state):
+        self.host = state['host']
+        self.port = state['port']
+        self.user = state['user']
+        self.project = state['project']
+        self.modules = state['modules']
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
 

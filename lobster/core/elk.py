@@ -37,20 +37,6 @@ class ElkInterface(Configurable):
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
 
-        indices = self.client.indices.get_aliases().keys()
-        if any(self.prefix in s for s in indices):
-            raise AttributeError("Elasticsearch indices with prefix " +
-                                 self.prefix + " already exist.")
-
-        search = es_dsl.Search(using=self.client, index='.kibana') \
-                 .filter('prefix', _id=self.prefix)
-        response = search.execute()
-        if len(response) > 0:
-            raise AttributeError("Kibana objects with prefix " +
-                                 self.prefix + " already exist.")
-
-        self.generate_kibana_objects()
-
     def __getstate__(self):
         state = {'host': self.host,
                  'port': self.port,
@@ -69,6 +55,19 @@ class ElkInterface(Configurable):
         self.prefix = state['prefix']
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
+
+    def check_prefix():
+        indices = self.client.indices.get_aliases().keys()
+        if any(self.prefix in s for s in indices):
+            raise AttributeError("Elasticsearch indices with prefix " +
+                                 self.prefix + " already exist.")
+
+        search = es_dsl.Search(using=self.client, index='.kibana') \
+            .filter('prefix', _id=self.prefix)
+        response = search.execute()
+        if len(response) > 0:
+            raise AttributeError("Kibana objects with prefix " +
+                                 self.prefix + " already exist.")
 
     def generate_kibana_objects(self):
         temp_prefix = '[template]'

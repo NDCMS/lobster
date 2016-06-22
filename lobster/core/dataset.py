@@ -65,16 +65,17 @@ class Dataset(Configurable):
         for entry in self.files:
             entry = os.path.expanduser(entry)
             if fs.isdir(entry):
-                files += filter(fs.isfile, fs.ls(entry))
+                files += fs.ls(entry)
             elif fs.isfile(entry):
                 files.append(entry)
         dset.total_units = len(files)
         self.total_units = len(files)
 
         for fn in files:
-            # hack because it will be slow to open all the input files to read the run/lumi info
+            # hack because it will be slow to stat and open
+            # all the input files to read the size/run/lumi info
             dset.files[fn].lumis = [(-1, -1)]
-            dset.files[fn].size = fs.getsize(fn)
+            dset.files[fn].size = 0
 
         return dset
 

@@ -56,7 +56,7 @@ class ElkInterface(Configurable):
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
 
-    def check_prefix():
+    def check_prefix(self):
         indices = self.client.indices.get_aliases().keys()
         if any(self.prefix in s for s in indices):
             raise AttributeError("Elasticsearch indices with prefix " +

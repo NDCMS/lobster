@@ -27,7 +27,20 @@ class ElkInterface(Configurable):
     """
     _mutable = {}
 
-    def __init__(self, host, port, user, project, modules=['core']):
+    def __init__(self, host, port, user, project, modules=None):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.project = project
+        self.modules = modules or ['core']
+        self.client = es.Elasticsearch([{'host': self.host,
+                                         'port': self.port}])
+        self.generate_kibana_objects()
+
+    def __getstate__(self):
+        return self.host, self.port, self.user, self.project, self.modules
+
+    def __setstate__(self, host, port, user, project, modules):
         self.host = host
         self.port = port
         self.user = user
@@ -35,7 +48,6 @@ class ElkInterface(Configurable):
         self.modules = modules
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
-        self.generate_kibana_objects()
 
     def generate_kibana_objects(self):
         temp_prefix = '[template]'

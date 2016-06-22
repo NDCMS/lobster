@@ -10,8 +10,8 @@ from lobster.util import Configurable
 
 class ElkInterface(Configurable):
     """
-    Enables ELK stack monitoring using an existing Elasticsearch instance
-    for the current Lobster run.
+    Enables ELK stack monitoring for the current Lobster run using an existing
+    Elasticsearch instance.
 
     Parameters
     ----------
@@ -103,10 +103,10 @@ class ElkInterface(Configurable):
             response_dash = search_dash.execute()
 
             for vis in response_vis:
-                vis.meta.id = vis.meta.id.replace(temp_mod_prefix,
-                                                  new_mod_prefix, 1)
-                vis.title = vis.title.replace(temp_mod_prefix,
-                                              new_mod_prefix, 1)
+                vis.meta.id = vis.meta.id.replace(
+                    temp_mod_prefix, new_mod_prefix, 1)
+                vis.title = vis.title.replace(
+                    temp_mod_prefix, new_mod_prefix, 1)
 
                 source = json.loads(vis.kibanaSavedObjectMeta.searchSourceJSON)
                 source['index'] = other_prefix.sub(
@@ -117,26 +117,29 @@ class ElkInterface(Configurable):
                                   id=vis.meta.id, body=vis.to_dict())
 
             for dash in response_dash:
-                dash.meta.id = dash.meta.id.replace(temp_mod_prefix,
-                                                    new_mod_prefix, 1)
-                dash.title = dash.title.replace(temp_mod_prefix,
-                                                new_mod_prefix, 1)
+                dash.meta.id = dash.meta.id.replace(
+                    temp_mod_prefix, new_mod_prefix, 1)
+                dash.title = dash.title.replace(
+                    temp_mod_prefix, new_mod_prefix, 1)
 
                 dash_panels = json.loads(dash.panelsJSON)
                 for panel in dash_panels:
-                    panel['id'] = panel['id'].replace(temp_mod_prefix,
-                                                      new_mod_prefix, 1)
+                    panel['id'] = panel['id'].replace(
+                        temp_mod_prefix, new_mod_prefix, 1)
                 dash.panelsJSON = json.dumps(dash_panels)
 
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
     def index_task(self, task):
+        task = task.__dict__
+
         task['time_processing_end'] = datetime.fromtimestamp(
             task['time_processing_end'])
         task['time_prologue_end'] = datetime.fromtimestamp(
             task['time_prologue_end'])
-        task['time_retrieved'] = datetime.fromtimestamp(task['time_retrieved'])
+        task['time_retrieved'] = datetime.fromtimestamp(
+            task['time_retrieved'])
         task['time_stage_in_end'] = datetime.fromtimestamp(
             task['time_stage_in_end'])
         task['time_stage_out_end'] = datetime.fromtimestamp(

@@ -229,6 +229,10 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
+        if self.config.elk:
+            self.config.elk.check_prefix()
+            self.config.elk.generate_kibana_objects()
+
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
         storage_out = os.path.join(self.siteconf, 'PhEDEx', 'storage.xml')

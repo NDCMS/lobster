@@ -1,4 +1,3 @@
-import glob
 import logging
 import os
 import random
@@ -8,11 +7,10 @@ import subprocess
 import xml.dom.minidom
 
 from contextlib import contextmanager
-from functools import partial, wraps
-
-from util import Configurable
+from lobster.util import Configurable
 
 import Chirp as chirp
+
 
 logger = logging.getLogger('lobster.se')
 
@@ -403,8 +401,8 @@ class StorageConfiguration(Configurable):
         if input is None:
             self.input = []
         else:
-            self.input = map(self.expand_site, input)
-        self.output = map(self.expand_site, output)
+            self.input = [self.expand_site(os.path.expanduser(os.path.expandvars(i))) for i in input]
+        self.output = [self.expand_site(os.path.expanduser(os.path.expandvars(o))) for o in output]
 
         self.use_work_queue_for_inputs = use_work_queue_for_inputs
         self.use_work_queue_for_outputs = use_work_queue_for_outputs

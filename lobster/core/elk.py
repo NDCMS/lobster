@@ -13,8 +13,6 @@ class ElkInterface(Configurable):
 
     Parameters
     ----------
-        use_elk : bool
-            Whether or not to use the ELK stack for monitoring.
         host : str
             Host running Elasticsearch cluster.
         port : int

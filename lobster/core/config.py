@@ -1,3 +1,5 @@
+import datetime
+import getpass
 import os
 import pickle
 
@@ -58,11 +60,6 @@ class Config(Configurable):
 
     Parameters
     ----------
-        label : str
-            A string to identify this project by.  This will be used in the
-            CMS dashboard, where it appears as ``lobster_<label>_<hash>``,
-            and in conjunction with `WorkQueue`, where the project will be
-            referred to as ``lobster_<label>``.
         workdir : str
             The working directory to be used for the project.  Note that
             this should be on a local filesystem to avoid problems with the
@@ -72,6 +69,13 @@ class Config(Configurable):
             files.
         workflows : list
             A list of :class:`~lobster.core.workflow.Workflow` to process.
+        label : str
+            A string to identify this project by.  This will be used in the
+            CMS dashboard, where it appears as
+            ``lobster_<user>_<label>_<hash>``, and in conjunction with
+            `WorkQueue`, where the project will be referred to as
+            ``lobster_<user>_<label>``.  The default is the date in the
+            format `YYYYmmdd`.
         advanced : AdvancedOptions
             More options for advanced users.
         plotdir : str
@@ -82,14 +86,17 @@ class Config(Configurable):
 
     _mutable = {}
 
-    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None, foremen_logs=None,
+    def __init__(self, workdir, storage, workflows, label=None, advanced=None, plotdir=None, foremen_logs=None,
                  base_directory=None, base_configuration=None, startup_directory=None):
         """
         Top-level configuration object for Lobster
         """
-        self.label = label
-        self.workdir = workdir
-        self.plotdir = plotdir
+        self.label = '{}_{}'.format(
+            getpass.getuser(),
+            label or datetime.datetime.now().strftime('%Y%m%d')
+        )
+        self.workdir = os.path.expanduser(os.path.expandvars(workdir))
+        self.plotdir = os.path.expanduser(os.path.expandvars(plotdir))
         self.foremen_logs = foremen_logs
         self.storage = storage
         self.workflows = Items(workflows, key=lambda w: w.label)

@@ -472,6 +472,9 @@ class TaskProvider(object):
                 if wflow.cleanup_input:
                     input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
+            if self.config.elk:
+                self.config.elk.index_task(task_update.__dict__)
+
             self.__dash.update_task(task.tag, dash.RETRIEVED)
 
             update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))

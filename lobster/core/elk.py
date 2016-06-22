@@ -2,6 +2,8 @@ import elasticsearch as es
 import elasticsearch_dsl as es_dsl
 import re
 import json
+import inspect
+from datetime import datetime
 
 from lobster.util import Configurable
 
@@ -128,3 +130,33 @@ class ElkInterface(Configurable):
 
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
+
+    def index_task(self, task):
+        task['time_processing_end'] = datetime.fromtimestamp(
+            task['time_processing_end'])
+        task['time_prologue_end'] = datetime.fromtimestamp(
+            task['time_prologue_end'])
+        task['time_retrieved'] = datetime.fromtimestamp(task['time_retrieved'])
+        task['time_stage_in_end'] = datetime.fromtimestamp(
+            task['time_stage_in_end'])
+        task['time_stage_out_end'] = datetime.fromtimestamp(
+            task['time_stage_out_end'])
+        task['time_transfer_in_end'] = datetime.fromtimestamp(
+            task['time_transfer_in_end'])
+        task['time_transfer_in_start'] = datetime.fromtimestamp(
+            task['time_transfer_in_start'])
+        task['time_transfer_out_end'] = datetime.fromtimestamp(
+            task['time_transfer_out_end'])
+        task['time_transfer_out_start'] = datetime.fromtimestamp(
+            task['time_transfer_out_start'])
+        task['time_wrapper_ready'] = datetime.fromtimestamp(
+            task['time_wrapper_ready'])
+        task['time_wrapper_start'] = datetime.fromtimestamp(
+            task['time_wrapper_start'])
+
+        upsert_doc = {'doc': {'lobster_db': task,
+                              'timestamp': task['time_retrieved']},
+                      'doc_as_upsert': True}
+
+        self.client.update(index=self.prefix + '_lobster_tasks',
+                           doc_type='task', id=task['id'], body=upsert_doc)

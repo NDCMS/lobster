@@ -53,7 +53,6 @@ The factory uses a config written in JSON, like:
 .. code-block:: json
 
     {
-      "master-name": "lobster_shuffle.*",
       "max-workers": 100,
       "min-workers": 0,
       "cores": 4,
@@ -64,7 +63,7 @@ The factory uses a config written in JSON, like:
 which sets up 4 core workers providing 3.6 GB of RAM and 12 GB of disk
 space.  The factory can then be started with::
 
-    work_queue_factory -T condor -C config.json
+    nohup work_queue_factory -T condor -M lobster_$USER.* -o /tmp/${USER}_factory.debug -C factory.json > /tmp/${USER}_factory.log &
 
 .. note::
    At Notre Dame, the following login nodes are connected to the

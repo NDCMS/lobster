@@ -50,20 +50,15 @@ Workers can be either submitted directly, as shown above, or by using the
 `WorkQueue` factory, which allows for dynamic scaling of the processing.
 The factory uses a config written in JSON, like:
 
-.. code-block:: json
+.. literalinclude:: ../examples/factory.json
+   :language: json
 
-    {
-      "max-workers": 100,
-      "min-workers": 0,
-      "cores": 4,
-      "memory": 3600,
-      "disk": 12000
-    }
+This configuration sets up 4 core workers providing 4.4 GB of RAM and 12 GB
+of disk space each.  It is included in the `examples` directory in the
+Lobster source distribution.  The factory can thus be started from within
+the Lobster source directory with::
 
-which sets up 4 core workers providing 3.6 GB of RAM and 12 GB of disk
-space.  The factory can then be started with::
-
-    nohup work_queue_factory -T condor -M lobster_$USER.* -o /tmp/${USER}_factory.debug -C factory.json > /tmp/${USER}_factory.log &
+    nohup work_queue_factory -T condor -M lobster_$USER.* -o /tmp/${USER}_factory.debug -C examples/factory.json > /tmp/${USER}_factory.log &
 
 .. note::
    At Notre Dame, the following login nodes are connected to the

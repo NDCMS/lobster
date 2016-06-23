@@ -132,34 +132,61 @@ class ElkInterface(Configurable):
                                   id=dash.meta.id, body=dash.to_dict())
 
     def index_task(self, task):
-        task = task.__dict__
+        doc = task.__dict__
 
-        task['time_processing_end'] = datetime.fromtimestamp(
-            task['time_processing_end'])
-        task['time_prologue_end'] = datetime.fromtimestamp(
-            task['time_prologue_end'])
-        task['time_retrieved'] = datetime.fromtimestamp(
-            task['time_retrieved'])
-        task['time_stage_in_end'] = datetime.fromtimestamp(
-            task['time_stage_in_end'])
-        task['time_stage_out_end'] = datetime.fromtimestamp(
-            task['time_stage_out_end'])
-        task['time_transfer_in_end'] = datetime.fromtimestamp(
-            task['time_transfer_in_end'])
-        task['time_transfer_in_start'] = datetime.fromtimestamp(
-            task['time_transfer_in_start'])
-        task['time_transfer_out_end'] = datetime.fromtimestamp(
-            task['time_transfer_out_end'])
-        task['time_transfer_out_start'] = datetime.fromtimestamp(
-            task['time_transfer_out_start'])
-        task['time_wrapper_ready'] = datetime.fromtimestamp(
-            task['time_wrapper_ready'])
-        task['time_wrapper_start'] = datetime.fromtimestamp(
-            task['time_wrapper_start'])
+        doc['runtime'] = \
+            doc['time_processing_end'] - doc['time_wrapper_start']
+        doc['time_input_transfer'] = \
+            doc['time_transfer_in_start'] - doc['time_transfer_in_end']
+        doc['time_startup'] =\
+            doc['time_wrapper_start'] - doc['time_transfer_in_end']
+        doc['time_release_setup'] = \
+            doc['time_wrapper_ready'] - doc['time_wrapper_start']
+        doc['time_stage_in'] = \
+            doc['time_stage_in_end'] - doc['time_wrapper_ready']
+        doc['time_prologue'] = \
+            doc['time_prologue_end'] - doc['time_stage_in_end']
+        doc['time_overhead'] = \
+            doc['time_wrapper_ready'] - doc['time_wrapper_start']
+        doc['time_edocecutable'] = \
+            doc['time_processing_end'] - doc['time_prologue_end']
+        doc['time_epilogue'] = \
+            doc['time_epilogue_end'] - doc['time_processing_end']
+        doc['time_stage_out'] = \
+            doc['time_stage_out_end'] - doc['time_epilogue_end']
+        doc['time_output_transfer_wait'] = \
+            doc['time_transfer_out_start'] - doc['time_stage_out_end']
+        doc['time_output_transfer_work_queue'] = \
+            doc['time_transfer_out_end'] - doc['time_transfer_out_start']
 
-        upsert_doc = {'doc': {'lobster_db': task,
-                              'timestamp': task['time_retrieved']},
+        doc['time_processing_end'] = datetime.fromtimestamp(
+            doc['time_processing_end'])
+        doc['time_prologue_end'] = datetime.fromtimestamp(
+            doc['time_prologue_end'])
+        doc['time_retrieved'] = datetime.fromtimestamp(
+            doc['time_retrieved'])
+        doc['time_stage_in_end'] = datetime.fromtimestamp(
+            doc['time_stage_in_end'])
+        doc['time_stage_out_end'] = datetime.fromtimestamp(
+            doc['time_stage_out_end'])
+        doc['time_transfer_in_end'] = datetime.fromtimestamp(
+            doc['time_transfer_in_end'])
+        doc['time_transfer_in_start'] = datetime.fromtimestamp(
+            doc['time_transfer_in_start'])
+        doc['time_transfer_out_end'] = datetime.fromtimestamp(
+            doc['time_transfer_out_end'])
+        doc['time_transfer_out_start'] = datetime.fromtimestamp(
+            doc['time_transfer_out_start'])
+        doc['time_wrapper_ready'] = datetime.fromtimestamp(
+            doc['time_wrapper_ready'])
+        doc['time_wrapper_start'] = datetime.fromtimestamp(
+            doc['time_wrapper_start'])
+        doc['time_epilogue_end'] = datetime.fromtimestamp(
+            doc['time_epilogue_end'])
+
+        upsert_doc = {'doc': {'lobster_db': doc,
+                              'timestamp': doc['time_retrieved']},
                       'doc_as_upsert': True}
 
         self.client.update(index=self.prefix + '_lobster_tasks',
-                           doc_type='task', id=task['id'], body=upsert_doc)
+                           doc_type='task', id=doc['id'], body=upsert_doc)

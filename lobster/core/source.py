@@ -450,6 +450,9 @@ class TaskProvider(object):
 
             wflow = getattr(self.config.workflows, handler.dataset)
 
+            if self.config.elk:
+                self.config.elk.index_task(task_update)
+
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')
                 summary.dir(str(handler.id), faildir)
@@ -471,9 +474,6 @@ class TaskProvider(object):
 
                 if wflow.cleanup_input:
                     input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
-
-            if self.config.elk:
-                self.config.elk.index_task(task_update.__dict__)
 
             self.__dash.update_task(task.tag, dash.RETRIEVED)
 

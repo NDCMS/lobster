@@ -97,6 +97,9 @@ class Process(Command):
                 )) + "\n"
             )
 
+        if self.config.elk:
+            self.config.elk.index_work_queue(now, left, self.times, self.log_attributes, stats)
+
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,
                 help='do not process any additional data; wrap project up by merging everything')

@@ -284,5 +284,23 @@ class ElkInterface(Configurable):
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 
-    def index_work_queue(self, log_attributes, times, stats, now):
-        pass
+    def index_work_queue(self, now, left, times, log_attributes, stats):
+        logger.debug("parsing work queue log")
+
+        keys = ["timestamp", "units_left"] + \
+            ["total_{}_time".format(k) for k in sorted(times.keys())] + \
+            log_attributes
+
+        values = [now, left] + \
+            [times[k] for k in sorted(times.keys())] + \
+            [getattr(stats, a) for a in log_attributes]
+
+        wq = dict(zip(keys, values))
+
+        logger.debug("sending work queue log to Elasticsearch")
+        try:
+            self.client.index(index=self.prefix + '_work_queue',
+                              doc_type='log', id=wq['timestamp'],
+                              body=wq)
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)

@@ -199,6 +199,8 @@ class ElkInterface(Configurable):
         try:
             doc = self.client.get(index=self.prefix + '_lobster_tasks',
                                   doc_type='task', id=task['id'])
+            logger.debug("document found")
+
             report = doc['report']
             report['task intervals'] = {}
 
@@ -218,7 +220,7 @@ class ElkInterface(Configurable):
                 int(report['task timing']['wrapper start'].strftime('%s')) - \
                 task['send_input_start']
         except es.exceptions.NotFoundError:
-            pass
+            logger.debug("document not found")
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 
@@ -276,6 +278,8 @@ class ElkInterface(Configurable):
         try:
             doc = self.client.get(index=self.prefix + '_lobster_tasks',
                                   doc_type='task', id=report['id'])
+            logger.debug("document found")
+
             task = doc['task']
 
             logger.debug("updating time intervals of document" +
@@ -294,7 +298,7 @@ class ElkInterface(Configurable):
                 report['task timing']['wrapper start'] - \
                 int(task['send_input_start'].strftime('%s'))
         except es.exceptions.NotFoundError:
-            pass
+            logger.debug("document not found")
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 

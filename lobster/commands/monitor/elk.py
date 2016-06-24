@@ -1,11 +1,14 @@
 import elasticsearch as es
 import elasticsearch_dsl as es_dsl
-import re
-import json
-import inspect
 from datetime import datetime
+import json
+import re
+import inspect
+import logging
 
 from lobster.util import Configurable
+
+logger = logging.getLogger('lobster.monitor.elk')
 
 
 class ElkInterface(Configurable):
@@ -59,19 +62,32 @@ class ElkInterface(Configurable):
                                          'port': self.port}])
 
     def check_prefix(self):
-        indices = self.client.indices.get_aliases().keys()
+        logger.info("checking Elasticsearch and Kibana prefixes")
+
+        try:
+            indices = self.client.indices.get_aliases().keys()
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
+            raise e
+
         if any(self.prefix in s for s in indices):
-            raise AttributeError("Elasticsearch indices with prefix " +
-                                 self.prefix + " already exist.")
+            e = AttributeError("Elasticsearch indices with prefix " +
+                               self.prefix + " already exist.")
+            logger.error(e)
+            raise e
 
         search = es_dsl.Search(using=self.client, index='.kibana') \
             .filter('prefix', _id=self.prefix)
         response = search.execute()
         if len(response) > 0:
-            raise AttributeError("Kibana objects with prefix " +
-                                 self.prefix + " already exist.")
+            e = AttributeError("Kibana objects with prefix " +
+                               self.prefix + " already exist.")
+            logger.error(e)
+            raise e
 
     def generate_kibana_objects(self):
+        logger.info("generating Kibana objects from templates")
+
         temp_prefix = '[template]'
         self.prefix = '[' + self.user + '_' + self.project + ']'
         other_prefix = re.compile('\[.*\]')
@@ -132,6 +148,8 @@ class ElkInterface(Configurable):
                                   id=dash.meta.id, body=dash.to_dict())
 
     def index_task(self, task):
+        logger.debug("parsing task object")
+
         task = dict([(m, o) for (m, o) in inspect.getmembers(task)
                      if not inspect.isroutine(o) and not m.startswith('__')])
 
@@ -258,9 +276,13 @@ class ElkInterface(Configurable):
                               'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
-        self.client.update(index=self.prefix + '_lobster_tasks',
-                           doc_type='task', id=task['id'],
-                           body=upsert_doc)
+        logger.debug("sending task document to Elasticsearch")
+        try:
+            self.client.update(index=self.prefix + '_lobster_tasks',
+                               doc_type='task', id=task['id'],
+                               body=upsert_doc)
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
 
     def index_work_queue(self, log_attributes, times, stats, now):
         pass

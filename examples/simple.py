@@ -12,8 +12,9 @@ storage = StorageConfiguration(
         # ND is not in the XrootD redirector, thus hardcode server.
         # Note the double-slash after the hostname!
         "root://deepthought.crc.nd.edu//store/user/$USER/lobster_test_" + version,
+        "chirp://opteron03.crc.nd.edu:9094/store/user/$USER/lobster_test_" + version,
         "srm://T3_US_NotreDame/store/user/$USER/lobster_test_" + version
-        ]
+    ]
 )
 
 processing = Category(
@@ -30,7 +31,7 @@ single_mu = Workflow(
     dataset=cmssw.Dataset(
         dataset='/SingleMu/Run2012A-recover-06Aug2012-v1/AOD',
         events_per_task=5000
-        ),
+    ),
     category=processing,
     pset='slim.py',
     publish_label='test',

@@ -386,8 +386,6 @@ class Plotter(object):
             headers = dict(map(lambda (a, b): (b, a), enumerate(f.readline()[1:].split())))
         stats = np.loadtxt(fn)
 
-        diff = stats[:,0] - np.roll(stats[:,0], 1, 0)
-
         # fix units of time
         stats[:,0] /= 1e6
 

@@ -422,10 +422,10 @@ def copy_inputs(data, config, env):
                         break
                 else:
                     logger.info("xrootd access to input file unavailable")
-            elif input.startswith('srm://'):
+            elif input.startswith('srm://') or input.startswith('gsiftp://'):
                 logger.info("Trying srm access method")
                 prg = []
-                if len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and not input.startswith('gsiftp://'):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
@@ -559,9 +559,9 @@ def copy_outputs(data, config, env):
                     except Exception as e:
                         logger.critical(e)
                         data['transfers']['file']['stageout failure'] += 1
-            elif output.startswith('srm://'):
+            elif output.startswith('srm://') or output.startswith('gsiftp://'):
                 prg = []
-                if len(os.environ["LOBSTER_LCG_CP"]) > 0:
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and not output.startswith('gsiftp://'):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment

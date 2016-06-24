@@ -132,61 +132,134 @@ class ElkInterface(Configurable):
                                   id=dash.meta.id, body=dash.to_dict())
 
     def index_task(self, task):
-        doc = task.__dict__
+        task = dict([(m, o) for (m, o) in inspect.getmembers(task)
+                     if not inspect.isroutine(o) and not m.startswith('__')])
 
-        doc['runtime'] = \
-            doc['time_processing_end'] - doc['time_wrapper_start']
-        doc['time_input_transfer'] = \
-            doc['time_transfer_in_start'] - doc['time_transfer_in_end']
-        doc['time_startup'] =\
-            doc['time_wrapper_start'] - doc['time_transfer_in_end']
-        doc['time_release_setup'] = \
-            doc['time_wrapper_ready'] - doc['time_wrapper_start']
-        doc['time_stage_in'] = \
-            doc['time_stage_in_end'] - doc['time_wrapper_ready']
-        doc['time_prologue'] = \
-            doc['time_prologue_end'] - doc['time_stage_in_end']
-        doc['time_overhead'] = \
-            doc['time_wrapper_ready'] - doc['time_wrapper_start']
-        doc['time_edocecutable'] = \
-            doc['time_processing_end'] - doc['time_prologue_end']
-        doc['time_epilogue'] = \
-            doc['time_epilogue_end'] - doc['time_processing_end']
-        doc['time_stage_out'] = \
-            doc['time_stage_out_end'] - doc['time_epilogue_end']
-        doc['time_output_transfer_wait'] = \
-            doc['time_transfer_out_start'] - doc['time_stage_out_end']
-        doc['time_output_transfer_work_queue'] = \
-            doc['time_transfer_out_end'] - doc['time_transfer_out_start']
+        task.pop('_task')
+        task.pop('command')
+        task.pop('output')
 
-        doc['time_processing_end'] = datetime.fromtimestamp(
-            doc['time_processing_end'])
-        doc['time_prologue_end'] = datetime.fromtimestamp(
-            doc['time_prologue_end'])
-        doc['time_retrieved'] = datetime.fromtimestamp(
-            doc['time_retrieved'])
-        doc['time_stage_in_end'] = datetime.fromtimestamp(
-            doc['time_stage_in_end'])
-        doc['time_stage_out_end'] = datetime.fromtimestamp(
-            doc['time_stage_out_end'])
-        doc['time_transfer_in_end'] = datetime.fromtimestamp(
-            doc['time_transfer_in_end'])
-        doc['time_transfer_in_start'] = datetime.fromtimestamp(
-            doc['time_transfer_in_start'])
-        doc['time_transfer_out_end'] = datetime.fromtimestamp(
-            doc['time_transfer_out_end'])
-        doc['time_transfer_out_start'] = datetime.fromtimestamp(
-            doc['time_transfer_out_start'])
-        doc['time_wrapper_ready'] = datetime.fromtimestamp(
-            doc['time_wrapper_ready'])
-        doc['time_wrapper_start'] = datetime.fromtimestamp(
-            doc['time_wrapper_start'])
-        doc['time_epilogue_end'] = datetime.fromtimestamp(
-            doc['time_epilogue_end'])
+        task['resources_requested'] = dict(
+            [(m, o) for (m, o) in inspect.getmembers(task['resources_requested'])
+             if not inspect.isroutine(o) and not m.startswith('__')])
+        task['resources_allocated'] = dict(
+            [(m, o) for (m, o) in inspect.getmembers(task['resources_allocated'])
+             if not inspect.isroutine(o) and not m.startswith('__')])
+        task['resources_measured'] = dict(
+            [(m, o) for (m, o) in inspect.getmembers(task['resources_measured'])
+             if not inspect.isroutine(o) and not m.startswith('__')])
 
-        upsert_doc = {'doc': {'lobster_db': doc,
-                              'timestamp': doc['time_retrieved']},
+        task['resources_requested'].pop('this')
+        task['resources_measured'].pop('this')
+        task['resources_allocated'].pop('this')
+
+        task['resources_measured']['peak_times'] = dict(
+            [(m, o) for (m, o) in
+             inspect.getmembers(task['resources_measured']['peak_times'])
+             if not inspect.isroutine(o) and not m.startswith('__')])
+
+        task['resources_measured']['peak_times'].pop('this')
+
+        task['send_input_start'] = datetime.fromtimestamp(
+            float(str(task['send_input_start'])[:10]))
+        task['send_input_finish'] = datetime.fromtimestamp(
+            float(str(task['send_input_finish'])[:10]))
+        task['execute_cmd_start'] = datetime.fromtimestamp(
+            float(str(task['execute_cmd_start'])[:10]))
+        task['execute_cmd_finish'] = datetime.fromtimestamp(
+            float(str(task['execute_cmd_finish'])[:10]))
+        task['receive_output_start'] = datetime.fromtimestamp(
+            float(str(task['receive_output_start'])[:10]))
+        task['receive_output_finish'] = datetime.fromtimestamp(
+            float(str(task['receive_output_finish'])[:10]))
+        task['submit_time'] = datetime.fromtimestamp(
+            float(str(task['submit_time'])[:10]))
+        task['finish_time'] = datetime.fromtimestamp(
+            float(str(task['finish_time'])[:10]))
+
+        task['resources_measured']['start'] = datetime.fromtimestamp(
+            float(str(task['resources_measured']['start'])[:10]))
+        task['resources_measured']['end'] = datetime.fromtimestamp(
+            float(str(task['resources_measured']['end'])[:10]))
+
+        # task['resources_measured']['peak_times']['start'] = \
+        #     datetime.fromtimestamp(float(str(task['resources_measured']
+        #                                      ['peak_times']['start'])[:10]))
+        # task['resources_measured']['peak_times']['end'] = \
+        #     datetime.fromtimestamp(float(str(task['resources_measured']
+        #                                      ['peak_times']['end'])[:10]))
+
+        # task_update = task_update.__dict__
+        #
+        # task_update['runtime'] = \
+        #     task_update['time_processing_end'] - \
+        #     task_update['time_wrapper_start']
+        # task_update['time_input_transfer'] = \
+        #     task_update['time_transfer_in_start'] - \
+        #     task_update['time_transfer_in_end']
+        # task_update['time_startup'] = \
+        #     task_update['time_wrapper_start'] - \
+        #     task_update['time_transfer_in_end']
+        # task_update['time_release_setup'] = \
+        #     task_update['time_wrapper_ready'] - \
+        #     task_update['time_wrapper_start']
+        # task_update['time_stage_in'] = \
+        #     task_update['time_stage_in_end'] - \
+        #     task_update['time_wrapper_ready']
+        # task_update['time_prologue'] = \
+        #     task_update['time_prologue_end'] - \
+        #     task_update['time_stage_in_end']
+        # task_update['time_overhead'] = \
+        #     task_update['time_wrapper_ready'] - \
+        #     task_update['time_wrapper_start']
+        # task_update['time_executable'] = \
+        #     task_update['time_processing_end'] - \
+        #     task_update['time_prologue_end']
+        # task_update['time_epilogue'] = \
+        #     task_update['time_epilogue_end'] - \
+        #     task_update['time_processing_end']
+        # task_update['time_stage_out'] = \
+        #     task_update['time_stage_out_end'] - \
+        #     task_update['time_epilogue_end']
+        # task_update['time_output_transfer_wait'] = \
+        #     task_update['time_transfer_out_start'] - \
+        #     task_update['time_stage_out_end']
+        # task_update['time_output_transfer_work_queue'] = \
+        #     task_update['time_transfer_out_end'] - \
+        #     task_update['time_transfer_out_start']
+        #
+        # task_update['time_processing_end'] = datetime.fromtimestamp(
+        #     task_update['time_processing_end'])
+        # task_update['time_prologue_end'] = datetime.fromtimestamp(
+        #     task_update['time_prologue_end'])
+        # task_update['time_retrieved'] = datetime.fromtimestamp(
+        #     task_update['time_retrieved'])
+        # task_update['time_stage_in_end'] = datetime.fromtimestamp(
+        #     task_update['time_stage_in_end'])
+        # task_update['time_stage_out_end'] = datetime.fromtimestamp(
+        #     task_update['time_stage_out_end'])
+        # task_update['time_transfer_in_end'] = datetime.fromtimestamp(
+        #     task_update['time_transfer_in_end'])
+        # task_update['time_transfer_in_start'] = datetime.fromtimestamp(
+        #     task_update['time_transfer_in_start'])
+        # task_update['time_transfer_out_end'] = datetime.fromtimestamp(
+        #     task_update['time_transfer_out_end'])
+        # task_update['time_transfer_out_start'] = datetime.fromtimestamp(
+        #     task_update['time_transfer_out_start'])
+        # task_update['time_wrapper_ready'] = datetime.fromtimestamp(
+        #     task_update['time_wrapper_ready'])
+        # task_update['time_wrapper_start'] = datetime.fromtimestamp(
+        #     task_update['time_wrapper_start'])
+        # task_update['time_epilogue_end'] = datetime.fromtimestamp(
+        #     task_update['time_epilogue_end'])
+
+        upsert_doc = {'doc': {'task': task,
+                              'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
         self.client.update(index=self.prefix + '_lobster_tasks',
-                           doc_type='task', id=doc['id'], body=upsert_doc)
+                           doc_type='task', id=task['id'],
+                           body=upsert_doc)
+
+    def index_work_queue(self, log_attributes, times, stats, now):
+        pass

@@ -451,7 +451,7 @@ class TaskProvider(object):
             wflow = getattr(self.config.workflows, handler.dataset)
 
             if self.config.elk:
-                self.config.elk.index_task(task_update)
+                self.config.elk.index_task(task)
 
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')

@@ -195,6 +195,33 @@ class ElkInterface(Configurable):
         task['resources_measured']['end'] = datetime.fromtimestamp(
             float(str(task['resources_measured']['end'])[:10]))
 
+        logger.debug("checking for task document with ID " + str(task['id']))
+        try:
+            doc = self.client.get(index=self.prefix + '_lobster_tasks',
+                                  doc_type='task', id=task['id'])
+            report = doc['report']
+            report['task intervals'] = {}
+
+            logger.debug("updating time intervals of document" +
+                         str(task['id']))
+
+            report['task intervals']['output transfer wait'] = \
+                task['receive_input_start'] - \
+                int(report['task timing']['stage out end'].strftime('%s'))
+            report['task intervals']['output transfer work queue'] = \
+                task['receive_input_finish'] - \
+                task['receive_input_start']
+            report['task intervals']['input transfer'] = \
+                task['send_input_finish'] - \
+                task['send_input_start']
+            report['task intervals']['startup'] = \
+                int(report['task timing']['wrapper start'].strftime('%s'))
+                task['send_input_start'] - \
+        except es.exceptions.NotFoundError:
+            pass
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
+
         upsert_doc = {'doc': {'task': task,
                               'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
@@ -244,6 +271,32 @@ class ElkInterface(Configurable):
         report['task intervals']['stage out'] = \
             report['task timing']['stage out end'] - \
             report['task timing']['epilogue end']
+
+        logger.debug("checking for task document with ID " + str(report['id']))
+        try:
+            doc = self.client.get(index=self.prefix + '_lobster_tasks',
+                                  doc_type='task', id=report['id'])
+            task = doc['task']
+
+            logger.debug("updating time intervals of document" +
+                         str(report['id']))
+
+            report['task intervals']['output transfer wait'] = \
+                int(task['receive_input_start'].strftime('%s')) - \
+                report['task timing']['stage out end']
+            report['task intervals']['output transfer work queue'] = \
+                int(task['receive_input_finish'].strftime('%s')) - \
+                int(task['receive_input_start'].strftime('%s'))
+            report['task intervals']['input transfer'] = \
+                int(task['send_input_finish'].strftime('%s')) - \
+                int(task['send_input_start'].strftime('%s'))
+            report['task intervals']['startup'] = \
+                report['task timing']['wrapper start']
+                int(task['send_input_start'].strftime('%s')) - \
+        except es.exceptions.NotFoundError:
+            pass
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
 
         for field in report['task timing']:
             report['task timing'][field] = datetime.fromtimestamp(

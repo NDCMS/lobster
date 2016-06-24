@@ -11,6 +11,7 @@ import os
 import pickle
 import shutil
 import sqlite3
+import sys
 import time
 import yaml
 import re
@@ -91,8 +92,10 @@ def mp_call(arg):
     fct, args, kwargs = arg
     try:
         fct(*args, **kwargs)
-    except Exception as e:
-        logger.error('method {0} failed with "{1}", using args {2}, {3}'.format(fct, e, args, kwargs))
+    except:
+        import traceback
+        trace = "".join(traceback.format_exception(*sys.exc_info()))
+        logger.error('{0} failed using args {2}, {3}\n{4}'.format(fct, args, kwargs, trace))
 
 def mp_pickle(plotdir, name, data):
     logger.debug("Saving data for {0}".format(name))

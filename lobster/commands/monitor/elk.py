@@ -153,12 +153,13 @@ class ElkInterface(Configurable):
         task['resources_measured'].pop('this')
         task['resources_allocated'].pop('this')
 
-        task['resources_measured']['peak_times'] = dict(
-            [(m, o) for (m, o) in
-             inspect.getmembers(task['resources_measured']['peak_times'])
-             if not inspect.isroutine(o) and not m.startswith('__')])
-
-        task['resources_measured']['peak_times'].pop('this')
+        task['resources_measured'].pop('peak_times')
+        # task['resources_measured']['peak_times'] = dict(
+        #     [(m, o) for (m, o) in
+        #      inspect.getmembers(task['resources_measured']['peak_times'])
+        #      if not inspect.isroutine(o) and not m.startswith('__')])
+        #
+        # task['resources_measured']['peak_times'].pop('this')
 
         task['send_input_start'] = datetime.fromtimestamp(
             float(str(task['send_input_start'])[:10]))

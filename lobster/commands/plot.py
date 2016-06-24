@@ -389,11 +389,13 @@ class Plotter(object):
         # fix units of time
         stats[:,0] /= 1e6
 
-        stats[:,headers['total_workers_joined']] = np.maximum(stats[:,headers['total_workers_joined']] - np.roll(stats[:,headers['total_workers_joined']], 1, 0), 0)
-        stats[:,headers['total_workers_removed']] = np.maximum(stats[:,headers['total_workers_removed']] - np.roll(stats[:,headers['total_workers_removed']], 1, 0), 0)
-        stats[:,headers['total_workers_lost']] = np.maximum(stats[:,headers['total_workers_lost']] - np.roll(stats[:,headers['total_workers_lost']], 1, 0), 0)
-        stats[:,headers['total_workers_idled_out']] = np.maximum(stats[:,headers['total_workers_idled_out']] - np.roll(stats[:,headers['total_workers_idled_out']], 1, 0), 0)
-        stats[:,headers['total_workers_fast_aborted']] = np.maximum(stats[:,headers['total_workers_fast_aborted']] - np.roll(stats[:,headers['total_workers_fast_aborted']], 1, 0), 0)
+        stats[:,headers['workers_joined']] = np.maximum(stats[:,headers['workers_joined']] - np.roll(stats[:,headers['workers_joined']], 1, 0), 0)
+        stats[:,headers['workers_removed']] = np.maximum(stats[:,headers['workers_removed']] - np.roll(stats[:,headers['workers_removed']], 1, 0), 0)
+        stats[:,headers['workers_lost']] = np.maximum(stats[:,headers['workers_lost']] - np.roll(stats[:,headers['workers_lost']], 1, 0), 0)
+        stats[:,headers['workers_idled_out']] = np.maximum(stats[:,headers['workers_idled_out']] - np.roll(stats[:,headers['workers_idled_out']], 1, 0), 0)
+        stats[:,headers['workers_fast_aborted']] = np.maximum(stats[:,headers['workers_fast_aborted']] - np.roll(stats[:,headers['workers_fast_aborted']], 1, 0), 0)
+        stats[:,headers['workers_blacklisted']] = np.maximum(stats[:,headers['workers_blacklisted']] - np.roll(stats[:,headers['workers_blacklisted']], 1, 0), 0)
+        stats[:,headers['workers_released']] = np.maximum(stats[:,headers['workers_released']] - np.roll(stats[:,headers['workers_released']], 1, 0), 0)
 
         if not filename and category == 'all':
             self.__total_xmin = stats[0,0]
@@ -555,7 +557,7 @@ class Plotter(object):
                     [
                         (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
                         (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
-                        (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
+                        (stats[:,headers['timestamp']], stats[:,headers['workers_connected']])
                     ],
                     'Workers', foreman + '-workers',
                     modes=[Plotter.PLOT|Plotter.TIME],
@@ -564,8 +566,8 @@ class Plotter(object):
 
             self.plot(
                 [
-                (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
-                (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                (stats[:,headers['timestamp']], stats[:,headers['workers_joined']]),
+                (stats[:,headers['timestamp']], stats[:,headers['workers_removed']])
                 ],
                 'Workers', foreman + '-turnover',
                 modes=[Plotter.HIST|Plotter.TIME],
@@ -574,8 +576,8 @@ class Plotter(object):
 
             self.pie(
                 [
-                np.sum(stats[:,headers['total_good_execute_time']]),
-                np.sum(stats[:,headers['total_execute_time']]) - np.sum(stats[:,headers['total_good_execute_time']])
+                np.sum(stats[:,headers['time_workers_execute_good']]),
+                np.sum(stats[:,headers['time_workers_execute']]) - np.sum(stats[:,headers['time_workers_execute_good']])
                 ],
                 ["good execute time", "total-good execute time"],
                 foreman + "-time-pie",
@@ -645,7 +647,10 @@ class Plotter(object):
     def make_time_fraction_plot(self, category):
         headers, stats = self.__category_stats[category]
 
-        wq_labels = ['send', 'receive', 'idle']
+        wq_labels = [
+            'time_send', 'time_receive', 'time_status_msgs',
+            'time_internal', 'time_polling', 'time_application'
+        ]
         lobster_labels = ['status', 'create', 'action', 'update', 'fetch', 'return']
 
         times = stats[:,headers['timestamp']]
@@ -657,7 +662,7 @@ class Plotter(object):
             quant = stats[:,headers[label]]
             return (quant - np.roll(quant, 1, 0))[1:]
 
-        wq_stats = dict((label, diff(label)) for label in wq_labels[:-1])
+        wq_stats = dict((label, diff(label)) for label in wq_labels)
         lobster_stats = dict((label, diff(label)) for label in lobster_labels)
 
         time_diff = ((times - np.roll(times, 1, 0)) * 1e6)[1:]
@@ -695,7 +700,7 @@ class Plotter(object):
                 ],
                 'WQ fraction', os.path.join(category, 'wq-fraction'),
                 modes=[Plotter.STACK|Plotter.TIME],
-                labels=wq_labels + ['other'],
+                labels=[x.replace('time_', '').replace('_', ' ') for x in wq_labels] + ['other'],
                 ymax=1.
         )
 
@@ -709,11 +714,13 @@ class Plotter(object):
                 [
                     (stats[:,headers['timestamp']], stats[:,headers['workers_busy']]),
                     (stats[:,headers['timestamp']], stats[:,headers['workers_idle']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_connected']])
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_init']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_connected']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_able']])
                 ],
                 'Workers', os.path.join(category, 'workers'),
                 modes=[Plotter.PLOT|Plotter.TIME],
-                label=['busy', 'idle', 'connected']
+                label=['busy', 'idle', 'init', 'connected', 'able']
         )
 
         for resource, unit in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
@@ -743,8 +750,8 @@ class Plotter(object):
 
         self.plot(
                 [
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_joined']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_removed']])
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_joined']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_removed']])
                 ],
                 'Workers', os.path.join(category, 'turnover'),
                 modes=[Plotter.HIST|Plotter.TIME],
@@ -753,13 +760,15 @@ class Plotter(object):
 
         self.plot(
                 [
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_lost']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_idled_out']]),
-                    (stats[:,headers['timestamp']], stats[:,headers['total_workers_fast_aborted']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_lost']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_idled_out']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_fast_aborted']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_blacklisted']]),
+                    (stats[:,headers['timestamp']], stats[:,headers['workers_released']]),
                 ],
                 'Workers', os.path.join(category, 'worker-deaths'),
                 modes=[Plotter.HIST|Plotter.TIME],
-                label=['evicted', 'idled out', 'fast aborted']
+                label=['evicted', 'idled out', 'fast aborted', 'blacklisted', 'released']
         )
 
         if len(good_tasks) > 0:

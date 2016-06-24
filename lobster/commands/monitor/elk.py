@@ -172,12 +172,6 @@ class ElkInterface(Configurable):
         task['resources_allocated'].pop('this')
 
         task['resources_measured'].pop('peak_times')
-        # task['resources_measured']['peak_times'] = dict(
-        #     [(m, o) for (m, o) in
-        #      inspect.getmembers(task['resources_measured']['peak_times'])
-        #      if not inspect.isroutine(o) and not m.startswith('__')])
-        #
-        # task['resources_measured']['peak_times'].pop('this')
 
         task['send_input_start'] = datetime.fromtimestamp(
             float(str(task['send_input_start'])[:10]))
@@ -201,77 +195,6 @@ class ElkInterface(Configurable):
         task['resources_measured']['end'] = datetime.fromtimestamp(
             float(str(task['resources_measured']['end'])[:10]))
 
-        # task['resources_measured']['peak_times']['start'] = \
-        #     datetime.fromtimestamp(float(str(task['resources_measured']
-        #                                      ['peak_times']['start'])[:10]))
-        # task['resources_measured']['peak_times']['end'] = \
-        #     datetime.fromtimestamp(float(str(task['resources_measured']
-        #                                      ['peak_times']['end'])[:10]))
-
-        # task_update = task_update.__dict__
-        #
-        # task_update['runtime'] = \
-        #     task_update['time_processing_end'] - \
-        #     task_update['time_wrapper_start']
-        # task_update['time_input_transfer'] = \
-        #     task_update['time_transfer_in_start'] - \
-        #     task_update['time_transfer_in_end']
-        # task_update['time_startup'] = \
-        #     task_update['time_wrapper_start'] - \
-        #     task_update['time_transfer_in_end']
-        # task_update['time_release_setup'] = \
-        #     task_update['time_wrapper_ready'] - \
-        #     task_update['time_wrapper_start']
-        # task_update['time_stage_in'] = \
-        #     task_update['time_stage_in_end'] - \
-        #     task_update['time_wrapper_ready']
-        # task_update['time_prologue'] = \
-        #     task_update['time_prologue_end'] - \
-        #     task_update['time_stage_in_end']
-        # task_update['time_overhead'] = \
-        #     task_update['time_wrapper_ready'] - \
-        #     task_update['time_wrapper_start']
-        # task_update['time_executable'] = \
-        #     task_update['time_processing_end'] - \
-        #     task_update['time_prologue_end']
-        # task_update['time_epilogue'] = \
-        #     task_update['time_epilogue_end'] - \
-        #     task_update['time_processing_end']
-        # task_update['time_stage_out'] = \
-        #     task_update['time_stage_out_end'] - \
-        #     task_update['time_epilogue_end']
-        # task_update['time_output_transfer_wait'] = \
-        #     task_update['time_transfer_out_start'] - \
-        #     task_update['time_stage_out_end']
-        # task_update['time_output_transfer_work_queue'] = \
-        #     task_update['time_transfer_out_end'] - \
-        #     task_update['time_transfer_out_start']
-        #
-        # task_update['time_processing_end'] = datetime.fromtimestamp(
-        #     task_update['time_processing_end'])
-        # task_update['time_prologue_end'] = datetime.fromtimestamp(
-        #     task_update['time_prologue_end'])
-        # task_update['time_retrieved'] = datetime.fromtimestamp(
-        #     task_update['time_retrieved'])
-        # task_update['time_stage_in_end'] = datetime.fromtimestamp(
-        #     task_update['time_stage_in_end'])
-        # task_update['time_stage_out_end'] = datetime.fromtimestamp(
-        #     task_update['time_stage_out_end'])
-        # task_update['time_transfer_in_end'] = datetime.fromtimestamp(
-        #     task_update['time_transfer_in_end'])
-        # task_update['time_transfer_in_start'] = datetime.fromtimestamp(
-        #     task_update['time_transfer_in_start'])
-        # task_update['time_transfer_out_end'] = datetime.fromtimestamp(
-        #     task_update['time_transfer_out_end'])
-        # task_update['time_transfer_out_start'] = datetime.fromtimestamp(
-        #     task_update['time_transfer_out_start'])
-        # task_update['time_wrapper_ready'] = datetime.fromtimestamp(
-        #     task_update['time_wrapper_ready'])
-        # task_update['time_wrapper_start'] = datetime.fromtimestamp(
-        #     task_update['time_wrapper_start'])
-        # task_update['time_epilogue_end'] = datetime.fromtimestamp(
-        #     task_update['time_epilogue_end'])
-
         upsert_doc = {'doc': {'task': task,
                               'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
@@ -280,6 +203,59 @@ class ElkInterface(Configurable):
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
+                               body=upsert_doc)
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
+
+    def index_report_json(self, path):
+        with open(path, 'r') as f:
+            report = json.loads(f.read())
+
+        report.pop('files')
+
+        report['path'] = path
+
+        id_p = re.compile('.*\/0*(\d*)\/0*(\d*)\/.*')
+        report['id'] = int(''.join(id_p.search(report['path']).groups()))
+
+        report['task intervals'] = {}
+
+        report['task intervals']['runtime'] = \
+            report['task timing']['processing end'] - \
+            report['task timing']['wrapper start']
+        report['task intervals']['release setup'] = \
+            report['task timing']['wrapper ready'] - \
+            report['task timing']['wrapper start']
+        report['task intervals']['stage in'] = \
+            report['task timing']['stage in end'] - \
+            report['task timing']['wrapper ready']
+        report['task intervals']['prologue'] = \
+            report['task timing']['prologue end'] - \
+            report['task timing']['stage in end']
+        report['task intervals']['overhead'] = \
+            report['task timing']['wrapper ready'] - \
+            report['task timing']['wrapper start']
+        report['task intervals']['executable'] = \
+            report['task timing']['processing end'] - \
+            report['task timing']['prologue end']
+        report['task intervals']['epilogue'] = \
+            report['task timing']['epilogue end'] - \
+            report['task timing']['processing end']
+        report['task intervals']['stage out'] = \
+            report['task timing']['stage out end'] - \
+            report['task timing']['epilogue end']
+
+        for field in report['task timing']:
+            report['task timing'][field] = datetime.fromtimestamp(
+                report['task timing'][field])
+
+        upsert_doc = {'doc': {'report': report},
+                      'doc_as_upsert': True}
+
+        logger.debug("sending task document to Elasticsearch")
+        try:
+            self.client.update(index=self.prefix + '_lobster_tasks',
+                               doc_type='task', id=report['id'],
                                body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
@@ -300,7 +276,8 @@ class ElkInterface(Configurable):
         logger.debug("sending work queue log to Elasticsearch")
         try:
             self.client.index(index=self.prefix + '_work_queue',
-                              doc_type='log', id=wq['timestamp'],
-                              body=wq)
+                              doc_type='log', body=wq,
+                              id=str(int(int(now.strftime('%s')) * 1e6 +
+                                         now.microsecond)))
         except es.exceptions.ConnectionError as e:
             logger.error(e)

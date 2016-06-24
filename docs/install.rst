@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=cctools-109-4883ebaf-cvmfs-40cf5bba
+      cctools=cctools-115-9924592a-cvmfs-40cf5bba
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 

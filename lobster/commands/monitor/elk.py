@@ -215,8 +215,8 @@ class ElkInterface(Configurable):
                 task['send_input_finish'] - \
                 task['send_input_start']
             report['task intervals']['startup'] = \
-                int(report['task timing']['wrapper start'].strftime('%s'))
-                task['send_input_start'] - \
+                int(report['task timing']['wrapper start'].strftime('%s')) - \
+                task['send_input_start']
         except es.exceptions.NotFoundError:
             pass
         except es.exceptions.ConnectionError as e:
@@ -291,8 +291,8 @@ class ElkInterface(Configurable):
                 int(task['send_input_finish'].strftime('%s')) - \
                 int(task['send_input_start'].strftime('%s'))
             report['task intervals']['startup'] = \
-                report['task timing']['wrapper start']
-                int(task['send_input_start'].strftime('%s')) - \
+                report['task timing']['wrapper start'] - \
+                int(task['send_input_start'].strftime('%s'))
         except es.exceptions.NotFoundError:
             pass
         except es.exceptions.ConnectionError as e:

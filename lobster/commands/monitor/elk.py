@@ -173,26 +173,26 @@ class ElkInterface(Configurable):
 
         task['resources_measured'].pop('peak_times')
 
-        task['send_input_start'] = datetime.fromtimestamp(
+        task['send_input_start'] = datetime.utcfromtimestamp(
             float(str(task['send_input_start'])[:10]))
-        task['send_input_finish'] = datetime.fromtimestamp(
+        task['send_input_finish'] = datetime.utcfromtimestamp(
             float(str(task['send_input_finish'])[:10]))
-        task['execute_cmd_start'] = datetime.fromtimestamp(
+        task['execute_cmd_start'] = datetime.utcfromtimestamp(
             float(str(task['execute_cmd_start'])[:10]))
-        task['execute_cmd_finish'] = datetime.fromtimestamp(
+        task['execute_cmd_finish'] = datetime.utcfromtimestamp(
             float(str(task['execute_cmd_finish'])[:10]))
-        task['receive_output_start'] = datetime.fromtimestamp(
+        task['receive_output_start'] = datetime.utcfromtimestamp(
             float(str(task['receive_output_start'])[:10]))
-        task['receive_output_finish'] = datetime.fromtimestamp(
+        task['receive_output_finish'] = datetime.utcfromtimestamp(
             float(str(task['receive_output_finish'])[:10]))
-        task['submit_time'] = datetime.fromtimestamp(
+        task['submit_time'] = datetime.utcfromtimestamp(
             float(str(task['submit_time'])[:10]))
-        task['finish_time'] = datetime.fromtimestamp(
+        task['finish_time'] = datetime.utcfromtimestamp(
             float(str(task['finish_time'])[:10]))
 
-        task['resources_measured']['start'] = datetime.fromtimestamp(
+        task['resources_measured']['start'] = datetime.utcfromtimestamp(
             float(str(task['resources_measured']['start'])[:10]))
-        task['resources_measured']['end'] = datetime.fromtimestamp(
+        task['resources_measured']['end'] = datetime.utcfromtimestamp(
             float(str(task['resources_measured']['end'])[:10]))
 
         logger.debug("parsing task update")
@@ -236,29 +236,29 @@ class ElkInterface(Configurable):
             task_update['time_transfer_out_end'] - \
             task_update['time_transfer_out_start']
 
-        task_update['time_processing_end'] = datetime.fromtimestamp(
+        task_update['time_processing_end'] = datetime.utcfromtimestamp(
             task_update['time_processing_end'])
-        task_update['time_prologue_end'] = datetime.fromtimestamp(
+        task_update['time_prologue_end'] = datetime.utcfromtimestamp(
             task_update['time_prologue_end'])
-        task_update['time_retrieved'] = datetime.fromtimestamp(
+        task_update['time_retrieved'] = datetime.utcfromtimestamp(
             task_update['time_retrieved'])
-        task_update['time_stage_in_end'] = datetime.fromtimestamp(
+        task_update['time_stage_in_end'] = datetime.utcfromtimestamp(
             task_update['time_stage_in_end'])
-        task_update['time_stage_out_end'] = datetime.fromtimestamp(
+        task_update['time_stage_out_end'] = datetime.utcfromtimestamp(
             task_update['time_stage_out_end'])
-        task_update['time_transfer_in_end'] = datetime.fromtimestamp(
+        task_update['time_transfer_in_end'] = datetime.utcfromtimestamp(
             task_update['time_transfer_in_end'])
-        task_update['time_transfer_in_start'] = datetime.fromtimestamp(
+        task_update['time_transfer_in_start'] = datetime.utcfromtimestamp(
             task_update['time_transfer_in_start'])
-        task_update['time_transfer_out_end'] = datetime.fromtimestamp(
+        task_update['time_transfer_out_end'] = datetime.utcfromtimestamp(
             task_update['time_transfer_out_end'])
-        task_update['time_transfer_out_start'] = datetime.fromtimestamp(
+        task_update['time_transfer_out_start'] = datetime.utcfromtimestamp(
             task_update['time_transfer_out_start'])
-        task_update['time_wrapper_ready'] = datetime.fromtimestamp(
+        task_update['time_wrapper_ready'] = datetime.utcfromtimestamp(
             task_update['time_wrapper_ready'])
-        task_update['time_wrapper_start'] = datetime.fromtimestamp(
+        task_update['time_wrapper_start'] = datetime.utcfromtimestamp(
             task_update['time_wrapper_start'])
-        task_update['time_epilogue_end'] = datetime.fromtimestamp(
+        task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
             task_update['time_epilogue_end'])
 
         upsert_doc = {'doc': {'task': task, 'task_update': task_update,

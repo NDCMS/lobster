@@ -1,7 +1,6 @@
 import elasticsearch as es
 import elasticsearch_dsl as es_dsl
 from datetime import datetime
-import time
 import json
 import re
 import inspect
@@ -232,10 +231,9 @@ class ElkInterface(Configurable):
             task['fatal_exception']['exception_message'] = \
                 e_mess_p.search(task['fatal_exception']['message']).group(1)
 
-        upsert_doc = {'doc': {'task': task},
+        upsert_doc = {'doc': {'task': task, 'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
-        logger.debug("sending task document to Elasticsearch")
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
@@ -313,7 +311,6 @@ class ElkInterface(Configurable):
         upsert_doc = {'doc': {'task_update': task_update},
                       'doc_as_upsert': True}
 
-        logger.debug("sending task document to Elasticsearch")
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
@@ -332,11 +329,8 @@ class ElkInterface(Configurable):
             [times[k] for k in sorted(times.keys())] + \
             [getattr(stats, a) for a in log_attributes]
 
-        print(time.mktime(now.timetuple()))
-
         wq = dict(zip(keys, values))
 
-        logger.debug("sending work queue log to Elasticsearch")
         try:
             self.client.index(index=self.prefix + '_work_queue',
                               doc_type='log', body=wq,

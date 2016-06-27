@@ -29,15 +29,21 @@ class ElkInterface(Configurable):
         modules : list
             List of modules to include from the Kibana templates. Defaults to
             including only the core templates.
+        populate_template : bool
+            Whether to send documents to indices with the [template] prefix,
+            in addition to sending them to the [user_run] prefix. Defaults to
+            false.
     """
     _mutable = {}
 
-    def __init__(self, host, port, user, project, modules=None):
+    def __init__(self, host, port, user, project, modules=None,
+                 populate_template=False):
         self.host = host
         self.port = port
         self.user = user
         self.project = project
         self.modules = modules or ['core']
+        self.populate_template = populate_template
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.client = es.Elasticsearch([{'host': self.host,
                                          'port': self.port}])
@@ -238,6 +244,10 @@ class ElkInterface(Configurable):
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
                                body=upsert_doc)
+            if self.populate_template:
+                self.client.update(index='[template]_lobster_tasks',
+                                   doc_type='task', id=task['id'],
+                                   body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 
@@ -315,6 +325,10 @@ class ElkInterface(Configurable):
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
                                body=upsert_doc)
+            if self.populate_template:
+                self.client.update(index='[template]_lobster_tasks',
+                                   doc_type='task', id=task_update['id'],
+                                   body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 
@@ -336,5 +350,10 @@ class ElkInterface(Configurable):
                               doc_type='log', body=wq,
                               id=str(int(int(now.strftime('%s')) * 1e6 +
                                          now.microsecond)))
+            if self.populate_template:
+                self.client.index(index='[template]_work_queue',
+                                  doc_type='log', body=wq,
+                                  id=str(int(int(now.strftime('%s')) * 1e6 +
+                                             now.microsecond)))
         except es.exceptions.ConnectionError as e:
             logger.error(e)

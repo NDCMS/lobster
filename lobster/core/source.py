@@ -262,7 +262,7 @@ class TaskProvider(object):
 
     def __setup_inputs(self):
         self._inputs = [
-                (self.siteconf, 'siteconf', True),
+                (self.siteconf, 'siteconf', False),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),

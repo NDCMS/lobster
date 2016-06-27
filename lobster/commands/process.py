@@ -98,7 +98,7 @@ class Process(Command):
             )
 
         if self.config.elk:
-            self.config.elk.index_work_queue(now, left, self.times, self.log_attributes, stats)
+            self.config.elk.index_stats(now, left, self.times, self.log_attributes, stats, category)
 
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,

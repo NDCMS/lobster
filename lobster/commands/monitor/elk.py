@@ -147,7 +147,7 @@ class ElkInterface(Configurable):
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
-    def index_task(self, task):
+    def index_task(self, task, task_update):
         logger.debug("parsing task object")
 
         task = dict([(m, o) for (m, o) in inspect.getmembers(task)
@@ -173,37 +173,6 @@ class ElkInterface(Configurable):
 
         task['resources_measured'].pop('peak_times')
 
-        logger.debug("checking for task document with ID " + str(task['id']))
-        try:
-            doc = self.client.get(index=self.prefix + '_lobster_tasks',
-                                  doc_type='task', id=task['id'])
-            logger.debug("document found")
-
-            report = doc['report']
-            report['task intervals'] = {}
-
-            logger.debug("updating time intervals of document" +
-                         str(task['id']))
-
-            report['task intervals']['output transfer wait'] = \
-                task['receive_input_start'] - \
-                int(report['task timing']['stage out end'].strftime('%s'))
-            report['task intervals']['startup'] = \
-                int(report['task timing']['wrapper start'].strftime('%s')) - \
-                task['send_input_start']
-        except es.exceptions.NotFoundError:
-            logger.debug("document not found")
-            report = {'task intervals': {}}
-        except es.exceptions.ConnectionError as e:
-            logger.error(e)
-
-        report['task intervals']['output transfer work queue'] = \
-            task['receive_output_finish'] - \
-            task['receive_output_start']
-        report['task intervals']['input transfer'] = \
-            task['send_input_finish'] - \
-            task['send_input_start']
-
         task['send_input_start'] = datetime.fromtimestamp(
             float(str(task['send_input_start'])[:10]))
         task['send_input_finish'] = datetime.fromtimestamp(
@@ -226,7 +195,73 @@ class ElkInterface(Configurable):
         task['resources_measured']['end'] = datetime.fromtimestamp(
             float(str(task['resources_measured']['end'])[:10]))
 
-        upsert_doc = {'doc': {'task': task, 'report': report,
+        logger.debug("parsing task update")
+
+        task_update = task_update.__dict__
+
+        task_update['runtime'] = \
+            task_update['time_processing_end'] - \
+            task_update['time_wrapper_start']
+        task_update['time_input_transfer'] = \
+            task_update['time_transfer_in_start'] - \
+            task_update['time_transfer_in_end']
+        task_update['time_startup'] = \
+            task_update['time_wrapper_start'] - \
+            task_update['time_transfer_in_end']
+        task_update['time_release_setup'] = \
+            task_update['time_wrapper_ready'] - \
+            task_update['time_wrapper_start']
+        task_update['time_stage_in'] = \
+            task_update['time_stage_in_end'] - \
+            task_update['time_wrapper_ready']
+        task_update['time_prologue'] = \
+            task_update['time_prologue_end'] - \
+            task_update['time_stage_in_end']
+        task_update['time_overhead'] = \
+            task_update['time_wrapper_ready'] - \
+            task_update['time_wrapper_start']
+        task_update['time_executable'] = \
+            task_update['time_processing_end'] - \
+            task_update['time_prologue_end']
+        task_update['time_epilogue'] = \
+            task_update['time_epilogue_end'] - \
+            task_update['time_processing_end']
+        task_update['time_stage_out'] = \
+            task_update['time_stage_out_end'] - \
+            task_update['time_epilogue_end']
+        task_update['time_output_transfer_wait'] = \
+            task_update['time_transfer_out_start'] - \
+            task_update['time_stage_out_end']
+        task_update['time_output_transfer_work_queue'] = \
+            task_update['time_transfer_out_end'] - \
+            task_update['time_transfer_out_start']
+
+        task_update['time_processing_end'] = datetime.fromtimestamp(
+            task_update['time_processing_end'])
+        task_update['time_prologue_end'] = datetime.fromtimestamp(
+            task_update['time_prologue_end'])
+        task_update['time_retrieved'] = datetime.fromtimestamp(
+            task_update['time_retrieved'])
+        task_update['time_stage_in_end'] = datetime.fromtimestamp(
+            task_update['time_stage_in_end'])
+        task_update['time_stage_out_end'] = datetime.fromtimestamp(
+            task_update['time_stage_out_end'])
+        task_update['time_transfer_in_end'] = datetime.fromtimestamp(
+            task_update['time_transfer_in_end'])
+        task_update['time_transfer_in_start'] = datetime.fromtimestamp(
+            task_update['time_transfer_in_start'])
+        task_update['time_transfer_out_end'] = datetime.fromtimestamp(
+            task_update['time_transfer_out_end'])
+        task_update['time_transfer_out_start'] = datetime.fromtimestamp(
+            task_update['time_transfer_out_start'])
+        task_update['time_wrapper_ready'] = datetime.fromtimestamp(
+            task_update['time_wrapper_ready'])
+        task_update['time_wrapper_start'] = datetime.fromtimestamp(
+            task_update['time_wrapper_start'])
+        task_update['time_epilogue_end'] = datetime.fromtimestamp(
+            task_update['time_epilogue_end'])
+
+        upsert_doc = {'doc': {'task': task, 'task_update': task_update,
                               'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
@@ -234,81 +269,6 @@ class ElkInterface(Configurable):
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
-                               body=upsert_doc)
-        except es.exceptions.ConnectionError as e:
-            logger.error(e)
-
-    def index_report_json(self, path):
-        with open(path, 'r') as f:
-            report = json.loads(f.read())
-
-        report.pop('files')
-
-        report['path'] = path
-
-        id_p = re.compile('.*\/0*(\d*)\/0*(\d*)\/.*')
-        report['id'] = int(''.join(id_p.search(report['path']).groups()))
-
-        report['task intervals'] = {}
-
-        report['task intervals']['runtime'] = \
-            report['task timing']['processing end'] - \
-            report['task timing']['wrapper start']
-        report['task intervals']['release setup'] = \
-            report['task timing']['wrapper ready'] - \
-            report['task timing']['wrapper start']
-        report['task intervals']['stage in'] = \
-            report['task timing']['stage in end'] - \
-            report['task timing']['wrapper ready']
-        report['task intervals']['prologue'] = \
-            report['task timing']['prologue end'] - \
-            report['task timing']['stage in end']
-        report['task intervals']['overhead'] = \
-            report['task timing']['wrapper ready'] - \
-            report['task timing']['wrapper start']
-        report['task intervals']['executable'] = \
-            report['task timing']['processing end'] - \
-            report['task timing']['prologue end']
-        report['task intervals']['epilogue'] = \
-            report['task timing']['epilogue end'] - \
-            report['task timing']['processing end']
-        report['task intervals']['stage out'] = \
-            report['task timing']['stage out end'] - \
-            report['task timing']['epilogue end']
-
-        logger.debug("checking for task document with ID " + str(report['id']))
-        try:
-            doc = self.client.get(index=self.prefix + '_lobster_tasks',
-                                  doc_type='task', id=report['id'])
-            logger.debug("document found")
-
-            task = doc['task']
-
-            logger.debug("updating time intervals of document" +
-                         str(report['id']))
-
-            report['task intervals']['output transfer wait'] = \
-                int(task['receive_input_start'].strftime('%s')) - \
-                report['task timing']['stage out end']
-            report['task intervals']['startup'] = \
-                report['task timing']['wrapper start'] - \
-                int(task['send_input_start'].strftime('%s'))
-        except es.exceptions.NotFoundError:
-            logger.debug("document not found")
-        except es.exceptions.ConnectionError as e:
-            logger.error(e)
-
-        for field in report['task timing']:
-            report['task timing'][field] = datetime.fromtimestamp(
-                report['task timing'][field])
-
-        upsert_doc = {'doc': {'report': report},
-                      'doc_as_upsert': True}
-
-        logger.debug("sending task document to Elasticsearch")
-        try:
-            self.client.update(index=self.prefix + '_lobster_tasks',
-                               doc_type='task', id=report['id'],
                                body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)

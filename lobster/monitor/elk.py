@@ -1,6 +1,7 @@
 import elasticsearch as es
 import elasticsearch_dsl as es_dsl
 from datetime import datetime
+import time
 import json
 import re
 import inspect
@@ -223,12 +224,10 @@ class ElkInterface(Configurable):
 
             task['fatal_exception']['message'] = e_match.group(1)
 
-            # exception category
             e_cat_p = re.compile('\'(.*)\'')
             task['fatal_exception']['exception_category'] = \
                 e_cat_p.search(task['fatal_exception']['message']).group(1)
 
-            # exception message
             e_mess_p = re.compile('Exception Message:\n(.*)')
             task['fatal_exception']['exception_message'] = \
                 e_mess_p.search(task['fatal_exception']['message']).group(1)
@@ -329,9 +328,11 @@ class ElkInterface(Configurable):
             ["total_{}_time".format(k) for k in sorted(times.keys())] + \
             log_attributes
 
-        values = [now, left] + \
-            [datetime.utcfromtimestamp(times[k]) for k in sorted(times.keys())] + \
+        values = [datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
+            [times[k] for k in sorted(times.keys())] + \
             [getattr(stats, a) for a in log_attributes]
+
+        print(time.mktime(now.timetuple()))
 
         wq = dict(zip(keys, values))
 

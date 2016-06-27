@@ -332,27 +332,27 @@ class ElkInterface(Configurable):
         except es.exceptions.ConnectionError as e:
             logger.error(e)
 
-    def index_work_queue(self, now, left, times, log_attributes, stats):
-        logger.debug("parsing work queue log")
+    def index_stats(self, now, left, times, log_attributes, stats, category):
+        logger.debug("parsing lobster stats log")
 
-        keys = ["timestamp", "units_left"] + \
-            ["total_{}_time".format(k) for k in sorted(times.keys())] + \
-            log_attributes
+        keys = ['timestamp', 'units_left'] + \
+            ['total_{}_time'.format(k) for k in sorted(times.keys())] + \
+            log_attributes + ['category']
 
         values = [datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
             [times[k] for k in sorted(times.keys())] + \
-            [getattr(stats, a) for a in log_attributes]
+            [getattr(stats, a) for a in log_attributes] + [category]
 
-        wq = dict(zip(keys, values))
+        stats = dict(zip(keys, values))
 
         try:
-            self.client.index(index=self.prefix + '_work_queue',
-                              doc_type='log', body=wq,
+            self.client.index(index=self.prefix + '_lobster_stats',
+                              doc_type='log', body=stats,
                               id=str(int(int(now.strftime('%s')) * 1e6 +
                                          now.microsecond)))
             if self.populate_template:
-                self.client.index(index='[template]_work_queue',
-                                  doc_type='log', body=wq,
+                self.client.index(index='[template]_lobster_stats',
+                                  doc_type='log', body=stats,
                                   id=str(int(int(now.strftime('%s')) * 1e6 +
                                              now.microsecond)))
         except es.exceptions.ConnectionError as e:

@@ -147,7 +147,7 @@ class ElkInterface(Configurable):
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
-    def index_task(self, task, task_update):
+    def index_task(self, task):
         logger.debug("parsing task object")
 
         task = dict([(m, o) for (m, o) in inspect.getmembers(task)
@@ -155,7 +155,6 @@ class ElkInterface(Configurable):
 
         task.pop('_task')
         task.pop('command')
-        task.pop('output')
 
         task['resources_requested'] = dict(
             [(m, o) for (m, o) in inspect.getmembers(task['resources_requested'])
@@ -195,6 +194,38 @@ class ElkInterface(Configurable):
         task['resources_measured']['end'] = datetime.utcfromtimestamp(
             float(str(task['resources_measured']['end'])[:10]))
 
+        task_log = task.pop('output')
+
+        e_p = re.compile('Begin Fatal Exception([\s\S]*)End Fatal Exception')
+        e_match = e_p.search(task_log)
+
+        if e_match:
+            logger.debug("parsing task.log fatal exception")
+
+            task['fatal_exception']['message'] = e_match.group(1)
+
+            # exception category
+            e_cat_p = re.compile('\'(.*)\'')
+            task['fatal_exception']['exception_category'] = \
+                e_cat_p.search(task['fatal_exception']['message']).group(1)
+
+            # exception message
+            e_mess_p = re.compile('Exception Message:\n(.*)')
+            task['fatal_exception']['exception_message'] = \
+                e_mess_p.search(task['fatal_exception']['message']).group(1)
+
+        upsert_doc = {'doc': {'task': task},
+                      'doc_as_upsert': True}
+
+        logger.debug("sending task document to Elasticsearch")
+        try:
+            self.client.update(index=self.prefix + '_lobster_tasks',
+                               doc_type='task', id=task['id'],
+                               body=upsert_doc)
+        except es.exceptions.ConnectionError as e:
+            logger.error(e)
+
+    def index_task_update(self, task_update):
         logger.debug("parsing task update")
 
         task_update = task_update.__dict__
@@ -261,14 +292,13 @@ class ElkInterface(Configurable):
         task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
             task_update['time_epilogue_end'])
 
-        upsert_doc = {'doc': {'task': task, 'task_update': task_update,
-                              'timestamp': task['submit_time']},
+        upsert_doc = {'doc': {'task_update': task_update},
                       'doc_as_upsert': True}
 
         logger.debug("sending task document to Elasticsearch")
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
-                               doc_type='task', id=task['id'],
+                               doc_type='task', id=task_update['id'],
                                body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
@@ -281,7 +311,7 @@ class ElkInterface(Configurable):
             log_attributes
 
         values = [now, left] + \
-            [times[k] for k in sorted(times.keys())] + \
+            [datetime.utcfromtimestamp(times[k]) for k in sorted(times.keys())] + \
             [getattr(stats, a) for a in log_attributes]
 
         wq = dict(zip(keys, values))

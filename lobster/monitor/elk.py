@@ -147,6 +147,22 @@ class ElkInterface(Configurable):
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
+    def delete_kibana_objects(self):
+        logger.info('deleting Kibana objects with prefix ' + self.prefix)
+
+        search = elasticsearch_dsl.Search(using=self.client, index='.kibana') \
+            .filter('prefix', _id=self.prefix)
+        response = search.execute()
+
+        for result in response:
+            self.client.delete(index='.kibana', doc_type=result.meta.doc_type,
+                               id=result.meta.id)
+
+    def delete_elasticsearch_indices(self):
+        logger.info(
+            'deleting Elasticsearch indices with prefix ' + self.prefix)
+        self.client.indices.delete(index=self.prefix + '_*')
+
     def index_task(self, task):
         logger.debug("parsing task object")
 

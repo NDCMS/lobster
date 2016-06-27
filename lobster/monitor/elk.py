@@ -173,13 +173,16 @@ class ElkInterface(Configurable):
         task.pop('command')
 
         task['resources_requested'] = dict(
-            [(m, o) for (m, o) in inspect.getmembers(task['resources_requested'])
+            [(m, o) for (m, o) in
+             inspect.getmembers(task['resources_requested'])
              if not inspect.isroutine(o) and not m.startswith('__')])
         task['resources_allocated'] = dict(
-            [(m, o) for (m, o) in inspect.getmembers(task['resources_allocated'])
+            [(m, o) for (m, o) in
+             inspect.getmembers(task['resources_allocated'])
              if not inspect.isroutine(o) and not m.startswith('__')])
         task['resources_measured'] = dict(
-            [(m, o) for (m, o) in inspect.getmembers(task['resources_measured'])
+            [(m, o) for (m, o) in
+             inspect.getmembers(task['resources_measured'])
              if not inspect.isroutine(o) and not m.startswith('__')])
 
         task['resources_requested'].pop('this')

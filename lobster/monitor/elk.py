@@ -250,6 +250,8 @@ class ElkInterface(Configurable):
                                    body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
+        except es.exceptions.TransportError as e:
+            logger.error(e)
 
     def index_task_update(self, task_update):
         logger.debug("parsing task update")
@@ -293,6 +295,22 @@ class ElkInterface(Configurable):
             task_update['time_transfer_out_end'] - \
             task_update['time_transfer_out_start']
 
+        task_update['time_total_eviction_execution'] = \
+            task_update['time_total_on_worker'] - task_update['time_on_worker']
+
+        if task_update['exit_code'] == 0:
+            task_update['time_total_overhead_execution'] = \
+                task_update['time_prologue_end'] - \
+                task_update['time_transfer_in_start']
+            task_update['time_total_processing_execution'] = \
+                task_update['time_processing_end'] - \
+                task_update['time_prologue_end']
+            task_update['time_total_stage_out_execution'] = \
+                task_update['time_transfer_out_end'] - \
+                task_update['time_processing_end']
+        else:
+            task_update['time_total_failed_execution']
+
         task_update['time_processing_end'] = datetime.utcfromtimestamp(
             task_update['time_processing_end'])
         task_update['time_prologue_end'] = datetime.utcfromtimestamp(
@@ -331,6 +349,8 @@ class ElkInterface(Configurable):
                                    body=upsert_doc)
         except es.exceptions.ConnectionError as e:
             logger.error(e)
+        except es.exceptions.TransportError as e:
+            logger.error(e)
 
     def index_stats(self, now, left, times, log_attributes, stats, category):
         logger.debug("parsing lobster stats log")
@@ -356,4 +376,6 @@ class ElkInterface(Configurable):
                                   id=str(int(int(now.strftime('%s')) * 1e6 +
                                              now.microsecond)))
         except es.exceptions.ConnectionError as e:
+            logger.error(e)
+        except es.exceptions.TransportError as e:
             logger.error(e)

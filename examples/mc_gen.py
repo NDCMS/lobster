@@ -11,6 +11,7 @@ storage = StorageConfiguration(
         "file:///hadoop/store/user/$USER/lobster_mc_" + version,
         "root://deepthought.crc.nd.edu//store/user/$USER/lobster_mc_" + version,
         "chirp://eddie.crc.nd.edu:9094/store/user/$USER/lobster_test_" + version,
+        "gsiftp://T3_US_NotreDame/store/user/$USER/lobster_mc_" + version,
         "srm://T3_US_NotreDame/store/user/$USER/lobster_mc_" + version,
     ]
 )

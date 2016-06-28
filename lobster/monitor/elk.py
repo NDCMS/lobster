@@ -237,7 +237,7 @@ class ElkInterface(Configurable):
             task['fatal_exception']['exception_message'] = \
                 e_mess_p.search(task['fatal_exception']['message']).group(1)
 
-        upsert_doc = {'doc': {'task': task, 'timestamp': task['submit_time']},
+        upsert_doc = {'doc': {'Task': task, 'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
         try:
@@ -318,7 +318,7 @@ class ElkInterface(Configurable):
         task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
             task_update['time_epilogue_end'])
 
-        upsert_doc = {'doc': {'task_update': task_update},
+        upsert_doc = {'doc': {'TaskUpdate': task_update},
                       'doc_as_upsert': True}
 
         try:

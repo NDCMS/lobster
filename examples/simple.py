@@ -26,10 +26,10 @@ processing = Category(
 
 workflows = []
 
-single_mu = Workflow(
-    label='single_mu',
+ttH = Workflow(
+    label='ttH',
     dataset=cmssw.Dataset(
-        dataset='/SingleMu/Run2012A-recover-06Aug2012-v1/AOD',
+        dataset='/ttHToNonbb_M125_13TeV_powheg_pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v2/MINIAODSIM',
         events_per_task=5000
     ),
     category=processing,
@@ -39,7 +39,7 @@ single_mu = Workflow(
     outputs=['output.root']
 )
 
-workflows.append(single_mu)
+workflows.append(ttH)
 
 config = Config(
     workdir='/tmpscratch/users/$USER/lobster_test_' + version,

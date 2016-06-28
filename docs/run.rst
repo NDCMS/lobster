@@ -76,7 +76,7 @@ Using a Chirp server
 Using Chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.
 
-At Notre Dame, a Chirp server is running under `opteron03.crc.nd.edu:9094`.
+At Notre Dame, a Chirp server is running under `eddie.crc.nd.edu:9094`.
 Make sure that your output directory can be reached with globus
 authentication by looking for a line starting with ``globus:`` that should
 match your personal information in::
@@ -89,8 +89,8 @@ If this line is not present or the file does not exist, create it with::
 
 Then verify that you can write to your output directory::
 
-    chirp opteron03.crc.nd.edu:9094 mkdir /store/user/$USER/test
-    chirp opteron03.crc.nd.edu:9094 rmdir /store/user/$USER/test
+    chirp eddie.crc.nd.edu:9094 mkdir /store/user/$USER/test
+    chirp eddie.crc.nd.edu:9094 rmdir /store/user/$USER/test
 
 After this, the Chirp server can be added to the `input` and `output`
 settings of the configuration, as done in the examples.

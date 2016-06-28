@@ -28,7 +28,7 @@ for path in args.paths:
         if args.verbose and index % 5000 == 0:
             print '>>>> entry run lumi event: {:10} {:10} {:10} {:10}'.format(index, r, l, e)
 
-        if index > args.max:
+        if index == args.max:
             break
 
     unique = len(np.unique(events[path])) - 1

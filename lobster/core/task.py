@@ -201,12 +201,9 @@ class TaskHandler(object):
         # May not all be there for failed tasks
         try:
             files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update, transfers)
-        except (ValueError, EOFError) as e:
+        except (ValueError, EOFError, IOError) as e:
             failed = True
             logger.error("error processing {0}:\n{1}".format(task.tag, e))
-        except IOError as e:
-            failed = True
-            logger.error("error processing {1} from {0}".format(task.tag, os.path.basename(e.filename)))
 
         # Determine true status
         if task.result != wq.WORK_QUEUE_RESULT_SUCCESS and task.result != wq.WORK_QUEUE_RESULT_OUTPUT_MISSING:

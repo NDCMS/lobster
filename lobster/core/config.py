@@ -86,13 +86,8 @@ class Config(Configurable):
 
     _mutable = {}
 
-<<<<<<< HEAD
-    def __init__(self, label, workdir, storage, workflows, advanced=None, plotdir=None, foremen_logs=None,
-                 base_directory=None, base_configuration=None, startup_directory=None, elk=None):
-=======
     def __init__(self, workdir, storage, workflows, label=None, advanced=None, plotdir=None, foremen_logs=None,
-                 base_directory=None, base_configuration=None, startup_directory=None):
->>>>>>> master
+                 base_directory=None, base_configuration=None, startup_directory=None, elk=None):
         """
         Top-level configuration object for Lobster
         """

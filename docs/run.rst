@@ -50,21 +50,15 @@ Workers can be either submitted directly, as shown above, or by using the
 `WorkQueue` factory, which allows for dynamic scaling of the processing.
 The factory uses a config written in JSON, like:
 
-.. code-block:: json
+.. literalinclude:: ../examples/factory.json
+   :language: json
 
-    {
-      "master-name": "lobster_shuffle.*",
-      "max-workers": 100,
-      "min-workers": 0,
-      "cores": 4,
-      "memory": 3600,
-      "disk": 12000
-    }
+This configuration sets up 4 core workers providing 4.4 GB of RAM and 12 GB
+of disk space each.  It is included in the `examples` directory in the
+Lobster source distribution.  The factory can thus be started from within
+the Lobster source directory with::
 
-which sets up 4 core workers providing 3.6 GB of RAM and 12 GB of disk
-space.  The factory can then be started with::
-
-    work_queue_factory -T condor -C config.json
+    nohup work_queue_factory -T condor -M lobster_$USER.* -o /tmp/${USER}_factory.debug -C examples/factory.json > /tmp/${USER}_factory.log &
 
 .. note::
    At Notre Dame, the following login nodes are connected to the
@@ -81,6 +75,28 @@ Using a Chirp server
 
 Using Chirp for stage-in and stage-out can be helpful when standard CMS
 tools for file handling, i.e., XrootD and SRM, are not available.
+
+At Notre Dame, a Chirp server is running under `eddie.crc.nd.edu:9094`.
+Make sure that your output directory can be reached with globus
+authentication by looking for a line starting with ``globus:`` that should
+match your personal information in::
+
+    cat /hadoop/store/user/$USER/.__acl
+
+If this line is not present or the file does not exist, create it with::
+
+    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" >> /hadoop/store/user/$USER/.__acl
+
+Then verify that you can write to your output directory::
+
+    chirp eddie.crc.nd.edu:9094 mkdir /store/user/$USER/test
+    chirp eddie.crc.nd.edu:9094 rmdir /store/user/$USER/test
+
+After this, the Chirp server can be added to the `input` and `output`
+settings of the configuration, as done in the examples.
+
+Running a separate Chirp server as user
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a file called `acl` with default access permissions in, e.g., your
 home directory via (you will need a valid proxy for this!)::

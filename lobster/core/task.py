@@ -151,7 +151,6 @@ class TaskHandler(object):
         """
         task_update.host = util.verify_string(task.hostname)
         task_update.id = task.tag
-        task_update.submissions = task.total_submissions
         task_update.bytes_received = task.total_bytes_received
         task_update.bytes_sent = task.total_bytes_sent
         task_update.time_submit = task.submit_time / 1000000

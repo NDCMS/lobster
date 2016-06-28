@@ -1,4 +1,3 @@
-import glob
 import logging
 import os
 import random
@@ -8,11 +7,10 @@ import subprocess
 import xml.dom.minidom
 
 from contextlib import contextmanager
-from functools import partial, wraps
-
-from util import Configurable
+from lobster.util import Configurable
 
 import Chirp as chirp
+
 
 logger = logging.getLogger('lobster.se')
 
@@ -20,7 +18,9 @@ logger = logging.getLogger('lobster.se')
 # the path
 url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
 
+
 class StorageElement(object):
+
     """Weird class to handle all needs of storage implementations.
 
     This class can be used for file system operations after at least one of
@@ -63,19 +63,22 @@ class StorageElement(object):
             return self.__dict__[attr]
 
         def switch(*args, **kwargs):
-            logger.debug("resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
+            logger.debug(
+                "resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
             lasterror = None
             for imp in StorageElement._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
-                    logger.debug("method {0} of {1} failed with {2}, using args {3}, {4}".format(attr, imp, e, args, kwargs))
+                    logger.debug(
+                        "method {0} of {1} failed with {2}, using args {3}, {4}".format(attr, imp, e, args, kwargs))
                     lasterror = e
                 except TypeError as e:
                     logger.error("binding received an unexpected type; method {0} of {1} failed with {2}, using "
-                        "args {3}, {4}".format(attr, imp, e, args, kwargs))
+                                 "args {3}, {4}".format(attr, imp, e, args, kwargs))
                     lasterror = e
-            raise AttributeError("no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
+            raise AttributeError(
+                "no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch
 
     def lfn2pfn(self, path):
@@ -136,7 +139,9 @@ class StorageElement(object):
         finally:
             StorageElement._systems = tmp
 
+
 class Local(StorageElement):
+
     def __init__(self, pfnprefix=''):
         super(Local, self).__init__(pfnprefix)
         self.exists = os.path.exists
@@ -172,7 +177,9 @@ class Local(StorageElement):
             except OSError:
                 pass
 
+
 class Hadoop(StorageElement):
+
     def __init__(self, pfnprefix='/hadoop'):
         super(Hadoop, self).__init__(pfnprefix)
 
@@ -225,7 +232,9 @@ class Hadoop(StorageElement):
             self.__execute('rm', *(paths[:50]))
             paths = paths[50:]
 
+
 class Chirp(StorageElement):
+
     def __init__(self, server, pfnprefix):
         super(Chirp, self).__init__(pfnprefix)
 
@@ -264,7 +273,9 @@ class Chirp(StorageElement):
         for path in paths:
             self.__c.rm(str(path))
 
+
 class SRM(StorageElement):
+
     def __init__(self, pfnprefix):
         super(SRM, self).__init__(pfnprefix)
 
@@ -273,9 +284,9 @@ class SRM(StorageElement):
         args = ['gfal-' + cmds[0]] + cmds[1:] + list(paths)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
-            pout,err = p.communicate()
+            pout, err = p.communicate()
             if p.returncode != 0 and not kwargs.get('safe', False):
-                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), perr,pout)
+                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), err, pout)
                 raise IOError(msg)
         except OSError:
             raise AttributeError("srm utilities not available")
@@ -285,7 +296,7 @@ class SRM(StorageElement):
         try:
             self.execute('stat', path)
             return True
-        except:
+        except Exception:
             return False
 
     def getsize(self, path):
@@ -296,14 +307,14 @@ class SRM(StorageElement):
         try:
             output = self.execute('stat', path)
             return 'directory' in output.splitlines()[1]
-        except:
+        except Exception:
             return False
 
     def isfile(self, path):
         try:
             output = self.execute('stat', path)
             return 'regular file' in output.splitlines()[1]
-        except:
+        except Exception:
             return False
 
     def ls(self, path):
@@ -326,7 +337,9 @@ class SRM(StorageElement):
             self.execute('rm -r', *(paths[:50]), safe=True)
             paths = paths[50:]
 
+
 class StorageConfiguration(Configurable):
+
     """
     Container for storage element configuration.
 
@@ -338,6 +351,7 @@ class StorageConfiguration(Configurable):
     protocol.  Protocols supported:
 
     * `file`
+    * `gsiftp`
     * `hadoop`
     * `chirp`
     * `srm`
@@ -377,14 +391,15 @@ class StorageConfiguration(Configurable):
             URLs will be attempted for all input files.
     """
     _mutable = {
-            'input': (None, [], False),
-            'output': (None, [], False)
+        'input': (None, [], False),
+        'output': (None, [], False)
     }
 
     # Map protocol shorthands to actual protocol names
     __protocols = {
-            'srm': 'srmv2',
-            'root': 'xrootd'
+        'gsiftp': 'gsiftp',
+        'srm': 'srmv2',
+        'root': 'xrootd'
     }
 
     # Matches CMS tiered computing site as found in
@@ -392,19 +407,20 @@ class StorageConfiguration(Configurable):
     __site_re = re.compile(r'^T[0123]_(?:[A-Z]{2}_)?[A-Za-z0-9_\-]+$')
 
     def __init__(self,
-            output,
-            input=None,
-            use_work_queue_for_inputs=False,
-            use_work_queue_for_outputs=False,
-            shuffle_inputs=False,
-            shuffle_outputs=False,
-            disable_input_streaming=False,
-            disable_stage_in_acceleration=False):
+                 output,
+                 input=None,
+                 use_work_queue_for_inputs=False,
+                 use_work_queue_for_outputs=False,
+                 shuffle_inputs=False,
+                 shuffle_outputs=False,
+                 disable_input_streaming=False,
+                 disable_stage_in_acceleration=False):
         if input is None:
             self.input = []
         else:
-            self.input = map(self.expand_site, input)
-        self.output = map(self.expand_site, output)
+            self.input = [
+                self.expand_site(os.path.expanduser(os.path.expandvars(i))) for i in input]
+        self.output = [self.expand_site(os.path.expanduser(os.path.expandvars(o))) for o in output]
 
         self.use_work_queue_for_inputs = use_work_queue_for_inputs
         self.use_work_queue_for_outputs = use_work_queue_for_outputs
@@ -430,16 +446,17 @@ class StorageConfiguration(Configurable):
         for e in doc.getElementsByTagName("lfn-to-pfn"):
             if e.attributes["protocol"].value != protocol:
                 continue
-            if e.attributes.has_key('destination-match') and \
+            if 'destination-match' in e.attributes.keys() and \
                     not re.match(e.attributes['destination-match'].value, site):
                 continue
             if path and len(path) > 0 and \
-                    e.attributes.has_key('path-match') and \
+                    'path-match' in e.attributes.keys() and \
                     re.match(e.attributes['path-match'].value, path) is None:
                 continue
 
             return e.attributes["path-match"].value, e.attributes["result"].value.replace('$1', r'\1')
-        raise AttributeError("No match found for protocol {0} at site {1}, using {2}".format(protocol, site, path))
+        raise AttributeError(
+            "No match found for protocol {0} at site {1}, using {2}".format(protocol, site, path))
 
     def expand_site(self, url):
         """Expands a CMS site label in a url to the corresponding server.

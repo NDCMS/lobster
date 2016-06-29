@@ -256,7 +256,7 @@ class ElkInterface(Configurable):
     def index_task_update(self, task_update):
         logger.debug("parsing task update")
 
-        task_update = task_update.__dict__
+        task_update = dict(task_update.__dict__)
 
         task_update['runtime'] = \
             task_update['time_processing_end'] - \
@@ -296,20 +296,22 @@ class ElkInterface(Configurable):
             task_update['time_transfer_out_start']
 
         task_update['time_total_eviction_execution'] = \
-            task_update['time_total_on_worker'] - task_update['time_on_worker']
+            task_update['time_total_on_worker'] - \
+            task_update['time_on_worker']
 
         if task_update['exit_code'] == 0:
-            task_update['time_total_overhead_execution'] = \
+            task_update['time_total_overhead'] = \
                 task_update['time_prologue_end'] - \
                 task_update['time_transfer_in_start']
-            task_update['time_total_processing_execution'] = \
+            task_update['time_total_processing'] = \
                 task_update['time_processing_end'] - \
                 task_update['time_prologue_end']
-            task_update['time_total_stage_out_execution'] = \
+            task_update['time_total_stage_out'] = \
                 task_update['time_transfer_out_end'] - \
                 task_update['time_processing_end']
         else:
-            task_update['time_total_failed_execution']
+            task_update['time_total_failed'] = \
+                task_update['time_total_on_worker']
 
         task_update['time_processing_end'] = datetime.utcfromtimestamp(
             task_update['time_processing_end'])

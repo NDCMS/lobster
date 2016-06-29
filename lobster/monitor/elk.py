@@ -6,6 +6,7 @@ import re
 import inspect
 import logging
 import os
+import requests
 
 from lobster.util import Configurable
 
@@ -108,71 +109,92 @@ class ElkInterface(Configurable):
     def generate_kibana_objects(self):
         logger.info("generating Kibana objects from templates")
 
-        temp_prefix = '[template]'
-        other_prefix = re.compile('\[.*\]')
+        any_prefix = re.compile('\[.*\]')
         now = datetime.utcnow()
 
         search_index = es_dsl.Search(using=self.client, index='.kibana') \
-            .filter('prefix', _id=temp_prefix) \
+            .filter('prefix', _id='[template]') \
             .filter('match', _type='index-pattern')
         response_index = search_index.execute()
 
         for index in response_index:
-            index.meta.id = index.meta.id.replace(temp_prefix, self.prefix, 1)
-            index.title = index.title.replace(temp_prefix, self.prefix, 1)
+            index.meta.id = index.meta.id.replace('[template]', self.prefix)
+            index.title = index.title.replace('[template]', self.prefix)
             self.client.index(index='.kibana', doc_type=index.meta.doc_type,
                               id=index.meta.id, body=index.to_dict())
 
-        for module in self.modules:
-            temp_mod_prefix = temp_prefix + '[' + module + ']'
-            new_mod_prefix = self.prefix + '[' + module + ']'
+        dash_links = {}
 
+        for module in self.modules:
             search_vis = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id=temp_mod_prefix) \
+                .filter('prefix', _id='[template][' + module + ']') \
                 .filter('match', _type='visualization')
 
             search_dash = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id=temp_mod_prefix) \
+                .filter('prefix', _id='[template][' + module + ']') \
                 .filter('match', _type='dashboard')
 
             response_vis = search_vis.execute()
             response_dash = search_dash.execute()
 
             for vis in response_vis:
-                vis.meta.id = vis.meta.id.replace(
-                    temp_mod_prefix, new_mod_prefix, 1)
-                vis.title = vis.title.replace(
-                    temp_mod_prefix, new_mod_prefix, 1)
+                vis.meta.id = vis.meta.id.replace('[template]', self.prefix)
+                vis.title = vis.title.replace('[template]', self.prefix)
 
                 source = json.loads(vis.kibanaSavedObjectMeta.searchSourceJSON)
-                source['index'] = other_prefix.sub(
-                    self.prefix, source['index'])
+                source['index'] = any_prefix.sub(self.prefix, source['index'])
                 vis.kibanaSavedObjectMeta.searchSourceJSON = json.dumps(source)
 
                 self.client.index(index='.kibana', doc_type=vis.meta.doc_type,
                                   id=vis.meta.id, body=vis.to_dict())
 
             for dash in response_dash:
-                dash.meta.id = dash.meta.id.replace(
-                    temp_mod_prefix, new_mod_prefix, 1)
-                dash.title = dash.title.replace(
-                    temp_mod_prefix, new_mod_prefix, 1)
+                dash.meta.id = dash.meta.id.replace('[template]', self.prefix)
+                dash.title = dash.title.replace('[template]', self.prefix)
 
                 dash_panels = json.loads(dash.panelsJSON)
                 for panel in dash_panels:
                     panel['id'] = panel['id'].replace(
-                        temp_mod_prefix, new_mod_prefix, 1)
+                        '[template]', self.prefix)
                 dash.panelsJSON = json.dumps(dash_panels)
 
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
-                link = "http://" + self.kib_host + ":" + str(self.kib_port) + \
-                    "/app/kibana#/dashboard/" + dash.meta.id + \
-                    "?_g=(refreshInterval:(display:Off,pause:!f,value:0)," + \
-                    "time:(from:'" + str(now) + "Z',mode:quick,to:now))"
+                link = requests.utils.quote(
+                    "http://" + self.kib_host + ":" + str(self.kib_port) +
+                    "/app/kibana#/dashboard/" + dash.meta.id +
+                    "?_g=(refreshInterval:(display:Off,pause:!f,value:0)," +
+                    "time:(from:'" + str(now) + "Z',mode:quick,to:now))",
+                    safe='/:!?,=#')
 
                 logger.info("Kibana " + module + " dashboard at " + link)
+
+                dash_links[module] = link
+
+            links_text = "###" + self.user + "'s Dashboards\n"
+
+            for module in dash_links:
+                links_text += "- [" + module + "](" + dash_links[module] + \
+                    ")\n"
+
+            try:
+                links_vis = self.client.get(index='.kibana',
+                                            doc_type='visualization',
+                                            id='[template]-Links')['_source']
+
+                logger.debug(links_vis)
+
+                links_state = json.loads(links_vis['visState'])
+                links_state['params']['markdown'] = links_text
+                links_vis['visState'] = json.dumps(links_state)
+
+                logger.debug(links_vis)
+
+                self.client.index(index='.kibana', doc_type='visualization',
+                                  id=self.prefix + "-Links", body=links_vis)
+            except es.exceptions.NotFoundError:
+                logger.info("template markdown links widget not found")
 
         # TODO: generate markdown Kibana object with links to all dashboards
 

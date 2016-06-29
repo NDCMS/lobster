@@ -63,3 +63,5 @@ from the summary by an empty line:
     re-write of foo.py and bar.py.  Fixes #-1.
 
 Non-descriptive summaries such as `Changed spam.py` should be avoided.
+See [here](http://chris.beams.io/posts/git-commit/) for a nice discussion on
+the topic.

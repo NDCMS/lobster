@@ -85,11 +85,12 @@ match your personal information in::
 
 If this line is not present or the file does not exist, create it with::
 
-    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" >> /hadoop/store/user/$USER/.__acl
+    echo "globus:`voms-proxy-info -identity|sed 's/ /_/g'` rwlda" >> /hadoop/store/user/$USER/.__acl
 
 Then verify that you can write to your output directory::
 
     chirp eddie.crc.nd.edu:9094 mkdir /store/user/$USER/test
+    chirp eddie.crc.nd.edu:9094 rm /store/user/$USER/test/.__acl
     chirp eddie.crc.nd.edu:9094 rmdir /store/user/$USER/test
 
 After this, the Chirp server can be added to the `input` and `output`

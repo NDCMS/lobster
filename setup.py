@@ -8,7 +8,7 @@ setup(
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
-    packages=['lobster', 'lobster.cmssw', 'lobster.core', 'lobster.commands'],
+    packages=['lobster', 'lobster.cmssw', 'lobster.core', 'lobster.commands', 'lobster.monitor'],
     package_data={'lobster': [
         'core/data/task.py',
         'core/data/wrapper.sh',
@@ -24,6 +24,8 @@ setup(
     ]},
     install_requires=[
         'argparse',
+        'elasticsearch',
+        'elasticsearch_dsl',
         'httplib2', # actually a WMCore dependency
         'jinja2',
         'matplotlib',

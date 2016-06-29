@@ -32,26 +32,26 @@ class ElkInterface(Configurable):
             User ID to label Elasticsearch indices and Kibana objects.
         project : str
             Project ID to label Elasticsearch indices and Kibana objects.
-        modules : list
-            List of modules to include from the Kibana templates. Defaults to
-            including only the core templates.
         populate_template : bool
             Whether to send documents to indices with the [template] prefix,
             in addition to sending them to the [user_run] prefix. Defaults to
             false.
+        modules : list
+            List of modules to include from the Kibana templates. Defaults to
+            including only the core templates.
     """
     _mutable = {}
 
-    def __init__(self, es_host, es_port, kib_host, kib_port, project, modules=None,
-                 populate_template=False):
+    def __init__(self, es_host, es_port, kib_host, kib_port, project,
+                 modules=None, populate_template=False):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
         self.kib_port = kib_port
         self.user = os.environ['USER']
         self.project = project
-        self.modules = modules or ['core']
         self.populate_template = populate_template
+        self.modules = modules or ['core']
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.start = None
         self.client = es.Elasticsearch([{'host': self.es_host,
@@ -64,6 +64,7 @@ class ElkInterface(Configurable):
                  'kib_port': self.kib_port,
                  'user': self.user,
                  'project': self.project,
+                 'populate_template': self.populate_template,
                  'modules': self.modules,
                  'prefix': self.prefix,
                  'start': self.start}
@@ -77,6 +78,7 @@ class ElkInterface(Configurable):
         self.user = state['user']
         self.project = state['project']
         self.modules = state['modules']
+        self.populate_template = state['populate_template']
         self.prefix = state['prefix']
         self.start = state['start']
         self.client = es.Elasticsearch([{'host': self.es_host,

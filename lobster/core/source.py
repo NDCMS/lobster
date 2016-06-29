@@ -229,7 +229,7 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
-        if self.config.elk:
+        if create and self.config.elk:
             self.config.elk.check_prefix()
             self.config.elk.generate_kibana_objects()
 
@@ -266,7 +266,7 @@ class TaskProvider(object):
 
     def __setup_inputs(self):
         self._inputs = [
-                (self.siteconf, 'siteconf', False),
+                (self.siteconf, 'siteconf', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
                 (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
                 (self.parrot_bin, 'bin', None),

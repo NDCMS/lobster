@@ -19,9 +19,13 @@ class ElkInterface(Configurable):
 
     Parameters
     ----------
-        host : str
+        es_host : str
             Host running Elasticsearch cluster.
-        port : int
+        es_port : int
+            Port number running Elasticsearch HTTP service.
+        kib_host : str
+            Host running Kibana instance connected to Elasticsearch cluster.
+        kib_port : int
             Port number running Elasticsearch HTTP service.
         user : str
             User ID to label Elasticsearch indices and Kibana objects.
@@ -37,21 +41,25 @@ class ElkInterface(Configurable):
     """
     _mutable = {}
 
-    def __init__(self, host, port, project, modules=None,
+    def __init__(self, es_host, es_port, kib_host, kib_port, project, modules=None,
                  populate_template=False):
-        self.host = host
-        self.port = port
+        self.es_host = es_host
+        self.es_port = es_port
+        self.kib_host = kib_host
+        self.kib_port = kib_port
         self.user = os.environ['USER']
         self.project = project
         self.modules = modules or ['core']
         self.populate_template = populate_template
         self.prefix = '[' + self.user + '_' + self.project + ']'
-        self.client = es.Elasticsearch([{'host': self.host,
-                                         'port': self.port}])
+        self.client = es.Elasticsearch([{'host': self.es_host,
+                                         'port': self.es_port}])
 
     def __getstate__(self):
-        state = {'host': self.host,
-                 'port': self.port,
+        state = {'es_host': self.es_host,
+                 'es_port': self.es_port,
+                 'kib_host': self.kib_host,
+                 'kib_port': self.kib_port,
                  'user': self.user,
                  'project': self.project,
                  'modules': self.modules,
@@ -59,14 +67,16 @@ class ElkInterface(Configurable):
         return state
 
     def __setstate__(self, state):
-        self.host = state['host']
-        self.port = state['port']
+        self.es_host = state['es_host']
+        self.es_port = state['es_port']
+        self.kib_host = state['kib_host']
+        self.kib_port = state['kib_port']
         self.user = state['user']
         self.project = state['project']
         self.modules = state['modules']
         self.prefix = state['prefix']
-        self.client = es.Elasticsearch([{'host': self.host,
-                                         'port': self.port}])
+        self.client = es.Elasticsearch([{'host': self.es_host,
+                                         'port': self.es_port}])
 
     def check_prefix(self):
         logger.info("checking Elasticsearch and Kibana prefixes")
@@ -99,8 +109,8 @@ class ElkInterface(Configurable):
         logger.info("generating Kibana objects from templates")
 
         temp_prefix = '[template]'
-        self.prefix = '[' + self.user + '_' + self.project + ']'
         other_prefix = re.compile('\[.*\]')
+        now = datetime.utcnow()
 
         search_index = es_dsl.Search(using=self.client, index='.kibana') \
             .filter('prefix', _id=temp_prefix) \
@@ -157,11 +167,17 @@ class ElkInterface(Configurable):
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
 
-        # TODO: generate link(s) to dashboard(s) and put them in the log
+                link = "http://" + self.kib_host + ":" + str(self.kib_port) + \
+                    "/app/kibana#/dashboard/" + dash.meta.id + \
+                    "?_g=(refreshInterval:(display:Off,pause:!f,value:0)," + \
+                    "time:(from:'" + str(now) + "Z',mode:quick,to:now))"
+
+                logger.info("Kibana " + module + " dashboard at " + link)
+
         # TODO: generate markdown Kibana object with links to all dashboards
 
     def delete_kibana_objects(self):
-        logger.info('deleting Kibana objects with prefix ' + self.prefix)
+        logger.info("deleting Kibana objects with prefix " + self.prefix)
 
         search = elasticsearch_dsl.Search(using=self.client, index='.kibana') \
             .filter('prefix', _id=self.prefix)
@@ -173,7 +189,7 @@ class ElkInterface(Configurable):
 
     def delete_elasticsearch_indices(self):
         logger.info(
-            'deleting Elasticsearch indices with prefix ' + self.prefix)
+            "deleting Elasticsearch indices with prefix " + self.prefix)
         self.client.indices.delete(index=self.prefix + '_*')
 
     def index_task(self, task):
@@ -228,7 +244,7 @@ class ElkInterface(Configurable):
 
         task_log = task.pop('output')
 
-        e_p = re.compile('Begin Fatal Exception([\s\S]*)End Fatal Exception')
+        e_p = re.compile(r"Begin Fatal Exception([\s\S]*)End Fatal Exception")
         e_match = e_p.search(task_log)
 
         if e_match:
@@ -236,11 +252,11 @@ class ElkInterface(Configurable):
 
             task['fatal_exception']['message'] = e_match.group(1)
 
-            e_cat_p = re.compile('\'(.*)\'')
+            e_cat_p = re.compile(r"'(.*)'")
             task['fatal_exception']['exception_category'] = \
                 e_cat_p.search(task['fatal_exception']['message']).group(1)
 
-            e_mess_p = re.compile('Exception Message:\n(.*)')
+            e_mess_p = re.compile(r"Exception Message:\n(.*)")
             task['fatal_exception']['exception_message'] = \
                 e_mess_p.search(task['fatal_exception']['message']).group(1)
 

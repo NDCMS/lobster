@@ -102,7 +102,7 @@ Running a separate Chirp server as user
 Create a file called `acl` with default access permissions in, e.g., your
 home directory via (you will need a valid proxy for this!)::
 
-    echo "globus:$(voms-proxy-info -identity|sed 's/ /_/g') rwlda" > ~/acl
+    echo "globus:`voms-proxy-info -identity|sed 's/ /_/g'` rwlda" > ~/acl
 
 Then do something akin to the following command::
 

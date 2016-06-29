@@ -53,6 +53,7 @@ class ElkInterface(Configurable):
         self.modules = modules or ['core']
         self.populate_template = populate_template
         self.prefix = '[' + self.user + '_' + self.project + ']'
+        self.start = None
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -64,7 +65,8 @@ class ElkInterface(Configurable):
                  'user': self.user,
                  'project': self.project,
                  'modules': self.modules,
-                 'prefix': self.prefix}
+                 'prefix': self.prefix,
+                 'start': self.start}
         return state
 
     def __setstate__(self, state):
@@ -76,11 +78,12 @@ class ElkInterface(Configurable):
         self.project = state['project']
         self.modules = state['modules']
         self.prefix = state['prefix']
+        self.start = state['start']
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
-    def check_prefix(self):
-        logger.info("checking Elasticsearch and Kibana prefixes")
+    def create(self):
+        logger.info("checking Elasticsearch indices")
 
         try:
             indices = self.client.indices.get_aliases().keys()
@@ -93,11 +96,14 @@ class ElkInterface(Configurable):
                         " already exist")
             self.delete_elasticsearch_indices()
 
+        self.start = datetime.utcnow()
+
+        self.generate_kibana_objects()
+
     def generate_kibana_objects(self):
         logger.info("generating Kibana objects from templates")
 
         any_prefix = re.compile('\[.*\]')
-        now = datetime.utcnow()
 
         search_index = es_dsl.Search(using=self.client, index='.kibana') \
             .filter('prefix', _id='[template]') \
@@ -151,9 +157,8 @@ class ElkInterface(Configurable):
                 link = requests.utils.quote(
                     "http://" + self.kib_host + ":" + str(self.kib_port) +
                     "/app/kibana#/dashboard/" + dash.meta.id +
-                    "?_g=(refreshInterval:(display:Off,pause:!f,value:0)," +
-                    "time:(from:'" + str(now) + "Z',mode:quick,to:now))",
-                    safe='/:!?,=#')
+                    "?_g=(refreshInterval:(display:'15 minutes',pause:!f," +
+                    "section:2,value:900000),time:(from:'" + str(self.start) + "Z',mode:absolute,to:now))", safe='/:!?,=#')
 
                 logger.info("Kibana " + module + " dashboard at " + link)
 

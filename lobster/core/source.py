@@ -230,8 +230,7 @@ class TaskProvider(object):
         shutil.copy(p_helper, self.parrot_lib)
 
         if create and self.config.elk:
-            self.config.elk.check_prefix()
-            self.config.elk.generate_kibana_objects()
+            self.config.elk.create()
 
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')

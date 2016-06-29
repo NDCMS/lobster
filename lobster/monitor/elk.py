@@ -89,22 +89,9 @@ class ElkInterface(Configurable):
             raise e
 
         if any(self.prefix in s for s in indices):
-            e = AttributeError("Elasticsearch indices with prefix " +
-                               self.prefix + " already exist.")
-            logger.error(e)
-            raise e
-
-        search = es_dsl.Search(using=self.client, index='.kibana') \
-            .filter('prefix', _id=self.prefix)
-        response = search.execute()
-        if len(response) > 0:
-            e = AttributeError("Kibana objects with prefix " +
-                               self.prefix + " already exist.")
-            logger.error(e)
-            raise e
-
-        # TODO: change to deleting (overwriting) Elasticsearch indices and
-        # not caring about Kibana objects
+            logger.info("Elasticsearch indices with prefix " + self.prefix +
+                        " already exist")
+            self.delete_elasticsearch_indices()
 
     def generate_kibana_objects(self):
         logger.info("generating Kibana objects from templates")
@@ -194,8 +181,6 @@ class ElkInterface(Configurable):
                                   id=self.prefix + "-Links", body=links_vis)
             except es.exceptions.NotFoundError:
                 logger.info("template markdown links widget not found")
-
-        # TODO: generate markdown Kibana object with links to all dashboards
 
     def delete_kibana_objects(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)

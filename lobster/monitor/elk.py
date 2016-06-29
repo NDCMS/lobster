@@ -183,13 +183,12 @@ class ElkInterface(Configurable):
                                             doc_type='visualization',
                                             id='[template]-Links')['_source']
 
-                logger.debug(links_vis)
+                links_vis['title'] = links_vis[
+                    'title'].replace('[template]', self.prefix)
 
                 links_state = json.loads(links_vis['visState'])
                 links_state['params']['markdown'] = links_text
                 links_vis['visState'] = json.dumps(links_state)
-
-                logger.debug(links_vis)
 
                 self.client.index(index='.kibana', doc_type='visualization',
                                   id=self.prefix + "-Links", body=links_vis)

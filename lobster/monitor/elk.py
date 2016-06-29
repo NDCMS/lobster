@@ -5,6 +5,7 @@ import json
 import re
 import inspect
 import logging
+import os
 
 from lobster.util import Configurable
 
@@ -36,11 +37,11 @@ class ElkInterface(Configurable):
     """
     _mutable = {}
 
-    def __init__(self, host, port, user, project, modules=None,
+    def __init__(self, host, port, project, modules=None,
                  populate_template=False):
         self.host = host
         self.port = port
-        self.user = user
+        self.user = os.environ['USER']
         self.project = project
         self.modules = modules or ['core']
         self.populate_template = populate_template
@@ -90,6 +91,9 @@ class ElkInterface(Configurable):
                                self.prefix + " already exist.")
             logger.error(e)
             raise e
+
+        # TODO: change to deleting (overwriting) Elasticsearch indices and
+        # not caring about Kibana objects
 
     def generate_kibana_objects(self):
         logger.info("generating Kibana objects from templates")
@@ -152,6 +156,9 @@ class ElkInterface(Configurable):
 
                 self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
                                   id=dash.meta.id, body=dash.to_dict())
+
+        # TODO: generate link(s) to dashboard(s) and put them in the log
+        # TODO: generate markdown Kibana object with links to all dashboards
 
     def delete_kibana_objects(self):
         logger.info('deleting Kibana objects with prefix ' + self.prefix)

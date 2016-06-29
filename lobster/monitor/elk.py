@@ -89,9 +89,10 @@ class ElkInterface(Configurable):
 
         try:
             indices = self.client.indices.get_aliases().keys()
-        except es.exceptions.ConnectionError as e:
+        except es.exceptions.ElasticsearchException as e:
             logger.error(e)
             raise e
+            return
 
         if any(self.prefix in s for s in indices):
             logger.info("Elasticsearch indices with prefix " + self.prefix +
@@ -107,106 +108,150 @@ class ElkInterface(Configurable):
 
         any_prefix = re.compile('\[.*\]')
 
-        search_index = es_dsl.Search(using=self.client, index='.kibana') \
-            .filter('prefix', _id='[template]') \
-            .filter('match', _type='index-pattern')
-        response_index = search_index.execute()
-
-        for index in response_index:
-            index.meta.id = index.meta.id.replace('[template]', self.prefix)
-            index.title = index.title.replace('[template]', self.prefix)
-            self.client.index(index='.kibana', doc_type=index.meta.doc_type,
-                              id=index.meta.id, body=index.to_dict())
-
         dash_links = {}
 
+        logger.debug("generating index patterns from templates")
+        try:
+            search_index = es_dsl.Search(using=self.client, index='.kibana') \
+                .filter('prefix', _id='[template]') \
+                .filter('match', _type='index-pattern')
+            response_index = search_index.execute()
+
+            for index in response_index:
+                index.meta.id = index.meta.id.replace(
+                    '[template]', self.prefix)
+                index.title = index.title.replace('[template]', self.prefix)
+                self.client.index(index='.kibana',
+                                  doc_type=index.meta.doc_type,
+                                  id=index.meta.id, body=index.to_dict())
+        except es.exceptions.ElasticsearchException as e:
+            logger.error(e)
+            return
+
         for module in self.modules:
-            search_vis = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id='[template][' + module + ']') \
-                .filter('match', _type='visualization')
-
-            search_dash = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id='[template][' + module + ']') \
-                .filter('match', _type='dashboard')
-
-            response_vis = search_vis.execute()
-            response_dash = search_dash.execute()
-
-            for vis in response_vis:
-                vis.meta.id = vis.meta.id.replace('[template]', self.prefix)
-                vis.title = vis.title.replace('[template]', self.prefix)
-
-                source = json.loads(vis.kibanaSavedObjectMeta.searchSourceJSON)
-                source['index'] = any_prefix.sub(self.prefix, source['index'])
-                vis.kibanaSavedObjectMeta.searchSourceJSON = json.dumps(source)
-
-                self.client.index(index='.kibana', doc_type=vis.meta.doc_type,
-                                  id=vis.meta.id, body=vis.to_dict())
-
-            for dash in response_dash:
-                dash.meta.id = dash.meta.id.replace('[template]', self.prefix)
-                dash.title = dash.title.replace('[template]', self.prefix)
-
-                dash_panels = json.loads(dash.panelsJSON)
-                for panel in dash_panels:
-                    panel['id'] = panel['id'].replace(
-                        '[template]', self.prefix)
-                dash.panelsJSON = json.dumps(dash_panels)
-
-                self.client.index(index='.kibana', doc_type=dash.meta.doc_type,
-                                  id=dash.meta.id, body=dash.to_dict())
-
-                link = requests.utils.quote(
-                    "http://" + self.kib_host + ":" + str(self.kib_port) +
-                    "/app/kibana#/dashboard/" + dash.meta.id +
-                    "?_g=(refreshInterval:(display:'15 minutes',pause:!f," +
-                    "section:2,value:900000),time:(from:'" + str(self.start) + "Z',mode:absolute,to:now))", safe='/:!?,=#')
-
-                logger.info("Kibana " + module + " dashboard at " + link)
-
-                dash_links[module] = link
-
-            links_text = "###" + self.user + "'s Dashboards\n"
-
-            for module in dash_links:
-                links_text += "- [" + module + "](" + dash_links[module] + \
-                    ")\n"
-
+            logger.debug("generating " + module +
+                         " visualizations from templates")
             try:
-                links_vis = self.client.get(index='.kibana',
-                                            doc_type='visualization',
-                                            id='[template]-Links')['_source']
+                search_vis = es_dsl.Search(
+                    using=self.client, index='.kibana') \
+                    .filter('prefix', _id='[template][' + module + ']') \
+                    .filter('match', _type='visualization')
 
-                links_vis['title'] = links_vis[
-                    'title'].replace('[template]', self.prefix)
+                response_vis = search_vis.execute()
 
-                links_state = json.loads(links_vis['visState'])
-                links_state['params']['markdown'] = links_text
-                links_vis['visState'] = json.dumps(links_state)
+                for vis in response_vis:
+                    vis.meta.id = vis.meta.id.replace(
+                        '[template]', self.prefix)
+                    vis.title = vis.title.replace('[template]', self.prefix)
 
-                self.client.index(index='.kibana', doc_type='visualization',
-                                  id=self.prefix + "-Links", body=links_vis)
-            except es.exceptions.NotFoundError:
-                logger.info("template markdown links widget not found")
+                    source = json.loads(
+                        vis.kibanaSavedObjectMeta.searchSourceJSON)
+                    source['index'] = any_prefix.sub(
+                        self.prefix, source['index'])
+                    vis.kibanaSavedObjectMeta.searchSourceJSON = json.dumps(
+                        source)
+
+                    self.client.index(index='.kibana',
+                                      doc_type=vis.meta.doc_type,
+                                      id=vis.meta.id, body=vis.to_dict())
+            except es.exceptions.ElasticsearchException as e:
+                logger.error(e)
+                return
+
+            logger.debug("generating " + module + " dashboards from templates")
+            try:
+                search_dash = es_dsl.Search(
+                    using=self.client, index='.kibana') \
+                    .filter('prefix', _id='[template][' + module + ']') \
+                    .filter('match', _type='dashboard')
+
+                response_dash = search_dash.execute()
+
+                for dash in response_dash:
+                    dash.meta.id = dash.meta.id.replace(
+                        '[template]', self.prefix)
+                    dash.title = dash.title.replace('[template]', self.prefix)
+
+                    dash_panels = json.loads(dash.panelsJSON)
+                    for panel in dash_panels:
+                        panel['id'] = panel['id'].replace(
+                            '[template]', self.prefix)
+                    dash.panelsJSON = json.dumps(dash_panels)
+
+                    try:
+                        self.client.index(index='.kibana',
+                                          doc_type=dash.meta.doc_type,
+                                          id=dash.meta.id, body=dash.to_dict())
+                    except es.exceptions.ConnectionError as e:
+                        logger.error(e)
+                        return
+
+                    link = requests.utils.quote(
+                        "http://" + self.kib_host + ":" + str(self.kib_port) +
+                        "/app/kibana#/dashboard/" + dash.meta.id +
+                        "?_g=(refreshInterval:(display:'15 minutes'," +
+                        "pause:!f,section:2,value:900000),time:(from:'" +
+                        str(self.start) + "Z',mode:absolute,to:now))", 
+                        safe='/:!?,=#')
+
+                    logger.info("Kibana " + module + " dashboard at " + link)
+
+                    dash_links[module] = link
+            except es.exceptions.ElasticsearchException as e:
+                logger.error(e)
+                return
+
+        logger.debug("generating dashboard link widget")
+
+        links_text = "###" + self.user + "'s Dashboards\n"
+
+        for module in dash_links:
+            links_text += "- [" + module + "](" + dash_links[module] + ")\n"
+
+        try:
+            links_vis = self.client.get(index='.kibana',
+                                        doc_type='visualization',
+                                        id='[template]-Links')['_source']
+
+            links_vis['title'] = links_vis['title'].replace(
+                '[template]', self.prefix)
+
+            links_state = json.loads(links_vis['visState'])
+            links_state['params']['markdown'] = links_text
+            links_vis['visState'] = json.dumps(links_state)
+
+            self.client.index(index='.kibana', doc_type='visualization',
+                              id=self.prefix + "-Links", body=links_vis)
+        except es.exceptions.ElasticsearchException as e:
+            logger.error(e)
+            return
 
     def delete_kibana_objects(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
 
-        search = elasticsearch_dsl.Search(using=self.client, index='.kibana') \
-            .filter('prefix', _id=self.prefix)
-        response = search.execute()
+        try:
+            search = elasticsearch_dsl.Search(using=self.client, index='.kibana') \
+                .filter('prefix', _id=self.prefix)
+            response = search.execute()
 
-        for result in response:
-            self.client.delete(index='.kibana', doc_type=result.meta.doc_type,
-                               id=result.meta.id)
+            for result in response:
+                self.client.delete(index='.kibana', doc_type=result.meta.doc_type,
+                                   id=result.meta.id)
+        except es.exceptions.ElasticsearchException as e:
+            logger.error(e)
+            return
 
     def delete_elasticsearch_indices(self):
-        logger.info(
-            "deleting Elasticsearch indices with prefix " + self.prefix)
-        self.client.indices.delete(index=self.prefix + '_*')
+        logger.info("deleting Elasticsearch indices with prefix " + self.prefix)
+
+        try:
+            self.client.indices.delete(index=self.prefix + '_*')
+        except es.exceptions.ElasticsearchException as e:
+            logger.error(e)
+            return
 
     def index_task(self, task):
-        logger.debug("parsing task object")
+        logger.debug("parsing Task object")
 
         task = dict([(m, o) for (m, o) in inspect.getmembers(task)
                      if not inspect.isroutine(o) and not m.startswith('__')])
@@ -276,6 +321,8 @@ class ElkInterface(Configurable):
         upsert_doc = {'doc': {'Task': task, 'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
 
+        logger.debug("sending Task document to Elasticsearch")
+
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
@@ -284,13 +331,11 @@ class ElkInterface(Configurable):
                 self.client.update(index='[template]_lobster_tasks',
                                    doc_type='task', id=task['id'],
                                    body=upsert_doc)
-        except es.exceptions.ConnectionError as e:
-            logger.error(e)
-        except es.exceptions.TransportError as e:
+        except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
     def index_task_update(self, task_update):
-        logger.debug("parsing task update")
+        logger.debug("parsing TaskUpdate object")
 
         task_update = dict(task_update.__dict__)
 
@@ -377,6 +422,8 @@ class ElkInterface(Configurable):
         upsert_doc = {'doc': {'TaskUpdate': task_update},
                       'doc_as_upsert': True}
 
+        logger.debug("sending TaskUpdate document to Elasticsearch")
+
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
@@ -385,10 +432,9 @@ class ElkInterface(Configurable):
                 self.client.update(index='[template]_lobster_tasks',
                                    doc_type='task', id=task_update['id'],
                                    body=upsert_doc)
-        except es.exceptions.ConnectionError as e:
+        except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-        except es.exceptions.TransportError as e:
-            logger.error(e)
+            return
 
     def index_stats(self, now, left, times, log_attributes, stats, category):
         logger.debug("parsing lobster stats log")
@@ -403,6 +449,8 @@ class ElkInterface(Configurable):
 
         stats = dict(zip(keys, values))
 
+        logger.debug("sending lobster stats document to Elasticsearch")
+
         try:
             self.client.index(index=self.prefix + '_lobster_stats',
                               doc_type='log', body=stats,
@@ -413,7 +461,6 @@ class ElkInterface(Configurable):
                                   doc_type='log', body=stats,
                                   id=str(int(int(now.strftime('%s')) * 1e6 +
                                              now.microsecond)))
-        except es.exceptions.ConnectionError as e:
+        except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-        except es.exceptions.TransportError as e:
-            logger.error(e)
+            return

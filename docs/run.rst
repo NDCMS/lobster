@@ -58,7 +58,7 @@ of disk space each.  It is included in the `examples` directory in the
 Lobster source distribution.  The factory can thus be started from within
 the Lobster source directory with::
 
-    nohup work_queue_factory -T condor -M lobster_$USER.* -o /tmp/${USER}_factory.debug -C examples/factory.json > /tmp/${USER}_factory.log &
+    nohup work_queue_factory -T condor -M "lobster_$USER.*" -o /tmp/${USER}_factory.debug -C examples/factory.json > /tmp/${USER}_factory.log &
 
 .. note::
    At Notre Dame, the following login nodes are connected to the

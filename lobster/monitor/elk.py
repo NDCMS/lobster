@@ -126,7 +126,6 @@ class ElkInterface(Configurable):
                                   id=index.meta.id, body=index.to_dict())
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
 
         for module in self.modules:
             logger.debug("generating " + module +
@@ -156,7 +155,6 @@ class ElkInterface(Configurable):
                                       id=vis.meta.id, body=vis.to_dict())
             except es.exceptions.ElasticsearchException as e:
                 logger.error(e)
-                return
 
             logger.debug("generating " + module + " dashboards from templates")
             try:
@@ -178,20 +176,16 @@ class ElkInterface(Configurable):
                             '[template]', self.prefix)
                     dash.panelsJSON = json.dumps(dash_panels)
 
-                    try:
-                        self.client.index(index='.kibana',
-                                          doc_type=dash.meta.doc_type,
-                                          id=dash.meta.id, body=dash.to_dict())
-                    except es.exceptions.ConnectionError as e:
-                        logger.error(e)
-                        return
+                    self.client.index(index='.kibana',
+                                      doc_type=dash.meta.doc_type,
+                                      id=dash.meta.id, body=dash.to_dict())
 
                     link = requests.utils.quote(
                         "http://" + self.kib_host + ":" + str(self.kib_port) +
                         "/app/kibana#/dashboard/" + dash.meta.id +
                         "?_g=(refreshInterval:(display:'15 minutes'," +
                         "pause:!f,section:2,value:900000),time:(from:'" +
-                        str(self.start) + "Z',mode:absolute,to:now))", 
+                        str(self.start) + "Z',mode:absolute,to:now))",
                         safe='/:!?,=#')
 
                     logger.info("Kibana " + module + " dashboard at " + link)
@@ -199,7 +193,6 @@ class ElkInterface(Configurable):
                     dash_links[module] = link
             except es.exceptions.ElasticsearchException as e:
                 logger.error(e)
-                return
 
         logger.debug("generating dashboard link widget")
 
@@ -224,99 +217,115 @@ class ElkInterface(Configurable):
                               id=self.prefix + "-Links", body=links_vis)
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
+
+    # TODO: add function to change dashboard links to end at end time
 
     def delete_kibana_objects(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
 
         try:
-            search = elasticsearch_dsl.Search(using=self.client, index='.kibana') \
+            search = elasticsearch_dsl.Search(
+                using=self.client, index='.kibana') \
                 .filter('prefix', _id=self.prefix)
             response = search.execute()
 
             for result in response:
-                self.client.delete(index='.kibana', doc_type=result.meta.doc_type,
+                self.client.delete(index='.kibana',
+                                   doc_type=result.meta.doc_type,
                                    id=result.meta.id)
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
 
     def delete_elasticsearch_indices(self):
-        logger.info("deleting Elasticsearch indices with prefix " + self.prefix)
+        logger.info(
+            "deleting Elasticsearch indices with prefix " + self.prefix)
 
         try:
             self.client.indices.delete(index=self.prefix + '_*')
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
 
     def index_task(self, task):
         logger.debug("parsing Task object")
+        try:
+            task = dict([(m, o) for (m, o) in inspect.getmembers(task)
+                         if not inspect.isroutine(o) and
+                         not m.startswith('__')])
 
-        task = dict([(m, o) for (m, o) in inspect.getmembers(task)
-                     if not inspect.isroutine(o) and not m.startswith('__')])
+            task.pop('_task')
+            task.pop('command')
 
-        task.pop('_task')
-        task.pop('command')
+            task['resources_requested'] = dict(
+                [(m, o) for (m, o) in
+                 inspect.getmembers(task['resources_requested'])
+                 if not inspect.isroutine(o) and not m.startswith('__')])
+            task['resources_allocated'] = dict(
+                [(m, o) for (m, o) in
+                 inspect.getmembers(task['resources_allocated'])
+                 if not inspect.isroutine(o) and not m.startswith('__')])
+            task['resources_measured'] = dict(
+                [(m, o) for (m, o) in
+                 inspect.getmembers(task['resources_measured'])
+                 if not inspect.isroutine(o) and not m.startswith('__')])
 
-        task['resources_requested'] = dict(
-            [(m, o) for (m, o) in
-             inspect.getmembers(task['resources_requested'])
-             if not inspect.isroutine(o) and not m.startswith('__')])
-        task['resources_allocated'] = dict(
-            [(m, o) for (m, o) in
-             inspect.getmembers(task['resources_allocated'])
-             if not inspect.isroutine(o) and not m.startswith('__')])
-        task['resources_measured'] = dict(
-            [(m, o) for (m, o) in
-             inspect.getmembers(task['resources_measured'])
-             if not inspect.isroutine(o) and not m.startswith('__')])
+            task['resources_requested'].pop('this')
+            task['resources_measured'].pop('this')
+            task['resources_allocated'].pop('this')
 
-        task['resources_requested'].pop('this')
-        task['resources_measured'].pop('this')
-        task['resources_allocated'].pop('this')
+            task['resources_measured'].pop('peak_times')
+        except Exception as e:
+            logger.error(e)
+            return
 
-        task['resources_measured'].pop('peak_times')
+        logger.debug("parsing Task timestamps")
+        try:
+            task['send_input_start'] = datetime.utcfromtimestamp(
+                float(str(task['send_input_start'])[:10]))
+            task['send_input_finish'] = datetime.utcfromtimestamp(
+                float(str(task['send_input_finish'])[:10]))
+            task['execute_cmd_start'] = datetime.utcfromtimestamp(
+                float(str(task['execute_cmd_start'])[:10]))
+            task['execute_cmd_finish'] = datetime.utcfromtimestamp(
+                float(str(task['execute_cmd_finish'])[:10]))
+            task['receive_output_start'] = datetime.utcfromtimestamp(
+                float(str(task['receive_output_start'])[:10]))
+            task['receive_output_finish'] = datetime.utcfromtimestamp(
+                float(str(task['receive_output_finish'])[:10]))
+            task['submit_time'] = datetime.utcfromtimestamp(
+                float(str(task['submit_time'])[:10]))
+            task['finish_time'] = datetime.utcfromtimestamp(
+                float(str(task['finish_time'])[:10]))
 
-        task['send_input_start'] = datetime.utcfromtimestamp(
-            float(str(task['send_input_start'])[:10]))
-        task['send_input_finish'] = datetime.utcfromtimestamp(
-            float(str(task['send_input_finish'])[:10]))
-        task['execute_cmd_start'] = datetime.utcfromtimestamp(
-            float(str(task['execute_cmd_start'])[:10]))
-        task['execute_cmd_finish'] = datetime.utcfromtimestamp(
-            float(str(task['execute_cmd_finish'])[:10]))
-        task['receive_output_start'] = datetime.utcfromtimestamp(
-            float(str(task['receive_output_start'])[:10]))
-        task['receive_output_finish'] = datetime.utcfromtimestamp(
-            float(str(task['receive_output_finish'])[:10]))
-        task['submit_time'] = datetime.utcfromtimestamp(
-            float(str(task['submit_time'])[:10]))
-        task['finish_time'] = datetime.utcfromtimestamp(
-            float(str(task['finish_time'])[:10]))
+            task['resources_measured']['start'] = datetime.utcfromtimestamp(
+                float(str(task['resources_measured']['start'])[:10]))
+            task['resources_measured']['end'] = datetime.utcfromtimestamp(
+                float(str(task['resources_measured']['end'])[:10]))
+        except Exception as e:
+            logger.error(e)
 
-        task['resources_measured']['start'] = datetime.utcfromtimestamp(
-            float(str(task['resources_measured']['start'])[:10]))
-        task['resources_measured']['end'] = datetime.utcfromtimestamp(
-            float(str(task['resources_measured']['end'])[:10]))
+        logger.debug("checking for fatal exception")
+        try:
+            task_log = task.pop('output')
 
-        task_log = task.pop('output')
+            e_p = re.compile(
+                r"Begin Fatal Exception([\s\S]*)End Fatal Exception")
+            e_match = e_p.search(task_log)
 
-        e_p = re.compile(r"Begin Fatal Exception([\s\S]*)End Fatal Exception")
-        e_match = e_p.search(task_log)
+            if e_match:
+                logger.debug("parsing fatal exception")
 
-        if e_match:
-            logger.debug("parsing task.log fatal exception")
+                task['fatal_exception']['message'] = e_match.group(1)
 
-            task['fatal_exception']['message'] = e_match.group(1)
+                e_cat_p = re.compile(r"'(.*)'")
+                task['fatal_exception']['exception_category'] = \
+                    e_cat_p.search(task['fatal_exception']['message']).group(1)
 
-            e_cat_p = re.compile(r"'(.*)'")
-            task['fatal_exception']['exception_category'] = \
-                e_cat_p.search(task['fatal_exception']['message']).group(1)
-
-            e_mess_p = re.compile(r"Exception Message:\n(.*)")
-            task['fatal_exception']['exception_message'] = \
-                e_mess_p.search(task['fatal_exception']['message']).group(1)
+                e_mess_p = re.compile(r"Exception Message:\n(.*)")
+                task['fatal_exception']['exception_message'] = \
+                    e_mess_p.search(task['fatal_exception']['message'])\
+                    .group(1)
+        except Exception as e:
+            logger.error(e)
 
         upsert_doc = {'doc': {'Task': task, 'timestamp': task['submit_time']},
                       'doc_as_upsert': True}
@@ -337,93 +346,104 @@ class ElkInterface(Configurable):
     def index_task_update(self, task_update):
         logger.debug("parsing TaskUpdate object")
 
-        task_update = dict(task_update.__dict__)
+        try:
+            task_update = dict(task_update.__dict__)
+        except Exception as e:
+            logger.error(e)
+            return
 
-        task_update['runtime'] = \
-            task_update['time_processing_end'] - \
-            task_update['time_wrapper_start']
-        task_update['time_input_transfer'] = \
-            task_update['time_transfer_in_start'] - \
-            task_update['time_transfer_in_end']
-        task_update['time_startup'] = \
-            task_update['time_wrapper_start'] - \
-            task_update['time_transfer_in_end']
-        task_update['time_release_setup'] = \
-            task_update['time_wrapper_ready'] - \
-            task_update['time_wrapper_start']
-        task_update['time_stage_in'] = \
-            task_update['time_stage_in_end'] - \
-            task_update['time_wrapper_ready']
-        task_update['time_prologue'] = \
-            task_update['time_prologue_end'] - \
-            task_update['time_stage_in_end']
-        task_update['time_overhead'] = \
-            task_update['time_wrapper_ready'] - \
-            task_update['time_wrapper_start']
-        task_update['time_executable'] = \
-            task_update['time_processing_end'] - \
-            task_update['time_prologue_end']
-        task_update['time_epilogue'] = \
-            task_update['time_epilogue_end'] - \
-            task_update['time_processing_end']
-        task_update['time_stage_out'] = \
-            task_update['time_stage_out_end'] - \
-            task_update['time_epilogue_end']
-        task_update['time_output_transfer_wait'] = \
-            task_update['time_transfer_out_start'] - \
-            task_update['time_stage_out_end']
-        task_update['time_output_transfer_work_queue'] = \
-            task_update['time_transfer_out_end'] - \
-            task_update['time_transfer_out_start']
-
-        task_update['time_total_eviction_execution'] = \
-            task_update['time_total_on_worker'] - \
-            task_update['time_on_worker']
-
-        if task_update['exit_code'] == 0:
-            task_update['time_total_overhead'] = \
+        logger.debug("calculating TaskUpdate time intervals")
+        try:
+            task_update['runtime'] = \
+                task_update['time_processing_end'] - \
+                task_update['time_wrapper_start']
+            task_update['time_input_transfer'] = \
+                task_update['time_transfer_in_start'] - \
+                task_update['time_transfer_in_end']
+            task_update['time_startup'] = \
+                task_update['time_wrapper_start'] - \
+                task_update['time_transfer_in_end']
+            task_update['time_release_setup'] = \
+                task_update['time_wrapper_ready'] - \
+                task_update['time_wrapper_start']
+            task_update['time_stage_in'] = \
+                task_update['time_stage_in_end'] - \
+                task_update['time_wrapper_ready']
+            task_update['time_prologue'] = \
                 task_update['time_prologue_end'] - \
-                task_update['time_transfer_in_start']
-            task_update['time_total_processing'] = \
+                task_update['time_stage_in_end']
+            task_update['time_overhead'] = \
+                task_update['time_wrapper_ready'] - \
+                task_update['time_wrapper_start']
+            task_update['time_executable'] = \
                 task_update['time_processing_end'] - \
                 task_update['time_prologue_end']
-            task_update['time_total_stage_out'] = \
-                task_update['time_transfer_out_end'] - \
+            task_update['time_epilogue'] = \
+                task_update['time_epilogue_end'] - \
                 task_update['time_processing_end']
-        else:
-            task_update['time_total_failed'] = \
-                task_update['time_total_on_worker']
+            task_update['time_stage_out'] = \
+                task_update['time_stage_out_end'] - \
+                task_update['time_epilogue_end']
+            task_update['time_output_transfer_wait'] = \
+                task_update['time_transfer_out_start'] - \
+                task_update['time_stage_out_end']
+            task_update['time_output_transfer_work_queue'] = \
+                task_update['time_transfer_out_end'] - \
+                task_update['time_transfer_out_start']
 
-        task_update['time_processing_end'] = datetime.utcfromtimestamp(
-            task_update['time_processing_end'])
-        task_update['time_prologue_end'] = datetime.utcfromtimestamp(
-            task_update['time_prologue_end'])
-        task_update['time_retrieved'] = datetime.utcfromtimestamp(
-            task_update['time_retrieved'])
-        task_update['time_stage_in_end'] = datetime.utcfromtimestamp(
-            task_update['time_stage_in_end'])
-        task_update['time_stage_out_end'] = datetime.utcfromtimestamp(
-            task_update['time_stage_out_end'])
-        task_update['time_transfer_in_end'] = datetime.utcfromtimestamp(
-            task_update['time_transfer_in_end'])
-        task_update['time_transfer_in_start'] = datetime.utcfromtimestamp(
-            task_update['time_transfer_in_start'])
-        task_update['time_transfer_out_end'] = datetime.utcfromtimestamp(
-            task_update['time_transfer_out_end'])
-        task_update['time_transfer_out_start'] = datetime.utcfromtimestamp(
-            task_update['time_transfer_out_start'])
-        task_update['time_wrapper_ready'] = datetime.utcfromtimestamp(
-            task_update['time_wrapper_ready'])
-        task_update['time_wrapper_start'] = datetime.utcfromtimestamp(
-            task_update['time_wrapper_start'])
-        task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
-            task_update['time_epilogue_end'])
+            task_update['time_total_eviction_execution'] = \
+                task_update['time_total_on_worker'] - \
+                task_update['time_on_worker']
+
+            if task_update['exit_code'] == 0:
+                task_update['time_total_overhead'] = \
+                    task_update['time_prologue_end'] - \
+                    task_update['time_transfer_in_start']
+                task_update['time_total_processing'] = \
+                    task_update['time_processing_end'] - \
+                    task_update['time_prologue_end']
+                task_update['time_total_stage_out'] = \
+                    task_update['time_transfer_out_end'] - \
+                    task_update['time_processing_end']
+            else:
+                task_update['time_total_failed'] = \
+                    task_update['time_total_on_worker']
+        except Exception as e:
+            logger.error(e)
+
+        logger.debug("parsing TaskUpdate timestamps")
+        try:
+            task_update['time_processing_end'] = datetime.utcfromtimestamp(
+                task_update['time_processing_end'])
+            task_update['time_prologue_end'] = datetime.utcfromtimestamp(
+                task_update['time_prologue_end'])
+            task_update['time_retrieved'] = datetime.utcfromtimestamp(
+                task_update['time_retrieved'])
+            task_update['time_stage_in_end'] = datetime.utcfromtimestamp(
+                task_update['time_stage_in_end'])
+            task_update['time_stage_out_end'] = datetime.utcfromtimestamp(
+                task_update['time_stage_out_end'])
+            task_update['time_transfer_in_end'] = datetime.utcfromtimestamp(
+                task_update['time_transfer_in_end'])
+            task_update['time_transfer_in_start'] = datetime.utcfromtimestamp(
+                task_update['time_transfer_in_start'])
+            task_update['time_transfer_out_end'] = datetime.utcfromtimestamp(
+                task_update['time_transfer_out_end'])
+            task_update['time_transfer_out_start'] = datetime.utcfromtimestamp(
+                task_update['time_transfer_out_start'])
+            task_update['time_wrapper_ready'] = datetime.utcfromtimestamp(
+                task_update['time_wrapper_ready'])
+            task_update['time_wrapper_start'] = datetime.utcfromtimestamp(
+                task_update['time_wrapper_start'])
+            task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
+                task_update['time_epilogue_end'])
+        except Exception as e:
+            logger.error(e)
 
         upsert_doc = {'doc': {'TaskUpdate': task_update},
                       'doc_as_upsert': True}
 
         logger.debug("sending TaskUpdate document to Elasticsearch")
-
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
@@ -434,20 +454,24 @@ class ElkInterface(Configurable):
                                    body=upsert_doc)
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
 
     def index_stats(self, now, left, times, log_attributes, stats, category):
         logger.debug("parsing lobster stats log")
 
-        keys = ['timestamp', 'units_left'] + \
-            ['total_{}_time'.format(k) for k in sorted(times.keys())] + \
-            log_attributes + ['category']
+        try:
+            keys = ['timestamp', 'units_left'] + \
+                ['total_{}_time'.format(k) for k in sorted(times.keys())] + \
+                log_attributes + ['category']
 
-        values = [datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
-            [times[k] for k in sorted(times.keys())] + \
-            [getattr(stats, a) for a in log_attributes] + [category]
+            values = \
+                [datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
+                [times[k] for k in sorted(times.keys())] + \
+                [getattr(stats, a) for a in log_attributes] + [category]
 
-        stats = dict(zip(keys, values))
+            stats = dict(zip(keys, values))
+        except Exception as e:
+            logger.error(e)
+            return
 
         logger.debug("sending lobster stats document to Elasticsearch")
 
@@ -463,4 +487,3 @@ class ElkInterface(Configurable):
                                              now.microsecond)))
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return

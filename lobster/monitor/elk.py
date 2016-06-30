@@ -112,8 +112,6 @@ class ElkInterface(Configurable):
 
         any_prefix = re.compile('\[.*\]')
 
-        dash_links = {}
-
         logger.debug("generating index patterns from templates")
         try:
             search_index = es_dsl.Search(using=self.client, index='.kibana') \
@@ -160,7 +158,7 @@ class ElkInterface(Configurable):
             except es.exceptions.ElasticsearchException as e:
                 logger.error(e)
 
-            logger.debug("generating " + module + " dashboards from templates")
+            logger.debug("generating " + module + " dashboard from templates")
             try:
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
@@ -183,7 +181,25 @@ class ElkInterface(Configurable):
                     self.client.index(index='.kibana',
                                       doc_type=dash.meta.doc_type,
                                       id=dash.meta.id, body=dash.to_dict())
+            except es.exceptions.ElasticsearchException as e:
+                logger.error(e)
 
+        self.update_links()
+
+    def update_links(self):
+        logger.debug("generating dashboard link widget")
+
+        links_text = "###" + self.user + "'s " + self.project + " dashboards\n"
+        try:
+            for module in self.modules:
+                search_dash = es_dsl.Search(
+                    using=self.client, index='.kibana') \
+                    .filter('prefix', _id=self.prefix + '[' + module + ']') \
+                    .filter('match', _type='dashboard')
+
+                response_dash = search_dash.execute()
+
+                for dash in response_dash:
                     link = requests.utils.quote(
                         "http://" + self.kib_host + ":" + str(self.kib_port) +
                         "/app/kibana#/dashboard/" + dash.meta.id +
@@ -194,18 +210,8 @@ class ElkInterface(Configurable):
 
                     logger.info("Kibana " + module + " dashboard at " + link)
 
-                    dash_links[module] = link
-            except es.exceptions.ElasticsearchException as e:
-                logger.error(e)
+                    links_text += "- [" + dash.title + "](" + link + ")\n"
 
-        logger.debug("generating dashboard link widget")
-
-        links_text = "###" + self.user + "'s Dashboards\n"
-
-        for module in dash_links:
-            links_text += "- [" + module + "](" + dash_links[module] + ")\n"
-
-        try:
             links_vis = self.client.get(index='.kibana',
                                         doc_type='visualization',
                                         id='[template]-Links')['_source']
@@ -221,8 +227,7 @@ class ElkInterface(Configurable):
                               id=self.prefix + "-Links", body=links_vis)
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-
-    # TODO: add function to change dashboard link time range to end at end time
+    # TODO: change dashboard link time range to end at end time
 
     def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
@@ -306,7 +311,7 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
-        logger.debug("checking for fatal exception")
+        logger.debug("checking Task for fatal exception")
         try:
             task_log = task.pop('output')
 

@@ -37,7 +37,7 @@ class Terminate(Command):
         logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
         workdir = args.config.workdir
         util.register_checkpoint(workdir, 'KILLED', 'PENDING')
-        
+
         if args.config.elk:
             args.config.elk.end()
 
@@ -368,7 +368,7 @@ class Process(Command):
                     raise
         if units_left == 0:
             logger.info("no more work left to do")
-            if action:
-                action.take(True)
             if self.config.elk:
                 self.config.elk.end()
+            if action:
+                action.take(True)

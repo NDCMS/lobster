@@ -97,13 +97,13 @@ class ElkInterface(Configurable):
         if any(self.prefix in s for s in indices):
             logger.info("Elasticsearch indices with prefix " + self.prefix +
                         " already exist")
-            self.delete_elasticsearch_indices()
+            self.delete_elasticsearch()
 
         self.start = datetime.utcnow()
 
-        self.generate_kibana_objects()
+        self.update_kibana()
 
-    def generate_kibana_objects(self):
+    def update_kibana(self):
         logger.info("generating Kibana objects from templates")
 
         any_prefix = re.compile('\[.*\]')
@@ -218,9 +218,9 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
-    # TODO: add function to change dashboard links to end at end time
+    # TODO: add function to change dashboard link time range to end at end time
 
-    def delete_kibana_objects(self):
+    def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
 
         try:
@@ -236,9 +236,9 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
-    def delete_elasticsearch_indices(self):
-        logger.info(
-            "deleting Elasticsearch indices with prefix " + self.prefix)
+    def delete_elasticsearch(self):
+        logger.info("deleting Elasticsearch indices with prefix " +
+                    self.prefix)
 
         try:
             self.client.indices.delete(index=self.prefix + '_*')

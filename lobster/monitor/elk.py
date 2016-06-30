@@ -103,6 +103,10 @@ class ElkInterface(Configurable):
 
         self.update_kibana()
 
+    def cleanup(self):
+        self.delete_kibana()
+        self.delete_elasticsearch()
+
     def update_kibana(self):
         logger.info("generating Kibana objects from templates")
 
@@ -224,8 +228,7 @@ class ElkInterface(Configurable):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
 
         try:
-            search = elasticsearch_dsl.Search(
-                using=self.client, index='.kibana') \
+            search = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id=self.prefix)
             response = search.execute()
 

@@ -11,9 +11,8 @@ import os
 import pickle
 import shutil
 import sqlite3
-import sys
+import signal
 import time
-import yaml
 import re
 import string
 import json
@@ -23,7 +22,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 import numpy as np
-from numpy.lib import recfunctions as rfn
 
 from lobster import util
 from lobster.core import unit
@@ -36,12 +34,18 @@ matplotlib.rc('axes.formatter', limits=(-3, 4))
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
 matplotlib.rc('font', size=7)
-matplotlib.rc('font', **{'sans-serif' : 'Liberation Sans', 'family' : 'sans-serif'})
+matplotlib.rc('font', **{'sans-serif': 'Liberation Sans', 'family': 'sans-serif'})
 
 logger = logging.getLogger('lobster.plotting')
 
+
+def reset_signals():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+
 def reduce(a, idx, interval):
-    quant = a[:,idx]
+    quant = a[:, idx]
     last = quant[0]
     select = np.ones((len(quant),), dtype=np.bool)
     for i in range(1, len(quant) - 1):
@@ -467,7 +471,7 @@ class Plotter(object):
                     os.makedirs(os.path.dirname(outname))
                 with open(outname, 'w') as f:
                     f.write('\n'.join(skipped))
-        pool = multiprocessing.Pool(processes=10)
+        pool = multiprocessing.Pool(10, reset_signals)
         pool.map(unpack, work)
         pool.close()
         pool.join()
@@ -1194,7 +1198,7 @@ class Plotter(object):
                 categories=categories
             ).encode('utf-8'))
 
-        p = multiprocessing.Pool(10)
+        p = multiprocessing.Pool(10, reset_signals)
         p.map(mp_call, self.__plotargs)
         p.close()
         p.join()

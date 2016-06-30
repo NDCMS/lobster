@@ -213,7 +213,7 @@ class ElkInterface(Configurable):
                             dash.meta.id + "?_g=(refreshInterval:(display:" +
                             "Off,pause:!f,section:0,value:0)," +
                             "time:(from:'" + str(self.start_time) + "Z',mode:" +
-                            "absolute,to:" + str(self.end_time) + "Z))",
+                            "absolute,to:'" + str(self.end_time) + "Z'))",
                             safe='/:!?,=#')
                     else:
                         link = requests.utils.quote(

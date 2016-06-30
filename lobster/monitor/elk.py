@@ -40,10 +40,10 @@ class ElkInterface(Configurable):
             List of modules to include from the Kibana templates. Defaults to
             including only the core templates.
     """
-    _mutable = {}
+    _mutable = {'end_time': (None, [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 modules=None, populate_template=False):
+                 modules=None, populate_template=False, end_time=None):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
@@ -53,7 +53,8 @@ class ElkInterface(Configurable):
         self.populate_template = populate_template
         self.modules = modules or ['core']
         self.prefix = '[' + self.user + '_' + self.project + ']'
-        self.start = datetime.utcnow()
+        self.start_time = datetime.utcnow()
+        self.end_time = None
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -67,7 +68,8 @@ class ElkInterface(Configurable):
                  'populate_template': self.populate_template,
                  'modules': self.modules,
                  'prefix': self.prefix,
-                 'start': self.start}
+                 'start_time': self.start_time,
+                 'end_time': self.end_time}
         return state
 
     def __setstate__(self, state):
@@ -80,7 +82,8 @@ class ElkInterface(Configurable):
         self.modules = state['modules']
         self.populate_template = state['populate_template']
         self.prefix = state['prefix']
-        self.start = state['start']
+        self.start_time = state['start_time']
+        self.end_time = state['end_time']
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -105,12 +108,19 @@ class ElkInterface(Configurable):
         self.delete_kibana()
         self.delete_elasticsearch()
 
+    def end(self):
+        logger.info("ending ELK monitoring")
+
+        self.end_time = datetime.utcnow()
+
+        self.update_links()
+
     def update_kibana(self):
         logger.info("generating Kibana objects from templates")
 
         any_prefix = re.compile('\[.*\]')
 
-        logger.debug("generating index patterns from templates")
+        logger.debug("generating index patterns")
         try:
             search_index = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id='[template]') \
@@ -128,8 +138,7 @@ class ElkInterface(Configurable):
             logger.error(e)
 
         for module in self.modules:
-            logger.debug("generating " + module +
-                         " visualizations from templates")
+            logger.debug("generating " + module + " visualizations")
             try:
                 search_vis = es_dsl.Search(
                     using=self.client, index='.kibana') \
@@ -156,7 +165,7 @@ class ElkInterface(Configurable):
             except es.exceptions.ElasticsearchException as e:
                 logger.error(e)
 
-            logger.debug("generating " + module + " dashboard from templates")
+            logger.debug("generating " + module + " dashboard")
             try:
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
@@ -186,7 +195,6 @@ class ElkInterface(Configurable):
 
     def update_links(self):
         logger.debug("generating dashboard link widget")
-
         links_text = "###" + self.user + "'s " + self.project + " dashboards\n"
         try:
             for module in self.modules:
@@ -198,13 +206,24 @@ class ElkInterface(Configurable):
                 response_dash = search_dash.execute()
 
                 for dash in response_dash:
-                    link = requests.utils.quote(
-                        "http://" + self.kib_host + ":" + str(self.kib_port) +
-                        "/app/kibana#/dashboard/" + dash.meta.id +
-                        "?_g=(refreshInterval:(display:'15 minutes'," +
-                        "pause:!f,section:2,value:900000),time:(from:'" +
-                        str(self.start) + "Z',mode:absolute,to:now))",
-                        safe='/:!?,=#')
+                    if self.end_time:
+                        link = requests.utils.quote(
+                            "http://" + self.kib_host + ":" +
+                            str(self.kib_port) + "/app/kibana#/dashboard/" +
+                            dash.meta.id + "?_g=(refreshInterval:(display:" +
+                            "Off,pause:!f,section:0,value:0)," +
+                            "time:(from:'" + str(self.start_time) + "Z',mode:" +
+                            "absolute,to:" + str(self.end_time) + "Z))",
+                            safe='/:!?,=#')
+                    else:
+                        link = requests.utils.quote(
+                            "http://" + self.kib_host + ":" +
+                            str(self.kib_port) + "/app/kibana#/dashboard/" +
+                            dash.meta.id + "?_g=(refreshInterval:(display:" +
+                            "'15 minutes',pause:!f,section:2,value:900000)," +
+                            "time:(from:'" + str(self.start_time) +
+                            "Z',mode:absolute,to:now))",
+                            safe='/:!?,=#')
 
                     logger.info("Kibana " + module + " dashboard at " + link)
 
@@ -229,7 +248,6 @@ class ElkInterface(Configurable):
 
     def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
-
         try:
             search = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id=self.prefix)
@@ -245,7 +263,6 @@ class ElkInterface(Configurable):
     def delete_elasticsearch(self):
         logger.info("deleting Elasticsearch indices with prefix " +
                     self.prefix)
-
         try:
             self.client.indices.delete(index=self.prefix + '_*')
         except es.exceptions.ElasticsearchException as e:
@@ -337,7 +354,6 @@ class ElkInterface(Configurable):
                       'doc_as_upsert': True}
 
         logger.debug("sending Task document to Elasticsearch")
-
         try:
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
@@ -351,7 +367,6 @@ class ElkInterface(Configurable):
 
     def index_task_update(self, task_update):
         logger.debug("parsing TaskUpdate object")
-
         try:
             task_update = dict(task_update.__dict__)
         except Exception as e:
@@ -463,7 +478,6 @@ class ElkInterface(Configurable):
 
     def index_stats(self, now, left, times, log_attributes, stats, category):
         logger.debug("parsing lobster stats log")
-
         try:
             keys = ['timestamp', 'units_left'] + \
                 ['total_{}_time'.format(k) for k in sorted(times.keys())] + \

@@ -53,7 +53,7 @@ class ElkInterface(Configurable):
         self.populate_template = populate_template
         self.modules = modules or ['core']
         self.prefix = '[' + self.user + '_' + self.project + ']'
-        self.start = None
+        self.start = datetime.utcnow()
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -98,8 +98,6 @@ class ElkInterface(Configurable):
             logger.info("Elasticsearch indices with prefix " + self.prefix +
                         " already exist")
             self.delete_elasticsearch()
-
-        self.start = datetime.utcnow()
 
         self.update_kibana()
 

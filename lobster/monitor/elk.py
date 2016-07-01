@@ -94,11 +94,12 @@ class ElkInterface(Configurable):
     def create(self):
         logger.info("checking Elasticsearch indices")
 
+        self.check_client()
+
         try:
             indices = self.client.indices.get_aliases().keys()
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            raise e
             return
 
         if any(self.prefix in s for s in indices):
@@ -122,7 +123,7 @@ class ElkInterface(Configurable):
 
     def check_client(self):
         try:
-            self.client.cat.health()
+            logger.info("cluster health: " + self.client.cat.health())
         except es.exceptions.ElasticsearchException as e:
             raise AttributeError("could not connect to Elasticsearch cluster" +
                                  " at " + self.es_host + ":" +

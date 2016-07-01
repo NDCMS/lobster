@@ -7,7 +7,7 @@ from lobster import cmssw, se
 from lobster.cmssw.dataset import DatasetInfo
 from lobster.core.task import TaskHandler
 from lobster.core.unit import TaskUpdate, UnitStore
-from lobster.core.config import Config
+from lobster.core.config import Config, AdvancedOptions
 from lobster.core.workflow import Workflow
 
 from WMCore.DataStructs.LumiList import LumiList
@@ -37,7 +37,8 @@ class TestSQLBackend(object):
                 label='test',
                 workdir=cls.workdir,
                 storage=se.StorageConfiguration(output=['file://' + cls.workdir]),
-                workflows=[]
+                workflows=[],
+                advanced=AdvancedOptions(proxy=False)
             )
         )
 

@@ -120,6 +120,14 @@ class ElkInterface(Configurable):
 
         self.update_links()
 
+    def check_client(self):
+        try:
+            self.client.cat.health()
+        except es.exceptions.ElasticsearchException as e:
+            raise AttributeError("could not connect to Elasticsearch cluster" +
+                                 " at " + self.es_host + ":" +
+                                 str(self.es_port))
+
     def update_client(self):
         with PartiallyMutable.unlock():
             self.client = es.Elasticsearch([{'host': self.es_host,
@@ -230,7 +238,7 @@ class ElkInterface(Configurable):
                             "http://" + self.kib_host + ":" +
                             str(self.kib_port) + "/app/kibana#/dashboard/" +
                             dash.meta.id + "?_g=(refreshInterval:(display:" +
-                            "'15 minutes',pause:!f,section:2,value:900000)," +
+                            "'5 minutes',pause:!f,section:2,value:900000)," +
                             "time:(from:'" + str(self.start_time) +
                             "Z',mode:absolute,to:now))",
                             safe='/:!?,=#')

@@ -336,6 +336,13 @@ class Workflow(Configurable):
 
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
 
+    def validate(self):
+        with fs.default():
+            self.dataset.validate()
+        if fs.exists(self.label) and len(list(fs.ls(self.label))) > 0:
+            msg = 'stageout directory is not empty: {0}'
+            raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
+
     def setup(self, workdir, basedirs):
         self.workdir = os.path.join(workdir, self.label)
 
@@ -353,10 +360,6 @@ class Workflow(Configurable):
         # Create the stageout directory
         if not fs.exists(self.label):
             fs.makedirs(self.label)
-        else:
-            if len(list(fs.ls(self.label))) > 0:
-                msg = 'stageout directory is not empty: {0}'
-                raise IOError(msg.format(fs.__getattr__('lfn2pfn')(self.label)))
 
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:

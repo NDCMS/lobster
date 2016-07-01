@@ -4,7 +4,7 @@ import os
 import pickle
 
 from lobster.core.workflow import Category
-from lobster.util import Configurable
+from lobster.util import Configurable, PartiallyMutable
 
 
 class Items(object):
@@ -111,6 +111,11 @@ class Config(Configurable):
         self.base_directory = base_directory
         self.base_configuration = base_configuration
         self.startup_directory = startup_directory
+
+        self.storage.activate()
+        with PartiallyMutable.unlock():
+            for w in self.workflows:
+                w.validate()
 
     def __repr__(self):
         s = "from lobster import cmssw\nfrom lobster.core import *\n\n"

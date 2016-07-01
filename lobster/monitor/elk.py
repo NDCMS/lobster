@@ -62,6 +62,13 @@ class ElkInterface(Configurable):
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
+        # supposed to check that the Elasticsearch client exists
+        # and cause the config file to be rejected if it doesn't
+        # but breaks lobster with an sqlite3 error in unit.py
+        # so we check in self.create() instead, which fails more quietly
+        #
+        # self.check_client()
+
     def __getstate__(self):
         state = {'es_host': self.es_host,
                  'es_port': self.es_port,
@@ -231,9 +238,9 @@ class ElkInterface(Configurable):
                             str(self.kib_port) + "/app/kibana#/dashboard/" +
                             dash.meta.id + "?_g=(refreshInterval:(display:" +
                             "Off,pause:!f,section:0,value:0)," +
-                            "time:(from:'" + str(self.start_time) + "Z',mode:" +
-                            "absolute,to:'" + str(self.end_time) + "Z'))",
-                            safe='/:!?,=#')
+                            "time:(from:'" + str(self.start_time) +
+                            "Z',mode:" + "absolute,to:'" + str(self.end_time) +
+                            "Z'))", safe='/:!?,=#')
                     else:
                         link = requests.utils.quote(
                             "http://" + self.kib_host + ":" +

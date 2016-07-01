@@ -132,6 +132,7 @@ class ElkInterface(Configurable):
         try:
             logger.info("cluster health: " + self.client.cat.health())
         except es.exceptions.ElasticsearchException as e:
+            logger.error(e)
             raise AttributeError("could not connect to Elasticsearch cluster" +
                                  " at " + self.es_host + ":" +
                                  str(self.es_port))

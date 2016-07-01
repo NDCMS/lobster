@@ -338,7 +338,9 @@ class Workflow(Configurable):
 
     def validate(self):
         with fs.default():
-            self.dataset.validate()
+            if not self.dataset.validate():
+                msg = "cannot validate configuration for dataset of workflow '{0}'"
+                raise AttributeError(msg.format(self.label))
         if fs.exists(self.label) and len(list(fs.ls(self.label))) > 0:
             msg = "stageout directory for '{0}' is not empty"
             raise IOError(msg.format(self.label))

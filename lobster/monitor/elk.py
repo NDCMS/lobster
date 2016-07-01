@@ -27,15 +27,15 @@ class ElkInterface(Configurable):
         kib_host : str
             Host running Kibana instance connected to Elasticsearch cluster.
         kib_port : int
-            Port number running Elasticsearch HTTP service.
+            Port number running Kibana HTTP service.
         user : str
             User ID to label Elasticsearch indices and Kibana objects.
         project : str
             Project ID to label Elasticsearch indices and Kibana objects.
         populate_template : bool
             Whether to send documents to indices with the [template] prefix,
-            in addition to sending them to the [user_run] prefix. Defaults to
-            false.
+            in addition to sending them to the [user_project] prefix. Defaults
+            to false.
         modules : list
             List of modules to include from the Kibana templates. Defaults to
             including only the core templates.
@@ -47,7 +47,7 @@ class ElkInterface(Configurable):
                 'kib_port': ('config.elk.update_kibana', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 modules=None, populate_template=False):
+                 populate_template=False, modules=None):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host

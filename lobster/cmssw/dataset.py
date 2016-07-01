@@ -5,9 +5,6 @@ import pickle
 import re
 import requests
 from retrying import retry
-import shutil
-import sys
-import tempfile
 import xdg.BaseDirectory
 
 from lobster.core.dataset import DatasetInfo
@@ -19,7 +16,9 @@ from WMCore.DataStructs.LumiList import LumiList
 
 logger = logging.getLogger('lobster.cmssw.dataset')
 
+
 class DASWrapper(DbsApi):
+
     @retry(stop_max_attempt_number=10)
     def listFileLumis(self, *args, **kwargs):
         return super(DASWrapper, self).listFileLumis(*args, **kwargs)
@@ -38,6 +37,7 @@ class DASWrapper(DbsApi):
 
 
 class Cache(object):
+
     def __init__(self):
         self.cachedir = xdg.BaseDirectory.save_cache_path('lobster')
 
@@ -56,11 +56,12 @@ class Cache(object):
                     logger.debug("retrieved dataset '{}' from cache".format(name))
                     return dset
                 return None
-        except:
+        except Exception:
             return None
 
 
 class Dataset(Configurable):
+
     """
     Specification for processing a dataset stored in DBS.
 
@@ -112,14 +113,33 @@ class Dataset(Configurable):
                 f.write(r.text)
         return cached
 
+    def validate(self):
+        if self.dataset in Dataset.__dsets:
+            return True
+
+        if self.lumi_mask:
+            self.lumi_mask = self.__get_mask(self.lumi_mask)
+
+        if self.dbs_instance not in self.__apis:
+            cred = Proxy({'logger': logging.getLogger("WMCore")})
+            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(self.dbs_instance)
+            self.__apis[self.dbs_instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
+
+        baseinfo = self.__apis[self.dbs_instance].listFileSummaries(dataset=self.dataset)
+        if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
+            return False
+        return True
+
     def get_info(self):
         if self.dataset not in Dataset.__dsets:
             if self.lumi_mask:
                 self.lumi_mask = self.__get_mask(self.lumi_mask)
-            res = self.query_database(self.dataset, self.dbs_instance, self.lumi_mask, self.file_based)
+            res = self.query_database(
+                self.dataset, self.dbs_instance, self.lumi_mask, self.file_based)
 
             if self.events_per_task:
-                res.tasksize = int(math.ceil(self.events_per_task / float(res.total_events) * res.total_units))
+                res.tasksize = int(
+                    math.ceil(self.events_per_task / float(res.total_events) * res.total_units))
             else:
                 res.tasksize = self.lumis_per_task
 
@@ -133,7 +153,6 @@ class Dataset(Configurable):
             cred = Proxy({'logger': logging.getLogger("WMCore")})
             dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
             self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
-
 
         baseinfo = self.__apis[instance].listFileSummaries(dataset=dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):

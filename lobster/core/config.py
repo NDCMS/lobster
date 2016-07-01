@@ -4,7 +4,7 @@ import os
 import pickle
 
 from lobster.core.workflow import Category
-from lobster.util import Configurable
+from lobster.util import Configurable, PartiallyMutable
 
 
 class Items(object):
@@ -112,6 +112,11 @@ class Config(Configurable):
         self.base_configuration = base_configuration
         self.startup_directory = startup_directory
 
+        self.storage.activate()
+        with PartiallyMutable.unlock():
+            for w in self.workflows:
+                w.validate()
+
     def __repr__(self):
         s = "from lobster import cmssw\nfrom lobster.core import *\n\n"
         for cat in self.categories:
@@ -178,14 +183,9 @@ class AdvancedOptions(Configurable):
             How many tasks to keep in the queue (minimum).  Note that the
             payload will increase with the number of cores available to
             Lobster.  This is just the minimum with no workers connected.
-        renew_proxy : bool
-            Have Lobster automatically renew CMS authentication
-            credentials.
-        require_proxy : bool
-            Do not require CMS authentication credentials. Note that setting
-            to `False` only makes sense if both inputs and outputs can
-            be accessed locally by workers (`StorageConfiguration` protocols
-            are restricted to `file` and/or `hdfs`.)
+        proxy : :class:`~lobster.cmssw.Proxy`
+            An authentication mechanism to access data.  Set to `False` to
+            disable.
         threshold_for_failure : int
             How often a single unit may fail to be processed before Lobster
             will not attempt to process it any longer.
@@ -217,12 +217,13 @@ class AdvancedOptions(Configurable):
                  full_monitoring=False,
                  log_level=2,
                  payload=10,
-                 renew_proxy=True,
-                 require_proxy=True,
+                 proxy=None,
                  threshold_for_failure=30,
                  threshold_for_skipping=30,
                  wq_max_retries=10,
                  xrootd_servers=None):
+        from lobster import cmssw
+
         self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold
         self.abort_multiplier = abort_multiplier
@@ -231,8 +232,7 @@ class AdvancedOptions(Configurable):
         self.full_monitoring = full_monitoring
         self.log_level = log_level
         self.payload = payload
-        self.renew_proxy = renew_proxy
-        self.require_proxy = require_proxy
+        self.proxy = proxy if proxy is not None else cmssw.Proxy()
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries

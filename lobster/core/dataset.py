@@ -1,10 +1,8 @@
 from collections import defaultdict
 import math
 import os
-import re
-import shutil
 
-from lobster import util, fs
+from lobster import fs
 from lobster.util import Configurable
 
 __all__ = ['Dataset', 'ParentDataset', 'ProductionDataset']
@@ -53,6 +51,17 @@ class Dataset(Configurable):
         self.files = files
         self.files_per_task = files_per_task
         self.total_units = 0
+
+    def validate(self):
+        if not isinstance(self.files, list):
+            self.files = [self.files]
+        for entry in self.files:
+            entry = os.path.expanduser(entry)
+            if fs.isdir(entry):
+                return True
+            elif fs.isfile(entry):
+                return True
+        return False
 
     def get_info(self):
         dset = DatasetInfo()
@@ -106,6 +115,9 @@ class ProductionDataset(Configurable):
             nlumis = int(math.ceil(float(events_per_task) / events_per_lumi))
         self.total_units = number_of_tasks * nlumis
 
+    def validate(self):
+        return True
+
     def get_info(self):
         dset = DatasetInfo()
         dset.file_based = True
@@ -141,6 +153,9 @@ class ParentDataset(Configurable):
     def __repr__(self):
         override = {'parent': 'workflow_' + self.parent.label}
         return Configurable.__repr__(self, override)
+
+    def validate(self):
+        return True
 
     def get_info(self):
         # in case the parent object gets updated in the meantime

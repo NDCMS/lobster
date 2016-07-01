@@ -94,7 +94,6 @@ class TaskProvider(object):
         self.basedirs = [config.base_directory, config.startup_directory]
         self.workdir = config.workdir
         self._storage = config.storage
-        self._storage.activate()
         self.statusfile = os.path.join(self.workdir, 'status.yaml')
         self.siteconf = os.path.join(self.workdir, 'siteconf')
 
@@ -160,7 +159,7 @@ class TaskProvider(object):
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        if self.config.advanced.use_dashboard and self.config.advanced.require_proxy:
+        if self.config.advanced.use_dashboard and self.config.advanced.proxy:
             logger.info("using dashboard with task id {0}".format(self.taskid))
             monitor = dash.Monitor
         else:

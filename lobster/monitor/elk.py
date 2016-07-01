@@ -8,7 +8,7 @@ import logging
 import os
 import requests
 
-from lobster.util import Configurable
+from lobster.util import Configurable, PartiallyMutable
 
 logger = logging.getLogger('lobster.monitor.elk')
 
@@ -40,10 +40,14 @@ class ElkInterface(Configurable):
             List of modules to include from the Kibana templates. Defaults to
             including only the core templates.
     """
-    _mutable = {'end_time': (None, [], False)}
+    _mutable = {'modules': ('config.elk.update_kibana', [], False),
+                'es_host': ('config.elk.update_client', [], False),
+                'es_port': ('config.elk.update_client', [], False),
+                'kib_host': ('config.elk.update_kibana', [], False),
+                'kib_port': ('config.elk.update_kibana', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 modules=None, populate_template=False, end_time=None):
+                 modules=None, populate_template=False):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
@@ -111,9 +115,15 @@ class ElkInterface(Configurable):
     def end(self):
         logger.info("ending ELK monitoring")
 
-        self.end_time = datetime.utcnow()
+        with PartiallyMutable.unlock():
+            self.end_time = datetime.utcnow()
 
         self.update_links()
+
+    def update_client(self):
+        with PartiallyMutable.unlock():
+            self.client = es.Elasticsearch([{'host': self.es_host,
+                                             'port': self.es_port}])
 
     def update_kibana(self):
         logger.info("generating Kibana objects from templates")

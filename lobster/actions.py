@@ -68,6 +68,11 @@ class Actions(object):
     def take(self, force=False):
         self.update_configuration()
 
+        if self.config.advanced.proxy and not self.config.advanced.proxy.check():
+            from lobster.process import Terminate
+            logger.error("proxy expired!")
+            Terminate().kill(self.config)
+
         now = datetime.datetime.now()
         if hasattr(self, 'plotter'):
             if (now - self.__last).seconds > 15 * 60 or force:

@@ -433,7 +433,7 @@ class ElkInterface(Configurable):
                 task_update['time_transfer_out_end'] - \
                 task_update['time_transfer_out_start']
 
-            task_update['time_total_eviction_execution'] = \
+            task_update['time_total_eviction'] = \
                 task_update['time_total_on_worker'] - \
                 task_update['time_on_worker']
 

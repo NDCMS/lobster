@@ -141,8 +141,7 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
             raise AttributeError("could not connect to Elasticsearch cluster" +
-                                 " at " + self.es_host + ":" +
-                                 str(self.es_port))
+                                 " {0}:{1}".format(self.es_host, self.es_port))
 
     def update_client(self):
         with PartiallyMutable.unlock():
@@ -229,7 +228,8 @@ class ElkInterface(Configurable):
 
     def update_links(self):
         logger.debug("generating dashboard link widget")
-        links_text = "###" + self.user + "'s " + self.project + " dashboards\n"
+        links_text = "###{0}'s {1} dashboards\n" \
+            .format(self.user, self.project)
         try:
             for module in self.modules:
                 search_dash = es_dsl.Search(
@@ -242,21 +242,21 @@ class ElkInterface(Configurable):
                 for dash in response_dash:
                     if self.end_time:
                         link = requests.utils.quote(
-                            "http://" + self.kib_host + ":" +
-                            str(self.kib_port) + "/app/kibana#/dashboard/" +
-                            dash.meta.id + "?_g=(refreshInterval:(display:" +
-                            "Off,pause:!f,section:0,value:0)," +
-                            "time:(from:'" + str(self.start_time) +
-                            "Z',mode:" + "absolute,to:'" + str(self.end_time) +
-                            "Z'))", safe='/:!?,=#')
+                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                             "?_g=(refreshInterval:(display:Off,pause:!f," +
+                             "section:0,value:0),time:(from:'{3}Z',mode:" +
+                             "absolute,to:'{4}Z'))")
+                            .format(self.kib_host, self.kib_port, dash.meta.id,
+                                    self.start_time, self.end_time),
+                            safe='/:!?,=#')
                     else:
                         link = requests.utils.quote(
-                            "http://" + self.kib_host + ":" +
-                            str(self.kib_port) + "/app/kibana#/dashboard/" +
-                            dash.meta.id + "?_g=(refreshInterval:(display:" +
-                            "'5 minutes',pause:!f,section:2,value:900000)," +
-                            "time:(from:'" + str(self.start_time) +
-                            "Z',mode:absolute,to:now))",
+                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                             "?_g=(refreshInterval:(display:'5 minutes'" +
+                             ",pause:!f,section:2,value:900000),time:" +
+                             "(from:'{3}Z',mode:absolute,to:now))")
+                            .format(self.kib_host, self.kib_port, dash.meta.id,
+                                    self.start_time),
                             safe='/:!?,=#')
 
                     logger.info("Kibana " + module + " dashboard at " + link)

@@ -167,7 +167,7 @@ class ElkInterface(Configurable):
                 self.client.index(index='.kibana',
                                   doc_type=index.meta.doc_type,
                                   id=index.meta.id, body=index.to_dict())
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)
 
         for module in self.modules:
@@ -195,7 +195,7 @@ class ElkInterface(Configurable):
                     self.client.index(index='.kibana',
                                       doc_type=vis.meta.doc_type,
                                       id=vis.meta.id, body=vis.to_dict())
-            except es.exceptions.ElasticsearchException as e:
+            except Exception as e:
                 logger.error(e)
 
             logger.debug("generating " + module + " dashboard")
@@ -221,7 +221,7 @@ class ElkInterface(Configurable):
                     self.client.index(index='.kibana',
                                       doc_type=dash.meta.doc_type,
                                       id=dash.meta.id, body=dash.to_dict())
-            except es.exceptions.ElasticsearchException as e:
+            except Exception as e:
                 logger.error(e)
 
         self.update_links()
@@ -276,9 +276,8 @@ class ElkInterface(Configurable):
 
             self.client.index(index='.kibana', doc_type='visualization',
                               id=self.prefix + "-Links", body=links_vis)
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)
-    # TODO: change dashboard link time range to end at end time
 
     def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
@@ -291,7 +290,7 @@ class ElkInterface(Configurable):
                 self.client.delete(index='.kibana',
                                    doc_type=result.meta.doc_type,
                                    id=result.meta.id)
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)
 
     def delete_elasticsearch(self):
@@ -302,34 +301,36 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
+    def dictify(self, thing, skip=None):
+        thing = dict([(m, o) for (m, o) in inspect.getmembers(thing)
+                      if not inspect.isroutine(o) and not m.startswith('__')])
+
+        if isinstance(skip, basestring):
+            try:
+                thing.pop(skip)
+            except KeyError:
+                pass
+        else:
+            for key in skip:
+                logger.debug(key)
+                try:
+                    thing.pop(key)
+                except KeyError:
+                    pass
+
+        return thing
+
     def index_task(self, task):
         logger.debug("parsing Task object")
         try:
-            task = dict([(m, o) for (m, o) in inspect.getmembers(task)
-                         if not inspect.isroutine(o) and
-                         not m.startswith('__')])
+            task = self.dictify(task, skip=('_task', 'command'))
 
-            task.pop('_task')
-            task.pop('command')
-
-            task['resources_requested'] = dict(
-                [(m, o) for (m, o) in
-                 inspect.getmembers(task['resources_requested'])
-                 if not inspect.isroutine(o) and not m.startswith('__')])
-            task['resources_allocated'] = dict(
-                [(m, o) for (m, o) in
-                 inspect.getmembers(task['resources_allocated'])
-                 if not inspect.isroutine(o) and not m.startswith('__')])
-            task['resources_measured'] = dict(
-                [(m, o) for (m, o) in
-                 inspect.getmembers(task['resources_measured'])
-                 if not inspect.isroutine(o) and not m.startswith('__')])
-
-            task['resources_requested'].pop('this')
-            task['resources_measured'].pop('this')
-            task['resources_allocated'].pop('this')
-
-            task['resources_measured'].pop('peak_times')
+            task['resources_requested'] = self.dictify(
+                task['resources_requested'], skip=('this'))
+            task['resources_measured'] = self.dictify(
+                task['resources_measured'], skip=('this', 'peak_times'))
+            task['resources_allocated'] = self.dictify(
+                task['resources_allocated'], skip=('this'))
         except Exception as e:
             logger.error(e)
             return
@@ -384,11 +385,11 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
-        upsert_doc = {'doc': {'Task': task, 'timestamp': task['submit_time']},
-                      'doc_as_upsert': True}
-
         logger.debug("sending Task document to Elasticsearch")
         try:
+            upsert_doc = {'doc': {'Task': task,
+                                  'timestamp': task['submit_time']},
+                          'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
                                body=upsert_doc)
@@ -396,7 +397,7 @@ class ElkInterface(Configurable):
                 self.client.update(index='[template]_lobster_tasks',
                                    doc_type='task', id=task['id'],
                                    body=upsert_doc)
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)
 
     def index_task_update(self, task_update):
@@ -495,11 +496,10 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
-        upsert_doc = {'doc': {'TaskUpdate': task_update},
-                      'doc_as_upsert': True}
-
         logger.debug("sending TaskUpdate document to Elasticsearch")
         try:
+            upsert_doc = {'doc': {'TaskUpdate': task_update},
+                          'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
                                body=upsert_doc)
@@ -507,7 +507,7 @@ class ElkInterface(Configurable):
                 self.client.update(index='[template]_lobster_tasks',
                                    doc_type='task', id=task_update['id'],
                                    body=upsert_doc)
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)
 
     def index_stats(self, now, left, times, log_attributes, stats, category):
@@ -539,5 +539,5 @@ class ElkInterface(Configurable):
                                   doc_type='log', body=stats,
                                   id=str(int(int(now.strftime('%s')) * 1e6 +
                                              now.microsecond)))
-        except es.exceptions.ElasticsearchException as e:
+        except Exception as e:
             logger.error(e)

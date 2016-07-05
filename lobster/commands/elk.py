@@ -1,7 +1,7 @@
 from lobster.core.command import Command
 
 
-class Elk_Update(Command):
+class ElkUpdate(Command):
     @property
     def help(self):
         return 'update Kibana objects'
@@ -13,7 +13,7 @@ class Elk_Update(Command):
         args.config.elk.update_kibana()
 
 
-class Elk_Cleanup(Command):
+class ElkCleanup(Command):
     @property
     def help(self):
         return 'delete Elasticsearch indices and Kibana objects'

@@ -18,6 +18,13 @@ class ElkInterface(Configurable):
     Enables ELK stack monitoring for the current Lobster run using an existing
     Elasticsearch instance.
 
+    Attributs modifiable at runtime:
+    * `es_host`
+    * `es_port`
+    * `kib_host`
+    * `kib_port`
+    * `modules`
+
     Parameters
     ----------
         es_host : str
@@ -40,11 +47,11 @@ class ElkInterface(Configurable):
             List of modules to include from the Kibana templates. Defaults to
             including only the core templates.
     """
-    _mutable = {'modules': ('config.elk.update_kibana', [], False),
-                'es_host': ('config.elk.update_client', [], False),
+    _mutable = {'es_host': ('config.elk.update_client', [], False),
                 'es_port': ('config.elk.update_client', [], False),
                 'kib_host': ('config.elk.update_kibana', [], False),
-                'kib_port': ('config.elk.update_kibana', [], False)}
+                'kib_port': ('config.elk.update_kibana', [], False),
+                'modules': ('config.elk.update_kibana', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
                  populate_template=False, modules=None):
@@ -62,7 +69,7 @@ class ElkInterface(Configurable):
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
-        # supposed to check that the Elasticsearch client exists
+        # FIXME: supposed to check that the Elasticsearch client exists
         # and cause the config file to be rejected if it doesn't
         # but breaks lobster with an sqlite3 error in unit.py
         # so we check in self.create() instead, which fails more quietly

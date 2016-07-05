@@ -77,33 +77,19 @@ class ElkInterface(Configurable):
         # self.check_client()
 
     def __getstate__(self):
-        state = {'es_host': self.es_host,
-                 'es_port': self.es_port,
-                 'kib_host': self.kib_host,
-                 'kib_port': self.kib_port,
-                 'user': self.user,
-                 'project': self.project,
-                 'populate_template': self.populate_template,
-                 'modules': self.modules,
-                 'prefix': self.prefix,
-                 'start_time': self.start_time,
-                 'end_time': self.end_time}
+        state = dict(self.__dict__)
+        del state['client']
         return state
 
     def __setstate__(self, state):
-        self.es_host = state['es_host']
-        self.es_port = state['es_port']
-        self.kib_host = state['kib_host']
-        self.kib_port = state['kib_port']
-        self.user = state['user']
-        self.project = state['project']
-        self.modules = state['modules']
-        self.populate_template = state['populate_template']
-        self.prefix = state['prefix']
-        self.start_time = state['start_time']
-        self.end_time = state['end_time']
-        self.client = es.Elasticsearch([{'host': self.es_host,
-                                         'port': self.es_port}])
+        self.__dict__.update(state)
+
+        with PartiallyMutable.unlock():
+            self.client = es.Elasticsearch([{'host': self.es_host,
+                                             'port': self.es_port}])
+            self.end_time = None
+
+        self.update_links()
 
     def create(self):
         logger.info("checking Elasticsearch indices")

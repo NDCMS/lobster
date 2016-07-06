@@ -172,7 +172,7 @@ def calculate_alder32(data):
     """Try to calculate checksums for output files.
     """
 
-    for fn in data['files']['output info'].keys():
+    for fn in data['files']['output_info'].keys():
         checksum = '0'
         try:
             p = subprocess.Popen(['edmFileUtil', '-a', fn], stdout=subprocess.PIPE)
@@ -182,14 +182,14 @@ def calculate_alder32(data):
                 checksum = stdout.split()[-2]
         except Exception:
             pass
-        data['files']['output info'][fn]['adler32'] = checksum
+        data['files']['output_info'][fn]['adler32'] = checksum
 
 
 def check_execution(exitcode, update=None):
     """Decorator to quit upon exception.
 
     Execute the wrapper function, and, in case it throws an exception, set
-    the task exit code and update the first argument of the wrapped
+    the task_exit_code and update the first argument of the wrapped
     function with the optional update passed to the decorator.
 
     The first argument of the wrapped function **must** be a dictionary to
@@ -206,7 +206,7 @@ def check_execution(exitcode, update=None):
                 with mangler.output('trace'):
                     for l in traceback.format_exc().splitlines():
                         logger.debug(l)
-                data['task exit code'] = exitcode
+                data['task_exit_code'] = exitcode
                 data.update(update)
                 logger.error("call to '{}' failed, exiting with exit code {}".format(fct.func_name, exitcode))
                 sys.exit(exitcode)
@@ -289,12 +289,12 @@ def check_output(config, localname, remotename):
     return True
 
 
-@check_execution(exitcode=211, update={'stageout exit code': 211, 'output size': 0})
+@check_execution(exitcode=211, update={'stageout_exit_code': 211, 'output_size': 0})
 def check_outputs(data, config):
     for local, remote in config['output files']:
         if not check_output(config, local, remote):
             raise IOError("could not verify output file '{}'".format(remote))
-    data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
+    data['task_timing']['stage_out_end'] = int(datetime.now().strftime('%s'))
 
 
 def check_parrot_cache(data):
@@ -305,15 +305,15 @@ def check_parrot_cache(data):
             # point in processing, almost everything should have been pulled
             # from CVMFS.
             with open(cachefile, 'w') as f:
-                f.write(str(data['task timing']['processing end']))
+                f.write(str(data['task_timing']['processing_end']))
             data['cache']['type'] = 0
         else:
             with open(cachefile) as f:
                 try:
                     fullcache = int(f.read())
-                    selfstart = data['task timing']['wrapper start']
+                    selfstart = data['task_timing']['wrapper_start']
 
-                    # If our wrapper started before the cache was filled, we are
+                    # If our wrapper_started before the cache was filled, we are
                     # still a cold cache task (value 0.)  Otherwise, we were
                     # operating on a hot cache.
                     data['cache']['type'] = int(selfstart > fullcache)
@@ -501,10 +501,10 @@ def copy_inputs(data, config, env):
         for fn in config['mask']['files']:
             logger.debug(fn)
 
-    data['task timing']['stage in end'] = int(datetime.now().strftime('%s'))
+    data['task_timing']['stage_in_end'] = int(datetime.now().strftime('%s'))
 
 
-@check_execution(exitcode=210, update={'stageout exit code': 210})
+@check_execution(exitcode=210, update={'stageout_exit_code': 210})
 def copy_outputs(data, config, env):
     """Copy output files.
 
@@ -524,10 +524,10 @@ def copy_outputs(data, config, env):
     transferred = []
     for localname, remotename in config['output files']:
         # prevent stageout of data for failed tasks
-        if os.path.exists(localname) and data['exe exit code'] != 0:
+        if os.path.exists(localname) and data['exe_exit_code'] != 0:
             os.remove(localname)
             break
-        elif data['exe exit code'] != 0:
+        elif data['exe_exit_code'] != 0:
             break
 
         outsize += os.path.getsize(localname)
@@ -621,14 +621,14 @@ def copy_outputs(data, config, env):
     if set([ln for ln, _ in config['output files']]) - set(transferred):
         raise RuntimeError("no stage-out method succeeded")
 
-    data['output size'] = outsize
-    data['output bare size'] = outsize_bare
-    data['output storage element'] = default_se
+    data['output_size'] = outsize
+    data['output_bare_size'] = outsize_bare
+    data['output_storage_element'] = default_se
 
     if len(target_se) > 0:
         data['output storager element'] = max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
 
-    data['task timing']['stage out end'] = int(datetime.now().strftime('%s'))
+    data['task_timing']['stage_out_end'] = int(datetime.now().strftime('%s'))
 
 
 def edit_process_source(pset, config):
@@ -728,14 +728,14 @@ def parse_fwk_report(data, config, report_filename):
     cputime = float(serialized['steps']['cmsrun']['performance']['cpu'].get('TotalJobCPU', '0'))
 
     data['files']['info'] = infos
-    data['files']['output info'] = outinfos
+    data['files']['output_info'] = outinfos
     data['files']['skipped'] = skipped
-    data['events written'] = written
-    data['exe exit code'] = exit_code
+    data['events_written'] = written
+    data['exe_exit_code'] = exit_code
     # For efficiency, we care only about the CPU time spent processing
     # events
-    data['cpu time'] = cputime
-    data['events per run'] = eventsPerRun
+    data['cpu_time'] = cputime
+    data['events_per_run'] = eventsPerRun
 
 
 @check_execution(exitcode=191)
@@ -743,10 +743,10 @@ def extract_wrapper_times(data):
     """Load file contents as integer timestamp.
     """
     for key, filename in [
-            ('wrapper start', 't_wrapper_start'),
-            ('wrapper ready', 't_wrapper_ready')]:
+            ('wrapper_start', 't_wrapper_start'),
+            ('wrapper_ready', 't_wrapper_ready')]:
         with open(filename) as f:
-            data['task timing'][key] = int(f.readline())
+            data['task_timing'][key] = int(f.readline())
 
 
 def extract_cmssw_times(log_filename, default=None):
@@ -775,7 +775,7 @@ def extract_cmssw_times(log_filename, default=None):
 
 
 def get_bare_size(filename):
-    """Get the output bare size.
+    """Get the output_bare_size.
 
     This size does not include space taken up by headers and other
     metadata in EDM files. It is needed to predict how many input
@@ -824,8 +824,8 @@ def run_command(data, config, env, monalisa):
     logger.info("running {0}".format(' '.join(cmd)))
     p = run_subprocess(cmd, env=env)
     logger.info("executable returned with exit code {0}.".format(p.returncode))
-    data['exe exit code'] = p.returncode
-    data['task exit code'] = data['exe exit code']
+    data['exe_exit_code'] = p.returncode
+    data['task_exit_code'] = data['exe_exit_code']
 
     # Dashboard does not like Unicode, just ASCII encoding
     monitorid = str(config['monitoring']['monitorid'])
@@ -837,9 +837,9 @@ def run_command(data, config, env, monalisa):
         calculate_alder32(data)
     else:
         data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
-        data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
-        data['cpu time'] = usage.ru_stime
-    data['task timing']['processing end'] = int(datetime.now().strftime('%s'))
+        data['files']['output_info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
+        data['cpu_time'] = usage.ru_stime
+    data['task_timing']['processing_end'] = int(datetime.now().strftime('%s'))
 
     if p.returncode != 0:
         raise subprocess.CalledProcessError
@@ -857,7 +857,7 @@ def run_step(data, config, env, name):
         # a non-zero return code.
         if p.returncode != 0:
             raise subprocess.CalledProcessError
-    data['task timing']['{} end'.format(name)] = int(datetime.now().strftime('%s'))
+    data['task_timing']['{} end'.format(name)] = int(datetime.now().strftime('%s'))
 
 
 @check_execution(exitcode=180)
@@ -927,14 +927,14 @@ def send_initial_dashboard_update(data, config, monalisa):
 
 
 def send_final_dashboard_update(data, config, monalisa):
-    cputime = data['cpu time']
-    events_per_run = data['events per run']
-    exe_exit_code = data['exe exit code']
-    exe_time = data['task timing']['stage out end'] - data['task timing']['prologue end']
-    task_exit_code = data['task exit code']
-    total_time = data['task timing']['stage out end'] - data['task timing']['wrapper start']
-    stageout_exit_code = data['stageout exit code']
-    stageout_se = data['output storage element']
+    cputime = data['cpu_time']
+    events_per_run = data['events_per_run']
+    exe_exit_code = data['exe_exit_code']
+    exe_time = data['task_timing']['stage_out_end'] - data['task_timing']['prologue_end']
+    task_exit_code = data['task_exit_code']
+    total_time = data['task_timing']['stage_out_end'] - data['task_timing']['wrapper_start']
+    stageout_exit_code = data['stageout_exit_code']
+    stageout_se = data['output_storage_element']
 
     logger.debug("Execution time {}".format(total_time))
     logger.debug("Exiting with code {}".format(task_exit_code))
@@ -986,32 +986,32 @@ def write_zipfiles(data):
 data = {
     'files': {
         'info': {},
-        'output info': {},
+        'output_info': {},
         'skipped': [],
     },
     'cache': {
-        'start size': 0,
-        'end size': 0,
+        'start_size': 0,
+        'end_size': 0,
         'type': 2,
     },
-    'task exit code': 0,
-    'exe exit code': 0,
-    'stageout exit code': 0,
-    'cpu time': 0,
-    'events written': 0,
-    'output size': 0,
-    'output bare size': 0,
-    'output storage element': '',
-    'task timing': {
-        'stage in end': 0,
-        'prologue end': 0,
-        'wrapper start': 0,
-        'wrapper ready': 0,
-        'processing end': 0,
-        'epilogue end': 0,
-        'stage out end': 0,
+    'task_exit_code': 0,
+    'exe_exit_code': 0,
+    'stageout_exit_code': 0,
+    'cpu_time': 0,
+    'events_written': 0,
+    'output_size': 0,
+    'output_bare_size': 0,
+    'output_storage_element': '',
+    'task_timing': {
+        'stage_in_end': 0,
+        'prologue_end': 0,
+        'wrapper_start': 0,
+        'wrapper_ready': 0,
+        'processing_end': 0,
+        'epilogue_end': 0,
+        'stage_out_end': 0,
     },
-    'events per run': 0,
+    'events_per_run': 0,
     'transfers': defaultdict(Counter)
 }
 

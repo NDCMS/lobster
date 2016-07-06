@@ -1,7 +1,7 @@
 {
   "files": {
     "info": {}, 
-    "output info": {
+    "output_info": {
       "file:HIG-RunIIWinter15wmLHE-00196.root": {
         "runs": {
           "1": [
@@ -34,32 +34,32 @@
     "skipped": []
   }, 
   "cmssw exit code": 0, 
-  "task timing": {
-    "prologue end": 1449084387, 
+  "task_timing": {
+    "prologue_end": 1449084387, 
     "file requested": 1449091495, 
-    "wrapper start": 1449084335, 
-    "epilogue end": 1449091524, 
-    "stage out end": 1449091533, 
+    "wrapper_start": 1449084335, 
+    "epilogue_end": 1449091524, 
+    "stage_out_end": 1449091533, 
     "file opened": 1449091495, 
-    "stage in end": 1449084387, 
+    "stage_in_end": 1449084387, 
     "file processing": 1449091495, 
-    "processing end": 1449091523, 
-    "wrapper ready": 1449084370, 
+    "processing_end": 1449091523, 
+    "wrapper_ready": 1449084370, 
     "wrapper end": null
   }, 
-  "events per run": 0, 
-  "exe exit code": 0, 
-  "cpu time": 86.4359, 
-  "output bare size": 9815357, 
+  "events_per_run": 0, 
+  "exe_exit_code": 0, 
+  "cpu_time": 86.4359, 
+  "output_bare_size": 9815357, 
   "cache": {
-    "end size": 0, 
+    "end_size": 0, 
     "type": 0, 
-    "start size": 0
+    "start_size": 0
   }, 
-  "output size": 15037503, 
-  "events written": 4000, 
-  "task exit code": 0, 
-  "stageout exit code": 0,
+  "output_size": 15037503, 
+  "events_written": 4000, 
+  "task_exit_code": 0, 
+  "stageout_exit_code": 0,
   "transfers": {
     "chirp": {
       "stageout success": 1

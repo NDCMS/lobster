@@ -116,30 +116,30 @@ class TaskHandler(object):
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
 
-            if len(data['files']['output info']) > 0:
-                self.__output_info = data['files']['output info'].values()[0]
-                self.__output_size = data['output size']
+            if len(data['files']['output_info']) > 0:
+                self.__output_info = data['files']['output_info'].values()[0]
+                self.__output_size = data['output_size']
 
-            task_update.bytes_output = data['output size']
-            task_update.bytes_bare_output = data['output bare size']
+            task_update.bytes_output = data['output_size']
+            task_update.bytes_bare_output = data['output_bare_size']
             task_update.cache = data['cache']['type']
-            task_update.cache_end_size = data['cache']['end size']
-            task_update.cache_start_size = data['cache']['start size']
-            task_update.time_wrapper_start = data['task timing']['wrapper start']
-            task_update.time_wrapper_ready = data['task timing']['wrapper ready']
-            task_update.time_stage_in_end = data['task timing']['stage in end']
-            task_update.time_prologue_end = data['task timing']['prologue end']
-            task_update.time_processing_end = data['task timing']['processing end']
-            task_update.time_epilogue_end = data['task timing']['epilogue end']
-            task_update.time_stage_out_end = data['task timing']['stage out end']
-            task_update.time_cpu = data['cpu time']
+            task_update.cache_end_size = data['cache']['end_size']
+            task_update.cache_start_size = data['cache']['start_size']
+            task_update.time_wrapper_start = data['task_timing']['wrapper_start']
+            task_update.time_wrapper_ready = data['task_timing']['wrapper_ready']
+            task_update.time_stage_in_end = data['task_timing']['stage_in_end']
+            task_update.time_prologue_end = data['task_timing']['prologue_end']
+            task_update.time_processing_end = data['task_timing']['processing_end']
+            task_update.time_epilogue_end = data['task_timing']['epilogue_end']
+            task_update.time_stage_out_end = data['task_timing']['stage_out_end']
+            task_update.time_cpu = data['cpu_time']
 
             files_info = data['files']['info']
             files_skipped = data['files']['skipped']
-            events_written = data['events written']
-            exe_exit_code = data['exe exit code']
-            stageout_exit_code = data['stageout exit code']
-            task_exit_code = data['task exit code']
+            events_written = data['events_written']
+            exe_exit_code = data['exe_exit_code']
+            stageout_exit_code = data['stageout_exit_code']
+            task_exit_code = data['task_exit_code']
 
             for protocol in data['transfers']:
                 transfers[self._dataset][protocol] += collections.Counter(data['transfers'][protocol])

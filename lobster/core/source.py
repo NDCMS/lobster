@@ -228,6 +228,9 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
+        if create and self.config.elk:
+            self.config.elk.create()
+
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
         storage_out = os.path.join(self.siteconf, 'PhEDEx', 'storage.xml')
@@ -444,6 +447,10 @@ class TaskProvider(object):
             failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
 
             wflow = getattr(self.config.workflows, handler.dataset)
+
+            if self.config.elk:
+                self.config.elk.index_task(task)
+                self.config.elk.index_task_update(task_update)
 
             if failed:
                 faildir = util.move(wflow.workdir, handler.id, 'failed')

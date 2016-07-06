@@ -43,6 +43,9 @@ class Terminate(Command):
         util.register_checkpoint(config.workdir, 'KILLED', 'PENDING')
 
 
+        if args.config.elk:
+            args.config.elk.end()
+
 class Process(Command):
 
     def __init__(self):
@@ -102,6 +105,9 @@ class Process(Command):
                                          [getattr(stats, a) for a in self.log_attributes]
                                          )) + "\n"
                             )
+
+        if self.config.elk:
+            self.config.elk.index_stats(now, left, self.times, self.log_attributes, stats, category)
 
     def setup(self, argparser):
         argparser.add_argument('--finalize', action='store_true', default=False,
@@ -348,5 +354,7 @@ class Process(Command):
                     raise
         if units_left == 0:
             logger.info("no more work left to do")
+            if self.config.elk:
+                self.config.elk.end()
             if action:
                 action.take(True)

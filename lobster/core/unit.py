@@ -580,7 +580,10 @@ class UnitStore:
             tasks, unittime = self.db.execute("""
                 select
                     count(*),
-                    avg((time_epilogue_end - time_stage_in_end) * 1. / units)
+                    max(
+                        avg((time_epilogue_end - time_stage_in_end) * 1. / units),
+                        1
+                    )
                 from tasks where status in (2, 6, 7, 8) and workflow=? and type=0""", (id,)).fetchone()
 
             if tasks > 10:

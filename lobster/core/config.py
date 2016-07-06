@@ -87,7 +87,7 @@ class Config(Configurable):
     _mutable = {}
 
     def __init__(self, workdir, storage, workflows, label=None, advanced=None, plotdir=None, foremen_logs=None,
-                 base_directory=None, base_configuration=None, startup_directory=None):
+                 base_directory=None, base_configuration=None, startup_directory=None, elk=None):
         """
         Top-level configuration object for Lobster
         """
@@ -104,6 +104,7 @@ class Config(Configurable):
         self.storage = storage
         self.workflows = Items(workflows, key=lambda w: w.label)
         self.advanced = advanced if advanced else AdvancedOptions()
+        self.elk = elk
 
         cats = list(set([w.category for w in workflows])) + [Category(name='merge', cores=1)]
         self.categories = Items(cats, key=lambda c: c.name)

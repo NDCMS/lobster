@@ -323,6 +323,10 @@ class ElkInterface(Configurable):
 
         logger.debug("parsing Task timestamps")
         try:
+            task['resources_measured']['cpu_wall_ratio'] = \
+                task['resources_measured']['cpu_time'] / \
+                float(task['resources_measured']['wall_time'])
+
             task['send_input_start'] = datetime.utcfromtimestamp(
                 float(str(task['send_input_start'])[:10]))
             task['send_input_finish'] = datetime.utcfromtimestamp(
@@ -373,8 +377,7 @@ class ElkInterface(Configurable):
 
         logger.debug("sending Task document to Elasticsearch")
         try:
-            upsert_doc = {'doc': {'Task': task,
-                                  'timestamp': task['submit_time']},
+            upsert_doc = {'doc': {'Task': task},
                           'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
@@ -484,7 +487,8 @@ class ElkInterface(Configurable):
 
         logger.debug("sending TaskUpdate document to Elasticsearch")
         try:
-            upsert_doc = {'doc': {'TaskUpdate': task_update},
+            upsert_doc = {'doc': {'TaskUpdate': task_update,
+                                  'timestamp': task_update['time_retrieved']},
                           'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],

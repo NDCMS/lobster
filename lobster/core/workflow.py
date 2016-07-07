@@ -176,6 +176,8 @@ class Workflow(Configurable):
         edm_output : bool
             Autodetermined when outputs are determined automatically.
             Tells Lobster if the output of this workflow is in EDM format.
+            If `True`, cmssw will be used to merge output files. Otherwise,
+            `hadd` will be used.
     """
     _mutable = {}
     def __init__(self,

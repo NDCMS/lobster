@@ -66,6 +66,7 @@ class ElkInterface(Configurable):
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.start_time = datetime.utcnow()
         self.end_time = None
+        self.previous_stats = {}
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -298,7 +299,6 @@ class ElkInterface(Configurable):
                 pass
         else:
             for key in skip:
-                logger.debug(key)
                 try:
                     thing.pop(key)
                 except KeyError:
@@ -513,6 +513,43 @@ class ElkInterface(Configurable):
                 [getattr(stats, a) for a in log_attributes] + [category]
 
             stats = dict(zip(keys, values))
+
+            stats['start_time'] = datetime.utcfromtimestamp(
+                float(str(stats['start_time'])[:10]))
+            stats['time_when_started'] = datetime.utcfromtimestamp(
+                float(str(stats['time_when_started'])[:10]))
+
+            if category not in self.previous_stats:
+                self.previous_stats[category] = {}
+
+            if 'timestamp' in self.previous_stats[category]:
+                stats['time_diff'] = \
+                    int(stats['timestamp'].strftime('%s')) * 10e6 - \
+                    self.previous_stats[category]['timestamp']
+
+                stats['time_other_lobster'] = stats['time_diff'] - \
+                    stats['total_status_time'] - stats['total_create_time'] - \
+                    stats['total_action_time'] - stats['total_update_time'] - \
+                    stats['total_fetch_time'] - stats['total_return_time']
+
+                stats['time_other_wq'] = stats['time_diff'] - \
+                    stats['time_send'] - stats['time_receive'] - \
+                    stats['time_status_msgs'] - stats['time_internal'] - \
+                    stats['time_polling'] - stats['time_application']
+
+                stats['time_idle'] = \
+                    stats['time_diff'] * stats['idle_percentage']
+
+            self.previous_stats[category]['timestamp'] = \
+                int(stats['timestamp'].strftime('%s')) * 10e6
+
+            for key in stats.keys():
+                if key.startswith('workers_'):
+                    if key in self.previous_stats[category]:
+                        stats['new_' + key] = \
+                            stats[key] - self.previous_stats[category][key]
+                    self.previous_stats[category][key] = stats[key]
+
         except Exception as e:
             logger.error(e)
             return

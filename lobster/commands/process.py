@@ -280,12 +280,12 @@ class Process(Command):
                         task.specify_environment_variable(k, v)
 
                     for (local, remote, cache) in inputs:
+                        cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
                         if os.path.isfile(local):
-                            cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE
                             task.specify_input_file(str(local), str(remote), cache_opt)
                         elif os.path.isdir(local):
                             task.specify_directory(str(local), str(remote), wq.WORK_QUEUE_INPUT,
-                                                   wq.WORK_QUEUE_CACHE, recursive=True)
+                                                   cache_opt, recursive=True)
                         else:
                             logger.critical("cannot send file to worker: {0}".format(local))
                             raise NotImplementedError

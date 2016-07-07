@@ -30,7 +30,7 @@ workflows = []
 ttH = Workflow(
     label='ttH',
     dataset=cmssw.Dataset(
-        dataset='/ttHToNonbb_M125_13TeV_powheg_pythia8/RunIISpring15DR74-Asympt25ns_MCRUN2_74_V9-v2/MINIAODSIM',
+        dataset='/ttHToNonbb_M125_13TeV_powheg_pythia8/RunIIFall15MiniAODv2-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/MINIAODSIM',
         events_per_task=5000
     ),
     category=processing,

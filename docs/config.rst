@@ -65,3 +65,10 @@ Dataset specification
 
 .. autoclass:: lobster.cmssw.dataset.Dataset
 
+Monitoring
+~~~~~~~~~~
+
+.. autoclass:: lobster.monitor.elk.ElkInterface
+
+.. note::
+     At Notre Dame, Elasticsearch is accessible at ``elk.crc.nd.edu:9200`` and Kibana is accessible at ``elk.crc.nd.edu:5601``

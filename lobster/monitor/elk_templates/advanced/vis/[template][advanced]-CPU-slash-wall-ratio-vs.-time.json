@@ -1,0 +1,10 @@
+{
+    "visState": "{\"title\":\"[template][advanced] CPU/wall ratio vs. time\",\"type\":\"area\",\"params\":{\"shareYAxis\":true,\"addTooltip\":true,\"addLegend\":true,\"smoothLines\":true,\"scale\":\"linear\",\"interpolate\":\"linear\",\"mode\":\"stacked\",\"times\":[],\"addTimeMarker\":false,\"defaultYExtents\":false,\"setYExtents\":false,\"yAxis\":{}},\"aggs\":[{\"id\":\"1\",\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"Task.resources_measured.cpu_wall_ratio\",\"customLabel\":\"CPU/Wall ratio\"}},{\"id\":\"2\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"interval\":\"auto\",\"customInterval\":\"2h\",\"min_doc_count\":1,\"extended_bounds\":{}}}],\"listeners\":{}}", 
+    "description": "", 
+    "title": "[template][advanced] CPU/wall ratio vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

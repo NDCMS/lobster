@@ -1,0 +1,10 @@
+{
+    "visState": "{\n  \"title\": \"[template][advanced] Worker turnover vs. time\",\n  \"type\": \"histogram\",\n  \"params\": {\n    \"shareYAxis\": true,\n    \"addTooltip\": true,\n    \"addLegend\": true,\n    \"scale\": \"linear\",\n    \"mode\": \"stacked\",\n    \"times\": [],\n    \"addTimeMarker\": false,\n    \"defaultYExtents\": false,\n    \"setYExtents\": false,\n    \"yAxis\": {}\n  },\n  \"aggs\": [\n    {\n      \"id\": \"1\",\n      \"type\": \"sum\",\n      \"schema\": \"metric\",\n      \"params\": {\n        \"field\": \"new_workers_joined\",\n        \"customLabel\": \"Joined\"\n      }\n    },\n    {\n      \"id\": \"2\",\n      \"type\": \"sum\",\n      \"schema\": \"metric\",\n      \"params\": {\n        \"field\": \"new_workers_removed\",\n        \"customLabel\": \"Removed\"\n      }\n    },\n    {\n      \"id\": \"3\",\n      \"type\": \"date_histogram\",\n      \"schema\": \"segment\",\n      \"params\": {\n        \"field\": \"timestamp\",\n        \"interval\": \"auto\",\n        \"customInterval\": \"2h\",\n        \"min_doc_count\": 1,\n        \"extended_bounds\": {}\n      }\n    }\n  ],\n  \"listeners\": {}\n}", 
+    "description": "", 
+    "title": "[template][advanced] Worker turnover vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"category:all\"}}}"
+    }
+}

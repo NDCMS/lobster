@@ -64,7 +64,7 @@ class ElkInterface(Configurable):
         self.start_time = datetime.utcnow()
         self.end_time = None
         self.previous_stats = {}
-        self.template_dir = '{0}/monitor/elk_templates' \
+        self.template_dir = '{0}/monitor/data' \
             .format(os.path.dirname(os.path.abspath(lobster.__file__)))
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])

@@ -64,8 +64,8 @@ class ElkInterface(Configurable):
         self.start_time = datetime.utcnow()
         self.end_time = None
         self.previous_stats = {}
-        self.template_dir = '{0}/monitor/elk/data' \
-            .format(os.path.dirname(os.path.abspath(lobster.__file__)))
+        self.template_dir = os.path.join(os.path.dirname(
+            os.path.abspath(lobster.__file__)), 'monitor', 'elk', 'data')
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -145,7 +145,7 @@ class ElkInterface(Configurable):
         logger.info("getting index patterns")
 
         try:
-            os.mkdir('{0}/index'.format(self.template_dir))
+            os.mkdir(os.path.join(self.template_dir, 'index'))
         except Exception:
             pass
 
@@ -160,16 +160,15 @@ class ElkInterface(Configurable):
                     .replace(self.prefix, '[template]')
                 index.title = index.title.replace(self.prefix, '[template]')
 
-                with open('{0}/index/{1}.json'
-                          .format(self.template_dir, index.meta.id),
-                          'w') as f:
+                with open(os.path.join(self.template_dir, 'index',
+                                       index.meta.id), 'w') as f:
                     f.write(json.dumps(index.to_dict(), indent=4))
                     f.write('\n')
         except Exception as e:
             logger.error(e)
 
         for module in self.modules:
-            module_dir = '{0}/{1}'.format(self.template_dir, module)
+            module_dir = os.path.join(self.template_dir, module)
 
             try:
                 os.mkdir(module_dir)
@@ -179,7 +178,7 @@ class ElkInterface(Configurable):
             logger.info("getting " + module + " visualizations")
 
             try:
-                os.mkdir('{0}/vis'.format(module_dir))
+                os.mkdir(os.path.join(module_dir, 'vis'))
             except Exception:
                 pass
 
@@ -202,8 +201,8 @@ class ElkInterface(Configurable):
                     vis.kibanaSavedObjectMeta.searchSourceJSON = \
                         json.dumps(source)
 
-                    with open('{0}/vis/{1}.json'
-                              .format(module_dir, vis.meta.id), 'w') as f:
+                    with open(os.path.join(module_dir, 'vis', vis.meta.id),
+                              'w') as f:
                         f.write(json.dumps(vis.to_dict(), indent=4))
                         f.write('\n')
             except Exception as e:
@@ -212,7 +211,7 @@ class ElkInterface(Configurable):
             logger.info("getting " + module + " dashboard")
 
             try:
-                os.mkdir('{0}/dash'.format(module_dir))
+                os.mkdir(os.path.join(module_dir, 'dash'))
             except Exception:
                 pass
 
@@ -234,8 +233,8 @@ class ElkInterface(Configurable):
                             self.prefix, '[template]')
                     dash.panelsJSON = json.dumps(dash_panels)
 
-                    with open('{0}/dash/{1}.json'
-                              .format(module_dir, dash.meta.id), 'w') as f:
+                    with open(os.path.join(module_dir, 'dash', dash.meta.id),
+                              'w') as f:
                         f.write(json.dumps(dash.to_dict(), indent=4))
                         f.write('\n')
             except Exception as e:
@@ -246,9 +245,9 @@ class ElkInterface(Configurable):
 
         logger.debug("generating index patterns")
         try:
-            index_dir = '{0}/index'.format(self.template_dir)
+            index_dir = os.path.join(self.template_dir, 'index')
             for index_path in os.listdir(index_dir):
-                with open('{0}/{1}'.format(index_dir, index_path)) as f:
+                with open(os.path.join(index_dir, index_path)) as f:
                     index = json.load(f)
 
                 index['title'] = index['title'] \
@@ -265,9 +264,9 @@ class ElkInterface(Configurable):
         for module in self.modules:
             logger.debug("generating " + module + " visualizations")
             try:
-                vis_dir = '{0}/{1}/vis'.format(self.template_dir, module)
+                vis_dir = os.path.join(self.template_dir, module, 'vis')
                 for vis_path in os.listdir(vis_dir):
-                    with open('{0}/{1}'.format(vis_dir, vis_path)) as f:
+                    with open(os.path.join(vis_dir, vis_path)) as f:
                         vis = json.load(f)
 
                     vis['title'] = vis['title'] \
@@ -291,9 +290,9 @@ class ElkInterface(Configurable):
 
             logger.debug("generating " + module + " dashboard")
             try:
-                dash_dir = '{0}/{1}/dash'.format(self.template_dir, module)
+                dash_dir = os.path.join(self.template_dir, module, 'dash')
                 for dash_path in os.listdir(dash_dir):
-                    with open('{0}/{1}'.format(dash_dir, dash_path)) as f:
+                    with open(os.path.join(dash_dir, dash_path)) as f:
                         dash = json.load(f)
 
                     dash['title'] = dash['title'] \
@@ -321,9 +320,9 @@ class ElkInterface(Configurable):
             .format(self.user, self.project)
         try:
             for module in self.modules:
-                dash_dir = '{0}/{1}/dash'.format(self.template_dir, module)
+                dash_dir = os.path.join(self.template_dir, module, 'dash')
                 for dash_path in os.listdir(dash_dir):
-                    with open('{0}/{1}'.format(dash_dir, dash_path)) as f:
+                    with open(os.path.join(dash_dir, dash_path)) as f:
                         dash = json.load(f)
 
                     dash_id = dash_path.replace('[template]', self.prefix) \
@@ -352,7 +351,7 @@ class ElkInterface(Configurable):
 
                     links_text += "- [" + dash['title'] + "](" + link + ")\n"
 
-            with open('{0}/links.json'.format(self.template_dir), 'r') as f:
+            with open(os.path.join(self.template_dir, 'links.json'), 'r') as f:
                 links_vis = json.load(f)
 
             links_vis['title'] = links_vis['title'].replace(

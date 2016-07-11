@@ -133,7 +133,6 @@ class ElkInterface(Configurable):
                                              'port': self.es_port}])
 
     def download_templates(self):
-        # TODO: add proper exception handling
         logger.info("getting Kibana objects with prefix " + self.prefix)
 
         try:
@@ -163,6 +162,7 @@ class ElkInterface(Configurable):
                           .format(self.template_dir, index.meta.id),
                           'w') as f:
                     f.write(json.dumps(index.to_dict(), indent=4))
+                    f.write('\n')
         except Exception as e:
             logger.error(e)
 
@@ -200,8 +200,10 @@ class ElkInterface(Configurable):
                     vis.kibanaSavedObjectMeta.searchSourceJSON = \
                         json.dumps(source)
 
-                    with open('{0}/vis/{1}.json'.format(module_dir, vis.meta.id), 'w') as f:
+                    with open('{0}/vis/{1}.json'
+                              .format(module_dir, vis.meta.id), 'w') as f:
                         f.write(json.dumps(vis.to_dict(), indent=4))
+                        f.write('\n')
             except Exception as e:
                 logger.error(e)
 
@@ -233,6 +235,7 @@ class ElkInterface(Configurable):
                     with open('{0}/dash/{1}.json'
                               .format(module_dir, dash.meta.id), 'w') as f:
                         f.write(json.dumps(dash.to_dict(), indent=4))
+                        f.write('\n')
             except Exception as e:
                 logger.error(e)
 

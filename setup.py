@@ -20,7 +20,11 @@ setup(
         'commands/data/index.html',
         'commands/data/gh.png',
         'commands/data/styles.css',
-        'commands/data/category.html'
+        'commands/data/category.html',
+        'monitor/elk_templates/links.json',
+        'monitor/elk_templates/index/*.json',
+        'monitor/elk_templates/*/dash/*.json',
+        'monitor/elk_templates/*/vis/*.json'
     ]},
     install_requires=[
         'argparse',

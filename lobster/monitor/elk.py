@@ -92,7 +92,7 @@ class ElkInterface(Configurable):
         self.update_links()
 
     def create(self):
-        logger.info("checking Elasticsearch indices")
+        logger.info("checking Elasticsearch client")
 
         self.check_client()
 

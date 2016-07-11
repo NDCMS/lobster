@@ -157,7 +157,7 @@ class ElkInterface(Configurable):
                 index.title = index.title.replace(self.prefix, '[template]')
 
                 with open(os.path.join(self.template_dir, 'index',
-                                       index.meta.id), 'w') as f:
+                                       index.meta.id) + '.json', 'w') as f:
                     f.write(json.dumps(index.to_dict(), indent=4))
                     f.write('\n')
         except Exception as e:
@@ -193,8 +193,8 @@ class ElkInterface(Configurable):
                     vis.kibanaSavedObjectMeta.searchSourceJSON = \
                         json.dumps(source)
 
-                    with open(os.path.join(module_dir, 'vis', vis.meta.id),
-                              'w') as f:
+                    with open(os.path.join(module_dir, 'vis', vis.meta.id) +
+                              '.json', 'w') as f:
                         f.write(json.dumps(vis.to_dict(), indent=4))
                         f.write('\n')
             except Exception as e:
@@ -225,8 +225,8 @@ class ElkInterface(Configurable):
                             self.prefix, '[template]')
                     dash.panelsJSON = json.dumps(dash_panels)
 
-                    with open(os.path.join(module_dir, 'dash', dash.meta.id),
-                              'w') as f:
+                    with open(os.path.join(module_dir, 'dash', dash.meta.id) +
+                              '.json', 'w') as f:
                         f.write(json.dumps(dash.to_dict(), indent=4))
                         f.write('\n')
             except Exception as e:
@@ -343,7 +343,8 @@ class ElkInterface(Configurable):
 
                     links_text += "- [" + dash['title'] + "](" + link + ")\n"
 
-            with open(os.path.join(self.template_dir, 'links.json'), 'r') as f:
+            with open(os.path.join(self.template_dir, 'links') + '.json',
+                      'r') as f:
                 links_vis = json.load(f)
 
             links_vis['title'] = links_vis['title'].replace(

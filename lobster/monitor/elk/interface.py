@@ -137,19 +137,15 @@ class ElkInterface(Configurable):
     def download_templates(self):
         logger.info("getting Kibana objects with prefix " + self.prefix)
 
-        try:
-            os.mkdir(self.template_dir)
-        except Exception:
-            pass
-
         logger.info("getting index patterns")
 
         try:
-            os.mkdir(os.path.join(self.template_dir, 'index'))
-        except Exception:
-            pass
+            try:
+                os.mkdir(self.template_dir)
+                os.mkdir(os.path.join(self.template_dir, 'index'))
+            except OSError:
+                pass
 
-        try:
             search_index = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id=self.prefix) \
                 .filter('match', _type='index-pattern')
@@ -170,19 +166,15 @@ class ElkInterface(Configurable):
         for module in self.modules:
             module_dir = os.path.join(self.template_dir, module)
 
-            try:
-                os.mkdir(module_dir)
-            except Exception:
-                pass
-
             logger.info("getting " + module + " visualizations")
 
             try:
-                os.mkdir(os.path.join(module_dir, 'vis'))
-            except Exception:
-                pass
+                try:
+                    os.mkdir(module_dir)
+                    os.mkdir(os.path.join(module_dir, 'vis'))
+                except OSError:
+                    pass
 
-            try:
                 search_vis = es_dsl.Search(
                     using=self.client, index='.kibana') \
                     .filter('prefix', _id=self.prefix + '[' + module + ']') \
@@ -211,11 +203,11 @@ class ElkInterface(Configurable):
             logger.info("getting " + module + " dashboard")
 
             try:
-                os.mkdir(os.path.join(module_dir, 'dash'))
-            except Exception:
-                pass
+                try:
+                    os.mkdir(os.path.join(module_dir, 'dash'))
+                except OSError:
+                    pass
 
-            try:
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
                     .filter('prefix', _id=self.prefix + '[' + module + ']') \

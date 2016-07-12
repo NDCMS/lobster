@@ -490,6 +490,20 @@ class ElkInterface(Configurable):
 
             task_update['megabytes_output'] = \
                 task_update['bytes_output'] / 1024.0**2
+
+            status_codes = {
+                0: 'initialized',
+                1: 'assigned',
+                2: 'successful',
+                3: 'failed',
+                4: 'aborted',
+                6: 'published',
+                7: 'merging',
+                8: 'merged'
+            }
+
+            task_update['status_text'] = status_codes[task_update['status']]
+
         except Exception as e:
             logger.error(e)
             return

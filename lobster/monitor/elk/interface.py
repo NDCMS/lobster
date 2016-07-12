@@ -275,8 +275,7 @@ class ElkInterface(Configurable):
                     vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
                         json.dumps(source)
 
-                    vis_id = vis_path.replace('[template]', self.prefix) \
-                        .replace('.json', '')
+                    vis_id = vis_path.replace('[template]', self.prefix)[:-5]
 
                     self.client.index(index='.kibana',
                                       doc_type='visualization',
@@ -300,8 +299,7 @@ class ElkInterface(Configurable):
                             .replace('[template]', self.prefix)
                     dash['panelsJSON'] = json.dumps(dash_panels)
 
-                    dash_id = dash_path.replace('[template]', self.prefix) \
-                        .replace('.json', '')
+                    dash_id = dash_path.replace('[template]', self.prefix)[:-5]
 
                     self.client.index(index='.kibana', doc_type='dashboard',
                                       id=dash_id, body=dash)
@@ -321,8 +319,7 @@ class ElkInterface(Configurable):
                     with open(os.path.join(dash_dir, dash_path)) as f:
                         dash = json.load(f)
 
-                    dash_id = dash_path.replace('[template]', self.prefix) \
-                        .replace('.json', '')
+                    dash_id = dash_path.replace('[template]', self.prefix)[:-5]
 
                     if self.end_time:
                         link = requests.utils.quote(
@@ -631,18 +628,23 @@ class ElkInterface(Configurable):
 
             if 'timestamp' in self.previous_stats[category]:
                 stats['time_diff'] = \
-                    int(stats['timestamp'].strftime('%s')) * 10e6 - \
-                    self.previous_stats[category]['timestamp']
+                    max(int(stats['timestamp'].strftime('%s')) * 10e6 -
+                        self.previous_stats[category]['timestamp'], 0)
 
-                stats['time_other_lobster'] = stats['time_diff'] - \
-                    stats['total_status_time'] - stats['total_create_time'] - \
-                    stats['total_action_time'] - stats['total_update_time'] - \
-                    stats['total_fetch_time'] - stats['total_return_time']
+                stats['time_other_lobster'] = \
+                    max(stats['time_diff'] -
+                        stats['total_status_time'] -
+                        stats['total_create_time'] -
+                        stats['total_action_time'] -
+                        stats['total_update_time'] -
+                        stats['total_fetch_time'] -
+                        stats['total_return_time'], 0)
 
-                stats['time_other_wq'] = stats['time_diff'] - \
-                    stats['time_send'] - stats['time_receive'] - \
-                    stats['time_status_msgs'] - stats['time_internal'] - \
-                    stats['time_polling'] - stats['time_application']
+                stats['time_other_wq'] = \
+                    max(stats['time_diff'] - stats['time_send'] -
+                        stats['time_receive'] - stats['time_status_msgs'] -
+                        stats['time_internal'] - stats['time_polling'] -
+                        stats['time_application'], 0)
 
                 stats['time_idle'] = \
                     stats['time_diff'] * stats['idle_percentage']
@@ -654,7 +656,8 @@ class ElkInterface(Configurable):
                 if key.startswith('workers_'):
                     if key in self.previous_stats[category]:
                         stats['new_' + key] = \
-                            stats[key] - self.previous_stats[category][key]
+                            max(stats[key]
+                                - self.previous_stats[category][key], 0)
                     self.previous_stats[category][key] = stats[key]
 
         except Exception as e:

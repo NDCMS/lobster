@@ -42,9 +42,8 @@ class Terminate(Command):
         logger.debug("stack:\n{0}".format(''.join(traceback.format_stack())))
         util.register_checkpoint(config.workdir, 'KILLED', 'PENDING')
 
-
-        if args.config.elk:
-            args.config.elk.end()
+        if config.elk:
+            config.elk.end()
 
 class Process(Command):
 

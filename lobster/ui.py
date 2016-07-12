@@ -46,6 +46,8 @@ def boil():
                 cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
                 cfg.base_configuration = os.path.abspath(args.checkpoint)
                 cfg.startup_directory = os.path.abspath(os.getcwd())
+                for w in cfg.workflows:
+                    w.validate()
     elif os.path.isdir(args.checkpoint):
         # Load configuration from working directory passed to us
         workdir = args.checkpoint

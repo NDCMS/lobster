@@ -114,9 +114,6 @@ class Config(Configurable):
         self.startup_directory = startup_directory
 
         self.storage.activate()
-        with PartiallyMutable.unlock():
-            for w in self.workflows:
-                w.validate()
 
     def __repr__(self):
         s = "from lobster import cmssw\nfrom lobster.core import *\n\n"

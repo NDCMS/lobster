@@ -149,7 +149,8 @@ class ElkInterface(Configurable):
 
             search_index = es_dsl.Search(using=self.client, index='.kibana') \
                 .filter('prefix', _id=self.prefix) \
-                .filter('match', _type='index-pattern')
+                .filter('match', _type='index-pattern') \
+                .extra(size=10000)
             response_index = search_index.execute()
 
             for index in response_index:
@@ -179,7 +180,8 @@ class ElkInterface(Configurable):
                 search_vis = es_dsl.Search(
                     using=self.client, index='.kibana') \
                     .filter('prefix', _id=self.prefix + '[' + module + ']') \
-                    .filter('match', _type='visualization')
+                    .filter('match', _type='visualization') \
+                    .extra(size=10000)
                 response_vis = search_vis.execute()
 
                 for vis in response_vis:
@@ -212,7 +214,8 @@ class ElkInterface(Configurable):
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
                     .filter('prefix', _id=self.prefix + '[' + module + ']') \
-                    .filter('match', _type='dashboard')
+                    .filter('match', _type='dashboard') \
+                    .extra(size=10000)
                 response_dash = search_dash.execute()
 
                 for dash in response_dash:
@@ -364,7 +367,8 @@ class ElkInterface(Configurable):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
         try:
             search = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id=self.prefix)
+                .filter('prefix', _id=self.prefix) \
+                .extra(size=10000)
             response = search.execute()
 
             for result in response:

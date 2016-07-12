@@ -483,6 +483,9 @@ class ElkInterface(Configurable):
         logger.debug("parsing TaskUpdate object")
         try:
             task_update = dict(task_update.__dict__)
+
+            task_update['megabytes_output'] = \
+                task_update['bytes_output'] / 1024.0**2
         except Exception as e:
             logger.error(e)
             return

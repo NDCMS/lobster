@@ -43,7 +43,8 @@ class ElkInterface(Configurable):
             Project ID to label Elasticsearch indices and Kibana objects.
         modules : list
             List of modules to include from the Kibana templates. Defaults to
-            including only the core templates.
+            including only the core templates. Available modules: core,
+            advanced.
     """
     _mutable = {'es_host': ('config.elk.update_client', [], False),
                 'es_port': ('config.elk.update_client', [], False),

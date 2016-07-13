@@ -1,7 +1,7 @@
 {
     "visState": "{\"title\":\"[ayannako_elk_v3][advanced] Total/committed cores vs. time\",\"type\":\"line\",\"params\":{\"shareYAxis\":true,\"addTooltip\":true,\"addLegend\":true,\"showCircles\":true,\"smoothLines\":false,\"interpolate\":\"linear\",\"scale\":\"linear\",\"drawLinesBetweenPoints\":true,\"radiusRatio\":9,\"times\":[],\"addTimeMarker\":false,\"defaultYExtents\":false,\"setYExtents\":false,\"yAxis\":{}},\"aggs\":[{\"id\":\"1\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"committed_cores\",\"customLabel\":\"committed cores\"}},{\"id\":\"2\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"interval\":\"auto\",\"customInterval\":\"2h\",\"min_doc_count\":1,\"extended_bounds\":{}}},{\"id\":\"3\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"total_cores\",\"customLabel\":\"total cores\"}}],\"listeners\":{}}", 
     "description": "", 
-    "title": "[template][advanced] Total/committed cores vs. time", 
+    "title": "[template] Total/committed cores vs. time", 
     "uiStateJSON": "{}", 
     "version": 1, 
     "kibanaSavedObjectMeta": {

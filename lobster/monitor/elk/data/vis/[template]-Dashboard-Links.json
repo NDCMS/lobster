@@ -1,0 +1,10 @@
+{
+    "visState": "{\"type\": \"markdown\", \"listeners\": {}, \"params\": {\"markdown\": \"###ayannako's elk_v3 dashboards\\n- [[ayannako_elk_v3] Core](http://elk.crc.nd.edu:5601/app/kibana#/dashboard/%5Bayannako_elk_v3%5D-Core?_g=%28refreshInterval:%28display:%275%20minutes%27,pause:!f,section:2,value:900000%29,time:%28from:%272016-07-13%2015:14:43.552592Z%27,mode:absolute,to:now%29%29)\\n- [[ayannako_elk_v3] Advanced](http://elk.crc.nd.edu:5601/app/kibana#/dashboard/%5Bayannako_elk_v3%5D-Advanced?_g=%28refreshInterval:%28display:%275%20minutes%27,pause:!f,section:2,value:900000%29,time:%28from:%272016-07-13%2015:14:43.552592Z%27,mode:absolute,to:now%29%29)\\n\"}, \"aggs\": [], \"title\": \"[template] Links\"}", 
+    "description": "", 
+    "title": "[template] Dashboard Links", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}},\"filter\":[]}"
+    }
+}

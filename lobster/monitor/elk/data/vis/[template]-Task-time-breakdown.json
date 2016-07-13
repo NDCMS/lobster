@@ -1,7 +1,7 @@
 {
     "visState": "{\"title\":\"[ayannako_elk_v3][advanced] Task time breakdown\",\"type\":\"histogram\",\"params\":{\"shareYAxis\":true,\"addTooltip\":true,\"addLegend\":true,\"scale\":\"linear\",\"mode\":\"percentage\",\"times\":[],\"addTimeMarker\":false,\"defaultYExtents\":false,\"setYExtents\":false,\"yAxis\":{}},\"aggs\":[{\"id\":\"1\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_eviction\",\"customLabel\":\"eviction\"}},{\"id\":\"2\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_exhausted_execution\",\"customLabel\":\"exhausted\"}},{\"id\":\"4\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_failed\",\"customLabel\":\"failed\"}},{\"id\":\"3\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_overhead\",\"customLabel\":\"overhead\"}},{\"id\":\"5\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_processing\",\"customLabel\":\"processing\"}},{\"id\":\"6\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"TaskUpdate.time_total_stage_out\",\"customLabel\":\"stage-out\"}},{\"id\":\"7\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"interval\":\"auto\",\"customInterval\":\"2h\",\"min_doc_count\":1,\"extended_bounds\":{}}}],\"listeners\":{}}", 
     "description": "", 
-    "title": "[template][advanced] Task time breakdown", 
+    "title": "[template] Task time breakdown", 
     "uiStateJSON": "{}", 
     "version": 1, 
     "kibanaSavedObjectMeta": {

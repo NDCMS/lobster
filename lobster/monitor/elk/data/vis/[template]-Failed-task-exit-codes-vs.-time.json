@@ -1,7 +1,7 @@
 {
     "visState": "{\"aggs\":[{\"id\":\"1\",\"params\":{},\"schema\":\"metric\",\"type\":\"count\"},{\"id\":\"2\",\"params\":{\"customInterval\":\"2h\",\"extended_bounds\":{},\"field\":\"timestamp\",\"interval\":\"auto\",\"min_doc_count\":1},\"schema\":\"segment\",\"type\":\"date_histogram\"},{\"id\":\"3\",\"params\":{\"field\":\"TaskUpdate.exit_code\",\"order\":\"desc\",\"orderBy\":\"1\",\"size\":5},\"schema\":\"group\",\"type\":\"terms\"}],\"listeners\":{},\"params\":{\"addLegend\":true,\"addTimeMarker\":false,\"addTooltip\":true,\"defaultYExtents\":false,\"mode\":\"stacked\",\"scale\":\"linear\",\"setYExtents\":false,\"shareYAxis\":true,\"times\":[],\"yAxis\":{}},\"title\":\"[template][core] Task exit codes vs. time\",\"type\":\"histogram\"}", 
     "description": "", 
-    "title": "[template][core] Failed task exit codes vs. time", 
+    "title": "[template] Failed task exit codes vs. time", 
     "uiStateJSON": "{}", 
     "version": 1, 
     "kibanaSavedObjectMeta": {

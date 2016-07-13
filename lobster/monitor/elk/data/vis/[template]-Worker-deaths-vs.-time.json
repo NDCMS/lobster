@@ -1,7 +1,7 @@
 {
     "visState": "{\"title\":\"[ayannako_elk_v3][advanced] Worker deaths vs. time\",\"type\":\"histogram\",\"params\":{\"shareYAxis\":true,\"addTooltip\":true,\"addLegend\":true,\"scale\":\"linear\",\"mode\":\"stacked\",\"times\":[],\"addTimeMarker\":false,\"defaultYExtents\":false,\"setYExtents\":false,\"yAxis\":{}},\"aggs\":[{\"id\":\"3\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"new_workers_lost\",\"customLabel\":\"evicted\"}},{\"id\":\"1\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"new_workers_idle\",\"customLabel\":\"idled out\"}},{\"id\":\"2\",\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"interval\":\"auto\",\"customInterval\":\"2h\",\"min_doc_count\":1,\"extended_bounds\":{}}},{\"id\":\"4\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"new_workers_fast_aborted\",\"customLabel\":\"fast aborted\"}},{\"id\":\"6\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"new_workers_blacklisted\",\"customLabel\":\"blacklisted\"}},{\"id\":\"5\",\"type\":\"sum\",\"schema\":\"metric\",\"params\":{\"field\":\"new_workers_released\",\"customLabel\":\"released\"}}],\"listeners\":{}}", 
     "description": "", 
-    "title": "[template][advanced] Worker deaths vs. time", 
+    "title": "[template] Worker deaths vs. time", 
     "uiStateJSON": "{}", 
     "version": 1, 
     "kibanaSavedObjectMeta": {

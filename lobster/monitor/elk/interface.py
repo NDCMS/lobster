@@ -25,7 +25,7 @@ class ElkInterface(Configurable):
     * `es_port`
     * `kib_host`
     * `kib_port`
-    * `modules`
+    * `dashboards`
 
     Parameters
     ----------
@@ -41,26 +41,26 @@ class ElkInterface(Configurable):
             User ID to label Elasticsearch indices and Kibana objects.
         project : str
             Project ID to label Elasticsearch indices and Kibana objects.
-        modules : list
-            List of modules to include from the Kibana templates. Defaults to
-            including only the core templates. Available modules: core,
-            advanced.
+        dashboards : list
+            List of dashboards to include from the Kibana templates. Defaults
+            to including only the core dashboard. Available dashboards: Core,
+            Advanced.
     """
     _mutable = {'es_host': ('config.elk.update_client', [], False),
                 'es_port': ('config.elk.update_client', [], False),
                 'kib_host': ('config.elk.update_kibana', [], False),
                 'kib_port': ('config.elk.update_kibana', [], False),
-                'modules': ('config.elk.update_kibana', [], False)}
+                'dashboards': ('config.elk.update_kibana', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 modules=None):
+                 dashboards=None):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
         self.kib_port = kib_port
         self.user = os.environ['USER']
         self.project = project
-        self.modules = modules or ['core']
+        self.dashboards = dashboards or ['Core']
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.start_time = datetime.utcnow()
         self.end_time = None
@@ -142,7 +142,7 @@ class ElkInterface(Configurable):
         logger.info("getting Kibana objects with prefix " + self.prefix)
 
         logger.info("getting index patterns")
-
+        index_dir = os.path.join(self.template_dir, 'index')
         try:
             try:
                 os.mkdir(self.template_dir)
@@ -161,62 +161,26 @@ class ElkInterface(Configurable):
                     .replace(self.prefix, '[template]')
                 index.title = index.title.replace(self.prefix, '[template]')
 
-                with open(os.path.join(self.template_dir, 'index',
-                                       index.meta.id) + '.json', 'w') as f:
+                with open(os.path.join(index_dir, index.meta.id) + '.json',
+                          'w') as f:
                     f.write(json.dumps(index.to_dict(), indent=4))
                     f.write('\n')
         except Exception as e:
             logger.error(e)
 
-        for module in self.modules:
-            module_dir = os.path.join(self.template_dir, module)
-
-            logger.info("getting " + module + " visualizations")
-
+        dash_dir = os.path.join(self.template_dir, 'dash')
+        for name in self.dashboards:
+            logger.info("getting " + name + " dashboard")
+            vis_ids = []
             try:
                 try:
-                    os.mkdir(module_dir)
-                    os.mkdir(os.path.join(module_dir, 'vis'))
-                except OSError:
-                    pass
-
-                search_vis = es_dsl.Search(
-                    using=self.client, index='.kibana') \
-                    .filter('prefix', _id=self.prefix + '[' + module + ']') \
-                    .filter('match', _type='visualization') \
-                    .extra(size=10000)
-                response_vis = search_vis.execute()
-
-                for vis in response_vis:
-                    vis.meta.id = vis.meta.id \
-                        .replace(self.prefix, '[template]')
-                    vis.title = vis.title.replace(self.prefix, '[template]')
-
-                    source = json.loads(
-                        vis.kibanaSavedObjectMeta.searchSourceJSON)
-                    source['index'] = source['index'].replace(
-                        self.prefix, '[template]')
-                    vis.kibanaSavedObjectMeta.searchSourceJSON = \
-                        json.dumps(source)
-
-                    with open(os.path.join(module_dir, 'vis', vis.meta.id) +
-                              '.json', 'w') as f:
-                        f.write(json.dumps(vis.to_dict(), indent=4))
-                        f.write('\n')
-            except Exception as e:
-                logger.error(e)
-
-            logger.info("getting " + module + " dashboard")
-
-            try:
-                try:
-                    os.mkdir(os.path.join(module_dir, 'dash'))
+                    os.mkdir(os.path.join(dash_dir))
                 except OSError:
                     pass
 
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
-                    .filter('prefix', _id=self.prefix + '[' + module + ']') \
+                    .filter('prefix', _id=self.prefix + '-' + name) \
                     .filter('match', _type='dashboard') \
                     .extra(size=10000)
                 response_dash = search_dash.execute()
@@ -228,16 +192,54 @@ class ElkInterface(Configurable):
 
                     dash_panels = json.loads(dash.panelsJSON)
                     for panel in dash_panels:
+                        vis_ids.append(panel['id'])
                         panel['id'] = panel['id'].replace(
                             self.prefix, '[template]')
                     dash.panelsJSON = json.dumps(dash_panels)
 
-                    with open(os.path.join(module_dir, 'dash', dash.meta.id) +
-                              '.json', 'w') as f:
+                    with open(os.path.join(dash_dir, dash.meta.id) + '.json',
+                              'w') as f:
                         f.write(json.dumps(dash.to_dict(), indent=4))
                         f.write('\n')
             except Exception as e:
                 logger.error(e)
+
+            logger.info("getting " + name + " visualizations")
+            vis_dir = os.path.join(self.template_dir, 'vis')
+            try:
+                os.mkdir(vis_dir)
+            except OSError:
+                pass
+            for vis_id in vis_ids:
+                try:
+                    search_vis = es_dsl.Search(
+                        using=self.client, index='.kibana') \
+                        .filter('match', _id=vis_id) \
+                        .filter('match', _type='visualization')
+                    response_vis = search_vis.execute()
+
+                    for vis in response_vis:
+                        vis.meta.id = vis.meta.id \
+                            .replace(self.prefix, '[template]')
+                        vis.title = vis.title \
+                            .replace(self.prefix, '[template]')
+
+                        vis_state = json.loads(vis['visState'])
+
+                        if not vis_state['type'] == 'markdown':
+                            source = json.loads(
+                                vis.kibanaSavedObjectMeta.searchSourceJSON)
+                            source['index'] = source['index'].replace(
+                                self.prefix, '[template]')
+                            vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                                json.dumps(source)
+
+                        with open(os.path.join(vis_dir, vis.meta.id) +
+                                  '.json', 'w') as f:
+                            f.write(json.dumps(vis.to_dict(), indent=4))
+                            f.write('\n')
+                except Exception as e:
+                    logger.error(e)
 
     def update_kibana(self):
         logger.info("generating Kibana objects from templates")
@@ -260,54 +262,61 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
-        for module in self.modules:
-            logger.debug("generating " + module + " visualizations")
+        for name in self.dashboards:
+            logger.debug("generating " + name + " dashboard")
+            vis_paths = []
             try:
-                vis_dir = os.path.join(self.template_dir, module, 'vis')
-                for vis_path in os.listdir(vis_dir):
+                dash_dir = os.path.join(self.template_dir, 'dash')
+                dash_path = '[template]-{}.json'.format(name)
+                with open(os.path.join(dash_dir, dash_path)) as f:
+                    dash = json.load(f)
+
+                dash['title'] = dash['title'] \
+                    .replace('[template]', self.prefix)
+
+                dash_panels = json.loads(dash['panelsJSON'])
+                for panel in dash_panels:
+                    vis_paths.append(panel['id'] + '.json')
+                    panel['id'] = panel['id'] \
+                        .replace('[template]', self.prefix)
+                dash['panelsJSON'] = json.dumps(dash_panels)
+
+                dash_id = dash_path.replace('[template]', self.prefix)[:-5]
+
+                self.client.index(index='.kibana', doc_type='dashboard',
+                                  id=dash_id, body=dash)
+            except Exception as e:
+                logger.error(e)
+
+            logger.debug("generating " + name + " visualizations")
+            vis_dir = os.path.join(self.template_dir, 'vis')
+            for vis_path in vis_paths:
+                try:
                     with open(os.path.join(vis_dir, vis_path)) as f:
                         vis = json.load(f)
 
-                    vis['title'] = vis['title'] \
-                        .replace('[template]', self.prefix)
+                    vis_state = json.loads(vis['visState'])
 
-                    source = json.loads(
-                        vis['kibanaSavedObjectMeta']['searchSourceJSON'])
-                    source['index'] = source['index'] \
-                        .replace('[template]', self.prefix)
-                    vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
-                        json.dumps(source)
+                    if not vis_state['type'] == 'markdown':
+                        vis['title'] = vis['title'] \
+                            .replace('[template]', self.prefix)
 
-                    vis_id = vis_path.replace('[template]', self.prefix)[:-5]
+                        source = json.loads(
+                            vis['kibanaSavedObjectMeta']['searchSourceJSON'])
+
+                        source['index'] = source['index'] \
+                            .replace('[template]', self.prefix)
+                        vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
+                            json.dumps(source)
+
+                    vis_id = \
+                        vis_path.replace('[template]', self.prefix)[:-5]
 
                     self.client.index(index='.kibana',
                                       doc_type='visualization',
                                       id=vis_id, body=vis)
-            except Exception as e:
-                logger.error(e)
-
-            logger.debug("generating " + module + " dashboard")
-            try:
-                dash_dir = os.path.join(self.template_dir, module, 'dash')
-                for dash_path in os.listdir(dash_dir):
-                    with open(os.path.join(dash_dir, dash_path)) as f:
-                        dash = json.load(f)
-
-                    dash['title'] = dash['title'] \
-                        .replace('[template]', self.prefix)
-
-                    dash_panels = json.loads(dash['panelsJSON'])
-                    for panel in dash_panels:
-                        panel['id'] = panel['id'] \
-                            .replace('[template]', self.prefix)
-                    dash['panelsJSON'] = json.dumps(dash_panels)
-
-                    dash_id = dash_path.replace('[template]', self.prefix)[:-5]
-
-                    self.client.index(index='.kibana', doc_type='dashboard',
-                                      id=dash_id, body=dash)
-            except Exception as e:
-                logger.error(e)
+                except Exception as e:
+                    logger.error(e)
 
         self.update_links()
 
@@ -316,38 +325,41 @@ class ElkInterface(Configurable):
         links_text = "###{0}'s {1} dashboards\n" \
             .format(self.user, self.project)
         try:
-            for module in self.modules:
-                dash_dir = os.path.join(self.template_dir, module, 'dash')
-                for dash_path in os.listdir(dash_dir):
-                    with open(os.path.join(dash_dir, dash_path)) as f:
-                        dash = json.load(f)
+            dash_dir = os.path.join(self.template_dir, 'dash')
+            for name in self.dashboards:
+                dash_path = '[template]-{}.json'.format(name)
+                with open(os.path.join(dash_dir, dash_path)) as f:
+                    dash = json.load(f)
 
-                    dash_id = dash_path.replace('[template]', self.prefix)[:-5]
+                dash_id = dash_path.replace('[template]', self.prefix)[:-5]
+                dash['title'] = dash['title'] \
+                    .replace('[template]', self.prefix)
 
-                    if self.end_time:
-                        link = requests.utils.quote(
-                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                             "?_g=(refreshInterval:(display:Off,pause:!f," +
-                             "section:0,value:0),time:(from:'{3}Z',mode:" +
-                             "absolute,to:'{4}Z'))")
-                            .format(self.kib_host, self.kib_port, dash_id,
-                                    self.start_time, self.end_time),
-                            safe='/:!?,=#')
-                    else:
-                        link = requests.utils.quote(
-                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                             "?_g=(refreshInterval:(display:'5 minutes'" +
-                             ",pause:!f,section:2,value:900000),time:" +
-                             "(from:'{3}Z',mode:absolute,to:now))")
-                            .format(self.kib_host, self.kib_port, dash_id,
-                                    self.start_time),
-                            safe='/:!?,=#')
+                if self.end_time:
+                    link = requests.utils.quote(
+                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                         "?_g=(refreshInterval:(display:Off,pause:!f," +
+                         "section:0,value:0),time:(from:'{3}Z',mode:" +
+                         "absolute,to:'{4}Z'))")
+                        .format(self.kib_host, self.kib_port, dash_id,
+                                self.start_time, self.end_time),
+                        safe='/:!?,=#')
+                else:
+                    link = requests.utils.quote(
+                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                         "?_g=(refreshInterval:(display:'5 minutes'" +
+                         ",pause:!f,section:2,value:900000),time:" +
+                         "(from:'{3}Z',mode:absolute,to:now))")
+                        .format(self.kib_host, self.kib_port, dash_id,
+                                self.start_time),
+                        safe='/:!?,=#')
 
-                    logger.info("Kibana " + module + " dashboard at " + link)
+                logger.info("Kibana " + name + " dashboard at " + link)
 
-                    links_text += "- [" + dash['title'] + "](" + link + ")\n"
+                links_text += "- [" + dash['title'] + "](" + link + ")\n"
 
-            with open(os.path.join(self.template_dir, 'links') + '.json',
+            with open(os.path.join(self.template_dir, 'vis',
+                                   '[template]-Dashboard-Links') + '.json',
                       'r') as f:
                 links_vis = json.load(f)
 
@@ -359,7 +371,8 @@ class ElkInterface(Configurable):
             links_vis['visState'] = json.dumps(links_state)
 
             self.client.index(index='.kibana', doc_type='visualization',
-                              id=self.prefix + "-Links", body=links_vis)
+                              id=self.prefix + "-Dashboard-Links",
+                              body=links_vis)
         except Exception as e:
             logger.error(e)
 
@@ -659,10 +672,9 @@ class ElkInterface(Configurable):
                 if key.startswith('workers_'):
                     if key in self.previous_stats[category]:
                         stats['new_' + key] = \
-                            max(stats[key]
-                                - self.previous_stats[category][key], 0)
+                            max(stats[key] -
+                                self.previous_stats[category][key], 0)
                     self.previous_stats[category][key] = stats[key]
-
         except Exception as e:
             logger.error(e)
             return

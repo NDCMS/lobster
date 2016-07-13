@@ -21,10 +21,9 @@ setup(
         'commands/data/gh.png',
         'commands/data/styles.css',
         'commands/data/category.html',
-        'monitor/elk/data/links.json',
         'monitor/elk/data/index/*.json',
-        'monitor/elk/data/*/dash/*.json',
-        'monitor/elk/data/*/vis/*.json'
+        'monitor/elk/data/dash/*.json',
+        'monitor/elk/data/vis/*.json'
     ]},
     install_requires=[
         'argparse',

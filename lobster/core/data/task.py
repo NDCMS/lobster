@@ -986,23 +986,23 @@ def write_zipfiles(data):
 data = {
     'files': {
         'info': {},
-        'output info': {},
+        'output_info': {},
         'skipped': [],
     },
     'cache': {
-        'start size': 0,
-        'end size': 0,
+        'start_size': 0,
+        'end_size': 0,
         'type': 2,
     },
-    'task exit code': 0,
-    'exe exit code': 0,
-    'stageout exit code': 0,
-    'cpu time': 0,
-    'events written': 0,
-    'output size': 0,
-    'output bare size': 0,
-    'output storage element': '',
-    'task timing': {
+    'task_exit_code': 0,
+    'exe_exit_code': 0,
+    'stageout_exit_code': 0,
+    'cpu_time': 0,
+    'events_written': 0,
+    'output_size': 0,
+    'output_bare_size': 0,
+    'output_storage_element': '',
+    'task_timing': {
         'stage in end': 0,
         'prologue end': 0,
         'wrapper start': 0,
@@ -1011,7 +1011,7 @@ data = {
         'epilogue end': 0,
         'stage out end': 0,
     },
-    'events per run': 0,
+    'events_per_run': 0,
     'transfers': defaultdict(Counter)
 }
 

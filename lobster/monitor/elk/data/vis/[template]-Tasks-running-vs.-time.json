@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"showCircles\": true, \"yAxis\": {}, \"setYExtents\": false, \"smoothLines\": false, \"addTimeMarker\": false, \"interpolate\": \"linear\", \"addLegend\": true, \"shareYAxis\": true, \"radiusRatio\": 9, \"drawLinesBetweenPoints\": true, \"defaultYExtents\": false, \"times\": [], \"addTooltip\": true}, \"listeners\": {}, \"type\": \"line\", \"aggs\": [{\"params\": {\"field\": \"tasks_running\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"orderBy\": \"1\", \"field\": \"category.raw\", \"order\": \"desc\", \"size\": 5}, \"type\": \"terms\", \"id\": \"3\", \"schema\": \"group\"}], \"title\": \"[template] Tasks running vs. time\"}", 
+    "description": "", 
+    "title": "[template] Tasks running vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

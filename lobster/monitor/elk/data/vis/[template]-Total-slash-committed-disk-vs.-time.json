@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"showCircles\": true, \"yAxis\": {}, \"setYExtents\": false, \"smoothLines\": false, \"addTimeMarker\": false, \"interpolate\": \"linear\", \"addLegend\": true, \"shareYAxis\": true, \"radiusRatio\": 9, \"drawLinesBetweenPoints\": true, \"defaultYExtents\": false, \"times\": [], \"addTooltip\": true}, \"listeners\": {}, \"type\": \"line\", \"aggs\": [{\"params\": {\"field\": \"committed_disk\", \"customLabel\": \"committed disk\"}, \"type\": \"sum\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"field\": \"total_disk\", \"customLabel\": \"total disk\"}, \"type\": \"sum\", \"id\": \"3\", \"schema\": \"metric\"}], \"title\": \"[template] Total/committed disk vs. time\"}", 
+    "description": "", 
+    "title": "[template] Total/committed disk vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"showCircles\": true, \"yAxis\": {}, \"setYExtents\": false, \"smoothLines\": false, \"addTimeMarker\": false, \"interpolate\": \"linear\", \"addLegend\": true, \"shareYAxis\": true, \"radiusRatio\": 9, \"drawLinesBetweenPoints\": true, \"defaultYExtents\": false, \"times\": [], \"addTooltip\": true}, \"listeners\": {}, \"type\": \"line\", \"aggs\": [{\"params\": {\"field\": \"workers_able\", \"customLabel\": \"able\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"field\": \"workers_busy\", \"customLabel\": \"busy\"}, \"type\": \"avg\", \"id\": \"3\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"workers_idle\", \"customLabel\": \"idle\"}, \"type\": \"avg\", \"id\": \"4\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"workers_init\", \"customLabel\": \"init\"}, \"type\": \"avg\", \"id\": \"5\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"workers_ready\", \"customLabel\": \"ready\"}, \"type\": \"avg\", \"id\": \"6\", \"schema\": \"metric\"}], \"title\": \"[template] Worker status vs. time\"}", 
+    "description": "", 
+    "title": "[template] Worker status vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

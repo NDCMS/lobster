@@ -9,11 +9,13 @@ import os
 import requests
 
 from lobster.util import Configurable, PartiallyMutable
+import lobster
 
 logger = logging.getLogger('lobster.monitor.elk')
 
 
 class ElkInterface(Configurable):
+
     """
     Enables ELK stack monitoring for the current Lobster run using an existing
     Elasticsearch instance.
@@ -23,7 +25,8 @@ class ElkInterface(Configurable):
     * `es_port`
     * `kib_host`
     * `kib_port`
-    * `modules`
+    * `dashboards`
+    * `refresh_interval`
 
     Parameters
     ----------
@@ -39,34 +42,37 @@ class ElkInterface(Configurable):
             User ID to label Elasticsearch indices and Kibana objects.
         project : str
             Project ID to label Elasticsearch indices and Kibana objects.
-        populate_template : bool
-            Whether to send documents to indices with the [template] prefix,
-            in addition to sending them to the [user_project] prefix. Defaults
-            to false.
-        modules : list
-            List of modules to include from the Kibana templates. Defaults to
-            including only the core templates.
+        dashboards : list
+            List of dashboards to include from the Kibana templates. Defaults
+            to including only the core dashboard. Available dashboards: Core,
+            Advanced.
+        refresh_interval : int
+            Refresh interval for Kibana dashboards, in seconds. Defaults to
+            300 seconds = 5 minutes.
     """
     _mutable = {'es_host': ('config.elk.update_client', [], False),
                 'es_port': ('config.elk.update_client', [], False),
                 'kib_host': ('config.elk.update_kibana', [], False),
                 'kib_port': ('config.elk.update_kibana', [], False),
-                'modules': ('config.elk.update_kibana', [], False)}
+                'dashboards': ('config.elk.update_kibana', [], False),
+                'refresh_interval': ('config.elk.update_links', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 populate_template=False, modules=None):
+                 dashboards=None, refresh_interval=30):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
         self.kib_port = kib_port
         self.user = os.environ['USER']
         self.project = project
-        self.populate_template = populate_template
-        self.modules = modules or ['core']
+        self.dashboards = dashboards or ['Core']
+        self.refresh_interval = refresh_interval
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.start_time = datetime.utcnow()
         self.end_time = None
         self.previous_stats = {}
+        self.template_dir = os.path.join(os.path.dirname(
+            os.path.abspath(lobster.__file__)), 'monitor', 'elk', 'data')
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
@@ -88,12 +94,9 @@ class ElkInterface(Configurable):
         with PartiallyMutable.unlock():
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
-            self.end_time = None
-
-        self.update_links()
 
     def create(self):
-        logger.info("checking Elasticsearch indices")
+        logger.info("checking Elasticsearch client")
 
         self.check_client()
 
@@ -116,10 +119,16 @@ class ElkInterface(Configurable):
 
     def end(self):
         logger.info("ending ELK monitoring")
+        self.set_end_time()
 
+    def set_end_time(self):
         with PartiallyMutable.unlock():
             self.end_time = datetime.utcnow()
+        self.update_links()
 
+    def reset_end_time(self):
+        with PartiallyMutable.unlock():
+            self.end_time = None
         self.update_links()
 
     def check_client(self):
@@ -135,81 +144,188 @@ class ElkInterface(Configurable):
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
 
-    def update_kibana(self):
-        logger.info("generating Kibana objects from templates")
+    def download_templates(self):
+        logger.info("getting Kibana objects with prefix " + self.prefix)
 
-        any_prefix = re.compile('\[.*\]')
-
-        logger.debug("generating index patterns")
+        logger.info("getting index patterns")
+        index_dir = os.path.join(self.template_dir, 'index')
         try:
+            try:
+                os.mkdir(self.template_dir)
+                os.mkdir(os.path.join(self.template_dir, 'index'))
+            except OSError:
+                pass
+
             search_index = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id='[template]') \
-                .filter('match', _type='index-pattern')
+                .filter('prefix', _id=self.prefix) \
+                .filter('match', _type='index-pattern') \
+                .extra(size=10000)
             response_index = search_index.execute()
 
             for index in response_index:
-                index.meta.id = index.meta.id.replace(
-                    '[template]', self.prefix)
-                index.title = index.title.replace('[template]', self.prefix)
-                self.client.index(index='.kibana',
-                                  doc_type=index.meta.doc_type,
-                                  id=index.meta.id, body=index.to_dict())
+                index.meta.id = index.meta.id \
+                    .replace(self.prefix, '[template]')
+                index.title = index.title.replace(self.prefix, '[template]')
+
+                with open(os.path.join(index_dir, index.meta.id) + '.json',
+                          'w') as f:
+                    f.write(json.dumps(index.to_dict(), indent=4))
+                    f.write('\n')
         except Exception as e:
             logger.error(e)
 
-        for module in self.modules:
-            logger.debug("generating " + module + " visualizations")
+        dash_dir = os.path.join(self.template_dir, 'dash')
+        for name in self.dashboards:
+            logger.info("getting " + name + " dashboard")
+            vis_ids = []
             try:
-                search_vis = es_dsl.Search(
-                    using=self.client, index='.kibana') \
-                    .filter('prefix', _id='[template][' + module + ']') \
-                    .filter('match', _type='visualization')
+                try:
+                    os.mkdir(os.path.join(dash_dir))
+                except OSError:
+                    pass
 
-                response_vis = search_vis.execute()
-
-                for vis in response_vis:
-                    vis.meta.id = vis.meta.id.replace(
-                        '[template]', self.prefix)
-                    vis.title = vis.title.replace('[template]', self.prefix)
-
-                    source = json.loads(
-                        vis.kibanaSavedObjectMeta.searchSourceJSON)
-                    source['index'] = any_prefix.sub(
-                        self.prefix, source['index'])
-                    vis.kibanaSavedObjectMeta.searchSourceJSON = json.dumps(
-                        source)
-
-                    self.client.index(index='.kibana',
-                                      doc_type=vis.meta.doc_type,
-                                      id=vis.meta.id, body=vis.to_dict())
-            except Exception as e:
-                logger.error(e)
-
-            logger.debug("generating " + module + " dashboard")
-            try:
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
-                    .filter('prefix', _id='[template][' + module + ']') \
-                    .filter('match', _type='dashboard')
-
+                    .filter('prefix', _id=self.prefix + '-' + name) \
+                    .filter('match', _type='dashboard') \
+                    .extra(size=10000)
                 response_dash = search_dash.execute()
 
                 for dash in response_dash:
-                    dash.meta.id = dash.meta.id.replace(
-                        '[template]', self.prefix)
-                    dash.title = dash.title.replace('[template]', self.prefix)
+                    dash.meta.id = dash.meta.id \
+                        .replace(self.prefix, '[template]')
+                    dash.title = dash.title.replace(self.prefix, '[template]')
 
                     dash_panels = json.loads(dash.panelsJSON)
                     for panel in dash_panels:
+                        vis_ids.append(panel['id'])
                         panel['id'] = panel['id'].replace(
-                            '[template]', self.prefix)
+                            self.prefix, '[template]')
                     dash.panelsJSON = json.dumps(dash_panels)
 
-                    self.client.index(index='.kibana',
-                                      doc_type=dash.meta.doc_type,
-                                      id=dash.meta.id, body=dash.to_dict())
+                    with open(os.path.join(dash_dir, dash.meta.id) + '.json',
+                              'w') as f:
+                        f.write(json.dumps(dash.to_dict(), indent=4))
+                        f.write('\n')
             except Exception as e:
                 logger.error(e)
+
+            logger.info("getting " + name + " visualizations")
+            vis_dir = os.path.join(self.template_dir, 'vis')
+            try:
+                os.mkdir(vis_dir)
+            except OSError:
+                pass
+            for vis_id in vis_ids:
+                try:
+                    search_vis = es_dsl.Search(
+                        using=self.client, index='.kibana') \
+                        .filter('match', _id=vis_id) \
+                        .filter('match', _type='visualization')
+                    response_vis = search_vis.execute()
+
+                    for vis in response_vis:
+                        vis.meta.id = vis.meta.id \
+                            .replace(self.prefix, '[template]')
+                        vis.title = vis.title \
+                            .replace(self.prefix, '[template]')
+
+                        vis_state = json.loads(vis['visState'])
+                        vis_state['title'] = vis['title']
+
+                        if not vis_state['type'] == 'markdown':
+                            source = json.loads(
+                                vis.kibanaSavedObjectMeta.searchSourceJSON)
+                            source['index'] = source['index'].replace(
+                                self.prefix, '[template]')
+                            vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                                json.dumps(source)
+
+                        vis['visState'] = json.dumps(vis_state)
+
+                        with open(os.path.join(vis_dir, vis.meta.id) +
+                                  '.json', 'w') as f:
+                            f.write(json.dumps(vis.to_dict(), indent=4))
+                            f.write('\n')
+                except Exception as e:
+                    logger.error(e)
+
+    def update_kibana(self):
+        logger.info("generating Kibana objects from templates")
+
+        logger.debug("generating index patterns")
+        try:
+            index_dir = os.path.join(self.template_dir, 'index')
+            for index_path in os.listdir(index_dir):
+                with open(os.path.join(index_dir, index_path)) as f:
+                    index = json.load(f)
+
+                index['title'] = index['title'] \
+                    .replace('[template]', self.prefix)
+
+                index_id = index_path.replace('[template]', self.prefix) \
+                    .replace('.json', '')
+
+                self.client.index(index='.kibana', doc_type='index-pattern',
+                                  id=index_id, body=index)
+        except Exception as e:
+            logger.error(e)
+
+        for name in self.dashboards:
+            logger.debug("generating " + name + " dashboard")
+            vis_paths = []
+            try:
+                dash_dir = os.path.join(self.template_dir, 'dash')
+                dash_path = '[template]-{}.json'.format(name)
+                with open(os.path.join(dash_dir, dash_path)) as f:
+                    dash = json.load(f)
+
+                dash['title'] = dash['title'] \
+                    .replace('[template]', self.prefix)
+
+                dash_panels = json.loads(dash['panelsJSON'])
+                for panel in dash_panels:
+                    vis_paths.append(panel['id'] + '.json')
+                    panel['id'] = panel['id'] \
+                        .replace('[template]', self.prefix)
+                dash['panelsJSON'] = json.dumps(dash_panels)
+
+                dash_id = dash_path.replace('[template]', self.prefix)[:-5]
+
+                self.client.index(index='.kibana', doc_type='dashboard',
+                                  id=dash_id, body=dash)
+            except Exception as e:
+                logger.error(e)
+
+            logger.debug("generating " + name + " visualizations")
+            vis_dir = os.path.join(self.template_dir, 'vis')
+            for vis_path in vis_paths:
+                try:
+                    with open(os.path.join(vis_dir, vis_path)) as f:
+                        vis = json.load(f)
+
+                    vis_state = json.loads(vis['visState'])
+
+                    if not vis_state['type'] == 'markdown':
+                        vis['title'] = vis['title'] \
+                            .replace('[template]', self.prefix)
+
+                        source = json.loads(
+                            vis['kibanaSavedObjectMeta']['searchSourceJSON'])
+
+                        source['index'] = source['index'] \
+                            .replace('[template]', self.prefix)
+                        vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
+                            json.dumps(source)
+
+                    vis_id = \
+                        vis_path.replace('[template]', self.prefix)[:-5]
+
+                    self.client.index(index='.kibana',
+                                      doc_type='visualization',
+                                      id=vis_id, body=vis)
+                except Exception as e:
+                    logger.error(e)
 
         self.update_links()
 
@@ -218,41 +334,44 @@ class ElkInterface(Configurable):
         links_text = "###{0}'s {1} dashboards\n" \
             .format(self.user, self.project)
         try:
-            for module in self.modules:
-                search_dash = es_dsl.Search(
-                    using=self.client, index='.kibana') \
-                    .filter('prefix', _id=self.prefix + '[' + module + ']') \
-                    .filter('match', _type='dashboard')
+            dash_dir = os.path.join(self.template_dir, 'dash')
+            for name in self.dashboards:
+                dash_path = '[template]-{}.json'.format(name)
+                with open(os.path.join(dash_dir, dash_path)) as f:
+                    dash = json.load(f)
 
-                response_dash = search_dash.execute()
+                dash_id = dash_path.replace('[template]', self.prefix)[:-5]
+                dash['title'] = dash['title'] \
+                    .replace('[template]', self.prefix)
 
-                for dash in response_dash:
-                    if self.end_time:
-                        link = requests.utils.quote(
-                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                             "?_g=(refreshInterval:(display:Off,pause:!f," +
-                             "section:0,value:0),time:(from:'{3}Z',mode:" +
-                             "absolute,to:'{4}Z'))")
-                            .format(self.kib_host, self.kib_port, dash.meta.id,
-                                    self.start_time, self.end_time),
-                            safe='/:!?,=#')
-                    else:
-                        link = requests.utils.quote(
-                            ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                             "?_g=(refreshInterval:(display:'5 minutes'" +
-                             ",pause:!f,section:2,value:900000),time:" +
-                             "(from:'{3}Z',mode:absolute,to:now))")
-                            .format(self.kib_host, self.kib_port, dash.meta.id,
-                                    self.start_time),
-                            safe='/:!?,=#')
+                if self.end_time:
+                    link = requests.utils.quote(
+                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                         "?_g=(refreshInterval:(display:Off,pause:!f," +
+                         "section:0,value:0),time:(from:'{3}Z',mode:" +
+                         "absolute,to:'{4}Z'))")
+                        .format(self.kib_host, self.kib_port, dash_id,
+                                self.start_time, self.end_time),
+                        safe='/:!?,=#')
+                else:
+                    link = requests.utils.quote(
+                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
+                         "?_g=(refreshInterval:(display:'" +
+                         str(self.refresh_interval) + " seconds',pause:!f," +
+                         "section:2,value:900000),time:(from:'{3}Z'," +
+                         "mode:absolute,to:now))")
+                        .format(self.kib_host, self.kib_port, dash_id,
+                                self.start_time),
+                        safe='/:!?,=#')
 
-                    logger.info("Kibana " + module + " dashboard at " + link)
+                logger.info("Kibana " + name + " dashboard at " + link)
 
-                    links_text += "- [" + dash.title + "](" + link + ")\n"
+                links_text += "- [" + dash['title'] + "](" + link + ")\n"
 
-            links_vis = self.client.get(index='.kibana',
-                                        doc_type='visualization',
-                                        id='[template]-Links')['_source']
+            with open(os.path.join(self.template_dir, 'vis',
+                                   '[template]-Dashboard-Links') + '.json',
+                      'r') as f:
+                links_vis = json.load(f)
 
             links_vis['title'] = links_vis['title'].replace(
                 '[template]', self.prefix)
@@ -262,7 +381,8 @@ class ElkInterface(Configurable):
             links_vis['visState'] = json.dumps(links_state)
 
             self.client.index(index='.kibana', doc_type='visualization',
-                              id=self.prefix + "-Links", body=links_vis)
+                              id=self.prefix + "-Dashboard-Links",
+                              body=links_vis)
         except Exception as e:
             logger.error(e)
 
@@ -270,7 +390,8 @@ class ElkInterface(Configurable):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
         try:
             search = es_dsl.Search(using=self.client, index='.kibana') \
-                .filter('prefix', _id=self.prefix)
+                .filter('prefix', _id=self.prefix) \
+                .extra(size=10000)
             response = search.execute()
 
             for result in response:
@@ -382,10 +503,6 @@ class ElkInterface(Configurable):
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
                                body=upsert_doc)
-            if self.populate_template:
-                self.client.update(index='[template]_lobster_tasks',
-                                   doc_type='task', id=task['id'],
-                                   body=upsert_doc)
         except Exception as e:
             logger.error(e)
 
@@ -393,6 +510,23 @@ class ElkInterface(Configurable):
         logger.debug("parsing TaskUpdate object")
         try:
             task_update = dict(task_update.__dict__)
+
+            task_update['megabytes_output'] = \
+                task_update['bytes_output'] / 1024.0**2
+
+            status_codes = {
+                0: 'initialized',
+                1: 'assigned',
+                2: 'successful',
+                3: 'failed',
+                4: 'aborted',
+                6: 'published',
+                7: 'merging',
+                8: 'merged'
+            }
+
+            task_update['status_text'] = status_codes[task_update['status']]
+
         except Exception as e:
             logger.error(e)
             return
@@ -493,10 +627,6 @@ class ElkInterface(Configurable):
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
                                body=upsert_doc)
-            if self.populate_template:
-                self.client.update(index='[template]_lobster_tasks',
-                                   doc_type='task', id=task_update['id'],
-                                   body=upsert_doc)
         except Exception as e:
             logger.error(e)
 
@@ -524,18 +654,23 @@ class ElkInterface(Configurable):
 
             if 'timestamp' in self.previous_stats[category]:
                 stats['time_diff'] = \
-                    int(stats['timestamp'].strftime('%s')) * 10e6 - \
-                    self.previous_stats[category]['timestamp']
+                    max(int(stats['timestamp'].strftime('%s')) * 10e6 -
+                        self.previous_stats[category]['timestamp'], 0)
 
-                stats['time_other_lobster'] = stats['time_diff'] - \
-                    stats['total_status_time'] - stats['total_create_time'] - \
-                    stats['total_action_time'] - stats['total_update_time'] - \
-                    stats['total_fetch_time'] - stats['total_return_time']
+                stats['time_other_lobster'] = \
+                    max(stats['time_diff'] -
+                        stats['total_status_time'] -
+                        stats['total_create_time'] -
+                        stats['total_action_time'] -
+                        stats['total_update_time'] -
+                        stats['total_fetch_time'] -
+                        stats['total_return_time'], 0)
 
-                stats['time_other_wq'] = stats['time_diff'] - \
-                    stats['time_send'] - stats['time_receive'] - \
-                    stats['time_status_msgs'] - stats['time_internal'] - \
-                    stats['time_polling'] - stats['time_application']
+                stats['time_other_wq'] = \
+                    max(stats['time_diff'] - stats['time_send'] -
+                        stats['time_receive'] - stats['time_status_msgs'] -
+                        stats['time_internal'] - stats['time_polling'] -
+                        stats['time_application'], 0)
 
                 stats['time_idle'] = \
                     stats['time_diff'] * stats['idle_percentage']
@@ -547,9 +682,9 @@ class ElkInterface(Configurable):
                 if key.startswith('workers_'):
                     if key in self.previous_stats[category]:
                         stats['new_' + key] = \
-                            stats[key] - self.previous_stats[category][key]
+                            max(stats[key] -
+                                self.previous_stats[category][key], 0)
                     self.previous_stats[category][key] = stats[key]
-
         except Exception as e:
             logger.error(e)
             return
@@ -561,10 +696,5 @@ class ElkInterface(Configurable):
                               doc_type='log', body=stats,
                               id=str(int(int(now.strftime('%s')) * 1e6 +
                                          now.microsecond)))
-            if self.populate_template:
-                self.client.index(index='[template]_lobster_stats',
-                                  doc_type='log', body=stats,
-                                  id=str(int(int(now.strftime('%s')) * 1e6 +
-                                             now.microsecond)))
         except Exception as e:
             logger.error(e)

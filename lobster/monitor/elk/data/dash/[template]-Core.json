@@ -1,0 +1,13 @@
+{
+    "hits": 0, 
+    "timeRestore": false, 
+    "description": "", 
+    "title": "[template] Core", 
+    "uiStateJSON": "{}", 
+    "panelsJSON": "[{\"type\": \"visualization\", \"id\": \"[template]-Failed-task-exit-codes-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 1, \"col\": 8, \"row\": 4}, {\"type\": \"visualization\", \"id\": \"[template]-Task-status-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 2, \"col\": 8, \"row\": 1}, {\"type\": \"visualization\", \"id\": \"[template]-Tasks-running-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 3, \"col\": 3, \"row\": 1}, {\"type\": \"visualization\", \"id\": \"[template]-Worker-status-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 4, \"col\": 3, \"row\": 4}, {\"type\": \"visualization\", \"id\": \"[template]-Dashboard-Links\", \"size_x\": 2, \"size_y\": 6, \"panelIndex\": 5, \"col\": 1, \"row\": 1}]", 
+    "optionsJSON": "{\"darkTheme\":false}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true}}}]}"
+    }
+}

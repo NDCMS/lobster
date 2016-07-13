@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"setYExtents\": false, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"stacked\", \"defaultYExtents\": false, \"addLegend\": true, \"addTooltip\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"TaskUpdate.megabytes_output\", \"customLabel\": \"MB output\"}, \"type\": \"sum\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}], \"title\": \"[template] Megabytes output vs. time\"}", 
+    "description": "", 
+    "title": "[template] Megabytes output vs. time", 
+    "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+    }
+}

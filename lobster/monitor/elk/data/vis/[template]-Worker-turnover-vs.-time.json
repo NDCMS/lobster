@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"setYExtents\": false, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"stacked\", \"defaultYExtents\": false, \"addLegend\": true, \"addTooltip\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"new_workers_joined\", \"customLabel\": \"joined\"}, \"type\": \"sum\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"new_workers_removed\", \"customLabel\": \"removed\"}, \"type\": \"sum\", \"id\": \"2\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"3\", \"schema\": \"segment\"}], \"title\": \"[template] Worker turnover vs. time\"}", 
+    "description": "", 
+    "title": "[template] Worker turnover vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"category:all\"}}}"
+    }
+}

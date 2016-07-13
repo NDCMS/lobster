@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"setYExtents\": false, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"percentage\", \"defaultYExtents\": false, \"addLegend\": true, \"addTooltip\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"time_send\", \"customLabel\": \"send\"}, \"type\": \"sum\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"field\": \"time_receive\", \"customLabel\": \"recieve\"}, \"type\": \"sum\", \"id\": \"3\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"time_status_msgs\", \"customLabel\": \"status msgs\"}, \"type\": \"sum\", \"id\": \"4\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"time_internal\", \"customLabel\": \"internal\"}, \"type\": \"sum\", \"id\": \"5\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"time_polling\", \"customLabel\": \"polling\"}, \"type\": \"sum\", \"id\": \"6\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"time_application\", \"customLabel\": \"application\"}, \"type\": \"sum\", \"id\": \"7\", \"schema\": \"metric\"}], \"title\": \"[template] Work Queue time breakdown\"}", 
+    "description": "", 
+    "title": "[template] Work Queue time breakdown", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+    }
+}

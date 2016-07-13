@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"setYExtents\": false, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"stacked\", \"defaultYExtents\": false, \"addLegend\": true, \"addTooltip\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"Task.resources_measured.cpu_wall_ratio\", \"customLabel\": \"CPU/wall ratio\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}], \"title\": \"[template] CPU/wall ratio vs. time\"}", 
+    "description": "", 
+    "title": "[template] CPU/wall ratio vs. time", 
+    "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"setYExtents\": false, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"stacked\", \"defaultYExtents\": false, \"addLegend\": true, \"addTooltip\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"new_workers_lost\", \"customLabel\": \"evicted\"}, \"type\": \"sum\", \"id\": \"3\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"new_workers_idle\", \"customLabel\": \"idled out\"}, \"type\": \"sum\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"field\": \"new_workers_fast_aborted\", \"customLabel\": \"fast aborted\"}, \"type\": \"sum\", \"id\": \"4\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"new_workers_blacklisted\", \"customLabel\": \"blacklisted\"}, \"type\": \"sum\", \"id\": \"6\", \"schema\": \"metric\"}, {\"params\": {\"field\": \"new_workers_released\", \"customLabel\": \"released\"}, \"type\": \"sum\", \"id\": \"5\", \"schema\": \"metric\"}], \"title\": \"[template] Worker deaths vs. time\"}", 
+    "description": "", 
+    "title": "[template] Worker deaths vs. time", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
+    }
+}

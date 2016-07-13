@@ -26,6 +26,7 @@ class ElkInterface(Configurable):
     * `kib_host`
     * `kib_port`
     * `dashboards`
+    * `refresh_interval`
 
     Parameters
     ----------
@@ -45,15 +46,19 @@ class ElkInterface(Configurable):
             List of dashboards to include from the Kibana templates. Defaults
             to including only the core dashboard. Available dashboards: Core,
             Advanced.
+        refresh_interval : int
+            Refresh interval for Kibana dashboards, in seconds. Defaults to
+            300 seconds = 5 minutes.
     """
     _mutable = {'es_host': ('config.elk.update_client', [], False),
                 'es_port': ('config.elk.update_client', [], False),
                 'kib_host': ('config.elk.update_kibana', [], False),
                 'kib_port': ('config.elk.update_kibana', [], False),
-                'dashboards': ('config.elk.update_kibana', [], False)}
+                'dashboards': ('config.elk.update_kibana', [], False),
+                'refresh_interval': ('config.elk.update_links', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 dashboards=None):
+                 dashboards=None, refresh_interval=30):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host
@@ -61,6 +66,7 @@ class ElkInterface(Configurable):
         self.user = os.environ['USER']
         self.project = project
         self.dashboards = dashboards or ['Core']
+        self.refresh_interval = refresh_interval
         self.prefix = '[' + self.user + '_' + self.project + ']'
         self.start_time = datetime.utcnow()
         self.end_time = None
@@ -350,9 +356,10 @@ class ElkInterface(Configurable):
                 else:
                     link = requests.utils.quote(
                         ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                         "?_g=(refreshInterval:(display:'5 minutes'" +
-                         ",pause:!f,section:2,value:900000),time:" +
-                         "(from:'{3}Z',mode:absolute,to:now))")
+                         "?_g=(refreshInterval:(display:'" +
+                         str(self.refresh_interval) + " seconds',pause:!f," +
+                         "section:2,value:900000),time:(from:'{3}Z'," +
+                         "mode:absolute,to:now))")
                         .format(self.kib_host, self.kib_port, dash_id,
                                 self.start_time),
                         safe='/:!?,=#')

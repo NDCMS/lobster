@@ -225,6 +225,7 @@ class ElkInterface(Configurable):
                             .replace(self.prefix, '[template]')
 
                         vis_state = json.loads(vis['visState'])
+                        vis_state['title'] = vis['title']
 
                         if not vis_state['type'] == 'markdown':
                             source = json.loads(
@@ -233,6 +234,8 @@ class ElkInterface(Configurable):
                                 self.prefix, '[template]')
                             vis.kibanaSavedObjectMeta.searchSourceJSON = \
                                 json.dumps(source)
+
+                        vis['visState'] = json.dumps(vis_state)
 
                         with open(os.path.join(vis_dir, vis.meta.id) +
                                   '.json', 'w') as f:

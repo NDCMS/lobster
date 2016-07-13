@@ -88,9 +88,6 @@ class ElkInterface(Configurable):
         with PartiallyMutable.unlock():
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
-            self.end_time = None
-
-        self.update_links()
 
     def create(self):
         logger.info("checking Elasticsearch client")
@@ -116,10 +113,16 @@ class ElkInterface(Configurable):
 
     def end(self):
         logger.info("ending ELK monitoring")
+        self.set_end_time()
 
+    def set_end_time(self):
         with PartiallyMutable.unlock():
             self.end_time = datetime.utcnow()
+        self.update_links()
 
+    def reset_end_time(self):
+        with PartiallyMutable.unlock():
+            self.end_time = None
         self.update_links()
 
     def check_client(self):

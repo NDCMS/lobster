@@ -228,8 +228,11 @@ class TaskProvider(object):
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
 
-        if create and self.config.elk:
-            self.config.elk.create()
+        if self.config.elk:
+            if create:
+                self.config.elk.create()
+            else:
+                self.config.elk.reset_end_time()
 
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')

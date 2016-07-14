@@ -18,7 +18,7 @@ class ElkInterface(Configurable):
 
     """
     Enables ELK stack monitoring for the current Lobster run using an existing
-    Elasticsearch instance.
+    Elasticsearch cluster.
 
     Attributs modifiable at runtime:
     * `es_host`
@@ -68,7 +68,8 @@ class ElkInterface(Configurable):
         self.dashboards = dashboards or ['Core']
         self.refresh_interval = refresh_interval
         self.prefix = '[' + self.user + '_' + self.project + ']'
-        self.start_time = datetime.utcnow()
+        self.categories = []
+        self.start_time = None
         self.end_time = None
         self.previous_stats = {}
         self.template_dir = os.path.join(os.path.dirname(
@@ -95,7 +96,11 @@ class ElkInterface(Configurable):
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
 
-    def create(self):
+    def create(self, categories):
+        with PartiallyMutable.unlock():
+            self.start_time = datetime.utcnow()
+            self.categories = categories
+
         logger.info("checking Elasticsearch client")
 
         self.check_client()
@@ -233,7 +238,9 @@ class ElkInterface(Configurable):
                         vis_state = json.loads(vis['visState'])
                         vis_state['title'] = vis['title']
 
-                        if not vis_state['type'] == 'markdown':
+                        if vis_state['type'] == 'markdown':
+                            vis_state['params']['markdown'] = "text goes here"
+                        else:
                             source = json.loads(
                                 vis.kibanaSavedObjectMeta.searchSourceJSON)
                             source['index'] = source['index'].replace(
@@ -304,12 +311,12 @@ class ElkInterface(Configurable):
                     with open(os.path.join(vis_dir, vis_path)) as f:
                         vis = json.load(f)
 
+                    vis['title'] = vis['title'] \
+                        .replace('[template]', self.prefix)
+
                     vis_state = json.loads(vis['visState'])
 
                     if not vis_state['type'] == 'markdown':
-                        vis['title'] = vis['title'] \
-                            .replace('[template]', self.prefix)
-
                         source = json.loads(
                             vis['kibanaSavedObjectMeta']['searchSourceJSON'])
 
@@ -330,9 +337,8 @@ class ElkInterface(Configurable):
         self.update_links()
 
     def update_links(self):
-        logger.debug("generating dashboard link widget")
-        links_text = "###{0}'s {1} dashboards\n" \
-            .format(self.user, self.project)
+        logger.debug("generating dashboard links")
+        dash_links = {}
         try:
             dash_dir = os.path.join(self.template_dir, 'dash')
             for name in self.dashboards:
@@ -352,39 +358,98 @@ class ElkInterface(Configurable):
                          "absolute,to:'{4}Z'))")
                         .format(self.kib_host, self.kib_port, dash_id,
                                 self.start_time, self.end_time),
-                        safe='/:!?,=#')
+                        safe='/:!?,&=#')
                 else:
                     link = requests.utils.quote(
                         ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                         "?_g=(refreshInterval:(display:'" +
-                         str(self.refresh_interval) + " seconds',pause:!f," +
-                         "section:2,value:900000),time:(from:'{3}Z'," +
+                         "?_g=(refreshInterval:(display:'{3} seconds'," +
+                         "pause:!f,section:2,value:{4}),time:(from:'{5}Z'," +
                          "mode:absolute,to:now))")
                         .format(self.kib_host, self.kib_port, dash_id,
+                                self.refresh_interval,
+                                self.refresh_interval*1e3,
                                 self.start_time),
-                        safe='/:!?,=#')
+                        safe='/:!?,&=#')
 
                 logger.info("Kibana " + name + " dashboard at " + link)
-
-                links_text += "- [" + dash['title'] + "](" + link + ")\n"
-
-            with open(os.path.join(self.template_dir, 'vis',
-                                   '[template]-Dashboard-Links') + '.json',
-                      'r') as f:
-                links_vis = json.load(f)
-
-            links_vis['title'] = links_vis['title'].replace(
-                '[template]', self.prefix)
-
-            links_state = json.loads(links_vis['visState'])
-            links_state['params']['markdown'] = links_text
-            links_vis['visState'] = json.dumps(links_state)
-
-            self.client.index(index='.kibana', doc_type='visualization',
-                              id=self.prefix + "-Dashboard-Links",
-                              body=links_vis)
+                dash_links[name] = link
         except Exception as e:
             logger.error(e)
+
+        logger.debug("generating dashboard link widget")
+        try:
+            dash_links_text = "###{0}'s {1} dashboards\n" \
+                .format(self.user, self.project)
+
+            for name in dash_links:
+                dash_links_text += "- [{0}]({1})\n" \
+                    .format(name, dash_links[name])
+
+            with open(os.path.join(self.template_dir, 'vis',
+                                   '[template]-Dashboard-links') + '.json',
+                      'r') as f:
+                dash_links_vis = json.load(f)
+
+            dash_links_vis['title'] = dash_links_vis['title'].replace(
+                '[template]', self.prefix)
+
+            dash_links_state = json.loads(dash_links_vis['visState'])
+            dash_links_state['params']['markdown'] = dash_links_text
+            dash_links_vis['visState'] = json.dumps(dash_links_state)
+
+            self.client.index(index='.kibana', doc_type='visualization',
+                              id=self.prefix + "-Dashboard-links",
+                              body=dash_links_vis)
+        except Exception as e:
+            logger.error(e)
+
+        for name in dash_links:
+            logger.debug("generating " + name + " category link widget")
+            try:
+                cat_links_text = "###{0} category filters\n".format(name)
+
+                all_filter = requests.utils.quote(
+                    "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
+                    "'(_missing_:category) OR category:all')))",
+                    safe='/:!?,&=#')
+                cat_links_text += "- [{0}]({1})\n" \
+                    .format('all', dash_links[name] + all_filter)
+
+                # FIXME: self.categories is empty when run ends or when
+                # elkupdate is called?
+                for category in self.categories:
+                    cat_filter = requests.utils.quote(
+                        ("&_a=(query:(query_string:(analyze_wildcard:!t," +
+                         "query:'(_missing_:Task.category AND " +
+                         "_missing_:TaskUpdate AND _missing_:category) " +
+                         "OR category:{0} OR Task.category:{0}')))")
+                        .format(category), safe='/:!?,&=#')
+
+                    cat_links_text += "- [{0}]({1})\n" \
+                        .format(category, dash_links[name] + cat_filter)
+
+                with open(os.path.join(self.template_dir, 'vis',
+                                       '[template]-{0}-category-links'
+                                       .format(name)) + '.json',
+                          'r') as f:
+                    cat_links_vis = json.load(f)
+
+                cat_links_vis['title'] = cat_links_vis['title'].replace(
+                    '[template]', self.prefix)
+
+                cat_links_state = json.loads(cat_links_vis['visState'])
+                cat_links_state['params']['markdown'] = cat_links_text
+                cat_links_vis['visState'] = json.dumps(cat_links_state)
+
+                self.client.index(index='.kibana', doc_type='visualization',
+                                  id='{0}-{1}-category-links'
+                                  .format(self.prefix, name),
+                                  body=cat_links_vis)
+            except Exception as e:
+                logger.error(e)
+
+        # to add a query to dashboard, add this to the end of the link:
+        # &_a=(query:(query_string:(analyze_wildcard:!t,query:'QUERYTEXT')))
 
     def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)
@@ -405,7 +470,7 @@ class ElkInterface(Configurable):
         logger.info("deleting Elasticsearch indices with prefix " +
                     self.prefix)
         try:
-            self.client.indices.delete(index=self.prefix + '_*')
+            self.client.indices.delete(index=self.prefix + '*')
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
@@ -430,7 +495,7 @@ class ElkInterface(Configurable):
     def index_task(self, task):
         logger.debug("parsing Task object")
         try:
-            task = self.dictify(task, skip=('_task', 'command'))
+            task = self.dictify(task, skip=('_task'))
 
             task['resources_requested'] = self.dictify(
                 task['resources_requested'], skip=('this'))
@@ -472,6 +537,7 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
+        # FIXME: doesn't appear to work
         logger.debug("checking Task for fatal exception")
         try:
             task_log = task.pop('output')

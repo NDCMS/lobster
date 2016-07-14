@@ -230,7 +230,8 @@ class TaskProvider(object):
 
         if self.config.elk:
             if create:
-                self.config.elk.create()
+                categories = {wflow.category.name for wflow in self.config.workflows}
+                self.config.elk.create(categories)
             else:
                 self.config.elk.reset_end_time()
 

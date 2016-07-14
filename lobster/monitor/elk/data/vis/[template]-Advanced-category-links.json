@@ -1,0 +1,10 @@
+{
+    "visState": "{\"params\": {\"markdown\": \"text goes here\"}, \"listeners\": {}, \"type\": \"markdown\", \"aggs\": [], \"title\": \"[template] Advanced category links\"}", 
+    "description": "", 
+    "title": "[template] Advanced category links", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}},\"filter\":[]}"
+    }
+}

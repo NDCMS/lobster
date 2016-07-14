@@ -350,28 +350,27 @@ class ElkInterface(Configurable):
                 dash['title'] = dash['title'] \
                     .replace('[template]', self.prefix)
 
+                link_prefix = "http://{0}:{1}/app/" \
+                    .format(self.kib_host, self.kib_port)
+
                 if self.end_time:
                     link = requests.utils.quote(
-                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                         "?_g=(refreshInterval:(display:Off,pause:!f," +
-                         "section:0,value:0),time:(from:'{3}Z',mode:" +
-                         "absolute,to:'{4}Z'))")
-                        .format(self.kib_host, self.kib_port, dash_id,
-                                self.start_time, self.end_time),
+                        ("kibana#/dashboard/{0}?_g=(refreshInterval:" +
+                         "(display:Off,pause:!f,section:0,value:0),time:" +
+                         "(from:'{1}Z',mode:absolute,to:'{2}Z'))")
+                        .format(dash_id, self.start_time, self.end_time),
                         safe='/:!?,&=#')
                 else:
                     link = requests.utils.quote(
-                        ("http://{0}:{1}/app/kibana#/dashboard/{2}" +
-                         "?_g=(refreshInterval:(display:'{3} seconds'," +
-                         "pause:!f,section:2,value:{4}),time:(from:'{5}Z'," +
-                         "mode:absolute,to:now))")
-                        .format(self.kib_host, self.kib_port, dash_id,
-                                self.refresh_interval,
-                                self.refresh_interval*1e3,
-                                self.start_time),
+                        ("kibana#/dashboard/{2}?_g=(refreshInterval:" +
+                         "(display:'{3} seconds', pause:!f,section:2," +
+                         "value:{4}),time:(from:'{5}Z',mode:absolute,to:now))")
+                        .format(dash_id, self.refresh_interval,
+                                self.refresh_interval * 1e3, self.start_time),
                         safe='/:!?,&=#')
 
-                logger.info("Kibana " + name + " dashboard at " + link)
+                logger.info("Kibana " + name + " dashboard at " +
+                            link_prefix + link)
                 dash_links[name] = link
         except Exception as e:
             logger.error(e)
@@ -538,9 +537,14 @@ class ElkInterface(Configurable):
             logger.error(e)
 
         # FIXME: doesn't appear to work
-        logger.debug("checking Task for fatal exception")
+        logger.debug("parsing Task output")
         try:
             task_log = task.pop('output')
+            task['output'] = requests.utils.quote(
+                ("kibana#/doc/{0}_lobster_tasks/" +
+                 "{0}_lobster_tasks_output/output?id={1}")
+                .format(self.prefix, task['id']),
+                safe='/:!?,&=#')
 
             e_p = re.compile(
                 r"Begin Fatal Exception([\s\S]*)End Fatal Exception")
@@ -549,6 +553,7 @@ class ElkInterface(Configurable):
             if e_match:
                 logger.debug("parsing fatal exception")
 
+                task['fatal_exception'] = {}
                 task['fatal_exception']['message'] = e_match.group(1)
 
                 e_cat_p = re.compile(r"'(.*)'")
@@ -562,13 +567,18 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
-        logger.debug("sending Task document to Elasticsearch")
+        logger.debug("sending Task documents to Elasticsearch")
         try:
-            upsert_doc = {'doc': {'Task': task},
-                          'doc_as_upsert': True}
+            task_doc = {'doc': {'Task': task},
+                        'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task['id'],
-                               body=upsert_doc)
+                               body=task_doc)
+
+            output_doc = {'doc': task_log}
+            self.client.index(index=self.prefix + '_lobster_tasks_output',
+                              doc_type='output', id=task['id'],
+                              body=output_doc)
         except Exception as e:
             logger.error(e)
 
@@ -687,12 +697,12 @@ class ElkInterface(Configurable):
 
         logger.debug("sending TaskUpdate document to Elasticsearch")
         try:
-            upsert_doc = {'doc': {'TaskUpdate': task_update,
-                                  'timestamp': task_update['time_retrieved']},
-                          'doc_as_upsert': True}
+            doc = {'doc': {'TaskUpdate': task_update,
+                           'timestamp': task_update['time_retrieved']},
+                   'doc_as_upsert': True}
             self.client.update(index=self.prefix + '_lobster_tasks',
                                doc_type='task', id=task_update['id'],
-                               body=upsert_doc)
+                               body=doc)
         except Exception as e:
             logger.error(e)
 

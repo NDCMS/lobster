@@ -174,7 +174,8 @@ class ElkInterface(Configurable):
 
                 with open(os.path.join(index_dir, index.meta.id) + '.json',
                           'w') as f:
-                    f.write(json.dumps(index.to_dict(), indent=4))
+                    f.write(json.dumps(index.to_dict(), indent=4,
+                            sort_keys=True))
                     f.write('\n')
         except Exception as e:
             logger.error(e)
@@ -206,11 +207,12 @@ class ElkInterface(Configurable):
                         vis_ids.append(panel['id'])
                         panel['id'] = panel['id'].replace(
                             self.prefix, '[template]')
-                    dash.panelsJSON = json.dumps(dash_panels)
+                    dash.panelsJSON = json.dumps(dash_panels, sort_keys=True)
 
                     with open(os.path.join(dash_dir, dash.meta.id) + '.json',
                               'w') as f:
-                        f.write(json.dumps(dash.to_dict(), indent=4))
+                        f.write(json.dumps(dash.to_dict(), indent=4,
+                                           sort_keys=True))
                         f.write('\n')
             except Exception as e:
                 logger.error(e)
@@ -246,13 +248,14 @@ class ElkInterface(Configurable):
                             source['index'] = source['index'].replace(
                                 self.prefix, '[template]')
                             vis.kibanaSavedObjectMeta.searchSourceJSON = \
-                                json.dumps(source)
+                                json.dumps(source, sort_keys=True)
 
-                        vis['visState'] = json.dumps(vis_state)
+                        vis['visState'] = json.dumps(vis_state, sort_keys=True)
 
                         with open(os.path.join(vis_dir, vis.meta.id) +
                                   '.json', 'w') as f:
-                            f.write(json.dumps(vis.to_dict(), indent=4))
+                            f.write(json.dumps(vis.to_dict(), indent=4,
+                                               sort_keys=True))
                             f.write('\n')
                 except Exception as e:
                     logger.error(e)
@@ -295,7 +298,7 @@ class ElkInterface(Configurable):
                     vis_paths.append(panel['id'] + '.json')
                     panel['id'] = panel['id'] \
                         .replace('[template]', self.prefix)
-                dash['panelsJSON'] = json.dumps(dash_panels)
+                dash['panelsJSON'] = json.dumps(dash_panels, sort_keys=True)
 
                 dash_id = dash_path.replace('[template]', self.prefix)[:-5]
 
@@ -323,7 +326,7 @@ class ElkInterface(Configurable):
                         source['index'] = source['index'] \
                             .replace('[template]', self.prefix)
                         vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
-                            json.dumps(source)
+                            json.dumps(source, sort_keys=True)
 
                     vis_id = \
                         vis_path.replace('[template]', self.prefix)[:-5]
@@ -372,6 +375,9 @@ class ElkInterface(Configurable):
                 logger.info("Kibana " + name + " dashboard at " +
                             link_prefix + link)
                 dash_links[name] = link
+
+            # TODO: generate link to here and append to dashboard link vis: http://elk.crc.nd.edu:5601/app/kibana#/discover?_g=(refreshInterval:(display:'30%20seconds',pause:!t,section:2,value:30000),time:(from:now-15m,mode:quick,to:now))&_a=(columns:!(Task.id,TaskUpdate.exit_code,Task.output),filters:!(),index:%5Bayannako_elk_v3%5D_lobster_tasks,interval:auto,query:(query_string:(analyze_wildcard:!t,query:'!!TaskUpdate.exit_code:0')),sort:!(_score,desc))&indexPattern=%5Ball%5D_campus_bandwidth&type=histogram
+
         except Exception as e:
             logger.error(e)
 
@@ -394,7 +400,8 @@ class ElkInterface(Configurable):
 
             dash_links_state = json.loads(dash_links_vis['visState'])
             dash_links_state['params']['markdown'] = dash_links_text
-            dash_links_vis['visState'] = json.dumps(dash_links_state)
+            dash_links_vis['visState'] = json.dumps(dash_links_state,
+                                                    sort_keys=True)
 
             self.client.index(index='.kibana', doc_type='visualization',
                               id=self.prefix + "-Dashboard-links",
@@ -438,7 +445,8 @@ class ElkInterface(Configurable):
 
                 cat_links_state = json.loads(cat_links_vis['visState'])
                 cat_links_state['params']['markdown'] = cat_links_text
-                cat_links_vis['visState'] = json.dumps(cat_links_state)
+                cat_links_vis['visState'] = json.dumps(cat_links_state,
+                                                       sort_keys=True)
 
                 self.client.index(index='.kibana', doc_type='visualization',
                                   id='{0}-{1}-category-links'

@@ -365,11 +365,12 @@ class ElkInterface(Configurable):
                         safe='/:!?,&=#')
                 else:
                     link = requests.utils.quote(
-                        ("kibana#/dashboard/{2}?_g=(refreshInterval:" +
-                         "(display:'{3} seconds', pause:!f,section:2," +
-                         "value:{4}),time:(from:'{5}Z',mode:absolute,to:now))")
+                        ("kibana#/dashboard/{0}?_g=(refreshInterval:" +
+                         "(display:'{1} seconds',pause:!f,section:2," +
+                         "value:{2}),time:(from:'{3}Z',mode:absolute,to:now))")
                         .format(dash_id, self.refresh_interval,
-                                self.refresh_interval * 1e3, self.start_time),
+                                int(self.refresh_interval * 1e3),
+                                self.start_time),
                         safe='/:!?,&=#')
 
                 logger.info("Kibana " + name + " dashboard at " +
@@ -727,6 +728,12 @@ class ElkInterface(Configurable):
                 [getattr(stats, a) for a in log_attributes] + [category]
 
             stats = dict(zip(keys, values))
+
+            stats['committed_memory_GB'] = stats['committed_memory'] / 1024.0
+            stats['total_memory_GB'] = stats['total_memory'] / 1024.0
+
+            stats['committed_disk_GB'] = stats['committed_disk'] / 1024.0
+            stats['total_disk_GB'] = stats['total_disk'] / 1024.0
 
             stats['start_time'] = datetime.utcfromtimestamp(
                 float(str(stats['start_time'])[:10]))

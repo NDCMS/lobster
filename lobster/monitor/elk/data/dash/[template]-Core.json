@@ -1,13 +1,13 @@
 {
-    "hits": 0, 
-    "timeRestore": false, 
     "description": "", 
-    "title": "[template] Core", 
-    "uiStateJSON": "{}", 
-    "panelsJSON": "[{\"type\": \"visualization\", \"id\": \"[template]-Failed-task-exit-codes-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 1, \"col\": 8, \"row\": 4}, {\"type\": \"visualization\", \"id\": \"[template]-Task-status-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 2, \"col\": 8, \"row\": 1}, {\"type\": \"visualization\", \"id\": \"[template]-Tasks-running-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 3, \"col\": 3, \"row\": 1}, {\"type\": \"visualization\", \"id\": \"[template]-Worker-status-vs.-time\", \"size_x\": 5, \"size_y\": 3, \"panelIndex\": 4, \"col\": 3, \"row\": 4}, {\"type\": \"visualization\", \"id\": \"[template]-Core-category-links\", \"size_x\": 2, \"size_y\": 3, \"panelIndex\": 6, \"col\": 1, \"row\": 4}, {\"type\": \"visualization\", \"id\": \"[template]-Dashboard-links\", \"size_x\": 2, \"size_y\": 3, \"panelIndex\": 7, \"col\": 1, \"row\": 1}]", 
-    "optionsJSON": "{\"darkTheme\":false}", 
-    "version": 1, 
+    "hits": 0, 
     "kibanaSavedObjectMeta": {
         "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true}}}]}"
-    }
+    }, 
+    "optionsJSON": "{\"darkTheme\":false}", 
+    "panelsJSON": "[{\"col\": 8, \"id\": \"[template]-Failed-task-exit-codes-vs.-time\", \"panelIndex\": 1, \"row\": 4, \"size_x\": 5, \"size_y\": 3, \"type\": \"visualization\"}, {\"col\": 8, \"id\": \"[template]-Task-status-vs.-time\", \"panelIndex\": 2, \"row\": 1, \"size_x\": 5, \"size_y\": 3, \"type\": \"visualization\"}, {\"col\": 3, \"id\": \"[template]-Tasks-running-vs.-time\", \"panelIndex\": 3, \"row\": 1, \"size_x\": 5, \"size_y\": 3, \"type\": \"visualization\"}, {\"col\": 3, \"id\": \"[template]-Worker-status-vs.-time\", \"panelIndex\": 4, \"row\": 4, \"size_x\": 5, \"size_y\": 3, \"type\": \"visualization\"}, {\"col\": 1, \"id\": \"[template]-Core-category-links\", \"panelIndex\": 6, \"row\": 4, \"size_x\": 2, \"size_y\": 3, \"type\": \"visualization\"}, {\"col\": 1, \"id\": \"[template]-Dashboard-links\", \"panelIndex\": 7, \"row\": 1, \"size_x\": 2, \"size_y\": 3, \"type\": \"visualization\"}]", 
+    "timeRestore": false, 
+    "title": "[template] Core", 
+    "uiStateJSON": "{}", 
+    "version": 1
 }

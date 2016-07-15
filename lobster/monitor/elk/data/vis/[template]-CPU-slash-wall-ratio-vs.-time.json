@@ -1,10 +1,10 @@
 {
-    "visState": "{\"params\": {\"scale\": \"linear\", \"yAxis\": {}, \"addTimeMarker\": false, \"times\": [], \"shareYAxis\": true, \"mode\": \"stacked\", \"defaultYExtents\": false, \"setYExtents\": false, \"addTooltip\": true, \"addLegend\": true}, \"listeners\": {}, \"type\": \"histogram\", \"aggs\": [{\"params\": {\"field\": \"Task.resources_measured.cpu_wall_ratio\", \"customLabel\": \"CPU/wall ratio\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}], \"title\": \"[template] CPU/wall ratio vs. time\"}", 
     "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+    }, 
     "title": "[template] CPU/wall ratio vs. time", 
     "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
     "version": 1, 
-    "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
-    }
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"CPU/wall ratio\", \"field\": \"Task.resources_measured.cpu_wall_ratio\"}, \"schema\": \"metric\", \"type\": \"avg\"}, {\"id\": \"2\", \"params\": {\"customInterval\": \"2h\", \"extended_bounds\": {}, \"field\": \"timestamp\", \"interval\": \"auto\", \"min_doc_count\": 1}, \"schema\": \"segment\", \"type\": \"date_histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] CPU/wall ratio vs. time\", \"type\": \"histogram\"}"
 }

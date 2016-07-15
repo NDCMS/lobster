@@ -1,10 +1,10 @@
 {
-    "visState": "{\"params\": {\"scale\": \"linear\", \"showCircles\": true, \"yAxis\": {}, \"smoothLines\": false, \"addTimeMarker\": false, \"interpolate\": \"linear\", \"addLegend\": true, \"shareYAxis\": true, \"radiusRatio\": 9, \"drawLinesBetweenPoints\": true, \"defaultYExtents\": false, \"setYExtents\": false, \"addTooltip\": true, \"times\": []}, \"listeners\": {}, \"type\": \"line\", \"aggs\": [{\"params\": {\"field\": \"units_left\", \"customLabel\": \"units left\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}], \"title\": \"[template] Units left vs. time\"}", 
     "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+    }, 
     "title": "[template] Units left vs. time", 
     "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
     "version": 1, 
-    "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
-    }
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"units left\", \"field\": \"units_left\"}, \"schema\": \"metric\", \"type\": \"avg\"}, {\"id\": \"2\", \"params\": {\"customInterval\": \"2h\", \"extended_bounds\": {}, \"field\": \"timestamp\", \"interval\": \"auto\", \"min_doc_count\": 1}, \"schema\": \"segment\", \"type\": \"date_histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"drawLinesBetweenPoints\": true, \"interpolate\": \"linear\", \"radiusRatio\": 9, \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"showCircles\": true, \"smoothLines\": false, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Units left vs. time\", \"type\": \"line\"}"
 }

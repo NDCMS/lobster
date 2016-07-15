@@ -1,10 +1,10 @@
 {
-    "visState": "{\"params\": {\"markdown\": \"text goes here\"}, \"listeners\": {}, \"type\": \"markdown\", \"aggs\": [], \"title\": \"[template] Advanced category links\"}", 
     "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}},\"filter\":[]}"
+    }, 
     "title": "[template] Advanced category links", 
     "uiStateJSON": "{}", 
     "version": 1, 
-    "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}},\"filter\":[]}"
-    }
+    "visState": "{\"aggs\": [], \"listeners\": {}, \"params\": {\"markdown\": \"text goes here\"}, \"title\": \"[template] Advanced category links\", \"type\": \"markdown\"}"
 }

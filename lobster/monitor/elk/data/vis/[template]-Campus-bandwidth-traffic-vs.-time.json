@@ -1,10 +1,10 @@
 {
-    "visState": "{\"params\": {\"scale\": \"linear\", \"showCircles\": true, \"yAxis\": {}, \"smoothLines\": false, \"addTimeMarker\": false, \"interpolate\": \"linear\", \"addLegend\": true, \"shareYAxis\": true, \"radiusRatio\": 9, \"drawLinesBetweenPoints\": true, \"defaultYExtents\": false, \"setYExtents\": false, \"addTooltip\": true, \"times\": []}, \"listeners\": {}, \"type\": \"line\", \"aggs\": [{\"params\": {\"field\": \"bandwidth_traffic_in.megabit_second\", \"customLabel\": \"MB/s in\"}, \"type\": \"avg\", \"id\": \"1\", \"schema\": \"metric\"}, {\"params\": {\"customInterval\": \"2h\", \"field\": \"timestamp\", \"interval\": \"auto\", \"extended_bounds\": {}, \"min_doc_count\": 1}, \"type\": \"date_histogram\", \"id\": \"2\", \"schema\": \"segment\"}, {\"params\": {\"field\": \"bandwidth_traffic_out.megabit_second\", \"customLabel\": \"MB/s out\"}, \"type\": \"avg\", \"id\": \"3\", \"schema\": \"metric\"}], \"title\": \"[template] Campus bandwidth traffic vs. time\"}", 
     "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[all]_campus_bandwidth\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+    }, 
     "title": "[template] Campus bandwidth traffic vs. time", 
     "uiStateJSON": "{}", 
     "version": 1, 
-    "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[all]_campus_bandwidth\", \"query\": {\"query_string\": {\"query\": \"*\", \"analyze_wildcard\": true}}}"
-    }
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"in / MB/s\", \"field\": \"bandwidth_traffic_in.megabit_second\"}, \"schema\": \"metric\", \"type\": \"avg\"}, {\"id\": \"2\", \"params\": {\"customInterval\": \"2h\", \"extended_bounds\": {}, \"field\": \"timestamp\", \"interval\": \"auto\", \"min_doc_count\": 1}, \"schema\": \"segment\", \"type\": \"date_histogram\"}, {\"id\": \"3\", \"params\": {\"customLabel\": \"out / MB/s\", \"field\": \"bandwidth_traffic_out.megabit_second\"}, \"schema\": \"metric\", \"type\": \"avg\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"drawLinesBetweenPoints\": true, \"interpolate\": \"linear\", \"radiusRatio\": 9, \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"showCircles\": true, \"smoothLines\": false, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Campus bandwidth traffic vs. time\", \"type\": \"line\"}"
 }

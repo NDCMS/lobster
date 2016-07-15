@@ -430,8 +430,8 @@ class ElkInterface(Configurable):
                     "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
                     "'(_missing_:category) OR category:all')))",
                     safe='/:!?,&=#')
-                links_text += "- [all]({0})\n" \
-                    .format(dash_links[name] + all_filter)
+                links_text += "- [all]({0}?{1})\n" \
+                    .format(dash_links[name], all_filter)
 
                 # FIXME: self.categories is empty when run ends or when
                 # elkupdate is called?
@@ -469,9 +469,6 @@ class ElkInterface(Configurable):
                                   body=links_vis)
             except Exception as e:
                 logger.error(e)
-
-        # to add a query to dashboard, add this to the end of the link:
-        # &_a=(query:(query_string:(analyze_wildcard:!t,query:'QUERYTEXT')))
 
     def delete_kibana(self):
         logger.info("deleting Kibana objects with prefix " + self.prefix)

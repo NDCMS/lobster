@@ -1,0 +1,10 @@
+{
+    "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"query\":\"*\"}},\"filter\":[]}"
+    }, 
+    "title": "[template] Core links", 
+    "uiStateJSON": "{}", 
+    "version": 1, 
+    "visState": "{\"aggs\": [], \"listeners\": {}, \"params\": {\"markdown\": \"text goes here\"}, \"title\": \"[template] Core links\", \"type\": \"markdown\"}"
+}

@@ -175,7 +175,7 @@ class ElkInterface(Configurable):
                 with open(os.path.join(index_dir, index.meta.id) + '.json',
                           'w') as f:
                     f.write(json.dumps(index.to_dict(), indent=4,
-                            sort_keys=True))
+                                       sort_keys=True))
                     f.write('\n')
         except Exception as e:
             logger.error(e)
@@ -377,8 +377,6 @@ class ElkInterface(Configurable):
                             link_prefix + link)
                 dash_links[name] = link
 
-            # TODO: generate link to here and append to dashboard link vis: http://elk.crc.nd.edu:5601/app/kibana#/discover?_g=(refreshInterval:(display:'30%20seconds',pause:!t,section:2,value:30000),time:(from:now-15m,mode:quick,to:now))&_a=(columns:!(Task.id,TaskUpdate.exit_code,Task.output),filters:!(),index:%5Bayannako_elk_v3%5D_lobster_tasks,interval:auto,query:(query_string:(analyze_wildcard:!t,query:'!!TaskUpdate.exit_code:0')),sort:!(_score,desc))&indexPattern=%5Ball%5D_campus_bandwidth&type=histogram
-
         except Exception as e:
             logger.error(e)
 
@@ -391,8 +389,39 @@ class ElkInterface(Configurable):
                 dash_links_text += "- [{0}]({1})\n" \
                     .format(name, dash_links[name])
 
+            dash_links_text += "\n###Additional links\n"
+
+            if self.end_time:
+                task_log_link = requests.utils.quote(
+                    ("kibana#/discover?_g=(refreshInterval:" +
+                     "(display:Off,pause:!f,section:0,value:0),time:" +
+                     "(from:'{0}Z',mode:absolute,to:'{1}Z'))&_a=(columns:" +
+                     "!(Task.id,TaskUpdate.exit_code,Task.output),index:" +
+                     "{2}_lobster_tasks,interval:auto,query:(query_string:" +
+                     "(analyze_wildcard:!t,query:'!!TaskUpdate.exit_code:0'" +
+                     ")),sort:!(_score,desc))")
+                    .format(self.start_time, self.end_time,
+                            self.prefix),
+                    safe='/:!?,&=#')
+            else:
+                task_log_link = requests.utils.quote(
+                    ("kibana#/discover?_g=(refreshInterval:" +
+                     "(display:'{0} seconds',pause:!f,section:2," +
+                     "value:{1}),time:(from:'{2}Z',mode:absolute,to:now))" +
+                     "&_a=(columns:!(Task.id,TaskUpdate.exit_code," +
+                     "Task.output),index:{3}_lobster_tasks,interval:auto," +
+                     "query:(query_string:(analyze_wildcard:!t,query:" +
+                     "'!!TaskUpdate.exit_code:0')),sort:!(_score,desc))")
+                    .format(self.refresh_interval,
+                            int(self.refresh_interval * 1e3),
+                            self.start_time, self.prefix),
+                    safe='/:!?,&=#')
+
+            dash_links_text += "- [{0}]({1})\n" \
+                .format('Failed task logs', task_log_link)
+
             with open(os.path.join(self.template_dir, 'vis',
-                                   '[template]-Dashboard-links') + '.json',
+                                   '[template]-Links') + '.json',
                       'r') as f:
                 dash_links_vis = json.load(f)
 
@@ -405,7 +434,7 @@ class ElkInterface(Configurable):
                                                     sort_keys=True)
 
             self.client.index(index='.kibana', doc_type='visualization',
-                              id=self.prefix + "-Dashboard-links",
+                              id=self.prefix + "-Links",
                               body=dash_links_vis)
         except Exception as e:
             logger.error(e)
@@ -436,7 +465,7 @@ class ElkInterface(Configurable):
                         .format(category, dash_links[name] + cat_filter)
 
                 with open(os.path.join(self.template_dir, 'vis',
-                                       '[template]-{0}-category-links'
+                                       '[template]-{0}-category-filters'
                                        .format(name)) + '.json',
                           'r') as f:
                     cat_links_vis = json.load(f)
@@ -450,7 +479,7 @@ class ElkInterface(Configurable):
                                                        sort_keys=True)
 
                 self.client.index(index='.kibana', doc_type='visualization',
-                                  id='{0}-{1}-category-links'
+                                  id='{0}-{1}-category-filters'
                                   .format(self.prefix, name),
                                   body=cat_links_vis)
             except Exception as e:

@@ -45,7 +45,7 @@ class ElkInterface(Configurable):
         dashboards : list
             List of dashboards to include from the Kibana templates. Defaults
             to including only the core dashboard. Available dashboards: Core,
-            Advanced.
+            Advanced, Tasks.
         refresh_interval : int
             Refresh interval for Kibana dashboards, in seconds. Defaults to
             300 seconds = 5 minutes.
@@ -342,6 +342,26 @@ class ElkInterface(Configurable):
         logger.debug("generating dashboard links")
         dash_links = {}
         try:
+            link_prefix = "http://{0}:{1}/app/" \
+                .format(self.kib_host, self.kib_port)
+
+            if self.end_time:
+                time_filter = requests.utils.quote(
+                    ("_g=(refreshInterval:" +
+                     "(display:Off,pause:!f,section:0,value:0),time:" +
+                     "(from:'{0}Z',mode:absolute,to:'{1}Z'))")
+                    .format(self.start_time, self.end_time),
+                    safe='/:!?,&=#')
+            else:
+                time_filter = requests.utils.quote(
+                    ("_g=(refreshInterval:" +
+                     "(display:'{0} seconds',pause:!f,section:2," +
+                     "value:{1}),time:(from:'{2}Z',mode:absolute,to:now))")
+                    .format(self.refresh_interval,
+                            int(self.refresh_interval * 1e3),
+                            self.start_time),
+                    safe='/:!?,&=#')
+
             dash_dir = os.path.join(self.template_dir, 'dash')
             for name in self.dashboards:
                 dash_path = '[template]-{}.json'.format(name)
@@ -352,135 +372,101 @@ class ElkInterface(Configurable):
                 dash['title'] = dash['title'] \
                     .replace('[template]', self.prefix)
 
-                link_prefix = "http://{0}:{1}/app/" \
-                    .format(self.kib_host, self.kib_port)
-
-                if self.end_time:
-                    link = requests.utils.quote(
-                        ("kibana#/dashboard/{0}?_g=(refreshInterval:" +
-                         "(display:Off,pause:!f,section:0,value:0),time:" +
-                         "(from:'{1}Z',mode:absolute,to:'{2}Z'))")
-                        .format(dash_id, self.start_time, self.end_time),
-                        safe='/:!?,&=#')
-                else:
-                    link = requests.utils.quote(
-                        ("kibana#/dashboard/{0}?_g=(refreshInterval:" +
-                         "(display:'{1} seconds',pause:!f,section:2," +
-                         "value:{2}),time:(from:'{3}Z',mode:absolute,to:now))")
-                        .format(dash_id, self.refresh_interval,
-                                int(self.refresh_interval * 1e3),
-                                self.start_time),
-                        safe='/:!?,&=#')
-
-                logger.info("Kibana " + name + " dashboard at " +
-                            link_prefix + link)
+                link = requests.utils.quote(
+                    "kibana#/dashboard/{0}".format(dash_id),
+                    safe='/:!?,&=#')
+                logger.info("Kibana {0} dashboard at {1}{2}?{3}" \
+                    .format(name, link_prefix, link, time_filter))
                 dash_links[name] = link
 
         except Exception as e:
             logger.error(e)
 
-        logger.debug("generating dashboard link widget")
+        logger.debug("generating shared link widget")
         try:
-            dash_links_text = "###{0}'s {1} dashboards\n" \
+            shared_links_text = "####Dashboards\n" \
                 .format(self.user, self.project)
 
             for name in dash_links:
-                dash_links_text += "- [{0}]({1})\n" \
+                shared_links_text += "- [{0}]({1})\n" \
                     .format(name, dash_links[name])
 
-            dash_links_text += "\n###Additional links\n"
-
-            if self.end_time:
-                task_log_link = requests.utils.quote(
-                    ("kibana#/discover?_g=(refreshInterval:" +
-                     "(display:Off,pause:!f,section:0,value:0),time:" +
-                     "(from:'{0}Z',mode:absolute,to:'{1}Z'))&_a=(columns:" +
-                     "!(Task.id,TaskUpdate.exit_code,Task.output),index:" +
-                     "{2}_lobster_tasks,interval:auto,query:(query_string:" +
-                     "(analyze_wildcard:!t,query:'!!TaskUpdate.exit_code:0'" +
-                     ")),sort:!(_score,desc))")
-                    .format(self.start_time, self.end_time,
-                            self.prefix),
-                    safe='/:!?,&=#')
-            else:
-                task_log_link = requests.utils.quote(
-                    ("kibana#/discover?_g=(refreshInterval:" +
-                     "(display:'{0} seconds',pause:!f,section:2," +
-                     "value:{1}),time:(from:'{2}Z',mode:absolute,to:now))" +
-                     "&_a=(columns:!(Task.id,TaskUpdate.exit_code," +
-                     "Task.output),index:{3}_lobster_tasks,interval:auto," +
-                     "query:(query_string:(analyze_wildcard:!t,query:" +
-                     "'!!TaskUpdate.exit_code:0')),sort:!(_score,desc))")
-                    .format(self.refresh_interval,
-                            int(self.refresh_interval * 1e3),
-                            self.start_time, self.prefix),
-                    safe='/:!?,&=#')
-
-            dash_links_text += "- [{0}]({1})\n" \
-                .format('Failed task logs', task_log_link)
+            task_log_link = requests.utils.quote(
+                ("kibana#/discover?_a=(columns:" +
+                 "!(Task.id,TaskUpdate.exit_code,Task.log),index:" +
+                 "{0}_lobster_tasks,interval:auto,query:(query_string:" +
+                 "(analyze_wildcard:!t,query:'!!TaskUpdate.exit_code:0'" +
+                 ")),sort:!(_score,desc))")
+                .format(self.prefix),
+                safe='/:!?,&=#')
+            shared_links_text += "\n####[Failed task logs]({0})\n" \
+                .format(task_log_link)
 
             with open(os.path.join(self.template_dir, 'vis',
                                    '[template]-Links') + '.json',
                       'r') as f:
-                dash_links_vis = json.load(f)
+                shared_links_vis = json.load(f)
 
-            dash_links_vis['title'] = dash_links_vis['title'].replace(
+            shared_links_vis['title'] = shared_links_vis['title'].replace(
                 '[template]', self.prefix)
 
-            dash_links_state = json.loads(dash_links_vis['visState'])
-            dash_links_state['params']['markdown'] = dash_links_text
-            dash_links_vis['visState'] = json.dumps(dash_links_state,
+            shared_links_state = json.loads(shared_links_vis['visState'])
+            shared_links_state['params']['markdown'] = shared_links_text
+            shared_links_vis['visState'] = json.dumps(shared_links_state,
                                                     sort_keys=True)
 
             self.client.index(index='.kibana', doc_type='visualization',
                               id=self.prefix + "-Links",
-                              body=dash_links_vis)
+                              body=shared_links_vis)
         except Exception as e:
             logger.error(e)
 
         for name in dash_links:
-            logger.debug("generating " + name + " category link widget")
+            logger.debug("generating " + name + " link widget")
             try:
-                cat_links_text = "###{0} category filters\n".format(name)
+                links_text = "####Category filters\n".format(name)
 
                 all_filter = requests.utils.quote(
                     "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
                     "'(_missing_:category) OR category:all')))",
                     safe='/:!?,&=#')
-                cat_links_text += "- [{0}]({1})\n" \
-                    .format('all', dash_links[name] + all_filter)
+                links_text += "- [all]({0})\n" \
+                    .format(dash_links[name] + all_filter)
 
                 # FIXME: self.categories is empty when run ends or when
                 # elkupdate is called?
                 for category in self.categories:
                     cat_filter = requests.utils.quote(
-                        ("&_a=(query:(query_string:(analyze_wildcard:!t," +
+                        ("_a=(query:(query_string:(analyze_wildcard:!t," +
                          "query:'(_missing_:Task.category AND " +
                          "_missing_:TaskUpdate AND _missing_:category) " +
                          "OR category:{0} OR Task.category:{0}')))")
                         .format(category), safe='/:!?,&=#')
 
-                    cat_links_text += "- [{0}]({1})\n" \
-                        .format(category, dash_links[name] + cat_filter)
+                    links_text += "- [{0}]({1}?{2})\n" \
+                        .format(category, dash_links[name], cat_filter)
+
+                links_text += "\n####[Reset time range]({0}?{1})\n" \
+                    .format(dash_links[name], time_filter)
 
                 with open(os.path.join(self.template_dir, 'vis',
-                                       '[template]-{0}-category-filters'
+                                       '[template]-{0}-links'
                                        .format(name)) + '.json',
                           'r') as f:
-                    cat_links_vis = json.load(f)
+                    links_vis = json.load(f)
 
-                cat_links_vis['title'] = cat_links_vis['title'].replace(
+                links_vis['title'] = links_vis['title'].replace(
                     '[template]', self.prefix)
 
-                cat_links_state = json.loads(cat_links_vis['visState'])
-                cat_links_state['params']['markdown'] = cat_links_text
-                cat_links_vis['visState'] = json.dumps(cat_links_state,
+                links_state = json.loads(links_vis['visState'])
+                links_state['params']['markdown'] = links_text
+                links_vis['visState'] = json.dumps(links_state,
                                                        sort_keys=True)
 
                 self.client.index(index='.kibana', doc_type='visualization',
-                                  id='{0}-{1}-category-filters'
+                                  id='{0}-{1}-links'
                                   .format(self.prefix, name),
-                                  body=cat_links_vis)
+                                  body=links_vis)
             except Exception as e:
                 logger.error(e)
 
@@ -574,12 +560,12 @@ class ElkInterface(Configurable):
             logger.error(e)
 
         # FIXME: doesn't appear to work
-        logger.debug("parsing Task output")
+        logger.debug("parsing Task log")
         try:
             task_log = task.pop('output')
-            task['output'] = requests.utils.quote(
+            task['log'] = requests.utils.quote(
                 ("kibana#/doc/{0}_lobster_tasks/" +
-                 "{0}_lobster_tasks_output/output?id={1}")
+                 "{0}_lobster_task_logs/log?id={1}")
                 .format(self.prefix, task['id']),
                 safe='/:!?,&=#')
 
@@ -612,10 +598,10 @@ class ElkInterface(Configurable):
                                doc_type='task', id=task['id'],
                                body=task_doc)
 
-            output_doc = {'doc': task_log}
-            self.client.index(index=self.prefix + '_lobster_tasks_output',
-                              doc_type='output', id=task['id'],
-                              body=output_doc)
+            log_doc = {'doc': task_log}
+            self.client.index(index=self.prefix + '_lobster_task_logs',
+                              doc_type='log', id=task['id'],
+                              body=log_doc)
         except Exception as e:
             logger.error(e)
 

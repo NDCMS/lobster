@@ -117,24 +117,23 @@ class ElkInterface(Configurable):
             self.delete_elasticsearch()
 
         self.update_kibana()
-
-    def cleanup(self):
-        self.delete_kibana()
-        self.delete_elasticsearch()
+        logger.info("beginning ELK monitoring")
 
     def end(self):
         logger.info("ending ELK monitoring")
-        self.set_end_time()
-
-    def set_end_time(self):
         with PartiallyMutable.unlock():
             self.end_time = datetime.utcnow()
         self.update_links()
 
-    def reset_end_time(self):
+    def resume(self):
+        logger.info("resuming ELK monitoring")
         with PartiallyMutable.unlock():
             self.end_time = None
         self.update_links()
+
+    def cleanup(self):
+        self.delete_kibana()
+        self.delete_elasticsearch()
 
     def check_client(self):
         try:

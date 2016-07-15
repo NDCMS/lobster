@@ -233,7 +233,7 @@ class TaskProvider(object):
                 categories = {wflow.category.name for wflow in self.config.workflows}
                 self.config.elk.create(categories)
             else:
-                self.config.elk.reset_end_time()
+                self.config.elk.resume()
 
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')

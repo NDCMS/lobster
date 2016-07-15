@@ -375,8 +375,8 @@ class ElkInterface(Configurable):
                 link = requests.utils.quote(
                     "kibana#/dashboard/{0}".format(dash_id),
                     safe='/:!?,&=#')
-                logger.info("Kibana {0} dashboard at {1}{2}?{3}" \
-                    .format(name, link_prefix, link, time_filter))
+                logger.info("Kibana {0} dashboard at {1}{2}?{3}"
+                            .format(name, link_prefix, link, time_filter))
                 dash_links[name] = link
 
         except Exception as e:
@@ -413,7 +413,7 @@ class ElkInterface(Configurable):
             shared_links_state = json.loads(shared_links_vis['visState'])
             shared_links_state['params']['markdown'] = shared_links_text
             shared_links_vis['visState'] = json.dumps(shared_links_state,
-                                                    sort_keys=True)
+                                                      sort_keys=True)
 
             self.client.index(index='.kibana', doc_type='visualization',
                               id=self.prefix + "-Links",
@@ -461,7 +461,7 @@ class ElkInterface(Configurable):
                 links_state = json.loads(links_vis['visState'])
                 links_state['params']['markdown'] = links_text
                 links_vis['visState'] = json.dumps(links_state,
-                                                       sort_keys=True)
+                                                   sort_keys=True)
 
                 self.client.index(index='.kibana', doc_type='visualization',
                                   id='{0}-{1}-links'
@@ -609,6 +609,16 @@ class ElkInterface(Configurable):
 
             task_update['megabytes_output'] = \
                 task_update['bytes_output'] / 1024.0**2
+
+            task_update['bandwidth'] = \
+                task_update['network_bytes_received'] / 1e6 / \
+                task_update['time_on_worker']
+
+            task_update['percent_efficiency'] = \
+                task_update['time_cpu'] * 100 / \
+                (1. * task_update['cores'] *
+                 (task_update['time_processing_end'] -
+                  task_update['time_prologue_end']))
 
             status_codes = {
                 0: 'initialized',

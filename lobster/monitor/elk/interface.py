@@ -433,8 +433,13 @@ class ElkInterface(Configurable):
                 links_text += "- [all]({0}?{1})\n" \
                     .format(dash_links[name], all_filter)
 
-                # FIXME: self.categories is empty when run ends or when
-                # elkupdate is called?
+                merge_filter = requests.utils.quote(
+                    "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
+                    "'(_missing_:Task.category) OR Task.category:merge')))",
+                    safe='/:!?,&=#')
+                links_text += "- [merge]({0}?{1})\n" \
+                    .format(dash_links[name], merge_filter)
+
                 for category in self.categories:
                     cat_filter = requests.utils.quote(
                         ("_a=(query:(query_string:(analyze_wildcard:!t," +
@@ -595,7 +600,7 @@ class ElkInterface(Configurable):
                                doc_type='task', id=task['id'],
                                body=task_doc)
 
-            log_doc = {'doc': task_log}
+            log_doc = {'text': task_log}
             self.client.index(index=self.prefix + '_lobster_task_logs',
                               doc_type='log', id=task['id'],
                               body=log_doc)
@@ -610,6 +615,12 @@ class ElkInterface(Configurable):
             task_update['megabytes_output'] = \
                 task_update['bytes_output'] / 1024.0**2
 
+            task_update['allocated_disk_MB'] = \
+                task_update['allocated_disk'] / 1024.0
+
+            task_update['allocated_memory_MB'] = \
+                task_update['allocated_memory'] / 1024.0
+
             task_update['bandwidth'] = \
                 task_update['network_bytes_received'] / 1e6 / \
                 task_update['time_on_worker']
@@ -620,7 +631,7 @@ class ElkInterface(Configurable):
                  (task_update['time_processing_end'] -
                   task_update['time_prologue_end']))
 
-            status_codes = {
+            status_code_map = {
                 0: 'initialized',
                 1: 'assigned',
                 2: 'successful',
@@ -630,8 +641,10 @@ class ElkInterface(Configurable):
                 7: 'merging',
                 8: 'merged'
             }
+            task_update['status_text'] = status_code_map[task_update['status']]
 
-            task_update['status_text'] = status_codes[task_update['status']]
+            cache_map = {0: 'cold cache', 1: 'hot cache', 2: 'dedicated'}
+            task_update['cache_text'] = cache_map[task_update['cache']]
 
         except Exception as e:
             logger.error(e)

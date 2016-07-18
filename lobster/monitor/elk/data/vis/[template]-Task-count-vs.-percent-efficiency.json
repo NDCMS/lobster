@@ -4,7 +4,7 @@
         "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
     }, 
     "title": "[template] Task count vs. percent efficiency", 
-    "uiStateJSON": "{}", 
+    "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
     "version": 1, 
-    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {}, \"schema\": \"metric\", \"type\": \"count\"}, {\"id\": \"2\", \"params\": {\"customLabel\": \"percent efficiency\", \"extended_bounds\": {}, \"field\": \"TaskUpdate.percent_efficiency\", \"interval\": 10, \"json\": \"\"}, \"schema\": \"segment\", \"type\": \"histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Task count vs. percent efficiency\", \"type\": \"histogram\"}"
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"tasks\"}, \"schema\": \"metric\", \"type\": \"count\"}, {\"id\": \"2\", \"params\": {\"customLabel\": \"percent efficiency\", \"extended_bounds\": {}, \"field\": \"TaskUpdate.percent_efficiency\", \"interval\": 10, \"json\": \"\"}, \"schema\": \"segment\", \"type\": \"histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Task count vs. percent efficiency\", \"type\": \"histogram\"}"
 }

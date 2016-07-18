@@ -208,6 +208,13 @@ class TaskProvider(object):
             if len(versions) == 1:
                 util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
 
+        if self.config.elk:
+            if create:
+                categories = {wflow.category.name for wflow in self.config.workflows}
+                self.config.elk.create(categories)
+            else:
+                self.config.elk.resume()
+
         if create:
             self.config.save()
             self.__dash = monitor(self.workdir)
@@ -227,13 +234,6 @@ class TaskProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
-
-        if self.config.elk:
-            if create:
-                categories = {wflow.category.name for wflow in self.config.workflows}
-                self.config.elk.create(categories)
-            else:
-                self.config.elk.resume()
 
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')

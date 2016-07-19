@@ -307,6 +307,17 @@ class ElkInterface(Configurable):
                 logger.error(e)
 
             logger.debug("generating " + name + " visualizations")
+            # FIXME: need to implement dynamic histogram bin intervals to
+            # prevent Kibana crashing Elasticsearch with too many bin queries -
+            # keep track of min and max for each histogram domain, calculate
+            # intervals accordingly to maintain constant number of bins, set
+            # min and max of x-axis to prevent too many bins given that fixed
+            # interval size
+
+            # FIXME: keep track of histogram min/max values and WQ previous
+            # stats in some central Elasticsearch document so that if Lobster
+            # goes down without the config being re-pickled, these values can
+            # be recovered
             vis_dir = os.path.join(self.template_dir, 'vis')
             for vis_path in vis_paths:
                 try:
@@ -572,23 +583,19 @@ class ElkInterface(Configurable):
                 safe='/:!?,&=#')
 
             e_p = re.compile(
-                r"Begin Fatal Exception([\s\S]*)End Fatal Exception")
+                r"(Begin Fatal Exception[\s\S]*End Fatal Exception)")
             e_match = e_p.search(task_log)
 
             if e_match:
                 logger.debug("parsing fatal exception")
 
-                task['fatal_exception'] = {}
-                task['fatal_exception']['message'] = e_match.group(1)
+                task['fatal_exception'] = \
+                    {'message': e_match.group(1).replace(">> cmd: ", "")}
 
                 e_cat_p = re.compile(r"'(.*)'")
-                task['fatal_exception']['exception_category'] = \
+                task['fatal_exception']['category'] = \
                     e_cat_p.search(task['fatal_exception']['message']).group(1)
 
-                e_mess_p = re.compile(r"Exception Message:\n(.*)")
-                task['fatal_exception']['exception_message'] = \
-                    e_mess_p.search(task['fatal_exception']['message'])\
-                    .group(1)
         except Exception as e:
             logger.error(e)
 

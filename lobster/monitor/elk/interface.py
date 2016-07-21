@@ -2,6 +2,7 @@ import elasticsearch as es
 import elasticsearch_dsl as es_dsl
 import datetime as dt
 import time
+import math
 import json
 import re
 import inspect
@@ -163,14 +164,16 @@ class ElkInterface(Configurable):
                         previous[log_type][category] = {}
                         for field in self.nested_paths(
                                 previous[log_type]['all']):
-                            logger.debug(field)
                             self.nested_set(previous[log_type][category],
                                             field, None)
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='previous',
                               body=previous)
+        except Exception as e:
+            logger.error(e)
 
+        try:
             with open(os.path.join(self.template_dir, 'monitor',
                                    'fields', 'intervals') + '.json', 'r') as f:
                 intervals = json.load(f)
@@ -271,57 +274,58 @@ class ElkInterface(Configurable):
                         .filter('match', _type='visualization')
                     response_vis = search_vis.execute()
 
-                    for vis in response_vis:
-                        vis.meta.id = vis.meta.id \
-                            .replace(self.prefix, '[template]')
-                        vis.title = vis.title \
-                            .replace(self.prefix, '[template]')
+                    vis = response_vis[0]
+                    vis.meta.id = vis.meta.id \
+                        .replace(self.prefix, '[template]')
+                    vis.title = vis.title \
+                        .replace(self.prefix, '[template]')
 
-                        vis_state = json.loads(vis['visState'])
-                        vis_state['title'] = vis['title']
+                    vis_state = json.loads(vis.visState)
+                    vis_state['title'] = vis['title']
 
-                        if vis_state['type'] == 'markdown':
-                            vis_state['params']['markdown'] = "text goes here"
-                        else:
-                            source = json.loads(
-                                vis.kibanaSavedObjectMeta.searchSourceJSON)
-                            source['index'] = source['index'].replace(
-                                self.prefix, '[template]')
-                            vis.kibanaSavedObjectMeta.searchSourceJSON = \
-                                json.dumps(source, sort_keys=True)
+                    if vis_state['type'] == 'markdown':
+                        vis_state['params']['markdown'] = "text goes here"
+                    else:
+                        source = json.loads(
+                            vis.kibanaSavedObjectMeta.searchSourceJSON)
+                        source['index'] = source['index'].replace(
+                            self.prefix, '[template]')
+                        vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                            json.dumps(source, sort_keys=True)
 
-                            if vis_state['type'] == 'histogram':
-                                hist_aggs = [agg for agg in vis_state['aggs']
-                                             if agg['type'] == 'histogram']
-                                for agg in hist_aggs:
-                                    vis_ids = self.nested_get(
-                                        intervals,
-                                        agg['params']['field'] + '.vis_ids')
+                        if vis_state['type'] == 'histogram':
+                            hist_aggs = [agg for agg in vis_state['aggs']
+                                         if agg['type'] == 'histogram']
+                            for agg in hist_aggs:
+                                agg['params']['interval'] = 1e10
 
-                                    if vis_ids and vis.meta.id not in vis_ids:
-                                        vis_ids.append(vis.meta.id)
-                                    else:
-                                        vis_ids = [vis.meta.id]
+                                vis_ids = self.nested_get(
+                                    intervals, agg['params']['field'] +
+                                    '.vis_ids')
 
-                                    hist_data = {
-                                        'interval': None,
-                                        'extended_bounds': {
-                                            'min': None,
-                                            'max': None
-                                        },
-                                        'vis_ids': vis_ids
-                                    }
-                                    self.nested_set(intervals,
-                                                    agg['params']['field'],
-                                                    hist_data)
+                                if vis_ids and vis.meta.id not in vis_ids:
+                                    vis_ids.append(vis.meta.id)
+                                else:
+                                    vis_ids = [vis.meta.id]
 
-                        vis['visState'] = json.dumps(vis_state, sort_keys=True)
+                                hist_data = {
+                                    'interval': None,
+                                    'min': None,
+                                    'max': None,
+                                    'vis_ids': vis_ids
+                                }
 
-                        with open(os.path.join(vis_dir, vis.meta.id) +
-                                  '.json', 'w') as f:
-                            f.write(json.dumps(vis.to_dict(), indent=4,
-                                               sort_keys=True))
-                            f.write('\n')
+                                self.nested_set(
+                                    intervals, agg['params']['field'],
+                                    hist_data)
+
+                    vis.visState = json.dumps(vis_state, sort_keys=True)
+
+                    with open(os.path.join(vis_dir, vis.meta.id) +
+                              '.json', 'w') as f:
+                        f.write(json.dumps(vis.to_dict(), indent=4,
+                                           sort_keys=True))
+                        f.write('\n')
                 except Exception as e:
                     logger.error(e)
 
@@ -380,12 +384,6 @@ class ElkInterface(Configurable):
                 logger.error(e)
 
             logger.debug("generating " + name + " visualizations")
-            # FIXME: need to implement dynamic histogram bin intervals to
-            # prevent Kibana crashing Elasticsearch with too many bin queries -
-            # keep track of min and max for each histogram domain, calculate
-            # intervals accordingly to maintain constant number of bins, set
-            # min and max of x-axis to prevent too many bins given that fixed
-            # interval size
             vis_dir = os.path.join(self.template_dir, 'vis')
             for vis_path in vis_paths:
                 try:
@@ -622,22 +620,23 @@ class ElkInterface(Configurable):
         return d
 
     def unroll_cumulative_fields(self, log, log_type, category=None):
-        search = es_dsl.Search(
-            using=self.client, index=self.prefix + '_monitor_data') \
-            .filter('match', _type='fields') \
-            .filter('match', _id='previous')
-        response = search.execute()
+        logger.debug("unrolling " + log_type + " cumulative fields")
 
-        for previous in response:
-            previous = previous.to_dict()
+        try:
+            search = es_dsl.Search(
+                using=self.client, index=self.prefix + '_monitor_data') \
+                .filter('match', _type='fields') \
+                .filter('match', _id='previous')
+            response = search.execute()
+
+            previous = response[0].to_dict()
 
             if category is None:
                 previous_subset = previous[log_type]
             else:
                 previous_subset = previous[log_type][category]
 
-            paths = ['.'.join(path.split('.')) for path in
-                     self.nested_paths(previous_subset)]
+            paths = [path for path in self.nested_paths(previous_subset)]
 
             for path in paths:
                 cur_val = self.nested_get(log, path)
@@ -654,24 +653,90 @@ class ElkInterface(Configurable):
                                             [path_parts[-1] + '_diff'])
                     else:
                         new_path = path + '_diff'
-                    logger.debug(path)
-                    logger.debug(old_val)
-                    logger.debug(cur_val)
                     new_val = max(cur_val - old_val, 0)
                     self.nested_set(log, new_path, new_val)
 
                 self.nested_set(previous_subset, path, cur_val)
 
-            if category is None:
-                previous[log_type] = previous_subset
-            else:
-                previous[log_type][category] = previous_subset
+                if category is None:
+                    previous[log_type] = previous_subset
+                else:
+                    previous[log_type][category] = previous_subset
 
-            self.client.index(index=self.prefix + '_monitor_data',
-                              doc_type='fields', id='previous',
-                              body=previous)
+                self.client.index(index=self.prefix + '_monitor_data',
+                                  doc_type='fields', id='previous',
+                                  body=previous)
+        except Exception as e:
+            logger.error(e)
 
         return log
+
+    def update_histogram_bins(self, log, log_type):
+        logger.debug("updating " + log_type + " histogram bins")
+
+        search = es_dsl.Search(
+            using=self.client, index=self.prefix + '_monitor_data') \
+            .filter('match', _type='fields') \
+            .filter('match', _id='intervals')
+        response = search.execute()
+
+        intervals = response[0].to_dict()
+
+        fields = ['.'.join(path.split('.')[:-1])
+                  for path in self.nested_paths(intervals[log_type])
+                  if path.endswith('interval')]
+
+        for field in fields:
+            cur_val = self.nested_get(log, field)
+            field_path = log_type + '.' + field
+            intervals_field = self.nested_get(intervals,
+                                              field_path)
+
+            if intervals_field['interval'] is None:
+                intervals_field['min'] = cur_val
+                intervals_field['max'] = cur_val
+                intervals_field['interval'] = 1
+            else:
+                changed = False
+                if cur_val < intervals_field['min']:
+                    intervals_field['min'] = cur_val
+                    changed = True
+                elif cur_val > intervals_field['max']:
+                    intervals_field['max'] = cur_val
+                    changed = True
+
+                if changed:
+                    intervals_field['interval'] = \
+                        math.ceil((intervals_field['max'] -
+                                   intervals_field['min']) / 20.0)
+
+                    for vis_id in intervals_field['vis_ids']:
+                        search_vis = es_dsl.Search(
+                            using=self.client, index='.kibana') \
+                            .filter('match', _id=vis_id) \
+                            .filter('match', _type='visualization')
+                        response_vis = search_vis.execute()
+
+                        vis = response_vis[0]
+                        vis_state = json.loads(vis.visState)
+
+                        for agg in vis_state['aggs']:
+                            if agg['type'] == 'histogram' and \
+                                    agg['params']['field'] == field_path:
+                                agg['params']['interval'] = \
+                                    intervals_field['interval']
+
+                        vis.visState = json.dumps(vis_state, sort_keys=True)
+
+                        self.client.index(index='.kibana',
+                                          doc_type='visualization',
+                                          id=vis_id, body=vis.to_dict())
+
+            self.nested_set(intervals, log_type + '.' + field, intervals_field)
+
+        self.client.index(index=self.prefix + '_monitor_data',
+                          doc_type='fields', id='intervals',
+                          body=intervals)
 
     def index_task(self, task):
         logger.debug("parsing Task object")
@@ -890,6 +955,8 @@ class ElkInterface(Configurable):
         except Exception as e:
             logger.error(e)
 
+        self.update_histogram_bins(task_update, 'TaskUpdate')
+
         logger.debug("sending TaskUpdate document to Elasticsearch")
         try:
             doc = {'doc': {'TaskUpdate': task_update,
@@ -929,10 +996,9 @@ class ElkInterface(Configurable):
             logger.error(e)
             return
 
-        logger.debug("dealing with special fields in stats log")
-        try:
-            stats = self.unroll_cumulative_fields(stats, 'stats', category)
+        stats = self.unroll_cumulative_fields(stats, 'stats', category)
 
+        try:
             if 'timestamp_diff' in stats:
                 stats['time_other_lobster'] = \
                     max(stats['timestamp_diff'] -
@@ -951,13 +1017,11 @@ class ElkInterface(Configurable):
 
                 stats['time_idle'] = \
                     stats['timestamp_diff'] * stats['idle_percentage']
-
         except Exception as e:
             logger.error(e)
             return
 
         logger.debug("sending lobster stats document to Elasticsearch")
-
         try:
             self.client.index(index=self.prefix + '_lobster_stats',
                               doc_type='log', body=stats,

@@ -338,6 +338,97 @@ class SRM(StorageElement):
             paths = paths[50:]
 
 
+class XrootD(StorageElement):
+
+    def __init__(self, pfnprefix):
+        super(XrootD, self).__init__(pfnprefix)
+
+    def execute(self, cmd, *paths, **kwargs):
+
+        cmds = cmd.split()
+
+        output = []
+        for path in paths:
+
+            # Break the path into server and directory
+            protocol, server, path = url_re.match(path).groups()
+            args = ['xrdfs',server]+cmds+[path]
+            try:
+                p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
+                pout, err = p.communicate()
+                if p.returncode != 0 and not kwargs.get('safe', False):
+                    msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), err, pout)
+                    raise IOError(msg)
+                output.append(pout)
+            except OSError:
+                raise AttributeError("xrd utilities not available")
+
+
+        return '/n'.join(output)
+
+    def exists(self, path):
+        try:
+            self.execute('stat', path)
+            return True
+        except Exception:
+            return False
+
+    def getsize(self, path):
+        output = self.execute('stat', path)
+        for line in output.splitlines():
+            field,value = line.split(':')
+            if field == 'Size':
+                return value.strip()
+        
+        # Shouldn't get here unless we don't find the size.  Raise an exception
+        msg = 'xrdfs stat did not return file size.  Command output:\n{}'.format(output)
+        raise AttributeError(msg)
+
+    def isdir(self, path):
+        try:
+            output = self.execute('stat', path)
+            for line in output.splitlines():
+                field,value = line.split(':')
+                if field == 'Flags':
+                    return 'IsDir' in value
+
+            # If we got here, never found any mention of flags, just say false.
+            return False
+        except Exception:
+            return False
+
+    def isfile(self, path):
+        try:
+            output = self.execute('stat', path)
+            for line in output.splitlines():
+                field,value = line.split(':')
+                if field == 'Flags':
+                    return 'IsDir' not in value
+
+            # If we got here, never found any mention of flags, just say false.
+            return False
+        except Exception:
+            return False
+
+    def ls(self, path):
+        for p in self.execute('ls', path).splitlines():
+            yield os.path.join(path, p)
+
+    def mkdir(self, path, mode=None):
+        self.execute('mkdir -p', path)
+
+    def remove(self, *paths):
+        # It doesn't seem like Xrdfs supports either recursive or batch removal, so let's do it one at a time.
+        for path in paths:
+            if self.isdir(path):
+                for dirpath in self.ls(path):
+                    self.remove(dirpath) # Recursive because the directory might contain directories
+                self.execute('rmdir',path)
+            else:
+                self.execute('rm',path)
+
+
+
 class StorageConfiguration(Configurable):
 
     """

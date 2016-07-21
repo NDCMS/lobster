@@ -1,7 +1,7 @@
 {
     "description": "", 
     "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"TaskUpdate.runtime:>=0 AND TaskUpdate.runtime:<=0\"}}}"
     }, 
     "title": "[template] Task count vs. runtime", 
     "uiStateJSON": "{\"vis\":{\"legendOpen\":true}}", 

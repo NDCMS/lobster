@@ -1,7 +1,7 @@
 {
     "description": "", 
     "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"TaskUpdate.workdir_footprint:>=0 AND TaskUpdate.workdir_footprint:<=0\"}}}"
     }, 
     "title": "[template] Task count vs. working directory footprint", 
     "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 

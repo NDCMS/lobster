@@ -1,7 +1,7 @@
 {
     "description": "", 
     "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"*\"}}}"
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"TaskUpdate.percent_efficiency:>=0 AND TaskUpdate.percent_efficiency:<=0\"}}}"
     }, 
     "title": "[template] Task count vs. percent efficiency", 
     "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 

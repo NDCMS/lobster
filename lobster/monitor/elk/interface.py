@@ -286,22 +286,33 @@ class ElkInterface(Configurable):
                     if vis_state['type'] == 'markdown':
                         vis_state['params']['markdown'] = "text goes here"
                     else:
-                        source = json.loads(
+                        vis_source = json.loads(
                             vis.kibanaSavedObjectMeta.searchSourceJSON)
-                        source['index'] = source['index'].replace(
+                        vis_source['index'] = vis_source['index'].replace(
                             self.prefix, '[template]')
-                        vis.kibanaSavedObjectMeta.searchSourceJSON = \
-                            json.dumps(source, sort_keys=True)
 
                         if vis_state['type'] == 'histogram':
                             hist_aggs = [agg for agg in vis_state['aggs']
                                          if agg['type'] == 'histogram']
                             for agg in hist_aggs:
                                 agg['params']['interval'] = 1e10
+                                field_path = agg['params']['field']
+
+                                filter_words = \
+                                    vis_source['query']['query_string']\
+                                    ['query'].split(' ')
+                                for i, word in enumerate(filter_words):
+                                    if word.startswith(field_path + ':>='):
+                                        filter_words[i] = \
+                                            field_path + ':>=' + str(0)
+                                    elif word.startswith(field_path + ':<='):
+                                        filter_words[i] = \
+                                            field_path + ':<=' + str(0)
+                                vis_source['query']['query_string']['query'] =\
+                                    ' '.join(filter_words)
 
                                 vis_ids = self.nested_get(
-                                    intervals, agg['params']['field'] +
-                                    '.vis_ids')
+                                    intervals, field_path + '.vis_ids')
 
                                 if vis_ids and vis.meta.id not in vis_ids:
                                     vis_ids.append(vis.meta.id)
@@ -318,6 +329,9 @@ class ElkInterface(Configurable):
                                 self.nested_set(
                                     intervals, agg['params']['field'],
                                     hist_data)
+
+                        vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                            json.dumps(vis_source, sort_keys=True)
 
                     vis.visState = json.dumps(vis_state, sort_keys=True)
 
@@ -403,8 +417,6 @@ class ElkInterface(Configurable):
                             .replace('[template]', self.prefix)
                         vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
                             json.dumps(source, sort_keys=True)
-
-                    # update intervals
 
                     vis_id = \
                         vis_path.replace('[template]', self.prefix)[:-5]
@@ -692,12 +704,12 @@ class ElkInterface(Configurable):
             intervals_field = self.nested_get(intervals,
                                               field_path)
 
+            changed = False
             if intervals_field['interval'] is None:
                 intervals_field['min'] = cur_val
                 intervals_field['max'] = cur_val
-                intervals_field['interval'] = 1
+                changed = True
             else:
-                changed = False
                 if cur_val < intervals_field['min']:
                     intervals_field['min'] = cur_val
                     changed = True
@@ -705,32 +717,56 @@ class ElkInterface(Configurable):
                     intervals_field['max'] = cur_val
                     changed = True
 
-                if changed:
+            if changed:
+                if intervals_field['min'] == intervals_field['max']:
+                    intervals_field['interval'] = 1
+                else:
                     intervals_field['interval'] = \
                         math.ceil((intervals_field['max'] -
                                    intervals_field['min']) / 20.0)
 
-                    for vis_id in intervals_field['vis_ids']:
-                        search_vis = es_dsl.Search(
-                            using=self.client, index='.kibana') \
-                            .filter('match', _id=vis_id) \
-                            .filter('match', _type='visualization')
-                        response_vis = search_vis.execute()
+                for vis_id in intervals_field['vis_ids']:
+                    search_vis = es_dsl.Search(
+                        using=self.client, index='.kibana') \
+                        .filter('match', _id=vis_id) \
+                        .filter('match', _type='visualization')
+                    response_vis = search_vis.execute()
 
-                        vis = response_vis[0]
-                        vis_state = json.loads(vis.visState)
+                    vis = response_vis[0]
+                    vis_state = json.loads(vis.visState)
 
-                        for agg in vis_state['aggs']:
-                            if agg['type'] == 'histogram' and \
-                                    agg['params']['field'] == field_path:
-                                agg['params']['interval'] = \
-                                    intervals_field['interval']
+                    for agg in vis_state['aggs']:
+                        if agg['type'] == 'histogram' and \
+                                agg['params']['field'] == field_path:
+                            agg['params']['interval'] = \
+                                intervals_field['interval']
 
-                        vis.visState = json.dumps(vis_state, sort_keys=True)
+                    vis.visState = json.dumps(vis_state, sort_keys=True)
 
-                        self.client.index(index='.kibana',
-                                          doc_type='visualization',
-                                          id=vis_id, body=vis.to_dict())
+                    vis_source = json.loads(
+                        vis.kibanaSavedObjectMeta.searchSourceJSON)
+
+                    filter_words = \
+                        vis_source['query']['query_string']\
+                        ['query'].split(' ')
+
+                    for i, word in enumerate(filter_words):
+                        if word.startswith(field_path + ':>='):
+                            filter_words[i] = field_path + ':>=' + \
+                                str(intervals_field['min'])
+                        elif word.startswith(field_path + ':<='):
+                            filter_words[i] = field_path + ':<=' + \
+                                str(intervals_field['max'])
+
+                    vis_source['query']['query_string']['query'] =\
+                        ' '.join(filter_words)
+
+                    vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                        json.dumps(vis_source, sort_keys=True)
+
+                    self.client.index(index='.kibana',
+                                      doc_type='visualization',
+                                      id=vis_id, body=vis.to_dict())
 
             self.nested_set(intervals, log_type + '.' + field, intervals_field)
 

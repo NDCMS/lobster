@@ -686,93 +686,96 @@ class ElkInterface(Configurable):
     def update_histogram_bins(self, log, log_type):
         logger.debug("updating " + log_type + " histogram bins")
 
-        search = es_dsl.Search(
-            using=self.client, index=self.prefix + '_monitor_data') \
-            .filter('match', _type='fields') \
-            .filter('match', _id='intervals')
-        response = search.execute()
+        try:
+            search = es_dsl.Search(
+                using=self.client, index=self.prefix + '_monitor_data') \
+                .filter('match', _type='fields') \
+                .filter('match', _id='intervals')
+            response = search.execute()
 
-        intervals = response[0].to_dict()
+            intervals = response[0].to_dict()
 
-        fields = ['.'.join(path.split('.')[:-1])
-                  for path in self.nested_paths(intervals[log_type])
-                  if path.endswith('interval')]
+            fields = ['.'.join(path.split('.')[:-1])
+                      for path in self.nested_paths(intervals[log_type])
+                      if path.endswith('interval')]
 
-        for field in fields:
-            cur_val = self.nested_get(log, field)
-            field_path = log_type + '.' + field
-            intervals_field = self.nested_get(intervals,
-                                              field_path)
+            for field in fields:
+                cur_val = self.nested_get(log, field)
+                field_path = log_type + '.' + field
+                intervals_field = self.nested_get(intervals,
+                                                  field_path)
 
-            changed = False
-            if intervals_field['interval'] is None:
-                intervals_field['min'] = cur_val
-                intervals_field['max'] = cur_val
-                changed = True
-            else:
-                if cur_val < intervals_field['min']:
+                changed = False
+                if intervals_field['interval'] is None:
                     intervals_field['min'] = cur_val
-                    changed = True
-                elif cur_val > intervals_field['max']:
                     intervals_field['max'] = cur_val
                     changed = True
-
-            if changed:
-                if intervals_field['min'] == intervals_field['max']:
-                    intervals_field['interval'] = 1
                 else:
-                    intervals_field['interval'] = \
-                        math.ceil((intervals_field['max'] -
-                                   intervals_field['min']) / 20.0)
+                    if cur_val < intervals_field['min']:
+                        intervals_field['min'] = cur_val
+                        changed = True
+                    elif cur_val > intervals_field['max']:
+                        intervals_field['max'] = cur_val
+                        changed = True
 
-                for vis_id in intervals_field['vis_ids']:
-                    search_vis = es_dsl.Search(
-                        using=self.client, index='.kibana') \
-                        .filter('match', _id=vis_id) \
-                        .filter('match', _type='visualization')
-                    response_vis = search_vis.execute()
+                if changed:
+                    if intervals_field['min'] == intervals_field['max']:
+                        intervals_field['interval'] = 1
+                    else:
+                        intervals_field['interval'] = \
+                            math.ceil((intervals_field['max'] -
+                                       intervals_field['min']) / 20.0)
 
-                    vis = response_vis[0]
-                    vis_state = json.loads(vis.visState)
+                    for vis_id in intervals_field['vis_ids']:
+                        search_vis = es_dsl.Search(
+                            using=self.client, index='.kibana') \
+                            .filter('match', _id=vis_id) \
+                            .filter('match', _type='visualization')
+                        response_vis = search_vis.execute()
 
-                    for agg in vis_state['aggs']:
-                        if agg['type'] == 'histogram' and \
-                                agg['params']['field'] == field_path:
-                            agg['params']['interval'] = \
-                                intervals_field['interval']
+                        vis = response_vis[0]
+                        vis_state = json.loads(vis.visState)
 
-                    vis.visState = json.dumps(vis_state, sort_keys=True)
+                        for agg in vis_state['aggs']:
+                            if agg['type'] == 'histogram' and \
+                                    agg['params']['field'] == field_path:
+                                agg['params']['interval'] = \
+                                    intervals_field['interval']
 
-                    vis_source = json.loads(
-                        vis.kibanaSavedObjectMeta.searchSourceJSON)
+                        vis.visState = json.dumps(vis_state, sort_keys=True)
 
-                    filter_words = \
-                        vis_source['query']['query_string']\
-                        ['query'].split(' ')
+                        vis_source = json.loads(
+                            vis.kibanaSavedObjectMeta.searchSourceJSON)
 
-                    for i, word in enumerate(filter_words):
-                        if word.startswith(field_path + ':>='):
-                            filter_words[i] = field_path + ':>=' + \
-                                str(intervals_field['min'])
-                        elif word.startswith(field_path + ':<='):
-                            filter_words[i] = field_path + ':<=' + \
-                                str(intervals_field['max'])
+                        filter_words = \
+                            vis_source['query']['query_string']\
+                            ['query'].split(' ')
 
-                    vis_source['query']['query_string']['query'] =\
-                        ' '.join(filter_words)
+                        for i, word in enumerate(filter_words):
+                            if word.startswith(field_path + ':>='):
+                                filter_words[i] = field_path + ':>=' + \
+                                    str(intervals_field['min'])
+                            elif word.startswith(field_path + ':<='):
+                                filter_words[i] = field_path + ':<=' + \
+                                    str(intervals_field['max'])
 
-                    vis.kibanaSavedObjectMeta.searchSourceJSON = \
-                        json.dumps(vis_source, sort_keys=True)
+                        vis_source['query']['query_string']['query'] =\
+                            ' '.join(filter_words)
 
-                    self.client.index(index='.kibana',
-                                      doc_type='visualization',
-                                      id=vis_id, body=vis.to_dict())
+                        vis.kibanaSavedObjectMeta.searchSourceJSON = \
+                            json.dumps(vis_source, sort_keys=True)
 
-            self.nested_set(intervals, log_type + '.' + field, intervals_field)
+                        self.client.index(index='.kibana',
+                                          doc_type='visualization',
+                                          id=vis_id, body=vis.to_dict())
 
-        self.client.index(index=self.prefix + '_monitor_data',
-                          doc_type='fields', id='intervals',
-                          body=intervals)
+                self.nested_set(intervals, log_type + '.' + field, intervals_field)
+
+            self.client.index(index=self.prefix + '_monitor_data',
+                              doc_type='fields', id='intervals',
+                              body=intervals)
+        except Exception as e:
+            logger.error(e)
 
     def index_task(self, task):
         logger.debug("parsing Task object")
@@ -785,37 +788,25 @@ class ElkInterface(Configurable):
                 task['resources_measured'], skip=('this', 'peak_times'))
             task['resources_allocated'] = self.dictify(
                 task['resources_allocated'], skip=('this'))
+
+            task['resources_measured']['cpu_wall_ratio'] = \
+                task['resources_measured']['cpu_time'] / \
+                float(task['resources_measured']['wall_time'])
         except Exception as e:
             logger.error(e)
             return
 
         logger.debug("parsing Task timestamps")
         try:
-            task['resources_measured']['cpu_wall_ratio'] = \
-                task['resources_measured']['cpu_time'] / \
-                float(task['resources_measured']['wall_time'])
-
-            task['send_input_start'] = dt.datetime.utcfromtimestamp(
-                float(str(task['send_input_start'])[:10]))
-            task['send_input_finish'] = dt.datetime.utcfromtimestamp(
-                float(str(task['send_input_finish'])[:10]))
-            task['execute_cmd_start'] = dt.datetime.utcfromtimestamp(
-                float(str(task['execute_cmd_start'])[:10]))
-            task['execute_cmd_finish'] = dt.datetime.utcfromtimestamp(
-                float(str(task['execute_cmd_finish'])[:10]))
-            task['receive_output_start'] = dt.datetime.utcfromtimestamp(
-                float(str(task['receive_output_start'])[:10]))
-            task['receive_output_finish'] = dt.datetime.utcfromtimestamp(
-                float(str(task['receive_output_finish'])[:10]))
-            task['submit_time'] = dt.datetime.utcfromtimestamp(
-                float(str(task['submit_time'])[:10]))
-            task['finish_time'] = dt.datetime.utcfromtimestamp(
-                float(str(task['finish_time'])[:10]))
-
-            task['resources_measured']['start'] = dt.datetime.utcfromtimestamp(
-                float(str(task['resources_measured']['start'])[:10]))
-            task['resources_measured']['end'] = dt.datetime.utcfromtimestamp(
-                float(str(task['resources_measured']['end'])[:10]))
+            timestamp_keys = ['send_input_start', 'send_input_finish',
+                              'execute_cmd_start', 'execute_cmd_finish',
+                              'receive_output_start', 'receive_output_finish',
+                              'submit_time', 'finish_time',
+                              'resources_measured.start',
+                              'resources_measured.end']
+            for key in timestamp_keys:
+                self.nested_set(task, key, dt.datetime.utcfromtimestamp(
+                    float(str(self.nested_get(task, key))[:10])))
         except Exception as e:
             logger.error(e)
 

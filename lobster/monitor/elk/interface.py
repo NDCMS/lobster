@@ -1,6 +1,7 @@
 import elasticsearch as es
 import elasticsearch_dsl as es_dsl
-from datetime import datetime
+import datetime as dt
+import time
 import json
 import re
 import inspect
@@ -10,6 +11,7 @@ import requests
 
 from lobster.util import Configurable, PartiallyMutable
 import lobster
+
 
 logger = logging.getLogger('lobster.monitor.elk')
 
@@ -98,23 +100,22 @@ class ElkInterface(Configurable):
 
     def create(self, categories):
         with PartiallyMutable.unlock():
-            self.start_time = datetime.utcnow()
+            self.start_time = dt.datetime.utcnow()
             self.categories = categories
-
-        logger.info("checking Elasticsearch client")
 
         self.check_client()
 
         try:
             indices = self.client.indices.get_aliases().keys()
+            if any(self.prefix in s for s in indices):
+                logger.info("Elasticsearch indices with prefix " +
+                            self.prefix + " already exist")
+                self.delete_elasticsearch()
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
-            return
 
-        if any(self.prefix in s for s in indices):
-            logger.info("Elasticsearch indices with prefix " + self.prefix +
-                        " already exist")
-            self.delete_elasticsearch()
+        self.init_monitor_data()
+        time.sleep(5)
 
         self.update_kibana()
         logger.info("beginning ELK monitoring")
@@ -122,7 +123,7 @@ class ElkInterface(Configurable):
     def end(self):
         logger.info("ending ELK monitoring")
         with PartiallyMutable.unlock():
-            self.end_time = datetime.utcnow()
+            self.end_time = dt.datetime.utcnow()
         self.update_links()
 
     def resume(self):
@@ -136,6 +137,7 @@ class ElkInterface(Configurable):
         self.delete_elasticsearch()
 
     def check_client(self):
+        logger.info("checking Elasticsearch client")
         try:
             logger.info("cluster health: " + self.client.cat.health())
         except es.exceptions.ElasticsearchException as e:
@@ -147,6 +149,44 @@ class ElkInterface(Configurable):
         with PartiallyMutable.unlock():
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
+
+    def init_monitor_data(self):
+        logger.info("initializing ELK monitoring data")
+        try:
+            with open(os.path.join(self.template_dir, 'monitor',
+                                   'fields', 'previous') + '.json', 'r') as f:
+                previous = json.load(f)
+
+            for log_type in previous:
+                if previous[log_type]['has_categories']:
+                    for category in self.categories:
+                        previous[log_type][category] = {}
+                        for field in self.nested_paths(
+                                previous[log_type]['all']):
+                            logger.debug(field)
+                            self.nested_set(previous[log_type][category],
+                                            field, None)
+
+            self.client.index(index=self.prefix + '_monitor_data',
+                              doc_type='fields', id='previous',
+                              body=previous)
+
+            with open(os.path.join(self.template_dir, 'monitor',
+                                   'fields', 'intervals') + '.json', 'r') as f:
+                intervals = json.load(f)
+
+            vis_id_paths = [path for path in self.nested_paths(intervals)
+                            if path.endswith('.vis_ids')]
+            for path in vis_id_paths:
+                vis_ids = [vis_id.replace('[template]', self.prefix)
+                           for vis_id in self.nested_get(intervals, path)]
+                self.nested_set(intervals, path, vis_ids)
+
+            self.client.index(index=self.prefix + '_monitor_data',
+                              doc_type='fields', id='intervals',
+                              body=intervals)
+        except Exception as e:
+            logger.error(e)
 
     def download_templates(self):
         logger.info("getting Kibana objects with prefix " + self.prefix)
@@ -180,6 +220,7 @@ class ElkInterface(Configurable):
             logger.error(e)
 
         dash_dir = os.path.join(self.template_dir, 'dash')
+        intervals = {}
         for name in self.dashboards:
             logger.info("getting " + name + " dashboard")
             vis_ids = []
@@ -249,6 +290,31 @@ class ElkInterface(Configurable):
                             vis.kibanaSavedObjectMeta.searchSourceJSON = \
                                 json.dumps(source, sort_keys=True)
 
+                            if vis_state['type'] == 'histogram':
+                                hist_aggs = [agg for agg in vis_state['aggs']
+                                             if agg['type'] == 'histogram']
+                                for agg in hist_aggs:
+                                    vis_ids = self.nested_get(
+                                        intervals,
+                                        agg['params']['field'] + '.vis_ids')
+
+                                    if vis_ids and vis.meta.id not in vis_ids:
+                                        vis_ids.append(vis.meta.id)
+                                    else:
+                                        vis_ids = [vis.meta.id]
+
+                                    hist_data = {
+                                        'interval': None,
+                                        'extended_bounds': {
+                                            'min': None,
+                                            'max': None
+                                        },
+                                        'vis_ids': vis_ids
+                                    }
+                                    self.nested_set(intervals,
+                                                    agg['params']['field'],
+                                                    hist_data)
+
                         vis['visState'] = json.dumps(vis_state, sort_keys=True)
 
                         with open(os.path.join(vis_dir, vis.meta.id) +
@@ -258,6 +324,13 @@ class ElkInterface(Configurable):
                             f.write('\n')
                 except Exception as e:
                     logger.error(e)
+
+        try:
+            with open(os.path.join(self.template_dir, 'monitor',
+                                   'fields', 'intervals') + '.json', 'w') as f:
+                f.write(json.dumps(intervals, indent=4, sort_keys=True))
+        except Exception as e:
+            logger.error(e)
 
     def update_kibana(self):
         logger.info("generating Kibana objects from templates")
@@ -313,11 +386,6 @@ class ElkInterface(Configurable):
             # intervals accordingly to maintain constant number of bins, set
             # min and max of x-axis to prevent too many bins given that fixed
             # interval size
-
-            # FIXME: keep track of histogram min/max values and WQ previous
-            # stats in some central Elasticsearch document so that if Lobster
-            # goes down without the config being re-pickled, these values can
-            # be recovered
             vis_dir = os.path.join(self.template_dir, 'vis')
             for vis_path in vis_paths:
                 try:
@@ -337,6 +405,8 @@ class ElkInterface(Configurable):
                             .replace('[template]', self.prefix)
                         vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
                             json.dumps(source, sort_keys=True)
+
+                    # update intervals
 
                     vis_id = \
                         vis_path.replace('[template]', self.prefix)[:-5]
@@ -527,6 +597,82 @@ class ElkInterface(Configurable):
 
         return thing
 
+    def nested_paths(self, d):
+        def get_paths(d, parent=[]):
+            if not isinstance(d, dict):
+                return [tuple(parent)]
+            else:
+                return reduce(list.__add__,
+                              [get_paths(v, parent + [k])
+                               for k, v in d.items()], [])
+        return ['.'.join(path) for path in get_paths(d)]
+
+    def nested_set(self, d, path, value):
+        keys = path.split('.')
+        for key in keys[:-1]:
+            d = d.setdefault(key, {})
+        d[keys[-1]] = value
+
+    def nested_get(self, d, path):
+        keys = path.split('.')
+        for key in keys:
+            d = d.get(key)
+            if not d:
+                break
+        return d
+
+    def unroll_cumulative_fields(self, log, log_type, category=None):
+        search = es_dsl.Search(
+            using=self.client, index=self.prefix + '_monitor_data') \
+            .filter('match', _type='fields') \
+            .filter('match', _id='previous')
+        response = search.execute()
+
+        for previous in response:
+            previous = previous.to_dict()
+
+            if category is None:
+                previous_subset = previous[log_type]
+            else:
+                previous_subset = previous[log_type][category]
+
+            paths = ['.'.join(path.split('.')) for path in
+                     self.nested_paths(previous_subset)]
+
+            for path in paths:
+                cur_val = self.nested_get(log, path)
+
+                if isinstance(cur_val, dt.date):
+                    cur_val = int(cur_val.strftime('%s'))
+
+                old_val = self.nested_get(previous_subset, path)
+
+                if old_val is not None:
+                    if '.' in path:
+                        path_parts = path.split('.')
+                        new_path = '.'.join(path_parts[:-1] +
+                                            [path_parts[-1] + '_diff'])
+                    else:
+                        new_path = path + '_diff'
+                    logger.debug(path)
+                    logger.debug(old_val)
+                    logger.debug(cur_val)
+                    new_val = max(cur_val - old_val, 0)
+                    self.nested_set(log, new_path, new_val)
+
+                self.nested_set(previous_subset, path, cur_val)
+
+            if category is None:
+                previous[log_type] = previous_subset
+            else:
+                previous[log_type][category] = previous_subset
+
+            self.client.index(index=self.prefix + '_monitor_data',
+                              doc_type='fields', id='previous',
+                              body=previous)
+
+        return log
+
     def index_task(self, task):
         logger.debug("parsing Task object")
         try:
@@ -548,31 +694,30 @@ class ElkInterface(Configurable):
                 task['resources_measured']['cpu_time'] / \
                 float(task['resources_measured']['wall_time'])
 
-            task['send_input_start'] = datetime.utcfromtimestamp(
+            task['send_input_start'] = dt.datetime.utcfromtimestamp(
                 float(str(task['send_input_start'])[:10]))
-            task['send_input_finish'] = datetime.utcfromtimestamp(
+            task['send_input_finish'] = dt.datetime.utcfromtimestamp(
                 float(str(task['send_input_finish'])[:10]))
-            task['execute_cmd_start'] = datetime.utcfromtimestamp(
+            task['execute_cmd_start'] = dt.datetime.utcfromtimestamp(
                 float(str(task['execute_cmd_start'])[:10]))
-            task['execute_cmd_finish'] = datetime.utcfromtimestamp(
+            task['execute_cmd_finish'] = dt.datetime.utcfromtimestamp(
                 float(str(task['execute_cmd_finish'])[:10]))
-            task['receive_output_start'] = datetime.utcfromtimestamp(
+            task['receive_output_start'] = dt.datetime.utcfromtimestamp(
                 float(str(task['receive_output_start'])[:10]))
-            task['receive_output_finish'] = datetime.utcfromtimestamp(
+            task['receive_output_finish'] = dt.datetime.utcfromtimestamp(
                 float(str(task['receive_output_finish'])[:10]))
-            task['submit_time'] = datetime.utcfromtimestamp(
+            task['submit_time'] = dt.datetime.utcfromtimestamp(
                 float(str(task['submit_time'])[:10]))
-            task['finish_time'] = datetime.utcfromtimestamp(
+            task['finish_time'] = dt.datetime.utcfromtimestamp(
                 float(str(task['finish_time'])[:10]))
 
-            task['resources_measured']['start'] = datetime.utcfromtimestamp(
+            task['resources_measured']['start'] = dt.datetime.utcfromtimestamp(
                 float(str(task['resources_measured']['start'])[:10]))
-            task['resources_measured']['end'] = datetime.utcfromtimestamp(
+            task['resources_measured']['end'] = dt.datetime.utcfromtimestamp(
                 float(str(task['resources_measured']['end'])[:10]))
         except Exception as e:
             logger.error(e)
 
-        # FIXME: doesn't appear to work
         logger.debug("parsing Task log")
         try:
             task_log = task.pop('output')
@@ -590,7 +735,7 @@ class ElkInterface(Configurable):
                 logger.debug("parsing fatal exception")
 
                 task['fatal_exception'] = \
-                    {'message': e_match.group(1).replace(">> cmd: ", "")}
+                    {'message': e_match.group(1).replace('>> cmd: ', '')}
 
                 e_cat_p = re.compile(r"'(.*)'")
                 task['fatal_exception']['category'] = \
@@ -718,29 +863,29 @@ class ElkInterface(Configurable):
 
         logger.debug("parsing TaskUpdate timestamps")
         try:
-            task_update['time_processing_end'] = datetime.utcfromtimestamp(
+            task_update['time_processing_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_processing_end'])
-            task_update['time_prologue_end'] = datetime.utcfromtimestamp(
+            task_update['time_prologue_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_prologue_end'])
-            task_update['time_retrieved'] = datetime.utcfromtimestamp(
+            task_update['time_retrieved'] = dt.datetime.utcfromtimestamp(
                 task_update['time_retrieved'])
-            task_update['time_stage_in_end'] = datetime.utcfromtimestamp(
+            task_update['time_stage_in_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_stage_in_end'])
-            task_update['time_stage_out_end'] = datetime.utcfromtimestamp(
+            task_update['time_stage_out_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_stage_out_end'])
-            task_update['time_transfer_in_end'] = datetime.utcfromtimestamp(
+            task_update['time_transfer_in_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_transfer_in_end'])
-            task_update['time_transfer_in_start'] = datetime.utcfromtimestamp(
+            task_update['time_transfer_in_start'] = dt.datetime.utcfromtimestamp(
                 task_update['time_transfer_in_start'])
-            task_update['time_transfer_out_end'] = datetime.utcfromtimestamp(
+            task_update['time_transfer_out_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_transfer_out_end'])
-            task_update['time_transfer_out_start'] = datetime.utcfromtimestamp(
+            task_update['time_transfer_out_start'] = dt.datetime.utcfromtimestamp(
                 task_update['time_transfer_out_start'])
-            task_update['time_wrapper_ready'] = datetime.utcfromtimestamp(
+            task_update['time_wrapper_ready'] = dt.datetime.utcfromtimestamp(
                 task_update['time_wrapper_ready'])
-            task_update['time_wrapper_start'] = datetime.utcfromtimestamp(
+            task_update['time_wrapper_start'] = dt.datetime.utcfromtimestamp(
                 task_update['time_wrapper_start'])
-            task_update['time_epilogue_end'] = datetime.utcfromtimestamp(
+            task_update['time_epilogue_end'] = dt.datetime.utcfromtimestamp(
                 task_update['time_epilogue_end'])
         except Exception as e:
             logger.error(e)
@@ -764,7 +909,7 @@ class ElkInterface(Configurable):
                 log_attributes + ['category']
 
             values = \
-                [datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
+                [dt.datetime.utcfromtimestamp(int(now.strftime('%s'))), left] + \
                 [times[k] for k in sorted(times.keys())] + \
                 [getattr(stats, a) for a in log_attributes] + [category]
 
@@ -776,21 +921,21 @@ class ElkInterface(Configurable):
             stats['committed_disk_GB'] = stats['committed_disk'] / 1024.0
             stats['total_disk_GB'] = stats['total_disk'] / 1024.0
 
-            stats['start_time'] = datetime.utcfromtimestamp(
+            stats['start_time'] = dt.datetime.utcfromtimestamp(
                 float(str(stats['start_time'])[:10]))
-            stats['time_when_started'] = datetime.utcfromtimestamp(
+            stats['time_when_started'] = dt.datetime.utcfromtimestamp(
                 float(str(stats['time_when_started'])[:10]))
+        except Exception as e:
+            logger.error(e)
+            return
 
-            if category not in self.previous_stats:
-                self.previous_stats[category] = {}
+        logger.debug("dealing with special fields in stats log")
+        try:
+            stats = self.unroll_cumulative_fields(stats, 'stats', category)
 
-            if 'timestamp' in self.previous_stats[category]:
-                stats['time_diff'] = \
-                    max(int(stats['timestamp'].strftime('%s')) * 10e6 -
-                        self.previous_stats[category]['timestamp'], 0)
-
+            if 'timestamp_diff' in stats:
                 stats['time_other_lobster'] = \
-                    max(stats['time_diff'] -
+                    max(stats['timestamp_diff'] -
                         stats['total_status_time'] -
                         stats['total_create_time'] -
                         stats['total_action_time'] -
@@ -799,24 +944,14 @@ class ElkInterface(Configurable):
                         stats['total_return_time'], 0)
 
                 stats['time_other_wq'] = \
-                    max(stats['time_diff'] - stats['time_send'] -
+                    max(stats['timestamp_diff'] - stats['time_send'] -
                         stats['time_receive'] - stats['time_status_msgs'] -
                         stats['time_internal'] - stats['time_polling'] -
                         stats['time_application'], 0)
 
                 stats['time_idle'] = \
-                    stats['time_diff'] * stats['idle_percentage']
+                    stats['timestamp_diff'] * stats['idle_percentage']
 
-            self.previous_stats[category]['timestamp'] = \
-                int(stats['timestamp'].strftime('%s')) * 10e6
-
-            for key in stats.keys():
-                if key.startswith('workers_'):
-                    if key in self.previous_stats[category]:
-                        stats['new_' + key] = \
-                            max(stats[key] -
-                                self.previous_stats[category][key], 0)
-                    self.previous_stats[category][key] = stats[key]
         except Exception as e:
             logger.error(e)
             return

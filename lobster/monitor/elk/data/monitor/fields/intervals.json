@@ -1,0 +1,94 @@
+{
+    "TaskUpdate": {
+        "cores": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-cores"
+            ]
+        }, 
+        "memory_resident": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-resident-memory"
+            ]
+        }, 
+        "memory_swap": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-swap-memory"
+            ]
+        }, 
+        "memory_virtual": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-virtual-memory"
+            ]
+        }, 
+        "percent_efficiency": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-percent-efficiency"
+            ]
+        }, 
+        "runtime": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-runtime"
+            ]
+        }, 
+        "time_executable": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-executable-time"
+            ]
+        }, 
+        "time_overhead": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-overhead-time"
+            ]
+        }, 
+        "workdir_footprint": {
+            "extended_bounds": {
+                "max": null, 
+                "min": null
+            }, 
+            "interval": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-working-directory-footprint"
+            ]
+        }
+    }
+}

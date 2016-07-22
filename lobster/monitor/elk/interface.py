@@ -911,56 +911,55 @@ class ElkInterface(Configurable):
         logger.debug("calculating TaskUpdate time intervals")
         try:
             task_update['runtime'] = \
-                task_update['time_processing_end'] - \
-                task_update['time_wrapper_start']
+                max(task_update['time_processing_end'] -
+                    task_update['time_wrapper_start'], 0)
             task_update['time_input_transfer'] = \
-                task_update['time_transfer_in_start'] - \
-                task_update['time_transfer_in_end']
+                max(task_update['time_transfer_in_start'] -
+                    task_update['time_transfer_in_end'], 0)
             task_update['time_startup'] = \
-                task_update['time_wrapper_start'] - \
-                task_update['time_transfer_in_end']
+                max(task_update['time_wrapper_start'] -
+                    task_update['time_transfer_in_end'], 0)
             task_update['time_release_setup'] = \
-                task_update['time_wrapper_ready'] - \
-                task_update['time_wrapper_start']
+                max(task_update['time_wrapper_ready'] -
+                    task_update['time_wrapper_start'], 0)
             task_update['time_stage_in'] = \
-                task_update['time_stage_in_end'] - \
-                task_update['time_wrapper_ready']
+                max(task_update['time_stage_in_end'] -
+                    task_update['time_wrapper_ready'], 0)
             task_update['time_prologue'] = \
-                task_update['time_prologue_end'] - \
-                task_update['time_stage_in_end']
+                max(task_update['time_prologue_end'] -
+                    task_update['time_stage_in_end'], 0)
             task_update['time_overhead'] = \
-                task_update['time_wrapper_ready'] - \
-                task_update['time_wrapper_start']
+                max(task_update['time_wrapper_ready'] -
+                    task_update['time_wrapper_start'], 0)
             task_update['time_executable'] = \
-                task_update['time_processing_end'] - \
-                task_update['time_prologue_end']
+                max(task_update['time_processing_end'] -
+                    task_update['time_prologue_end'], 0)
             task_update['time_epilogue'] = \
-                task_update['time_epilogue_end'] - \
-                task_update['time_processing_end']
+                max(task_update['time_epilogue_end'] -
+                    task_update['time_processing_end'], 0)
             task_update['time_stage_out'] = \
-                task_update['time_stage_out_end'] - \
-                task_update['time_epilogue_end']
+                max(task_update['time_stage_out_end'] -
+                    task_update['time_epilogue_end'], 0)
             task_update['time_output_transfer_wait'] = \
-                task_update['time_transfer_out_start'] - \
-                task_update['time_stage_out_end']
+                max(task_update['time_transfer_out_start'] -
+                    task_update['time_stage_out_end'], 0)
             task_update['time_output_transfer_work_queue'] = \
-                task_update['time_transfer_out_end'] - \
-                task_update['time_transfer_out_start']
-
+                max(task_update['time_transfer_out_end'] -
+                    task_update['time_transfer_out_start'], 0)
             task_update['time_total_eviction'] = \
-                task_update['time_total_on_worker'] - \
-                task_update['time_on_worker']
+                max(task_update['time_total_on_worker'] -
+                    task_update['time_on_worker'], 0)
 
             if task_update['exit_code'] == 0:
                 task_update['time_total_overhead'] = \
-                    task_update['time_prologue_end'] - \
-                    task_update['time_transfer_in_start']
+                    max(task_update['time_prologue_end'] -
+                        task_update['time_transfer_in_start'], 0)
                 task_update['time_total_processing'] = \
-                    task_update['time_processing_end'] - \
-                    task_update['time_prologue_end']
+                    max(task_update['time_processing_end'] -
+                        task_update['time_prologue_end'], 0)
                 task_update['time_total_stage_out'] = \
-                    task_update['time_transfer_out_end'] - \
-                    task_update['time_processing_end']
+                    max(task_update['time_transfer_out_end'] -
+                        task_update['time_processing_end'], 0)
             else:
                 task_update['time_total_failed'] = \
                     task_update['time_total_on_worker']

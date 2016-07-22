@@ -882,7 +882,7 @@ class ElkInterface(Configurable):
 
             if not (task_update['cores'] == 0 or
                     task_update['time_processing_end'] == 0 or
-                    task_update['time_prologue_end']):
+                    task_update['time_prologue_end'] == 0):
                 task_update['percent_efficiency'] = \
                     task_update['time_cpu'] * 100 / \
                     (1. * task_update['cores'] *

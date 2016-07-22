@@ -17,6 +17,52 @@ import lobster
 logger = logging.getLogger('lobster.monitor.elk')
 
 
+def dictify(thing, skip=None):
+    thing = dict([(m, o) for (m, o) in inspect.getmembers(thing)
+                  if not inspect.isroutine(o) and not m.startswith('__')])
+
+    if isinstance(skip, basestring):
+        try:
+            thing.pop(skip)
+        except KeyError:
+            pass
+    else:
+        for key in skip:
+            try:
+                thing.pop(key)
+            except KeyError:
+                pass
+
+    return thing
+
+
+def nested_paths(d):
+    def get_paths(d, parent=[]):
+        if not isinstance(d, dict):
+            return [tuple(parent)]
+        else:
+            return reduce(list.__add__,
+                          [get_paths(v, parent + [k])
+                           for k, v in d.items()], [])
+    return ['.'.join(path) for path in get_paths(d)]
+
+
+def nested_set(d, path, value):
+    keys = path.split('.')
+    for key in keys[:-1]:
+        d = d.setdefault(key, {})
+    d[keys[-1]] = value
+
+
+def nested_get(d, path):
+    keys = path.split('.')
+    for key in keys:
+        d = d.get(key)
+        if not d:
+            break
+    return d
+
+
 class ElkInterface(Configurable):
 
     """
@@ -162,9 +208,9 @@ class ElkInterface(Configurable):
                 if previous[log_type]['has_categories']:
                     for category in self.categories:
                         previous[log_type][category] = {}
-                        for field in self.nested_paths(
+                        for field in nested_paths(
                                 previous[log_type]['all']):
-                            self.nested_set(previous[log_type][category],
+                            nested_set(previous[log_type][category],
                                             field, None)
 
             self.client.index(index=self.prefix + '_monitor_data',
@@ -178,12 +224,12 @@ class ElkInterface(Configurable):
                                    'fields', 'intervals') + '.json', 'r') as f:
                 intervals = json.load(f)
 
-            vis_id_paths = [path for path in self.nested_paths(intervals)
+            vis_id_paths = [path for path in nested_paths(intervals)
                             if path.endswith('.vis_ids')]
             for path in vis_id_paths:
                 vis_ids = [vis_id.replace('[template]', self.prefix)
-                           for vis_id in self.nested_get(intervals, path)]
-                self.nested_set(intervals, path, vis_ids)
+                           for vis_id in nested_get(intervals, path)]
+                nested_set(intervals, path, vis_ids)
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='intervals',
@@ -311,7 +357,7 @@ class ElkInterface(Configurable):
                                 vis_source['query']['query_string']['query'] =\
                                     ' '.join(filter_words)
 
-                                vis_ids = self.nested_get(
+                                vis_ids = nested_get(
                                     intervals, field_path + '.vis_ids')
 
                                 if vis_ids and vis.meta.id not in vis_ids:
@@ -326,7 +372,7 @@ class ElkInterface(Configurable):
                                     'vis_ids': vis_ids
                                 }
 
-                                self.nested_set(
+                                nested_set(
                                     intervals, agg['params']['field'],
                                     hist_data)
 
@@ -589,48 +635,6 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
-    def dictify(self, thing, skip=None):
-        thing = dict([(m, o) for (m, o) in inspect.getmembers(thing)
-                      if not inspect.isroutine(o) and not m.startswith('__')])
-
-        if isinstance(skip, basestring):
-            try:
-                thing.pop(skip)
-            except KeyError:
-                pass
-        else:
-            for key in skip:
-                try:
-                    thing.pop(key)
-                except KeyError:
-                    pass
-
-        return thing
-
-    def nested_paths(self, d):
-        def get_paths(d, parent=[]):
-            if not isinstance(d, dict):
-                return [tuple(parent)]
-            else:
-                return reduce(list.__add__,
-                              [get_paths(v, parent + [k])
-                               for k, v in d.items()], [])
-        return ['.'.join(path) for path in get_paths(d)]
-
-    def nested_set(self, d, path, value):
-        keys = path.split('.')
-        for key in keys[:-1]:
-            d = d.setdefault(key, {})
-        d[keys[-1]] = value
-
-    def nested_get(self, d, path):
-        keys = path.split('.')
-        for key in keys:
-            d = d.get(key)
-            if not d:
-                break
-        return d
-
     def unroll_cumulative_fields(self, log, log_type, category=None):
         logger.debug("unrolling " + log_type + " cumulative fields")
 
@@ -648,15 +652,15 @@ class ElkInterface(Configurable):
             else:
                 previous_subset = previous[log_type][category]
 
-            paths = [path for path in self.nested_paths(previous_subset)]
+            paths = [path for path in nested_paths(previous_subset)]
 
             for path in paths:
-                cur_val = self.nested_get(log, path)
+                cur_val = nested_get(log, path)
 
                 if isinstance(cur_val, dt.date):
                     cur_val = int(cur_val.strftime('%s'))
 
-                old_val = self.nested_get(previous_subset, path)
+                old_val = nested_get(previous_subset, path)
 
                 if old_val is not None:
                     if '.' in path:
@@ -666,9 +670,9 @@ class ElkInterface(Configurable):
                     else:
                         new_path = path + '_diff'
                     new_val = max(cur_val - old_val, 0)
-                    self.nested_set(log, new_path, new_val)
+                    nested_set(log, new_path, new_val)
 
-                self.nested_set(previous_subset, path, cur_val)
+                nested_set(previous_subset, path, cur_val)
 
                 if category is None:
                     previous[log_type] = previous_subset
@@ -696,13 +700,13 @@ class ElkInterface(Configurable):
             intervals = response[0].to_dict()
 
             fields = ['.'.join(path.split('.')[:-1])
-                      for path in self.nested_paths(intervals[log_type])
+                      for path in nested_paths(intervals[log_type])
                       if path.endswith('interval')]
 
             for field in fields:
-                cur_val = self.nested_get(log, field)
+                cur_val = nested_get(log, field)
                 field_path = log_type + '.' + field
-                intervals_field = self.nested_get(intervals,
+                intervals_field = nested_get(intervals,
                                                   field_path)
 
                 changed = False
@@ -769,7 +773,8 @@ class ElkInterface(Configurable):
                                           doc_type='visualization',
                                           id=vis_id, body=vis.to_dict())
 
-                self.nested_set(intervals, log_type + '.' + field, intervals_field)
+                nested_set(intervals, log_type + '.' +
+                                field, intervals_field)
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='intervals',
@@ -780,13 +785,13 @@ class ElkInterface(Configurable):
     def index_task(self, task):
         logger.debug("parsing Task object")
         try:
-            task = self.dictify(task, skip=('_task'))
+            task = dictify(task, skip=('_task'))
 
-            task['resources_requested'] = self.dictify(
+            task['resources_requested'] = dictify(
                 task['resources_requested'], skip=('this'))
-            task['resources_measured'] = self.dictify(
+            task['resources_measured'] = dictify(
                 task['resources_measured'], skip=('this', 'peak_times'))
-            task['resources_allocated'] = self.dictify(
+            task['resources_allocated'] = dictify(
                 task['resources_allocated'], skip=('this'))
 
             task['resources_measured']['cpu_wall_ratio'] = \
@@ -798,15 +803,19 @@ class ElkInterface(Configurable):
 
         logger.debug("parsing Task timestamps")
         try:
-            timestamp_keys = ['send_input_start', 'send_input_finish',
-                              'execute_cmd_start', 'execute_cmd_finish',
-                              'receive_output_start', 'receive_output_finish',
-                              'submit_time', 'finish_time',
+            timestamp_keys = ['send_input_start',
+                              'send_input_finish',
+                              'execute_cmd_start',
+                              'execute_cmd_finish',
+                              'receive_output_start',
+                              'receive_output_finish',
+                              'submit_time',
+                              'finish_time',
                               'resources_measured.start',
                               'resources_measured.end']
             for key in timestamp_keys:
-                self.nested_set(task, key, dt.datetime.utcfromtimestamp(
-                    float(str(self.nested_get(task, key))[:10])))
+                nested_set(task, key, dt.datetime.utcfromtimestamp(
+                    float(str(nested_get(task, key))[:10])))
         except Exception as e:
             logger.error(e)
 
@@ -955,30 +964,21 @@ class ElkInterface(Configurable):
 
         logger.debug("parsing TaskUpdate timestamps")
         try:
-            task_update['time_processing_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_processing_end'])
-            task_update['time_prologue_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_prologue_end'])
-            task_update['time_retrieved'] = dt.datetime.utcfromtimestamp(
-                task_update['time_retrieved'])
-            task_update['time_stage_in_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_stage_in_end'])
-            task_update['time_stage_out_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_stage_out_end'])
-            task_update['time_transfer_in_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_transfer_in_end'])
-            task_update['time_transfer_in_start'] = dt.datetime.utcfromtimestamp(
-                task_update['time_transfer_in_start'])
-            task_update['time_transfer_out_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_transfer_out_end'])
-            task_update['time_transfer_out_start'] = dt.datetime.utcfromtimestamp(
-                task_update['time_transfer_out_start'])
-            task_update['time_wrapper_ready'] = dt.datetime.utcfromtimestamp(
-                task_update['time_wrapper_ready'])
-            task_update['time_wrapper_start'] = dt.datetime.utcfromtimestamp(
-                task_update['time_wrapper_start'])
-            task_update['time_epilogue_end'] = dt.datetime.utcfromtimestamp(
-                task_update['time_epilogue_end'])
+            timestamp_keys = ['time_processing_end',
+                              'time_prologue_end',
+                              'time_retrieved',
+                              'time_stage_in_end',
+                              'time_stage_out_end',
+                              'time_transfer_in_end',
+                              'time_transfer_in_start',
+                              'time_transfer_out_end',
+                              'time_transfer_out_start',
+                              'time_wrapper_ready',
+                              'time_wrapper_start',
+                              'time_epilogue_end']
+            for key in timestamp_keys:
+                task_update[key] = dt.datetime.utcfromtimestamp(
+                    float(str(task_update[key])[:10]))
         except Exception as e:
             logger.error(e)
 

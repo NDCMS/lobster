@@ -388,9 +388,11 @@ class XrootD(StorageElement):
         try:
             output = self.execute('stat', path)
             for line in output.splitlines():
-                field,value = line.split(':')
+                field,value = line.split(':',1)
                 if field == 'Flags':
-                    return 'IsDir' in value
+                    # Do some silly stuff to get the flags...
+                    flags = value.split()[-1].strip('()').split('|')
+                    return 'IsDir' in flags
 
             # If we got here, never found any mention of flags, just say false.
             return False
@@ -401,9 +403,11 @@ class XrootD(StorageElement):
         try:
             output = self.execute('stat', path)
             for line in output.splitlines():
-                field,value = line.split(':')
+                field,value = line.split(':',1)
                 if field == 'Flags':
-                    return 'IsDir' not in value
+                    # Do some silly stuff to get the flags...
+                    flags = value.split()[-1].strip('()').split('|')
+                    return 'IsDir' not in flags
 
             # If we got here, never found any mention of flags, just say false.
             return False

@@ -708,6 +708,9 @@ class ElkInterface(Configurable):
 
             for field in fields:
                 cur_val = nested_get(log, field)
+                if cur_val is None:
+                    break
+
                 field_path = log_type + '.' + field
                 intervals_field = nested_get(intervals, field_path)
 

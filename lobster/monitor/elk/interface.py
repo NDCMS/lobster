@@ -875,15 +875,19 @@ class ElkInterface(Configurable):
             task_update['allocated_memory_MB'] = \
                 task_update['allocated_memory'] / 1024.0
 
-            task_update['bandwidth'] = \
-                task_update['network_bytes_received'] / 1e6 / \
-                task_update['time_on_worker']
+            if not task_update['time_on_worker'] == 0:
+                task_update['bandwidth'] = \
+                    task_update['network_bytes_received'] / 1e6 / \
+                    task_update['time_on_worker']
 
-            task_update['percent_efficiency'] = \
-                task_update['time_cpu'] * 100 / \
-                (1. * task_update['cores'] *
-                 (task_update['time_processing_end'] -
-                  task_update['time_prologue_end']))
+            if not (task_update['cores'] == 0 or
+                    task_update['time_processing_end'] == 0 or
+                    task_update['time_prologue_end']):
+                task_update['percent_efficiency'] = \
+                    task_update['time_cpu'] * 100 / \
+                    (1. * task_update['cores'] *
+                     (task_update['time_processing_end'] -
+                      task_update['time_prologue_end']))
 
             status_code_map = {
                 0: 'initialized',

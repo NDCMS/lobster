@@ -58,8 +58,6 @@ def nested_get(d, path):
     keys = path.split('.')
     for key in keys:
         d = d.get(key)
-        if not d:
-            break
     return d
 
 
@@ -198,6 +196,9 @@ class ElkInterface(Configurable):
                                              'port': self.es_port}])
 
     def init_monitor_data(self):
+        # FIXME: add something to check if already exists, and if it does,
+        # merge the new with the old (only initializing new values),
+        # can then run as part of update_kibana()
         logger.info("initializing ELK monitoring data")
         try:
             with open(os.path.join(self.template_dir, 'monitor',
@@ -211,7 +212,7 @@ class ElkInterface(Configurable):
                         for field in nested_paths(
                                 previous[log_type]['all']):
                             nested_set(previous[log_type][category],
-                                            field, None)
+                                       field, None)
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='previous',
@@ -356,6 +357,9 @@ class ElkInterface(Configurable):
                                             field_path + ':<=' + str(0)
                                 vis_source['query']['query_string']['query'] =\
                                     ' '.join(filter_words)
+                                # FIXME: add filter if not found to really
+                                # make sure we don't accidentally crash with
+                                # new templates
 
                                 vis_ids = nested_get(
                                     intervals, field_path + '.vis_ids')
@@ -372,9 +376,8 @@ class ElkInterface(Configurable):
                                     'vis_ids': vis_ids
                                 }
 
-                                nested_set(
-                                    intervals, agg['params']['field'],
-                                    hist_data)
+                                nested_set(intervals, agg['params']['field'],
+                                           hist_data)
 
                         vis.kibanaSavedObjectMeta.searchSourceJSON = \
                             json.dumps(vis_source, sort_keys=True)
@@ -706,8 +709,7 @@ class ElkInterface(Configurable):
             for field in fields:
                 cur_val = nested_get(log, field)
                 field_path = log_type + '.' + field
-                intervals_field = nested_get(intervals,
-                                                  field_path)
+                intervals_field = nested_get(intervals, field_path)
 
                 changed = False
                 if intervals_field['interval'] is None:
@@ -773,8 +775,7 @@ class ElkInterface(Configurable):
                                           doc_type='visualization',
                                           id=vis_id, body=vis.to_dict())
 
-                nested_set(intervals, log_type + '.' +
-                                field, intervals_field)
+                nested_set(intervals, log_type + '.' + field, intervals_field)
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='intervals',

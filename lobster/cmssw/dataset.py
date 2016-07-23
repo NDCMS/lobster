@@ -95,7 +95,7 @@ class Dataset(Configurable):
         self.lumis_per_task = lumis_per_task
         self.events_per_task = events_per_task
         self.file_based = file_based
-        self.dbs_instance = dbs_instance
+        self.dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(dbs_instance)
 
         self.total_units = 0
 
@@ -120,12 +120,10 @@ class Dataset(Configurable):
         if self.lumi_mask:
             self.lumi_mask = self.__get_mask(self.lumi_mask)
 
-        if self.dbs_instance not in self.__apis:
-            cred = Proxy({'logger': logging.getLogger("WMCore")})
-            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(self.dbs_instance)
-            self.__apis[self.dbs_instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
+        cred = Proxy({'logger': logging.getLogger("WMCore")})
+        dbs = DASWrapper(self.dbs_url, ca_info=cred.getProxyFilename())
 
-        baseinfo = self.__apis[self.dbs_instance].listFileSummaries(dataset=self.dataset)
+        baseinfo = dbs.listFileSummaries(dataset=self.dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
             return False
         return True
@@ -135,7 +133,7 @@ class Dataset(Configurable):
             if self.lumi_mask:
                 self.lumi_mask = self.__get_mask(self.lumi_mask)
             res = self.query_database(
-                self.dataset, self.dbs_instance, self.lumi_mask, self.file_based)
+                self.dataset, self.lumi_mask, self.file_based)
 
             if self.events_per_task:
                 res.tasksize = int(
@@ -148,13 +146,11 @@ class Dataset(Configurable):
         self.total_units = Dataset.__dsets[self.dataset].total_units
         return Dataset.__dsets[self.dataset]
 
-    def query_database(self, dataset, instance, mask, file_based):
-        if instance not in self.__apis:
-            cred = Proxy({'logger': logging.getLogger("WMCore")})
-            dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(instance)
-            self.__apis[instance] = DASWrapper(dbs_url, ca_info=cred.getProxyFilename())
+    def query_database(self, dataset, mask, file_based):
+        cred = Proxy({'logger': logging.getLogger("WMCore")})
+        dbs = DASWrapper(self.dbs_url, ca_info=cred.getProxyFilename())
 
-        baseinfo = self.__apis[instance].listFileSummaries(dataset=dataset)
+        baseinfo = dbs.listFileSummaries(dataset=dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
             raise ValueError('unable to retrive information for dataset {}'.format(dataset))
 
@@ -165,21 +161,21 @@ class Dataset(Configurable):
         result = DatasetInfo()
         result.total_events = sum([info['num_event'] for info in baseinfo])
 
-        for info in self.__apis[instance].listFiles(dataset=dataset, detail=True):
+        for info in dbs.listFiles(dataset=dataset, detail=True):
             fn = info['logical_file_name']
             result.files[fn].events = info['event_count']
             result.files[fn].size = info['file_size']
 
         if file_based:
-            for info in self.__apis[instance].listFiles(dataset=dataset):
+            for info in dbs.listFiles(dataset=dataset):
                 fn = info['logical_file_name']
                 result.files[fn].lumis = [(-2, -2)]
         else:
-            blocks = self.__apis[instance].listBlocks(dataset=dataset)
+            blocks = dbs.listBlocks(dataset=dataset)
             if mask:
                 unmasked_lumis = LumiList(filename=mask)
             for block in blocks:
-                runs = self.__apis[instance].listFileLumis(block_name=block['block_name'])
+                runs = dbs.listFileLumis(block_name=block['block_name'])
                 for run in runs:
                     fn = run['logical_file_name']
                     for lumi in run['lumi_section_num']:

@@ -370,8 +370,6 @@ class Workflow(Configurable):
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
 
-        self.validate()
-
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
             return MergeTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)

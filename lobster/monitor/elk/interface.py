@@ -58,6 +58,8 @@ def nested_get(d, path):
     keys = path.split('.')
     for key in keys:
         d = d.get(key)
+        if d is None:
+            break
     return d
 
 
@@ -201,8 +203,8 @@ class ElkInterface(Configurable):
         # can then run as part of update_kibana()
         logger.info("initializing ELK monitoring data")
         try:
-            with open(os.path.join(self.template_dir, 'monitor',
-                                   'fields', 'previous') + '.json', 'r') as f:
+            with open(os.path.join(self.template_dir, 'monitor', 'previous') +
+                      '.json', 'r') as f:
                 previous = json.load(f)
 
             for log_type in previous:
@@ -221,8 +223,8 @@ class ElkInterface(Configurable):
             logger.error(e)
 
         try:
-            with open(os.path.join(self.template_dir, 'monitor',
-                                   'fields', 'intervals') + '.json', 'r') as f:
+            with open(os.path.join(self.template_dir, 'monitor', 'intervals') +
+                      '.json', 'r') as f:
                 intervals = json.load(f)
 
             vis_id_paths = [path for path in nested_paths(intervals)
@@ -393,8 +395,8 @@ class ElkInterface(Configurable):
                     logger.error(e)
 
         try:
-            with open(os.path.join(self.template_dir, 'monitor',
-                                   'fields', 'intervals') + '.json', 'w') as f:
+            with open(os.path.join(self.template_dir, 'monitor', 'intervals') +
+                      '.json', 'w') as f:
                 f.write(json.dumps(intervals, indent=4, sort_keys=True))
         except Exception as e:
             logger.error(e)
@@ -568,14 +570,14 @@ class ElkInterface(Configurable):
 
                 all_filter = requests.utils.quote(
                     "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
-                    "'(_missing_:category) OR category:all')))",
+                    "'_missing_:category OR category:all')))",
                     safe='/:!?,&=#')
                 links_text += "- [all]({0}?{1})\n" \
                     .format(dash_links[name], all_filter)
 
                 merge_filter = requests.utils.quote(
                     "&_a=(query:(query_string:(analyze_wildcard:!t,query:" +
-                    "'(_missing_:Task.category) OR Task.category:merge')))",
+                    "'_missing_:Task.category OR Task.category:merge')))",
                     safe='/:!?,&=#')
                 links_text += "- [merge]({0}?{1})\n" \
                     .format(dash_links[name], merge_filter)
@@ -1063,3 +1065,60 @@ class ElkInterface(Configurable):
                                          now.microsecond)))
         except Exception as e:
             logger.error(e)
+
+    def index_summary(self, summary):
+        logger.debug("updating summary document")
+
+        keys = ['label', 'events', 'events_read', 'events_written', 'units',
+                'units_unmasked', 'units_written', 'units_merged',
+                'units_paused', 'units_failed', 'units_skipped',
+                'percent_progress', 'percent_merged']
+
+        workflow_summaries = {}
+
+        for item in list(summary)[1:]:
+            workflow_summary = dict(zip(keys, item))
+            workflow_summary['percent_progress'] = \
+                float(workflow_summary['percent_progress'].replace('%', ''))
+            workflow_summary['percent_merged'] = \
+                float(workflow_summary['percent_merged'].replace('%', ''))
+
+            workflow_summaries[workflow_summary['label']] = workflow_summary
+
+            workflow_doc = {'doc': workflow_summary,
+                            'doc_as_upsert': True}
+            self.client.update(
+                index=self.prefix + '_lobster_workflow_summaries',
+                doc_type='summary', body=workflow_doc,
+                id=workflow_summary['label'])
+
+            if workflow_summary['label'] == 'Total':
+                self.client.update(
+                    index=self.prefix + '_lobster_category_summaries',
+                    doc_type='summary', body=workflow_doc,
+                    id=workflow_summary['label'])
+
+        for category in self.categories:
+            category_summary = {key: 0 for key in keys[1:-2]}
+
+            for workflow in self.categories[category]:
+                for item in category_summary:
+                    category_summary[item] += \
+                        workflow_summaries[workflow][item]
+
+            category_summary['label'] = category
+            category_summary['percent_progress'] = round(
+                100.0 * category_summary['units_written'] /
+                category_summary['units_unmasked'], 1)
+            category_summary['percent_merged'] = round(
+                100.0 * category_summary['units_merged'] /
+                category_summary['units_written'], 1) \
+                if category_summary['units_written'] > 0 else 0
+
+            category_doc = {'doc': category_summary,
+                            'doc_as_upsert': True}
+
+            self.client.update(
+                index=self.prefix + '_lobster_category_summaries',
+                doc_type='summary', body=category_doc,
+                id=category)

@@ -210,7 +210,11 @@ class TaskProvider(object):
 
         if self.config.elk:
             if create:
-                categories = {wflow.category.name for wflow in self.config.workflows}
+                categories = {wflow.category.name: [] for wflow in self.config.workflows}
+                for category in categories:
+                    for workflow in self.config.workflows:
+                        if workflow.category.name == category:
+                            categories[category].append(workflow.label)
                 self.config.elk.create(categories)
             else:
                 self.config.elk.resume()
@@ -506,6 +510,9 @@ class TaskProvider(object):
 
         if len(transfers) > 0:
             self.__store.update_transfers(transfers)
+
+        if self.config.elk:
+            self.config.elk.index_summary(self.__store.workflow_status())
 
     def terminate(self):
         for id in self.__store.running_tasks():

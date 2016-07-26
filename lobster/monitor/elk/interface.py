@@ -160,11 +160,11 @@ class ElkInterface(Configurable):
         self.check_client()
 
         try:
-            indices = self.client.indices.get_aliases().keys()
-            if any(self.prefix in s for s in indices):
+            if self.client.indices.exists(self.prefix + '*'):
                 logger.info("Elasticsearch indices with prefix " +
                             self.prefix + " already exist")
                 self.delete_elasticsearch()
+            # FIXME: create indices here with mapping from mapping.json
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
@@ -211,27 +211,7 @@ class ElkInterface(Configurable):
         # newly-created histograms or cumulative fields
         logger.info("initializing ELK monitoring data")
         try:
-            with open(os.path.join(self.template_dir, 'monitor', 'previous') +
-                      '.json', 'r') as f:
-                previous = json.load(f)
-
-            for log_type in previous:
-                if previous[log_type]['has_categories']:
-                    for category in self.categories:
-                        previous[log_type][category] = {}
-                        for field in nested_paths(
-                                previous[log_type]['all']):
-                            nested_set(previous[log_type][category],
-                                       field, None)
-
-            self.client.index(index=self.prefix + '_monitor_data',
-                              doc_type='fields', id='previous',
-                              body=previous)
-        except Exception as e:
-            logger.error(e)
-
-        try:
-            with open(os.path.join(self.template_dir, 'monitor', 'intervals') +
+            with open(os.path.join(self.template_dir, 'intervals') +
                       '.json', 'r') as f:
                 intervals = json.load(f)
 
@@ -417,7 +397,7 @@ class ElkInterface(Configurable):
                     logger.error(e)
 
         try:
-            with open(os.path.join(self.template_dir, 'monitor', 'intervals') +
+            with open(os.path.join(self.template_dir, 'intervals') +
                       '.json', 'w') as f:
                 f.write(json.dumps(intervals, indent=4, sort_keys=True))
         except Exception as e:
@@ -681,62 +661,31 @@ class ElkInterface(Configurable):
         except es.exceptions.ElasticsearchException as e:
             logger.error(e)
 
-    def unroll_cumulative_fields(self, log, log_type, category=None):
-        # maybe this shouldn't use its own document? maybe this should instead
-        # just fetch the most recent log of its type. would probably be more
-        # versatile - would just pass the list of fields that need to be
-        # unrolled and any special search parameters to narrow down the log,
-        # or do the search in the index function and just pass the old log,
-        # the new log, and the list of fields. would also no longer require a
-        # json list of cumulative fields in lobster/monitor/elk/data/monitor
-        logger.debug("unrolling " + log_type + " cumulative fields")
-        try:
-            search = es_dsl.Search(
-                using=self.client, index=self.prefix + '_monitor_data') \
-                .filter('match', _type='fields') \
-                .filter('match', _id='previous') \
-                .extra(size=1)
-
-            previous = search.execute()[0].to_dict()
-
-            if category is None:
-                previous_subset = previous[log_type]
-            else:
-                previous_subset = previous[log_type][category]
-
-            paths = [path for path in nested_paths(previous_subset)]
-
-            for path in paths:
-                cur_val = nested_get(log, path)
+    def unroll_cumulative_fields(self, log, previous, fields):
+        logger.debug("unrolling cumulative fields")
+        for field in fields:
+            try:
+                cur_val = nested_get(log, field)
+                old_val = nested_get(previous, field)
 
                 if isinstance(cur_val, dt.date):
                     cur_val = int(cur_val.strftime('%s'))
-
-                old_val = nested_get(previous_subset, path)
+                    old_val = int(
+                        dt.datetime.strptime(old_val, '%Y-%m-%dT%H:%M:%S')
+                        .strftime('%s'))
 
                 if old_val is not None:
-                    if '.' in path:
-                        path_parts = path.split('.')
-                        new_path = '.'.join(path_parts[:-1] +
-                                            [path_parts[-1] + '_diff'])
+                    if '.' in field:
+                        field_parts = field.split('.')
+                        new_field = '.'.join(field_parts[:-1] +
+                                             [field_parts[-1] + '_diff'])
                     else:
-                        new_path = path + '_diff'
+                        new_field = field + '_diff'
+
                     new_val = max(cur_val - old_val, 0)
-                    nested_set(log, new_path, new_val)
-
-                nested_set(previous_subset, path, cur_val)
-
-                if category is None:
-                    previous[log_type] = previous_subset
-                else:
-                    previous[log_type][category] = previous_subset
-
-                self.client.index(index=self.prefix + '_monitor_data',
-                                  doc_type='fields', id='previous',
-                                  body=previous)
-        except Exception as e:
-            logger.error(e)
-
+                    nested_set(log, new_field, new_val)
+            except Exception as e:
+                logger.error(e)
         return log
 
     def update_histogram_bins(self, log, log_type):
@@ -1079,7 +1028,26 @@ class ElkInterface(Configurable):
             logger.error(e)
             return
 
-        stats = self.unroll_cumulative_fields(stats, 'stats', category)
+        try:
+            search_previous = es_dsl.Search(
+                using=self.client, index=self.prefix + '_lobster_stats') \
+                .filter('match', category=category) \
+                .sort('-timestamp').extra(size=1)
+            response_previous = search_previous.execute()
+
+            if len(response_previous) > 0:
+                previous = response_previous[0].to_dict()
+
+                fields = ['timestamp', 'workers_lost', 'workers_able',
+                          'workers_connected', 'workers_idled_out', 'workers_busy',
+                          'workers_fast_aborted', 'workers_blacklisted',
+                          'workers_joined', 'workers_idle', 'workers_released',
+                          'workers_ready', 'workers_removed', 'workers_full',
+                          'workers_init']
+
+                stats = self.unroll_cumulative_fields(stats, previous, fields)
+        except Exception as e:
+            logger.error(e)
 
         try:
             if 'timestamp_diff' in stats:

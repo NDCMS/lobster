@@ -6,20 +6,11 @@
     },
     "mappings": {
         "_default_": {
+            "timestamp": {
+                "type":   "date",
+                "format": "yyyy-MM-dd"
+            },
             "dynamic_templates": [{
-                "message_field": {
-                    "mapping": {
-                        "index": "analyzed",
-                        "omit_norms": true,
-                        "fielddata": {
-                            "format": "disabled"
-                        },
-                        "type": "string"
-                    },
-                    "match_mapping_type": "string",
-                    "match": "message"
-                }
-            }, {
                 "string_fields": {
                     "mapping": {
                         "index": "analyzed",

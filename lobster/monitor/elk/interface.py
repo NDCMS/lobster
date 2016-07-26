@@ -164,14 +164,26 @@ class ElkInterface(Configurable):
                 logger.info("Elasticsearch indices with prefix " +
                             self.prefix + " already exist")
                 self.delete_elasticsearch()
+
             # FIXME: create indices here with mapping from mapping.json
-        except es.exceptions.ElasticsearchException as e:
+            with open(os.path.join(self.template_dir, 'mapping') +
+                      '.json', 'r') as f:
+                mapping = json.load(f)
+
+            index_suffixes = ['_lobster_tasks', '_lobster_task_logs',
+                              '_lobster_stats', '_lobster_summaries',
+                              '_monitor_data']
+            for suffix in index_suffixes:
+                self.client.indices.create(
+                    index=self.prefix + suffix, body=mapping)
+
+            time.sleep(5)
+        except Exception as e:
             logger.error(e)
 
-        self.init_monitor_data()
-        time.sleep(5)
-
         self.update_kibana()
+        self.init_histogram_intervals()
+
         logger.info("beginning ELK monitoring")
 
     def end(self):
@@ -204,12 +216,12 @@ class ElkInterface(Configurable):
             self.client = es.Elasticsearch([{'host': self.es_host,
                                              'port': self.es_port}])
 
-    def init_monitor_data(self):
+    def init_histogram_intervals(self):
         # FIXME: add a check to see if monitoring data already exists, and
         # if it does, merge the new with the old (only initializing new
         # values), can then run as part of update_kibana() to catch any
         # newly-created histograms or cumulative fields
-        logger.info("initializing ELK monitoring data")
+        logger.info("initializing dynamic histogram intervals")
         try:
             with open(os.path.join(self.template_dir, 'intervals') +
                       '.json', 'r') as f:

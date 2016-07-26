@@ -149,6 +149,13 @@ class ElkInterface(Configurable):
         with PartiallyMutable.unlock():
             self.start_time = dt.datetime.utcnow()
             self.categories = categories
+            self.n_categories = len(categories)
+
+            workflows = []
+            for category in self.categories:
+                workflows += self.categories[category]
+            workflows = set(workflows)
+            self.n_workflows = len(workflows)
 
         self.check_client()
 
@@ -198,9 +205,10 @@ class ElkInterface(Configurable):
                                              'port': self.es_port}])
 
     def init_monitor_data(self):
-        # FIXME: add something to check if already exists, and if it does,
-        # merge the new with the old (only initializing new values),
-        # can then run as part of update_kibana()
+        # FIXME: add a check to see if monitoring data already exists, and
+        # if it does, merge the new with the old (only initializing new
+        # values), can then run as part of update_kibana() to catch any
+        # newly-created histograms or cumulative fields
         logger.info("initializing ELK monitoring data")
         try:
             with open(os.path.join(self.template_dir, 'monitor', 'previous') +
@@ -380,6 +388,21 @@ class ElkInterface(Configurable):
 
                                 nested_set(intervals, agg['params']['field'],
                                            hist_data)
+                        elif vis_state['type'] == 'table':
+                            if vis.meta.id == '[template]-Category-summary':
+                                vis_state['params']['perPage'] = 0
+                                aggs = [agg for agg in vis_state['aggs']
+                                        if 'params' in agg and
+                                        'size' in agg['params']]
+                                for agg in aggs:
+                                    agg['params']['size'] = 0
+                            elif vis.meta.id == '[template]-Workflow-summary':
+                                vis_state['params']['perPage'] = 0
+                                aggs = [agg for agg in vis_state['aggs']
+                                        if 'params' in agg and
+                                        'size' in agg['params']]
+                                for agg in aggs:
+                                    agg['params']['size'] = 0
 
                         vis.kibanaSavedObjectMeta.searchSourceJSON = \
                             json.dumps(vis_source, sort_keys=True)
@@ -457,6 +480,8 @@ class ElkInterface(Configurable):
 
                     vis['title'] = vis['title'] \
                         .replace('[template]', self.prefix)
+                    vis_id = \
+                        vis_path.replace('[template]', self.prefix)[:-5]
 
                     vis_state = json.loads(vis['visState'])
 
@@ -469,8 +494,25 @@ class ElkInterface(Configurable):
                         vis['kibanaSavedObjectMeta']['searchSourceJSON'] = \
                             json.dumps(source, sort_keys=True)
 
-                    vis_id = \
-                        vis_path.replace('[template]', self.prefix)[:-5]
+                        if vis_state['type'] == 'table':
+                            if vis_id == '[template]-Category-summary':
+                                vis_state['params']['perPage'] = \
+                                    self.n_categories
+                                aggs = [agg for agg in vis_state['aggs']
+                                        if 'params' in agg and
+                                        'size' in agg['params']]
+                                for agg in aggs:
+                                    agg['params']['size'] = self.n_categories
+                            elif vis_id == '[template]-Workflow-summary':
+                                vis_state['params']['perPage'] = \
+                                    self.n_workflows
+                                aggs = [agg for agg in vis_state['aggs']
+                                        if 'params' in agg and
+                                        'size' in agg['params']]
+                                for agg in aggs:
+                                    agg['params']['size'] = self.n_workflows
+
+                    vis['visState'] = json.dumps(vis_state)
 
                     self.client.index(index='.kibana',
                                       doc_type='visualization',
@@ -1067,7 +1109,7 @@ class ElkInterface(Configurable):
             logger.error(e)
 
     def index_summary(self, summary):
-        logger.debug("updating summary document")
+        logger.debug("updating summary documents")
 
         keys = ['label', 'events', 'events_read', 'events_written', 'units',
                 'units_unmasked', 'units_written', 'units_merged',
@@ -1087,15 +1129,16 @@ class ElkInterface(Configurable):
 
             workflow_doc = {'doc': workflow_summary,
                             'doc_as_upsert': True}
-            self.client.update(
-                index=self.prefix + '_lobster_workflow_summaries',
-                doc_type='summary', body=workflow_doc,
-                id=workflow_summary['label'])
 
             if workflow_summary['label'] == 'Total':
                 self.client.update(
-                    index=self.prefix + '_lobster_category_summaries',
-                    doc_type='summary', body=workflow_doc,
+                    index=self.prefix + '_lobster_summaries',
+                    doc_type='total', body=workflow_doc,
+                    id=workflow_summary['label'])
+            else:
+                self.client.update(
+                    index=self.prefix + '_lobster_summaries',
+                    doc_type='workflow', body=workflow_doc,
                     id=workflow_summary['label'])
 
         for category in self.categories:
@@ -1119,6 +1162,6 @@ class ElkInterface(Configurable):
                             'doc_as_upsert': True}
 
             self.client.update(
-                index=self.prefix + '_lobster_category_summaries',
-                doc_type='summary', body=category_doc,
+                index=self.prefix + '_lobster_summaries',
+                doc_type='category', body=category_doc,
                 id=category)

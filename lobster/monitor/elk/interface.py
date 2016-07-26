@@ -292,28 +292,27 @@ class ElkInterface(Configurable):
 
                 search_dash = es_dsl.Search(
                     using=self.client, index='.kibana') \
-                    .filter('prefix', _id=self.prefix + '-' + name) \
+                    .filter('match', _id=self.prefix + '-' + name) \
                     .filter('match', _type='dashboard') \
-                    .extra(size=10000)
-                response_dash = search_dash.execute()
+                    .extra(size=1)
+                dash = search_dash.execute()[0]
 
-                for dash in response_dash:
-                    dash.meta.id = dash.meta.id \
-                        .replace(self.prefix, '[template]')
-                    dash.title = dash.title.replace(self.prefix, '[template]')
+                dash.meta.id = dash.meta.id \
+                    .replace(self.prefix, '[template]')
+                dash.title = dash.title.replace(self.prefix, '[template]')
 
-                    dash_panels = json.loads(dash.panelsJSON)
-                    for panel in dash_panels:
-                        vis_ids.append(panel['id'])
-                        panel['id'] = panel['id'].replace(
-                            self.prefix, '[template]')
-                    dash.panelsJSON = json.dumps(dash_panels, sort_keys=True)
+                dash_panels = json.loads(dash.panelsJSON)
+                for panel in dash_panels:
+                    vis_ids.append(panel['id'])
+                    panel['id'] = panel['id'].replace(
+                        self.prefix, '[template]')
+                dash.panelsJSON = json.dumps(dash_panels, sort_keys=True)
 
-                    with open(os.path.join(dash_dir, dash.meta.id) + '.json',
-                              'w') as f:
-                        f.write(json.dumps(dash.to_dict(), indent=4,
-                                           sort_keys=True))
-                        f.write('\n')
+                with open(os.path.join(dash_dir, dash.meta.id) + '.json',
+                          'w') as f:
+                    f.write(json.dumps(dash.to_dict(), indent=4,
+                                       sort_keys=True))
+                    f.write('\n')
             except Exception as e:
                 logger.error(e)
 
@@ -328,10 +327,10 @@ class ElkInterface(Configurable):
                     search_vis = es_dsl.Search(
                         using=self.client, index='.kibana') \
                         .filter('match', _id=vis_id) \
-                        .filter('match', _type='visualization')
-                    response_vis = search_vis.execute()
+                        .filter('match', _type='visualization') \
+                        .extra(size=1)
 
-                    vis = response_vis[0]
+                    vis = search_vis.execute()[0]
                     vis.meta.id = vis.meta.id \
                         .replace(self.prefix, '[template]')
                     vis.title = vis.title \
@@ -683,16 +682,22 @@ class ElkInterface(Configurable):
             logger.error(e)
 
     def unroll_cumulative_fields(self, log, log_type, category=None):
+        # maybe this shouldn't use its own document? maybe this should instead
+        # just fetch the most recent log of its type. would probably be more
+        # versatile - would just pass the list of fields that need to be
+        # unrolled and any special search parameters to narrow down the log,
+        # or do the search in the index function and just pass the old log,
+        # the new log, and the list of fields. would also no longer require a
+        # json list of cumulative fields in lobster/monitor/elk/data/monitor
         logger.debug("unrolling " + log_type + " cumulative fields")
-
         try:
             search = es_dsl.Search(
                 using=self.client, index=self.prefix + '_monitor_data') \
                 .filter('match', _type='fields') \
-                .filter('match', _id='previous')
-            response = search.execute()
+                .filter('match', _id='previous') \
+                .extra(size=1)
 
-            previous = response[0].to_dict()
+            previous = search.execute()[0].to_dict()
 
             if category is None:
                 previous_subset = previous[log_type]
@@ -741,10 +746,10 @@ class ElkInterface(Configurable):
             search = es_dsl.Search(
                 using=self.client, index=self.prefix + '_monitor_data') \
                 .filter('match', _type='fields') \
-                .filter('match', _id='intervals')
-            response = search.execute()
+                .filter('match', _id='intervals') \
+                .extra(size=1)
 
-            intervals = response[0].to_dict()
+            intervals = search.execute()[0].to_dict()
 
             fields = ['.'.join(path.split('.')[:-1])
                       for path in nested_paths(intervals[log_type])
@@ -783,10 +788,10 @@ class ElkInterface(Configurable):
                         search_vis = es_dsl.Search(
                             using=self.client, index='.kibana') \
                             .filter('match', _id=vis_id) \
-                            .filter('match', _type='visualization')
-                        response_vis = search_vis.execute()
+                            .filter('match', _type='visualization') \
+                            .extra(size=1)
 
-                        vis = response_vis[0]
+                        vis = search_vis.execute()[0]
                         vis_state = json.loads(vis.visState)
 
                         for agg in vis_state['aggs']:

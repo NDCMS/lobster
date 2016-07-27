@@ -6,9 +6,10 @@
     },
     "mappings": {
         "_default_": {
-            "timestamp": {
-                "type":   "date",
-                "format": "yyyy-MM-dd"
+            "properties": {
+                "timestamp": {
+                    "type": "date"
+                }
             },
             "dynamic_templates": [{
                 "string_fields": {

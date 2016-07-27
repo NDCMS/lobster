@@ -165,11 +165,11 @@ class ElkInterface(Configurable):
                             self.prefix + " already exist")
                 self.delete_elasticsearch()
 
-            # FIXME: create indices here with mapping from mapping.json
             with open(os.path.join(self.template_dir, 'mapping') +
                       '.json', 'r') as f:
                 mapping = json.load(f)
 
+            logger.info("creating Elasticsearch indices")
             index_suffixes = ['_lobster_tasks', '_lobster_task_logs',
                               '_lobster_stats', '_lobster_summaries',
                               '_monitor_data']
@@ -177,12 +177,13 @@ class ElkInterface(Configurable):
                 self.client.indices.create(
                     index=self.prefix + suffix, body=mapping)
 
+            # try removing mapping from ES
+
             time.sleep(5)
         except Exception as e:
             logger.error(e)
 
         self.update_kibana()
-        self.init_histogram_intervals()
 
         logger.info("beginning ELK monitoring")
 
@@ -217,10 +218,6 @@ class ElkInterface(Configurable):
                                              'port': self.es_port}])
 
     def init_histogram_intervals(self):
-        # FIXME: add a check to see if monitoring data already exists, and
-        # if it does, merge the new with the old (only initializing new
-        # values), can then run as part of update_kibana() to catch any
-        # newly-created histograms or cumulative fields
         logger.info("initializing dynamic histogram intervals")
         try:
             with open(os.path.join(self.template_dir, 'intervals') +
@@ -233,6 +230,23 @@ class ElkInterface(Configurable):
                 vis_ids = [vis_id.replace('[template]', self.prefix)
                            for vis_id in nested_get(intervals, path)]
                 nested_set(intervals, path, vis_ids)
+
+            search = es_dsl.Search(
+                using=self.client, index=self.prefix + '_monitor_data') \
+                .filter('match', _type='fields') \
+                .filter('match', _id='intervals') \
+                .extra(size=1)
+            response = search.execute()
+
+            if len(response) > 0:
+                old_intervals = response[0].to_dict()
+
+                fields = ['.'.join(path.split('.')[:-1])
+                          for path in nested_paths(old_intervals)
+                          if path.endswith('interval')]
+
+                for field in fields:
+                    nested_set(intervals, nested_get(old_intervals, field))
 
             self.client.index(index=self.prefix + '_monitor_data',
                               doc_type='fields', id='intervals',
@@ -349,18 +363,30 @@ class ElkInterface(Configurable):
                                 filter_words = \
                                     vis_source['query']['query_string']\
                                     ['query'].split(' ')
+                                filter_found = False
+
                                 for i, word in enumerate(filter_words):
                                     if word.startswith(field_path + ':>='):
                                         filter_words[i] = \
-                                            field_path + ':>=' + str(0)
+                                            field_path + ':>=0'
+                                        filter_found = True
                                     elif word.startswith(field_path + ':<='):
                                         filter_words[i] = \
-                                            field_path + ':<=' + str(0)
+                                            field_path + ':<=0'
+                                        filter_found = True
+
+                                if not filter_found:
+                                    if len(filter_words) > 0:
+                                        filter_words += \
+                                            ['AND', field_path + ':>=0',
+                                             'AND', field_path + ':<=0']
+                                    else:
+                                        filter_words = \
+                                            [field_path + ':>=0',
+                                             'AND', field_path + ':<=0']
+
                                 vis_source['query']['query_string']['query'] =\
                                     ' '.join(filter_words)
-                                # FIXME: add filter if not found to really
-                                # make sure we don't accidentally crash with
-                                # new templates
 
                                 vis_ids = nested_get(
                                     intervals, field_path + '.vis_ids')
@@ -512,6 +538,7 @@ class ElkInterface(Configurable):
                     logger.error(e)
 
         self.update_links()
+        self.init_histogram_intervals()
 
     def update_links(self):
         logger.debug("generating dashboard links")
@@ -1051,11 +1078,11 @@ class ElkInterface(Configurable):
                 previous = response_previous[0].to_dict()
 
                 fields = ['timestamp', 'workers_lost', 'workers_able',
-                          'workers_connected', 'workers_idled_out', 'workers_busy',
-                          'workers_fast_aborted', 'workers_blacklisted',
-                          'workers_joined', 'workers_idle', 'workers_released',
-                          'workers_ready', 'workers_removed', 'workers_full',
-                          'workers_init']
+                          'workers_connected', 'workers_idled_out',
+                          'workers_busy',  'workers_fast_aborted',
+                          'workers_blacklisted', 'workers_joined',
+                          'workers_idle', 'workers_released', 'workers_ready',
+                          'workers_removed', 'workers_full', 'workers_init']
 
                 stats = self.unroll_cumulative_fields(stats, previous, fields)
         except Exception as e:

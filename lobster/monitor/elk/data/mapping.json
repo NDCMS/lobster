@@ -6,11 +6,6 @@
     },
     "mappings": {
         "_default_": {
-            "properties": {
-                "timestamp": {
-                    "type": "date"
-                }
-            },
             "dynamic_templates": [{
                 "string_fields": {
                     "mapping": {

@@ -308,6 +308,7 @@ if os.environ.get('READTHEDOCS', None) == 'True':
             return Mock()
 
     MOCK_MODULES = [
+        'elasticsearch', 'elasticsearch_dsl',
         'httplib2', 'pycurl', 'work_queue', 'Chirp',
         'dbs', 'dbs.apis', 'dbs.apis.dbsClient',
         'xdg', 'xdg.BaseDirectory'

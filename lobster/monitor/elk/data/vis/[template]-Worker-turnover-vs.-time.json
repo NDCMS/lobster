@@ -4,7 +4,7 @@
         "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_stats\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"category:all\"}}}"
     }, 
     "title": "[template] Worker turnover vs. time", 
-    "uiStateJSON": "{}", 
+    "uiStateJSON": "{\"vis\":{\"colors\":{\"removed\":\"#EA6460\",\"joined\":\"#7EB26D\"}}}", 
     "version": 1, 
     "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"joined\", \"field\": \"workers_joined_diff\"}, \"schema\": \"metric\", \"type\": \"sum\"}, {\"id\": \"2\", \"params\": {\"customLabel\": \"removed\", \"field\": \"workers_removed_diff\"}, \"schema\": \"metric\", \"type\": \"sum\"}, {\"id\": \"3\", \"params\": {\"customInterval\": \"2h\", \"extended_bounds\": {}, \"field\": \"timestamp\", \"interval\": \"auto\", \"min_doc_count\": 1}, \"schema\": \"segment\", \"type\": \"date_histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Worker turnover vs. time\", \"type\": \"histogram\"}"
 }

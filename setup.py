@@ -24,7 +24,7 @@ setup(
         'monitor/elk/data/index/*.json',
         'monitor/elk/data/dash/*.json',
         'monitor/elk/data/vis/*.json',
-        'monitor/elk/data/monitor/*/*.json'
+        'monitor/elk/data/*.json'
     ]},
     install_requires=[
         'argparse',

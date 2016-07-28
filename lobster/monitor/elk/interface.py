@@ -116,7 +116,7 @@ class ElkInterface(Configurable):
         self.project = project
         self.dashboards = dashboards or ['Core']
         self.refresh_interval = refresh_interval
-        self.prefix = '[' + self.user + '_' + self.project + ']'
+        self.prefix = ('[' + self.user + '_' + self.project + ']').lower()
         self.categories = []
         self.start_time = None
         self.end_time = None

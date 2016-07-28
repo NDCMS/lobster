@@ -107,7 +107,7 @@ class ElkInterface(Configurable):
                 'refresh_interval': ('config.elk.update_links', [], False)}
 
     def __init__(self, es_host, es_port, kib_host, kib_port, project,
-                 dashboards=None, refresh_interval=30):
+                 dashboards=None, refresh_interval=300):
         self.es_host = es_host
         self.es_port = es_port
         self.kib_host = kib_host

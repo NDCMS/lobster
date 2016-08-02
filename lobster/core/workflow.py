@@ -339,7 +339,7 @@ class Workflow(Configurable):
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
 
     def validate(self):
-        with fs.default():
+        with fs.alternative():
             if not self.dataset.validate():
                 msg = "cannot validate configuration for dataset of workflow '{0}'"
                 raise AttributeError(msg.format(self.label))

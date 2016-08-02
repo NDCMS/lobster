@@ -28,7 +28,7 @@ class FileSystem(object):
     """
 
     _defaults = []
-    _systems = []
+    _fallback = []
 
     def __init__(self):
         self.__file__ = __file__
@@ -42,7 +42,7 @@ class FileSystem(object):
             logger.debug(
                 "resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
             lasterror = None
-            for imp in FileSystem._systems:
+            for imp in FileSystem._defaults:
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
@@ -58,18 +58,18 @@ class FileSystem(object):
         return switch
 
     @classmethod
-    def configure(cls, defaults, systems):
+    def configure(cls, defaults, alternatives):
         cls._defaults = defaults
-        cls._systems = systems
+        cls._fallback = alternatives
 
     @contextmanager
-    def default(self):
-        tmp = FileSystem._systems
-        FileSystem._systems = FileSystem._defaults
+    def alternative(self):
+        tmp = FileSystem._defaults
+        FileSystem._defaults = FileSystem._fallback
         try:
             yield
         finally:
-            FileSystem._systems = tmp
+            FileSystem._defaults = tmp
 
 
 class StorageElement(object):
@@ -530,8 +530,8 @@ class StorageConfiguration(Configurable):
         per configuration for input and output storage element access.
         """
         FileSystem.configure(
-            list(self._initialize(self.input)),
-            list(self._initialize(self.output))
+            list(self._initialize(self.output)),
+            list(self._initialize(self.input))
         )
 
     def preprocess(self, parameters, merge):

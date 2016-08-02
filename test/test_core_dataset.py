@@ -34,7 +34,7 @@ class TestDataset(unittest.TestCase):
             s = se.StorageConfiguration(output=[], input=['file://' + self.workdir])
             s.activate()
 
-            with fs.default():
+            with fs.alternative():
                 info = Dataset(files='eggs').get_info()
                 assert len(info.files) == 10
 

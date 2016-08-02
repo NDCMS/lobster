@@ -35,6 +35,7 @@ setup(
         'matplotlib',
         'nose',
         'numpy>=1.9',
+        'psutil',
         'pycurl',
         'python-cjson', # actually a DBS dependency
         'python-daemon',

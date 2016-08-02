@@ -95,7 +95,7 @@ class Dataset(Configurable):
         self.lumis_per_task = lumis_per_task
         self.events_per_task = events_per_task
         self.file_based = file_based
-        self.dbs_url = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(dbs_instance)
+        self.dbs_instance = 'https://cmsweb.cern.ch/dbs/prod/{0}/DBSReader'.format(dbs_instance)
 
         self.total_units = 0
 
@@ -121,7 +121,7 @@ class Dataset(Configurable):
             self.lumi_mask = self.__get_mask(self.lumi_mask)
 
         cred = Proxy({'logger': logging.getLogger("WMCore")})
-        dbs = DASWrapper(self.dbs_url, ca_info=cred.getProxyFilename())
+        dbs = DASWrapper(self.dbs_instance, ca_info=cred.getProxyFilename())
 
         baseinfo = dbs.listFileSummaries(dataset=self.dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
@@ -148,7 +148,7 @@ class Dataset(Configurable):
 
     def query_database(self, dataset, mask, file_based):
         cred = Proxy({'logger': logging.getLogger("WMCore")})
-        dbs = DASWrapper(self.dbs_url, ca_info=cred.getProxyFilename())
+        dbs = DASWrapper(self.dbs_instance, ca_info=cred.getProxyFilename())
 
         baseinfo = dbs.listFileSummaries(dataset=dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):

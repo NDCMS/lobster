@@ -19,54 +19,30 @@ logger = logging.getLogger('lobster.se')
 url_re = re.compile(r'^([a-z]+)://([^/]*)(.*)/?$')
 
 
-class StorageElement(object):
+class FileSystem(object):
 
-    """Weird class to handle all needs of storage implementations.
+    """Singleton class as an interface for filesystem interactions.
 
-    This class can be used for file system operations after at least one of
-    its subclasses has been instantiated.
-
-    "One size fits nobody." (T. Pratchett)
+    Needs to be configured before first use, with two lists of
+    `StorageElement` implementations.
     """
+
     _defaults = []
     _systems = []
 
-    def __init__(self, pfnprefix=None):
-        """Create or use a StorageElement abstraction.
-
-        As a user, use with no parameters to access various storage
-        elements transparently.
-
-        Subclasses should call the constructor with appropriate arguments,
-        which should also be made available to the user.
-
-        Parameters
-        ----------
-        pfnprefix : string, optional
-            The path prefix under which relative file names can be
-            accessed.
-        """
-        self.__master = False
-
-        if pfnprefix is not None:
-            self._pfnprefix = pfnprefix
-            if not self._pfnprefix.endswith('/'):
-                self._pfnprefix += '/'
-            StorageElement._systems.append(self)
-        else:
-            self.__master = True
-            self.__file__ = __file__
-            self.__name__ = 'fs'
+    def __init__(self):
+        self.__file__ = __file__
+        self.__name__ = 'fs'
 
     def __getattr__(self, attr):
-        if attr in self.__dict__ or not self.__master:
+        if attr in self.__dict__:
             return self.__dict__[attr]
 
         def switch(*args, **kwargs):
             logger.debug(
                 "resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
             lasterror = None
-            for imp in StorageElement._systems:
+            for imp in FileSystem._systems:
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
                 except (IOError, OSError) as e:
@@ -80,6 +56,42 @@ class StorageElement(object):
             raise AttributeError(
                 "no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch
+
+    @classmethod
+    def configure(cls, defaults, systems):
+        cls._defaults = defaults
+        cls._systems = systems
+
+    @contextmanager
+    def default(self):
+        tmp = FileSystem._systems
+        FileSystem._systems = FileSystem._defaults
+        try:
+            yield
+        finally:
+            FileSystem._systems = tmp
+
+
+class StorageElement(object):
+
+    """Storage Element base class.
+
+    Provides some basic handling of relative paths.  To be subclassed by
+    implementations.
+    """
+
+    def __init__(self, pfnprefix):
+        """Baseclass of a storage element.
+
+        Parameters
+        ----------
+        pfnprefix : string
+            The path prefix under which relative file names can be
+            accessed.
+        """
+        self._pfnprefix = pfnprefix
+        if not self._pfnprefix.endswith('/'):
+            self._pfnprefix += '/'
 
     def lfn2pfn(self, path):
         if path.startswith('/'):
@@ -121,28 +133,6 @@ class StorageElement(object):
             return
         mode = self.permissions(parent)
         self.mkdir(path, mode=mode)
-
-    @classmethod
-    def reset(cls):
-        cls._defaults = []
-        cls._systems = []
-
-    @classmethod
-    def clear(cls):
-        cls._systems = []
-
-    @classmethod
-    def store(cls):
-        cls._defaults = list(cls._systems)
-
-    @contextmanager
-    def default(self):
-        tmp = StorageElement._systems
-        StorageElement._systems = self._defaults
-        try:
-            yield
-        finally:
-            StorageElement._systems = tmp
 
 
 class Local(StorageElement):
@@ -508,14 +498,14 @@ class StorageConfiguration(Configurable):
 
             if protocol == 'chirp':
                 try:
-                    Chirp(server, path)
+                    yield Chirp(server, path)
                 except chirp.AuthenticationFailure:
                     raise AttributeError("cannot access chirp server")
             elif protocol == 'file':
-                Local(path)
+                yield Local(path)
             elif protocol == 'hdfs':
                 try:
-                    Hadoop(path)
+                    yield Hadoop(path)
                 except NameError:
                     raise NotImplementedError("hadoop support is missing on this system")
             elif protocol == 'srm':
@@ -531,7 +521,7 @@ class StorageConfiguration(Configurable):
         objects may not realize that file descriptors are invalid and write
         to newly opened files.
         """
-        StorageElement.reset()
+        FileSystem.configure([], [])
 
     def activate(self):
         """Sets file system access methods.
@@ -539,14 +529,10 @@ class StorageConfiguration(Configurable):
         Replaces default file system access methods with the ones specified
         per configuration for input and output storage element access.
         """
-        StorageElement.clear()
-
-        self._initialize(self.input)
-
-        StorageElement.store()
-        StorageElement.clear()
-
-        self._initialize(self.output)
+        FileSystem.configure(
+            list(self._initialize(self.input)),
+            list(self._initialize(self.output))
+        )
 
     def preprocess(self, parameters, merge):
         """Adjust the storage transfer parameters sent with a task.

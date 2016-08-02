@@ -144,7 +144,7 @@ class Process(Command, util.Timing):
         if len(openconns) > 0 or len(openfiles) > 0:
             logger.error("cannot daemonize due to open files or connections")
             for f in openfiles:
-                logger.error("open file: {}".format(f.path))
+                logger.error("open file: {}".format(f))
             for c in openconns:
                 logger.error("open connection: {}".format(c))
             raise RuntimeError("open files or connections")

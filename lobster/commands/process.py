@@ -146,6 +146,8 @@ class Process(Command):
         signals[signal.SIGINT] = lambda num, frame: Terminate().run(args)
         signals[signal.SIGTERM] = lambda num, frame: Terminate().run(args)
 
+        self.config.storage.deactivate()
+
         with daemon.DaemonContext(
                 detach_process=not args.foreground,
                 stdout=sys.stdout if args.foreground else ttyfile,
@@ -156,6 +158,8 @@ class Process(Command):
                 prevent_core=False,
                 initgroups=False,
                 signal_map=signals):
+            self.config.storage.activate()
+
             self.sprint()
 
             logger.info("lobster terminated")

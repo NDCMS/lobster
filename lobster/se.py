@@ -124,6 +124,11 @@ class StorageElement(object):
 
     @classmethod
     def reset(cls):
+        cls._defaults = []
+        cls._systems = []
+
+    @classmethod
+    def clear(cls):
         cls._systems = []
 
     @classmethod
@@ -518,18 +523,28 @@ class StorageConfiguration(Configurable):
             else:
                 logger.debug("implementation of master access missing for URL {0}".format(url))
 
+    def deactivate(self):
+        """Clear all storage-element objects.
+
+        Needed when Lobster daemonizes, as filesystem objects may have
+        connections open that will get closed by daemonizing.  Underlying
+        objects may not realize that file descriptors are invalid and write
+        to newly opened files.
+        """
+        StorageElement.reset()
+
     def activate(self):
         """Sets file system access methods.
 
         Replaces default file system access methods with the ones specified
         per configuration for input and output storage element access.
         """
-        StorageElement.reset()
+        StorageElement.clear()
 
         self._initialize(self.input)
 
         StorageElement.store()
-        StorageElement.reset()
+        StorageElement.clear()
 
         self._initialize(self.output)
 

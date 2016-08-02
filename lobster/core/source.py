@@ -190,7 +190,7 @@ class TaskProvider(util.Timing):
             if create and not util.checkpoint(self.workdir, wflow.label):
                 wflow.setup(self.workdir, self.basedirs)
                 logger.info("querying backend for {0}".format(wflow.label))
-                with fs.default():
+                with fs.alternative():
                     dataset_info = wflow.dataset.get_info()
 
                 logger.info("registering {0} in database".format(wflow.label))

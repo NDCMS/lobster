@@ -10,6 +10,27 @@ issuing the following command::
 The monitoring is split into a `Lobster` overview page and per-category
 pages displaying progress and task status.
 
+ELK Commands
+------------
+
+`Lobster` has a few commands to help manage ELK monitoring::
+
+    lobster elkdownload <configuration>
+    lobster elkupdate <configuration>
+    lobster elkcleanup <configuration>
+
+``elkdownload`` downloads templates of all dashboards listed in the
+configuration with the user/project prefix specified in the configuration and
+all visualizations on those dashboards, as well as all index patterns matching
+the user/run prefix.
+
+``elkupdate`` generates dashboards, visualizations, and index patterns from the
+saved templates according to the dashboards specified in the configuration. 
+
+``elkcleanup`` deletes all Kibana objects and Elasticsearch indices that match
+the user/run prefix in the configuration.
+
+
 Task Exit Codes
 ---------------
 

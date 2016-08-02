@@ -1,0 +1,10 @@
+{
+    "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"TaskUpdate.time_executable:>=0 AND TaskUpdate.time_executable:<=0\"}}}"
+    }, 
+    "title": "[template] Task count vs. executable time", 
+    "uiStateJSON": "{\"vis\":{\"legendOpen\":true}}", 
+    "version": 1, 
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"tasks\"}, \"schema\": \"metric\", \"type\": \"count\"}, {\"id\": \"2\", \"params\": {\"customLabel\": \"executable time / s\", \"extended_bounds\": {\"max\": 100, \"min\": 0}, \"field\": \"TaskUpdate.time_executable\", \"interval\": 10000000000.0, \"min_doc_count\": false}, \"schema\": \"segment\", \"type\": \"histogram\"}, {\"id\": \"3\", \"params\": {\"field\": \"TaskUpdate.cache_text.raw\", \"order\": \"desc\", \"orderBy\": \"1\", \"size\": 5}, \"schema\": \"group\", \"type\": \"terms\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Task count vs. executable time\", \"type\": \"histogram\"}"
+}

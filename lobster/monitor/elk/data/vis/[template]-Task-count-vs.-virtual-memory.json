@@ -1,0 +1,10 @@
+{
+    "description": "", 
+    "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\": [], \"index\": \"[template]_lobster_tasks\", \"query\": {\"query_string\": {\"analyze_wildcard\": true, \"query\": \"TaskUpdate.memory_virtual:>=0 AND TaskUpdate.memory_virtual:<=0\"}}}"
+    }, 
+    "title": "[template] Task count vs. virtual memory", 
+    "uiStateJSON": "{\"vis\":{\"legendOpen\":false}}", 
+    "version": 1, 
+    "visState": "{\"aggs\": [{\"id\": \"1\", \"params\": {\"customLabel\": \"tasks\"}, \"schema\": \"metric\", \"type\": \"count\"}, {\"id\": \"2\", \"params\": {\"customLabel\": \"virtual memory / MB\", \"extended_bounds\": {}, \"field\": \"TaskUpdate.memory_virtual\", \"interval\": 10000000000.0, \"min_doc_count\": true}, \"schema\": \"segment\", \"type\": \"histogram\"}], \"listeners\": {}, \"params\": {\"addLegend\": true, \"addTimeMarker\": false, \"addTooltip\": true, \"defaultYExtents\": false, \"mode\": \"stacked\", \"scale\": \"linear\", \"setYExtents\": false, \"shareYAxis\": true, \"times\": [], \"yAxis\": {}}, \"title\": \"[template] Task count vs. virtual memory\", \"type\": \"histogram\"}"
+}

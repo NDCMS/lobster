@@ -1,0 +1,76 @@
+{
+    "TaskUpdate": {
+        "cores": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-cores"
+            ]
+        }, 
+        "memory_resident": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-resident-memory"
+            ]
+        }, 
+        "memory_swap": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-swap-memory"
+            ]
+        }, 
+        "memory_virtual": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-virtual-memory"
+            ]
+        }, 
+        "percent_efficiency": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-percent-efficiency"
+            ]
+        }, 
+        "runtime": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-runtime"
+            ]
+        }, 
+        "time_executable": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-executable-time"
+            ]
+        }, 
+        "time_overhead": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-overhead-time"
+            ]
+        }, 
+        "workdir_footprint": {
+            "interval": null, 
+            "max": null, 
+            "min": null, 
+            "vis_ids": [
+                "[template]-Task-count-vs.-working-directory-footprint"
+            ]
+        }
+    }
+}

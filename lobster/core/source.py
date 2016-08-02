@@ -208,6 +208,17 @@ class TaskProvider(object):
             if len(versions) == 1:
                 util.register_checkpoint(self.workdir, 'sandbox cmssw version', list(versions)[0])
 
+        if self.config.elk:
+            if create:
+                categories = {wflow.category.name: [] for wflow in self.config.workflows}
+                for category in categories:
+                    for workflow in self.config.workflows:
+                        if workflow.category.name == category:
+                            categories[category].append(workflow.label)
+                self.config.elk.create(categories)
+            else:
+                self.config.elk.resume()
+
         if create:
             self.config.save()
             self.__dash = monitor(self.workdir)
@@ -227,12 +238,6 @@ class TaskProvider(object):
 
         p_helper = os.path.join(os.path.dirname(self.parrot_path), 'lib', 'lib64', 'libparrot_helper.so')
         shutil.copy(p_helper, self.parrot_lib)
-
-        if self.config.elk:
-            if create:
-                self.config.elk.create()
-            else:
-                self.config.elk.reset_end_time()
 
     def copy_siteconf(self):
         storage_in = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
@@ -505,6 +510,9 @@ class TaskProvider(object):
 
         if len(transfers) > 0:
             self.__store.update_transfers(transfers)
+
+        if self.config.elk:
+            self.config.elk.index_summary(self.__store.workflow_status())
 
     def terminate(self):
         for id in self.__store.running_tasks():

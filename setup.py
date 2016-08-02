@@ -23,7 +23,8 @@ setup(
         'commands/data/category.html',
         'monitor/elk/data/index/*.json',
         'monitor/elk/data/dash/*.json',
-        'monitor/elk/data/vis/*.json'
+        'monitor/elk/data/vis/*.json',
+        'monitor/elk/data/*.json'
     ]},
     install_requires=[
         'argparse',

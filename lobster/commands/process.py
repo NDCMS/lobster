@@ -4,6 +4,7 @@ import inspect
 import logging
 import logging.handlers
 import os
+import psutil
 import resource
 import signal
 import sys
@@ -134,6 +135,19 @@ class Process(Command, util.Timing):
         signals = daemon.daemon.make_default_signal_map()
         signals[signal.SIGINT] = localkill
         signals[signal.SIGTERM] = localkill
+
+        process = psutil.Process()
+        preserved = [f.name for f in args.preserve]
+        openfiles = [f for f in process.open_files() if f.path not in preserved]
+        openconns = process.connections()
+
+        if len(openconns) > 0 or len(openfiles) > 0:
+            logger.error("cannot daemonize due to open files or connections")
+            for f in openfiles:
+                logger.error("open file: {}".format(f.path))
+            for c in openconns:
+                logger.error("open connection: {}".format(c))
+            raise RuntimeError("open files or connections")
 
         with daemon.DaemonContext(
                 detach_process=not args.foreground,

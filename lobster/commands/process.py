@@ -138,6 +138,8 @@ class Process(Command, util.Timing):
 
         process = psutil.Process()
         preserved = [f.name for f in args.preserve]
+        if not args.foreground:
+            preserved.append(ttyfile.name)
         openfiles = [f for f in process.open_files() if f.path not in preserved]
         openconns = process.connections()
 

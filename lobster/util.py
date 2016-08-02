@@ -15,7 +15,9 @@ from pkg_resources import get_distribution
 
 logger = logging.getLogger('lobster.util')
 
+
 class PartiallyMutable(type):
+
     """Support metaclass for partially mutable base object.
 
     This metaclass makes sure that classes have an attribute `_mutable` and
@@ -29,14 +31,17 @@ class PartiallyMutable(type):
         if key not in attrs:
             raise AttributeError('class {} does not set the attribute _mutable'.format(name))
         elif not isinstance(attrs[key], dict):
-            raise AttributeError('class {} does not define the attribute _mutable as dict'.format(name))
+            raise AttributeError(
+                'class {} does not define the attribute _mutable as dict'.format(name))
         if '__init__' in attrs:
             args = inspect.getargspec(cls.__init__).args
             for attr in attrs['_mutable']:
                 if attr not in args:
-                    raise AttributeError('class {} defines {} as mutable, but does not list it in the constructor'.format(name, attr))
+                    raise AttributeError(
+                        'class {} defines {} as mutable, but does not list it in the constructor'.format(name, attr))
         elif len(attrs['_mutable']) > 0:
-            raise AttributeError('class {} defines mutable attributes, but does not list them in the constructor'.format(name))
+            raise AttributeError(
+                'class {} defines mutable attributes, but does not list them in the constructor'.format(name))
         type.__init__(cls, name, bases, attrs)
 
     def __call__(cls, *args, **kwargs):
@@ -50,7 +55,8 @@ class PartiallyMutable(type):
             res._constructed = True
             for arg in inspect.getargspec(res.__init__).args[1:]:
                 if arg not in vars(res):
-                    raise AttributeError('class {} uses {} in the constructor, but does define it as property'.format(name, arg))
+                    raise AttributeError(
+                        'class {} uses {} in the constructor, but does define it as property'.format(name, arg))
         except Exception as e:
             import sys
             raise type(e), type(e)('{0!s}: {1}'.format(cls, e.message)), sys.exc_info()[2]
@@ -75,6 +81,7 @@ class PartiallyMutable(type):
 
 
 class Configurable(object):
+
     """Partially mutable base object.
 
     Subclasses will have to define a class attribute `_mutable`, a
@@ -89,11 +96,11 @@ class Configurable(object):
     _mutable = {}
 
     def __setattr__(self, attr, value):
-        if getattr(self, '_constructed', False) == False:
+        if not getattr(self, '_constructed', False):
             super(Configurable, self).__setattr__(attr, value)
-        elif attr in self._mutable or getattr(PartiallyMutable, '_fixed', True) == False:
+        elif attr in self._mutable or not getattr(PartiallyMutable, '_fixed', True):
             super(Configurable, self).__setattr__(attr, value)
-            if attr in self._mutable and getattr(PartiallyMutable, '_fixed', True) == True:
+            if attr in self._mutable and getattr(PartiallyMutable, '_fixed', True):
                 method, args, append = self._mutable[attr]
                 # force a copy of the list into a tuple (for the actions,
                 # since it's a set)
@@ -121,11 +128,13 @@ class Configurable(object):
                 self.__kwargs[arg] = getattr(self, arg)
             elif arg in self.__kwargs:
                 del self.__kwargs[arg]
+
         def indent(text):
             lines = text.splitlines()
             if len(lines) <= 1:
                 return text
             return "\n".join("    " + l for l in lines).strip()
+
         def attr(k):
             if override and k in override:
                 return override[k]
@@ -133,7 +142,8 @@ class Configurable(object):
                 return repr(getattr(self, '_{}__{}'.format(self.__class__.__name__, k)))
             return repr(getattr(self, k))
         args = ["\n    {},".format(indent(arg)) for arg in self.__args]
-        kwargs = ["\n    {}={}".format(k, indent(attr(k))) for k, v in sorted(self.__kwargs.items(), key=lambda (x, y): x)]
+        kwargs = ["\n    {}={}".format(k, indent(attr(k)))
+                  for k, v in sorted(self.__kwargs.items(), key=lambda (x, y): x)]
         s = self.__name + "({}\n)".format(",".join(args + kwargs))
         return s
 
@@ -168,11 +178,13 @@ class Configurable(object):
                         logger.warning("skipping immutable list {}".format(arg))
                     continue
                 elif diff > 0:
-                    logger.info("truncating list '{}' by removing elements {}".format(arg, ours[-diff:]))
+                    logger.info(
+                        "truncating list '{}' by removing elements {}".format(arg, ours[-diff:]))
                     ours = ours[:-diff]
                     setattr(self, arg, ours)
                 elif diff < 0:
-                    logger.info("expanding list '{}' by adding elements {}".format(arg, theirs[diff:]))
+                    logger.info(
+                        "expanding list '{}' by adding elements {}".format(arg, theirs[diff:]))
                     ours += theirs[diff:]
                     setattr(self, arg, ours)
 
@@ -187,7 +199,8 @@ class Configurable(object):
                         if our_original != theirs and arg not in self._mutable:
                             logger.error("modified item in immutable list '{}'".format(arg))
                             continue
-                        logger.info("updating item {} of list '{}' with value '{}' (old: '{}')".format(n, arg, theirs[n], ours[n]))
+                        logger.info(
+                            "updating item {} of list '{}' with value '{}' (old: '{}')".format(n, arg, theirs[n], ours[n]))
                         ours[n] = theirs[n]
                         changed = True
                 if changed:
@@ -196,8 +209,10 @@ class Configurable(object):
                 if arg not in self._mutable:
                     logger.error("can't change value of immutable attribute '{}'".format(arg))
                     continue
-                logger.info("updating attribute '{}' with value '{}' (old: '{}')".format(arg, theirs, ours))
+                logger.info(
+                    "updating attribute '{}' with value '{}' (old: '{}')".format(arg, theirs, ours))
                 setattr(self, arg, theirs)
+
 
 def record(cls, *fields, **defaults):
     """
@@ -220,6 +235,7 @@ def record(cls, *fields, **defaults):
     """
 
     class Record(collections.MutableSequence):
+
         def __init__(self, *args, **kwargs):
             if 'default' in defaults:
                 for field in fields:
@@ -256,6 +272,7 @@ def record(cls, *fields, **defaults):
 
     return Record
 
+
 def id2dir(id):
     # Currently known limitations on the number of entries in a
     # sub-directory concern ext3, where said limit is 32k.  Use a
@@ -266,6 +283,7 @@ def id2dir(id):
     man = str(id % 10000).zfill(4)
     oku = str(id / 10000).zfill(4)
     return os.path.join(oku, man)
+
 
 def findpath(dirs, path):
     if len(dirs) == 0:
@@ -278,15 +296,17 @@ def findpath(dirs, path):
         joined = os.path.join(directory, path)
         if os.path.exists(joined):
             return joined
-    raise KeyError, "Can't find '{0}' in {1}".format(path, dirs)
+    raise KeyError("Can't find '{0}' in {1}".format(path, dirs))
+
 
 def which(name):
     paths = os.getenv('PATH')
     for path in paths.split(os.path.pathsep):
         exe = os.path.join(path, name)
-        if os.path.exists(exe) and os.access(exe, os.F_OK|os.X_OK):
+        if os.path.exists(exe) and os.access(exe, os.F_OK | os.X_OK):
             return exe
-    raise KeyError, "Can't find '{0}' in PATH".format(name)
+    raise KeyError("Can't find '{0}' in PATH".format(name))
+
 
 def verify(workdir):
     if not os.path.exists(workdir):
@@ -295,7 +315,9 @@ def verify(workdir):
     my_version = get_distribution('Lobster').version
     stored_version = checkpoint(workdir, 'version')
     if stored_version != my_version:
-        raise ValueError, "Lobster {0!r} cannot process a run created with version {1!r}".format(my_version, stored_version)
+        raise ValueError("Lobster {0!r} cannot process a run created with version {1!r}".format(
+            my_version, stored_version))
+
 
 def checkpoint(workdir, key):
     statusfile = os.path.join(workdir, 'status.yaml')
@@ -304,10 +326,12 @@ def checkpoint(workdir, key):
             s = yaml.load(f)
             return s.get(key)
 
+
 def register_checkpoint(workdir, key, value):
     statusfile = os.path.join(workdir, 'status.yaml')
     with open(statusfile, 'a') as f:
         yaml.dump({key: value}, f, default_flow_style=False)
+
 
 def verify_string(s):
     try:
@@ -315,6 +339,7 @@ def verify_string(s):
     except (UnicodeDecodeError, AttributeError):
         return ""
     return s
+
 
 def ldd(name):
     """Find libcrypto and libssl that `name` is linked to.
@@ -333,12 +358,12 @@ def ldd(name):
         return not (d.startswith('/cvmfs') or 'cms' in d)
 
     env["LD_LIBRARY_PATH"] = os.path.pathsep.join(
-            filter(anti_cms_filter, os.environ.get("LD_LIBRARY_PATH", "").split(os.path.pathsep)))
+        filter(anti_cms_filter, os.environ.get("LD_LIBRARY_PATH", "").split(os.path.pathsep)))
     env["PATH"] = os.path.pathsep.join(
-            filter(anti_cms_filter, os.environ.get("PATH", "").split(os.path.pathsep)))
+        filter(anti_cms_filter, os.environ.get("PATH", "").split(os.path.pathsep)))
 
     p = subprocess.Popen(["ldd", which(name)], env=env,
-            stdout=subprocess.PIPE)
+                         stdout=subprocess.PIPE)
     out, err = p.communicate()
 
     for line in out.splitlines():
@@ -355,6 +380,7 @@ def ldd(name):
 
     return libs
 
+
 def get_lock(workdir, force=False):
     pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
     try:
@@ -366,11 +392,13 @@ def get_lock(workdir, force=False):
     pidfile.break_lock()
     return pidfile
 
+
 def taskdir(workdir, taskid, status='running'):
     tdir = os.path.normpath(os.path.join(workdir, status, id2dir(taskid)))
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
     return tdir
+
 
 def move(workdir, taskid, status, oldstatus='running'):
     """Moves a task parameter/log directory from one status directory to

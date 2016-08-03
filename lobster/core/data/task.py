@@ -146,17 +146,11 @@ def run_subprocess(*args, **kwargs):
 
     _, _ = p.communicate()
 
-    with open(outfn, 'r') as fd:
-        outlines = fd.readlines()
-        if len(outlines) > 2000:
-            outlines = outlines[:1000] + ['[TRUNCATED]'] + outlines[-1000:]
-    p.stdout = "\n".join(outlines)
-
     with mangler.output('cmd'):
-        for l in outlines:
-            logger.debug(l.strip())
-
-    os.unlink(outfn)
+        with open(outfn, 'r') as fd:
+            for line in fd:
+                logger.debug(l.strip)
+        os.unlink(outfn)
 
     if p.returncode in retry:
         logger.info("retrying command")

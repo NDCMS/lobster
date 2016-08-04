@@ -371,7 +371,7 @@ class TaskProvider(object):
                 'default ce': self.__ce,
                 'default se': self.__se,
                 'arguments': None,
-                'output files': None,
+                'output files': [],
                 'want summary': True,
                 'executable': None,
                 'pset': None,

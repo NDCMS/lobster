@@ -322,10 +322,10 @@ def copy_inputs(data, config, env):
     Tries to access each input file via the specified access methods.
     Access methods are traversed in the order specified until one is successful.
     """
+    config['file map'] = {}
+
     if not config['mask']['files']:
         return
-
-    config['file map'] = {}
 
     files = list(config['mask']['files'])
     config['mask']['files'] = []

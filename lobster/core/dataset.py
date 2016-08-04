@@ -5,7 +5,7 @@ import os
 from lobster import fs
 from lobster.util import Configurable
 
-__all__ = ['Dataset', 'ParentDataset', 'ProductionDataset']
+__all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset']
 
 class FileInfo(object):
     def __init__(self):
@@ -85,6 +85,33 @@ class Dataset(Configurable):
             # all the input files to read the size/run/lumi info
             dset.files[fn].lumis = [(-1, -1)]
             dset.files[fn].size = 0
+
+        return dset
+
+
+class EmptyDataset(Configurable):
+    """
+    Dataset specification for workflows with no input files.
+
+    Parameters
+    ----------
+        number_of_tasks : int
+            How many tasks to run.
+    """
+    _mutable = {}
+    def __init__(self, number_of_tasks=1):
+        self.number_of_tasks = number_of_tasks
+
+    def validate(self):
+        return True
+
+    def get_info(self):
+        dset = DatasetInfo()
+        dset.file_based = True
+
+        dset.total_units = self.number_of_tasks
+        dset.files[None].lumis = [(1, x) for x in range(1, self.number_of_tasks + 1)]
+        dset.total_units = self.number_of_tasks
 
         return dset
 

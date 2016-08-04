@@ -149,7 +149,7 @@ def run_subprocess(*args, **kwargs):
     with mangler.output('cmd'):
         with open(outfn, 'r') as fd:
             for line in fd:
-                logger.debug(l.strip)
+                logger.debug(line.strip())
         os.unlink(outfn)
 
     if p.returncode in retry:

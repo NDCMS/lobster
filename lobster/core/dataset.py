@@ -7,7 +7,9 @@ from lobster.util import Configurable
 
 __all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset']
 
+
 class FileInfo(object):
+
     def __init__(self):
         self.lumis = []
         self.events = 0
@@ -17,7 +19,9 @@ class FileInfo(object):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
         return 'FileInfo({0})'.format(',\n'.join(descriptions))
 
+
 class DatasetInfo(object):
+
     def __init__(self):
         self.file_based = False
         self.files = defaultdict(FileInfo)
@@ -31,7 +35,9 @@ class DatasetInfo(object):
         descriptions = ['{a}={v}'.format(a=attribute, v=getattr(self, attribute)) for attribute in self.__dict__]
         return 'DatasetInfo({0})'.format(',\n'.join(descriptions))
 
+
 class Dataset(Configurable):
+
     """
     A simple dataset specification.
 
@@ -99,6 +105,7 @@ class EmptyDataset(Configurable):
             How many tasks to run.
     """
     _mutable = {}
+
     def __init__(self, number_of_tasks=1):
         self.number_of_tasks = number_of_tasks
 
@@ -114,6 +121,7 @@ class EmptyDataset(Configurable):
         dset.total_units = self.number_of_tasks
 
         return dset
+
 
 class ProductionDataset(Configurable):
     """
@@ -131,6 +139,7 @@ class ProductionDataset(Configurable):
             Use random seeds every time a task is run.
     """
     _mutable = {}
+
     def __init__(self, events_per_task, events_per_lumi=None, number_of_tasks=1, randomize_seeds=True):
         self.number_of_tasks = number_of_tasks
         self.events_per_task = events_per_task
@@ -159,6 +168,7 @@ class ProductionDataset(Configurable):
 
         return dset
 
+
 class ParentDataset(Configurable):
     """
     Process the output of another workflow.
@@ -172,6 +182,7 @@ class ParentDataset(Configurable):
             changed by Lobster to match the user-specified task runtime.
     """
     _mutable = {}
+
     def __init__(self, parent, units_per_task=1):
         self.parent = parent
         self.units_per_task = units_per_task

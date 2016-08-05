@@ -123,6 +123,7 @@ class Process(Command, util.Timing):
             ttyfile = open(os.path.join(self.config.workdir, 'process.err'), 'a')
             logger.info("saving stderr and stdout to {0}".format(
                 os.path.join(self.config.workdir, 'process.err')))
+            args.preserve.append(ttyfile)
 
         if self.config.advanced.dump_core:
             logger.info("setting core dump size to unlimited")
@@ -138,8 +139,6 @@ class Process(Command, util.Timing):
 
         process = psutil.Process()
         preserved = [f.name for f in args.preserve]
-        if not args.foreground:
-            preserved.append(ttyfile.name)
         openfiles = [f for f in process.open_files() if f.path not in preserved]
         openconns = process.connections()
 

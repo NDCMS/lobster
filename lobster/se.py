@@ -29,7 +29,7 @@ class FileSystem(object):
     """
 
     _defaults = []
-    _fallback = []
+    _alternatives = []
 
     def __init__(self):
         self.__file__ = __file__
@@ -74,12 +74,12 @@ class FileSystem(object):
                 context of ``fs.alternative()``.
         """
         cls._defaults = defaults
-        cls._fallback = alternatives
+        cls._alternatives = alternatives
 
     @contextmanager
     def alternative(self):
         tmp = FileSystem._defaults
-        FileSystem._defaults = FileSystem._fallback
+        FileSystem._defaults = FileSystem._alternatives
         try:
             yield
         finally:

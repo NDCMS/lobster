@@ -146,11 +146,13 @@ def run_subprocess(*args, **kwargs):
 
     _, _ = p.communicate()
 
+    with open(outfn, 'r') as fd:
+        outlines = fd.readlines()
+        p.stdout = "\n".join(outlines)
+    os.unlink(outfn)
     with mangler.output('cmd'):
-        with open(outfn, 'r') as fd:
-            for line in fd:
-                logger.debug(line.strip())
-        os.unlink(outfn)
+        for line in outlines:
+            logger.debug(line.strip())
 
     if p.returncode in retry:
         logger.info("retrying command")

@@ -24,7 +24,8 @@ class FileSystem(object):
     """Singleton class as an interface for filesystem interactions.
 
     Needs to be configured before first use, with two lists of
-    `StorageElement` implementations.
+    `StorageElement` implementations.  See the documentation of
+    ``configure()`` for details.
     """
 
     _defaults = []
@@ -59,6 +60,19 @@ class FileSystem(object):
 
     @classmethod
     def configure(cls, defaults, alternatives):
+        """Configure the filesystem access methods.
+
+        Parameters
+        ----------
+            defaults : list
+                List of :class:`StorageElement` implementations.  These
+                methods will be used in order by default to perform file
+                system interactions.
+            alternatives : list
+                As `defaults`, specifies methods to perform file system
+                interactions.  These methods are only active within the
+                context of ``fs.alternative()``.
+        """
         cls._defaults = defaults
         cls._fallback = alternatives
 

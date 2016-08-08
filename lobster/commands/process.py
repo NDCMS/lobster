@@ -298,12 +298,12 @@ class Process(Command):
 
             with self.measure('status'):
                 stats = self.queue.stats_hierarchy
-                logger.info("{0} out of {1} workers busy; {3} tasks running, {4} waiting; {2} units left".format(
+                logger.info("{0} out of {1} workers busy; {2} tasks running, {3} waiting; {4} units left".format(
                     stats.workers_busy,
                     stats.workers_busy + stats.workers_ready,
-                    units_left,
                     stats.tasks_running,
-                    stats.tasks_waiting))
+                    stats.tasks_waiting,
+                    units_left))
 
             with self.measure('update'):
                 task_src.update(self.queue)

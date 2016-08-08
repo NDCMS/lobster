@@ -97,7 +97,7 @@ class Dataset(Configurable):
 
 class EmptyDataset(Configurable):
     """
-    Dataset specification for workflows with no input files.
+    Dataset specification for non-cmsRun workflows with no input files.
 
     Parameters
     ----------
@@ -117,7 +117,7 @@ class EmptyDataset(Configurable):
         dset.file_based = True
 
         dset.total_units = self.number_of_tasks
-        dset.files[None].lumis = [(1, x) for x in range(1, self.number_of_tasks + 1)]
+        dset.files[None].lumis = [(x, 1) for x in range(1, self.number_of_tasks + 1)]
         dset.total_units = self.number_of_tasks
 
         return dset

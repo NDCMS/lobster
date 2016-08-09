@@ -415,7 +415,13 @@ class XrootD(StorageElement):
             return False
 
     def ls(self, path):
+        protocol, server, prepath = url_re.match(path).groups()
+        if not prepath.endswith('/'):
+            prepath+='/'
         for p in self.execute('ls', path).splitlines():
+            # Fun fact: xrdfs ls returns *absolute* paths but without the protocol.  Strip off the leading part.
+            p = p.replace(prepath,'',1)
+            logger.debug('from ls(): {}'.format(p))
             yield os.path.join(path, p)
 
     def mkdir(self, path, mode=None):
@@ -610,6 +616,8 @@ class StorageConfiguration(Configurable):
                     raise NotImplementedError("hadoop support is missing on this system")
             elif protocol == 'srm':
                 SRM(url)
+            elif protocol == 'root':
+                XrootD(url)
             else:
                 logger.debug("implementation of master access missing for URL {0}".format(url))
 

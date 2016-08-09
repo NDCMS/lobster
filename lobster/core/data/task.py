@@ -389,7 +389,7 @@ def copy_inputs(data, config, env):
                     timeout,
                     "xrdfs",
                     server,
-                    "ls",
+                    "stat",
                     os.path.join(path, file)
                 ]
 

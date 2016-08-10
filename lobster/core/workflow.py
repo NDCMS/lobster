@@ -8,12 +8,13 @@ import sys
 
 from lobster import fs, util
 from lobster.core.dataset import ParentDataset, ProductionDataset
-from lobster.core.task import *
+from lobster.core.task import MergeTaskHandler, ProductionTaskHandler, TaskHandler
 from lobster.util import Configurable
 
 import work_queue as wq
 
 logger = logging.getLogger('lobster.workflow')
+
 
 class Category(Configurable):
     """
@@ -66,21 +67,21 @@ class Category(Configurable):
             at the same time.
     """
     _mutable = {
-            'tasks_max': (None, [], False),
-            'tasks_min': (None, [], False),
-            'runtime': ('source.update_runtime', [], True)
+        'tasks_max': (None, [], False),
+        'tasks_min': (None, [], False),
+        'runtime': ('source.update_runtime', [], True)
     }
 
     def __init__(self,
-            name,
-            mode='max_throughput',
-            cores=None,
-            memory=None,
-            disk=None,
-            runtime=None,
-            tasks_max=None,
-            tasks_min=None
-            ):
+                 name,
+                 mode='max_throughput',
+                 cores=None,
+                 memory=None,
+                 disk=None,
+                 runtime=None,
+                 tasks_max=None,
+                 tasks_min=None
+                 ):
         self.name = name
         self.cores = cores
         self.runtime = runtime
@@ -107,7 +108,7 @@ class Category(Configurable):
     def wq(self):
         res = {}
         if self.runtime:
-            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * 10**6
+            res['wall_time'] = max(30 * 60, int(1.5 * self.runtime)) * 10 ** 6
         if self.memory:
             res['memory'] = self.memory
         if self.cores:
@@ -115,6 +116,7 @@ class Category(Configurable):
         if self.disk:
             res['disk'] = self.disk
         return res
+
 
 class Workflow(Configurable):
     """
@@ -180,24 +182,25 @@ class Workflow(Configurable):
             `hadd` will be used.
     """
     _mutable = {}
+
     def __init__(self,
-            label,
-            dataset,
-            category=Category('default', mode='fixed'),
-            publish_label=None,
-            cleanup_input=False,
-            merge_size=-1,
-            sandbox=None,
-            command='cmsRun',
-            extra_inputs=None,
-            arguments=None,
-            unique_arguments=None,
-            outputs=None,
-            output_format="{base}_{id}.{ext}",
-            local=False,
-            pset=None,
-            globaltag=None,
-            edm_output=True):
+                 label,
+                 dataset,
+                 category=Category('default', mode='fixed'),
+                 publish_label=None,
+                 cleanup_input=False,
+                 merge_size=-1,
+                 sandbox=None,
+                 command='cmsRun',
+                 extra_inputs=None,
+                 arguments=None,
+                 unique_arguments=None,
+                 outputs=None,
+                 output_format="{base}_{id}.{ext}",
+                 local=False,
+                 pset=None,
+                 globaltag=None,
+                 edm_output=True):
         self.label = label
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
@@ -217,7 +220,7 @@ class Workflow(Configurable):
                 raise ValueError("Unique arguments should not be None")
             if isinstance(dataset, ParentDataset):
                 raise ValueError("Can't have a workflow with unique arguments "
-                        "as a dependent of another workflow")
+                                 "as a dependent of another workflow")
             self.unique_arguments = unique_arguments
         else:
             self.unique_arguments = [None]
@@ -387,7 +390,7 @@ class Workflow(Configurable):
     def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
         cmd = self.command
         args = self.arguments[:]
-        pset = os.path.basename(self.pset)
+        pset = os.path.basename(self.pset) if self.pset else self.pset
 
         inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
         if merge:
@@ -406,7 +409,7 @@ class Workflow(Configurable):
 
             params['prologue'] = None
             params['epilogue'] = ['python', 'merge_reports.py', 'report.json'] \
-                    + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in reports]
+                + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in reports]
         else:
             inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
 

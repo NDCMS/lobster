@@ -59,6 +59,8 @@ Dataset specification
 
 .. autoclass:: lobster.core.dataset.Dataset
 
+.. autoclass:: lobster.core.dataset.EmptyDataset
+
 .. autoclass:: lobster.core.dataset.ParentDataset
 
 .. autoclass:: lobster.core.dataset.ProductionDataset

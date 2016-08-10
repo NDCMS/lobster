@@ -76,12 +76,12 @@ class ReleaseSummary(object):
             s += "returned with status {0}: {1}\n".format(status, ", ".join(self.__exe[status]))
             if status != 0:
                 s += "parameters and logs in:\n\t{0}\n".format(
-                        "\n\t".join([self.__taskdirs[t] for t in self.__exe[status]]))
+                    "\n\t".join([self.__taskdirs[t] for t in self.__exe[status]]))
         for flag in sorted(self.__wq.keys()):
             s += "failed due to {0}: {1}\nparameters and logs in:\n\t{2}\n".format(
-                    ReleaseSummary.flags[flag],
-                    ", ".join(self.__wq[flag]),
-                    "\n\t".join([self.__taskdirs[t] for t in self.__wq[flag]]))
+                ReleaseSummary.flags[flag],
+                ", ".join(self.__wq[flag]),
+                "\n\t".join([self.__taskdirs[t] for t in self.__wq[flag]]))
         if self.__monitors:
             s += "resource monitoring unavailable for the following tasks: {0}\n".format(", ".join(self.__monitors))
         # Trim final newline
@@ -89,6 +89,7 @@ class ReleaseSummary(object):
 
 
 class TaskProvider(object):
+
     def __init__(self, config, interval=300):
         self.config = config
         self.basedirs = [config.base_directory, config.startup_directory]
@@ -247,8 +248,8 @@ class TaskProvider(object):
         xml = ''
         for n, server in enumerate(self.config.advanced.xrootd_servers):
             xml += '  <lfn-to-pfn protocol="xrootd{}"'.format('' if n == 0 else '-fallback{}'.format(n)) \
-                    + ' destination-match=".*" path-match="/+store/(.*)"' \
-                    + ' result="root://{}//store/$1"/>\n'.format(server)
+                + ' destination-match=".*" path-match="/+store/(.*)"' \
+                + ' result="root://{}//store/$1"/>\n'.format(server)
         with open(storage_in) as fin:
             with open(storage_out, 'w') as fout:
                 fout.write(fin.read().format(xrootd_rules=xml))
@@ -260,7 +261,7 @@ class TaskProvider(object):
         xml = ''
         for n, server in enumerate(self.config.advanced.xrootd_servers):
             xml += '      <catalog url="trivialcatalog_file:siteconf/PhEDEx/storage.xml?protocol=xrootd{}"/>\n'.format(
-                    '' if n == 0 else '-fallback{}'.format(n))
+                '' if n == 0 else '-fallback{}'.format(n))
         with open(jobconfig_in) as fin:
             with open(jobconfig_out, 'w') as fout:
                 fout.write(fin.read().format(xrootd_catalogs=xml))
@@ -272,11 +273,11 @@ class TaskProvider(object):
 
     def __setup_inputs(self):
         self._inputs = [
-                (self.siteconf, 'siteconf', False),
-                (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
-                (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
-                (self.parrot_bin, 'bin', None),
-                (self.parrot_lib, 'lib', None),
+            (self.siteconf, 'siteconf', False),
+            (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
+            (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
+            (self.parrot_bin, 'bin', None),
+            (self.parrot_lib, 'lib', None),
         ]
 
         # Files to make the task wrapper work without referencing WMCore
@@ -284,22 +285,21 @@ class TaskProvider(object):
         import WMCore
         base = os.path.dirname(WMCore.__file__)
         reqs = [
-                "__init__.py",
-                "Algorithms",
-                "Configuration.py",
-                "DataStructs",
-                "FwkJobReport",
-                "Services",
-                "Storage",
-                "WMException.py",
-                "WMExceptions.py"
-                ]
+            "__init__.py",
+            "Algorithms",
+            "Configuration.py",
+            "DataStructs",
+            "FwkJobReport",
+            "Services",
+            "Storage",
+            "WMException.py",
+            "WMExceptions.py"
+        ]
         for f in reqs:
             self._inputs.append((os.path.join(base, f), os.path.join("python", "WMCore", f), True))
 
         if 'X509_USER_PROXY' in os.environ:
             self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
-
 
     def get_taskids(self, label, status='running'):
         # Iterates over the task directories and returns all taskids found
@@ -371,7 +371,7 @@ class TaskProvider(object):
                 'default ce': self.__ce,
                 'default se': self.__se,
                 'arguments': None,
-                'output files': None,
+                'output files': [],
                 'want summary': True,
                 'executable': None,
                 'pset': None,

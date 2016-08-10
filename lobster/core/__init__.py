@@ -6,4 +6,4 @@ from workflow import Category, Workflow
 from dataset import *
 from lobster.se import StorageConfiguration
 
-__all__ = ['Config', 'AdvancedOptions', 'Category', 'Workflow', 'Dataset', 'ParentDataset', 'ProductionDataset', 'Sandbox', 'StorageConfiguration']
+__all__ = ['Config', 'AdvancedOptions', 'Category', 'Workflow', 'Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset', 'Sandbox', 'StorageConfiguration']

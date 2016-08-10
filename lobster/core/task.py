@@ -28,9 +28,12 @@ class TaskHandler(object):
         self._units = lumis
         self.outputs = outputs
         self._local = local
-
+        
         self.taskdir = taskdir
         self.unit_source = 'units_' + self._dataset
+
+        self.__output_info = {}
+        self.__output_size = 0
 
     @property
     def dataset(self):

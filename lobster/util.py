@@ -278,7 +278,7 @@ def id2dir(id):
     # Currently known limitations on the number of entries in a
     # sub-directory concern ext3, where said limit is 32k.  Use a
     # modus of 10k to split the task numbers.  Famous last words:
-    # "(10k)Â² tasks should be enough for everyone." we use two levels
+    # "(10k)squared tasks should be enough for everyone." ->we use two levels
     # only.
     id = int(id)
     man = str(id % 10000).zfill(4)

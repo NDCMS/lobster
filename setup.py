@@ -2,8 +2,6 @@
 
 from lobster.util import get_version
 from setuptools import setup
-import subprocess
-import shlex
 
 setup(
     name='Lobster',

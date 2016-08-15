@@ -10,8 +10,6 @@ import subprocess
 import yaml
 
 from contextlib import contextmanager
-from lockfile.pidlockfile import PIDLockFile
-from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
 logger = logging.getLogger('lobster.util')
@@ -401,6 +399,9 @@ def ldd(name):
 
 
 def get_lock(workdir, force=False):
+    from lockfile.pidlockfile import PIDLockFile
+    from lockfile import AlreadyLocked
+
     pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
     try:
         pidfile.acquire()

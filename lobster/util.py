@@ -7,7 +7,6 @@ import os
 import shlex
 import shutil
 import subprocess
-import yaml
 
 from contextlib import contextmanager
 from pkg_resources import get_distribution
@@ -325,6 +324,7 @@ def verify(workdir):
 
 
 def checkpoint(workdir, key):
+    import yaml
     statusfile = os.path.join(workdir, 'status.yaml')
     if os.path.exists(statusfile):
         with open(statusfile, 'rb') as f:
@@ -333,9 +333,11 @@ def checkpoint(workdir, key):
 
 
 def register_checkpoint(workdir, key, value):
+    import yaml
     statusfile = os.path.join(workdir, 'status.yaml')
     with open(statusfile, 'a') as f:
         yaml.dump({key: value}, f, default_flow_style=False)
+
 
 def get_version():
     if 'site-packages' in __file__:
@@ -349,6 +351,7 @@ def get_version():
         os.chdir(start)
         version = '{major}-{head}-{status}'.format(major=1.5, head=head, status=status)
     return version
+
 
 def verify_string(s):
     try:

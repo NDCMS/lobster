@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+from lobster.util import get_version
 import subprocess
 import shlex
 
-head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
-diff = subprocess.check_output(shlex.split('git diff'))
-status = 'dirty' if diff else 'clean'
+#head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
+#diff = subprocess.check_output(shlex.split('git diff'))
+#status = 'dirty' if diff else 'clean'
 
 setup(
     name='Lobster',
-    version = '{major}-{head}-{status}'.format(major=1.5, head=head, status=status),
+    version = get_version(),
+    #version = '{major}-{head}-{status}'.format(major=1.5, head=head, status=status),
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',

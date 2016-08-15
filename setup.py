@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from lobster.util import get_version
 from setuptools import setup
+
+from lobster.util import get_version
 
 setup(
     name='Lobster',

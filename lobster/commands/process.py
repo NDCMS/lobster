@@ -128,7 +128,7 @@ class Process(Command):
 
         if not util.checkpoint(self.config.workdir, "version"):
             util.register_checkpoint(
-                self.config.workdir, "version", get_distribution('Lobster').version)
+                self.config.workdir, "version", util.get_version())
         else:
             util.verify(self.config.workdir)
 
@@ -175,6 +175,7 @@ class Process(Command):
         action = actions.Actions(self.config, task_src)
 
         logger.info("using wq from {0}".format(wq.__file__))
+        logger.info("Lobster version: " + util.get_version())
 
         wq.cctools_debug_flags_set("all")
         wq.cctools_debug_config_file(os.path.join(self.config.workdir, "work_queue_debug.log"))

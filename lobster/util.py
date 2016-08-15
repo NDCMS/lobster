@@ -1,16 +1,22 @@
 # vim: set fileencoding=utf-8 :
 
+# Only use default packages here!  This package is included by `setup.py`.
+# Since this happens *before* dependencies are installed, only packages
+# included with the default python distribution should be imported at the
+# top level.
+#
+# If optional packages are needed, they should be included in the function
+# scope.
+
 import collections
 import inspect
 import logging
 import os
+import shlex
 import shutil
 import subprocess
-import yaml
 
 from contextlib import contextmanager
-from lockfile.pidlockfile import PIDLockFile
-from lockfile import AlreadyLocked
 from pkg_resources import get_distribution
 
 logger = logging.getLogger('lobster.util')
@@ -277,7 +283,7 @@ def id2dir(id):
     # Currently known limitations on the number of entries in a
     # sub-directory concern ext3, where said limit is 32k.  Use a
     # modus of 10k to split the task numbers.  Famous last words:
-    # "(10k)² tasks should be enough for everyone." → we use two levels
+    # "(10k)^2 tasks should be enough for everyone." -> we use two levels
     # only.
     id = int(id)
     man = str(id % 10000).zfill(4)
@@ -312,14 +318,21 @@ def verify(workdir):
     if not os.path.exists(workdir):
         return
 
-    my_version = get_distribution('Lobster').version
+    my_version = get_version()
+    major,  head, status = my_version.split('-')
+    my_version = major
+
     stored_version = checkpoint(workdir, 'version')
+    major,  head, status = stored_version.split('-')
+    stored_version = major
+
     if stored_version != my_version:
         raise ValueError("Lobster {0!r} cannot process a run created with version {1!r}".format(
             my_version, stored_version))
 
 
 def checkpoint(workdir, key):
+    import yaml
     statusfile = os.path.join(workdir, 'status.yaml')
     if os.path.exists(statusfile):
         with open(statusfile, 'rb') as f:
@@ -328,9 +341,24 @@ def checkpoint(workdir, key):
 
 
 def register_checkpoint(workdir, key, value):
+    import yaml
     statusfile = os.path.join(workdir, 'status.yaml')
     with open(statusfile, 'a') as f:
         yaml.dump({key: value}, f, default_flow_style=False)
+
+
+def get_version():
+    if 'site-packages' in __file__:
+        version = get_distribution('Lobster').version
+    else:
+        start = os.getcwd()
+        os.chdir(os.path.dirname(__file__))
+        head = subprocess.check_output(shlex.split('git rev-parse --short HEAD')).strip()
+        diff = subprocess.check_output(shlex.split('git diff'))
+        status = 'dirty' if diff else 'clean'
+        os.chdir(start)
+        version = '{major}-{head}-{status}'.format(major=1.5, head=head, status=status)
+    return version
 
 
 def verify_string(s):
@@ -382,6 +410,9 @@ def ldd(name):
 
 
 def get_lock(workdir, force=False):
+    from lockfile.pidlockfile import PIDLockFile
+    from lockfile import AlreadyLocked
+
     pidfile = PIDLockFile(os.path.join(workdir, 'lobster.pid'), timeout=-1)
     try:
         pidfile.acquire()

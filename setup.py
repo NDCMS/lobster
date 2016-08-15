@@ -2,9 +2,11 @@
 
 from setuptools import setup
 
+from lobster.util import get_version
+
 setup(
     name='Lobster',
-    version='1.5',
+    version=get_version(),
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',

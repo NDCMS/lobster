@@ -1,5 +1,13 @@
 # vim: set fileencoding=utf-8 :
 
+# Only use default packages here!  This package is included by `setup.py`.
+# Since this happens *before* dependencies are installed, only packages
+# included with the default python distribution should be imported at the
+# top level.
+#
+# If optional packages are needed, they should be included in the function
+# scope.
+
 import collections
 import inspect
 import logging

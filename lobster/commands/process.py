@@ -175,8 +175,8 @@ class Process(Command):
         action = actions.Actions(self.config, task_src)
 
         logger.info("using wq from {0}".format(wq.__file__))
-        logger.info("Lobster version: " + util.get_version())
-        logger.info("Current PID: " + str(os.getpid()))
+        logger.info("running Lobster version {0}".format(util.get_version()))
+        logger.info("current PID is {0}".format(os.getpid()))
 
         wq.cctools_debug_flags_set("all")
         wq.cctools_debug_config_file(os.path.join(self.config.workdir, "work_queue_debug.log"))

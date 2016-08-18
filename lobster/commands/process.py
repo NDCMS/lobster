@@ -6,6 +6,7 @@ import inspect
 import logging
 import logging.handlers
 import os
+import psutil
 import resource
 import signal
 import sys
@@ -136,6 +137,7 @@ class Process(Command):
             ttyfile = open(os.path.join(self.config.workdir, 'process.err'), 'a')
             logger.info("saving stderr and stdout to {0}".format(
                 os.path.join(self.config.workdir, 'process.err')))
+            args.preserve.append(ttyfile)
 
         if self.config.advanced.dump_core:
             logger.info("setting core dump size to unlimited")
@@ -145,6 +147,21 @@ class Process(Command):
         signals = daemon.daemon.make_default_signal_map()
         signals[signal.SIGINT] = lambda num, frame: Terminate().run(args)
         signals[signal.SIGTERM] = lambda num, frame: Terminate().run(args)
+
+        self.config.storage.deactivate()
+
+        process = psutil.Process()
+        preserved = [f.name for f in args.preserve]
+        openfiles = [f for f in process.open_files() if f.path not in preserved]
+        openconns = process.connections()
+
+        if len(openconns) > 0 or len(openfiles) > 0:
+            logger.error("cannot daemonize due to open files or connections")
+            for f in openfiles:
+                logger.error("open file: {}".format(f))
+            for c in openconns:
+                logger.error("open connection: {}".format(c))
+            raise RuntimeError("open files or connections")
 
         with daemon.DaemonContext(
                 detach_process=not args.foreground,
@@ -156,6 +173,8 @@ class Process(Command):
                 prevent_core=False,
                 initgroups=False,
                 signal_map=signals):
+            self.config.storage.activate()
+
             self.sprint()
 
             logger.info("lobster terminated")

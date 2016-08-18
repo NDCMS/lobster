@@ -402,7 +402,7 @@ def copy_inputs(data, config, env):
 
                         p = run_subprocess(args)
                         if p.returncode == 0:
-                            filename = 'file:' + os.path.basename(path)
+                            filename = 'file:' + os.path.basename(file)
                             config['mask']['files'].append(filename)
                             config['file map'][filename] = file
                             data['transfers']['xrdcp']['stage-in success'] += 1

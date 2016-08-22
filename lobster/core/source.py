@@ -140,8 +140,17 @@ class TaskProvider(object):
                 logger.error("can't determine proxy for CVMFS via $HTTP_PROXY")
                 sys.exit(1)
 
+        """
+        Throw exception if osg_location is not in the environment and 
+        the configuration variable is not set.
+        I am not sure if this is the right place to put it.
+        """
+        if not os.environ.get("OSG_LOCATION", ""):
+            raise AttributeError("OSG_LOCATION not found")
+
         logger.debug("using {} as proxy for CVMFS".format(self.__cvmfs_proxy))
         logger.debug("using {} as proxy for Frontier".format(self.__frontier_proxy))
+        logger.debug("using {} as osg_location".format(self.config.advanced.osg_location))
 
         self.__taskhandlers = {}
         self.__store = unit.UnitStore(self.config)
@@ -427,7 +436,8 @@ class TaskProvider(object):
             cmd = 'sh wrapper.sh python task.py parameters.json'
             env = {
                 'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
-                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy
+                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,
+                'LOBSTER_OSG_LOCATION': self.config.advanced.osg_location
             }
 
             tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))

@@ -213,6 +213,7 @@ class AdvancedOptions(Configurable):
                  bad_exit_codes=None,
                  dump_core=False,
                  full_monitoring=False,
+                 osg_location=None,
                  log_level=2,
                  payload=10,
                  proxy=None,

@@ -822,11 +822,6 @@ def run_command(data, config, env, monalisa):
         shutil.copy2(pset, pset_mod)
 
         edit_process_source(pset_mod, config)
-        with open(pset_mod, 'r') as f:
-            logger.info('dumping pset_mod')
-            with mangler.output("pset_mod"):
-                for line in f:
-                    logger.debug(line)
 
         cmd = [cmd, '-j', 'report.xml', pset_mod]
         cmd.extend([str(arg) for arg in args])

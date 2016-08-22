@@ -216,6 +216,7 @@ class MultiProductionDataset(ProductionDataset):
 
         return dset
 
+
 class ParentDataset(Configurable):
     """
     Process the output of another workflow.

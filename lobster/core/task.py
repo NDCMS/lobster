@@ -15,6 +15,7 @@ __all__ = ['TaskHandler', 'MergeTaskHandler', 'ProductionTaskHandler']
 
 logger = logging.getLogger('lobster.cmssw.taskhandler')
 
+
 class TaskHandler(object):
     """
     Handles mapping of lumi sections to files etc.
@@ -276,6 +277,7 @@ class MergeTaskHandler(TaskHandler):
         _, up = super(MergeTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         return [], up
 
+
 class ProductionTaskHandler(TaskHandler):
     def __init__(self, id_, dataset, lumis, outputs, taskdir):
         super(ProductionTaskHandler, self).__init__(id_, dataset, [], lumis, outputs, taskdir)
@@ -289,6 +291,7 @@ class ProductionTaskHandler(TaskHandler):
         _, up = super(ProductionTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         return [(0, 0, 1)], up
 
+
 class MultiProductionTaskHandler(ProductionTaskHandler):
     def __init__(self, id_, dataset, gridpacks, lumis, outputs, taskdir):
         super(ProductionTaskHandler, self).__init__(id_, dataset, gridpacks, lumis, outputs, taskdir)
@@ -299,11 +302,10 @@ class MultiProductionTaskHandler(ProductionTaskHandler):
         parameters['mask']['first run'] = self._units[0][2]
         parameters['gridpack'] = True
 
-
     def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         units_processed = len(self._units) if not failed else 0
 
-        id, _ = self._files[0] ## there can never be more than one gridpack per task
+        id, _ = self._files[0]  # there can never be more than one gridpack per task
         events_read = 0
         skipped = 0
         file_update = [(events_read, skipped, id)]

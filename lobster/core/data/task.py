@@ -660,9 +660,9 @@ def edit_process_source(pset, config):
         if any([f for f in files]) and not config['gridpack']:
             frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files]))
         if config['gridpack']:
-            ## ExternalLHEProducer only understands local files and does
-            ## not expect the `file:` prefix. Also, there can never be
-            ## more than one gridpack, so take the first element.
+            # ExternalLHEProducer only understands local files and does
+            # not expect the `file:` prefix. Also, there can never be
+            # more than one gridpack, so take the first element.
             frag += fragment_gridpack.format(gridpack=os.path.abspath(files[0].replace('file:', '')))
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({0})".format([str(l) for l in lumis])

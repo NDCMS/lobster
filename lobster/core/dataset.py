@@ -8,6 +8,20 @@ from lobster.util import Configurable
 __all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset']
 
 
+def flatten(files):
+    res = []
+    if not isinstance(files, list):
+        files = [files]
+    for entry in files:
+        entry = os.path.expanduser(entry)
+        if fs.isdir(entry):
+            res += fs.ls(entry)
+        elif fs.isfile(entry):
+            res.append(entry)
+
+    return res
+
+
 class FileInfo(object):
 
     def __init__(self):
@@ -59,30 +73,14 @@ class Dataset(Configurable):
         self.total_units = 0
 
     def validate(self):
-        if not isinstance(self.files, list):
-            self.files = [self.files]
-        for entry in self.files:
-            entry = os.path.expanduser(entry)
-            if fs.isdir(entry):
-                return True
-            elif fs.isfile(entry):
-                return True
-        return False
+        return len(flatten(self.files)) > 0
 
     def get_info(self):
         dset = DatasetInfo()
         dset.file_based = True
 
+        files = flatten(self.files)
         dset.tasksize = self.files_per_task
-        if not isinstance(self.files, list):
-            self.files = [self.files]
-        files = []
-        for entry in self.files:
-            entry = os.path.expanduser(entry)
-            if fs.isdir(entry):
-                files += fs.ls(entry)
-            elif fs.isfile(entry):
-                files.append(entry)
         dset.total_units = len(files)
         self.total_units = len(files)
 

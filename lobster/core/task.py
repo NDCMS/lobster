@@ -15,6 +15,7 @@ __all__ = ['TaskHandler', 'MergeTaskHandler', 'ProductionTaskHandler']
 
 logger = logging.getLogger('lobster.cmssw.taskhandler')
 
+
 class TaskHandler(object):
     """
     Handles mapping of lumi sections to files etc.
@@ -28,7 +29,7 @@ class TaskHandler(object):
         self._units = lumis
         self.outputs = outputs
         self._local = local
-        
+
         self.taskdir = taskdir
         self.unit_source = 'units_' + self._dataset
 
@@ -276,6 +277,7 @@ class MergeTaskHandler(TaskHandler):
         _, up = super(MergeTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         return [], up
 
+
 class ProductionTaskHandler(TaskHandler):
     def __init__(self, id_, dataset, lumis, outputs, taskdir):
         super(ProductionTaskHandler, self).__init__(id_, dataset, [], lumis, outputs, taskdir)
@@ -288,3 +290,38 @@ class ProductionTaskHandler(TaskHandler):
     def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         _, up = super(ProductionTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         return [(0, 0, 1)], up
+
+
+class MultiProductionTaskHandler(ProductionTaskHandler):
+    def __init__(self, id_, dataset, gridpacks, lumis, outputs, taskdir):
+        super(ProductionTaskHandler, self).__init__(id_, dataset, gridpacks, lumis, outputs, taskdir)
+        self._file_based = True
+
+    def adjust(self, parameters, inputs, outputs, se):
+        super(MultiProductionTaskHandler, self).adjust(parameters, inputs, outputs, se)
+        parameters['mask']['first run'] = self._units[0][2]
+        parameters['gridpack'] = True
+
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
+        units_processed = len(self._units) if not failed else 0
+
+        id, _ = self._files[0]  # there can never be more than one gridpack per task
+        events_read = 0
+        skipped = 0
+        file_update = [(events_read, skipped, id)]
+
+        logger.debug('in multi production handler\nfailed: {0}\nfiles_info: {1}\nfiles_skipped: {2}\nevents_written: {3}'.format(
+            failed, files_info, files_skipped, events_written))
+
+        if failed:
+            events_written = 0
+            status = unit.FAILED
+        else:
+            status = unit.SUCCESSFUL
+
+        task_update.events_read = events_read
+        task_update.events_written = events_written
+        task_update.units_processed = units_processed
+        task_update.status = status
+
+        return file_update, []

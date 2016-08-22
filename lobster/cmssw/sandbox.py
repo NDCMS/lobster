@@ -36,10 +36,13 @@ class Sandbox(lobster.core.Sandbox):
 
     def __init__(self, include=None, release=None, blacklist=None):
         super(Sandbox, self).__init__(blacklist)
-        try:
-            self.release = release or os.environ['LOCALRT']
-        except KeyError:
-            raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
+        if release:
+            self.release = os.path.expandvars(os.path.expanduser(release))
+        else:
+            try:
+                self.release = os.environ['LOCALRT']
+            except KeyError:
+                raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
         self.include = include or []
 
     def __release2filename(self, rel):

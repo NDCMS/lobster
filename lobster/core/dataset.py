@@ -5,7 +5,21 @@ import os
 from lobster import fs
 from lobster.util import Configurable
 
-__all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset']
+__all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset', 'MultiProductionDataset']
+
+
+def flatten(files):
+    res = []
+    if not isinstance(files, list):
+        files = [files]
+    for entry in files:
+        entry = os.path.expanduser(entry)
+        if fs.isdir(entry):
+            res += fs.ls(entry)
+        elif fs.isfile(entry):
+            res.append(entry)
+
+    return res
 
 
 class FileInfo(object):
@@ -59,30 +73,14 @@ class Dataset(Configurable):
         self.total_units = 0
 
     def validate(self):
-        if not isinstance(self.files, list):
-            self.files = [self.files]
-        for entry in self.files:
-            entry = os.path.expanduser(entry)
-            if fs.isdir(entry):
-                return True
-            elif fs.isfile(entry):
-                return True
-        return False
+        return len(flatten(self.files)) > 0
 
     def get_info(self):
         dset = DatasetInfo()
         dset.file_based = True
 
+        files = flatten(self.files)
         dset.tasksize = self.files_per_task
-        if not isinstance(self.files, list):
-            self.files = [self.files]
-        files = []
-        for entry in self.files:
-            entry = os.path.expanduser(entry)
-            if fs.isdir(entry):
-                files += fs.ls(entry)
-            elif fs.isfile(entry):
-                files.append(entry)
         dset.total_units = len(files)
         self.total_units = len(files)
 
@@ -90,7 +88,6 @@ class Dataset(Configurable):
             # hack because it will be slow to stat and open
             # all the input files to read the size/run/lumi info
             dset.files[fn].lumis = [(-1, -1)]
-            dset.files[fn].size = 0
 
         return dset
 
@@ -132,7 +129,7 @@ class ProductionDataset(Configurable):
         events_per_task : int
             How many events to generate in one task.
         events_per_lumi : int
-            How many events should be in one luminosity section
+            How many events to generate in one luminosity section.
         number_of_tasks : int
             How many tasks to run.
         randomize_seeds : bool
@@ -165,6 +162,57 @@ class ProductionDataset(Configurable):
         dset.files[None].lumis = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
         dset.total_units = ntasks
         self.total_units = ntasks * nlumis
+
+        return dset
+
+
+class MultiProductionDataset(ProductionDataset):
+    """
+    Dataset specification for Monte-Carlo event generation from a set
+    of gridpacks.
+
+    Parameters
+    ----------
+        gridpacks : list
+            A list of gridpack files or directories to process.  May also be a `str`
+            pointing to a single gridpack file or directory.
+        events_per_gridpack : int
+            How many events to generate per gridpack.
+        events_per_task : int
+            How many events to generate in one task.
+        events_per_lumi : int
+            How many events to generate in one luminosity section.
+        randomize_seeds : bool
+            Use random seeds every time a task is run.
+    """
+    _mutable = {}
+
+    def __init__(self, gridpacks, events_per_gridpack, events_per_task, events_per_lumi=None, randomize_seeds=True):
+        self.gridpacks = gridpacks
+        self.events_per_gridpack = events_per_gridpack
+        self.events_per_task = events_per_task
+        self.events_per_lumi = events_per_lumi
+        self.randomize_seeds = randomize_seeds
+        self.total_units = 0
+
+    def validate(self):
+        return len(flatten(self.gridpacks)) > 0
+
+    def get_info(self):
+        dset = DatasetInfo()
+        dset.file_based = True
+
+        lumis_per_task = 1
+        lumis_per_gridpack = int(math.ceil(float(self.events_per_gridpack) / self.events_per_task))
+        if self.events_per_lumi:
+            lumis_per_task = int(math.ceil(float(self.events_per_task) / self.events_per_lumi))
+            lumis_per_gridpack = int(math.ceil(float(self.events_per_gridpack) / self.events_per_lumi))
+
+        for run, fn in enumerate(flatten(self.gridpacks)):
+            dset.files[fn].lumis = [(run, x) for x in range(1, lumis_per_gridpack + 1, lumis_per_task)]
+
+        dset.total_units = len(sum([x.lumis for x in dset.files.values()], []))
+        self.total_units = dset.total_units
 
         return dset
 

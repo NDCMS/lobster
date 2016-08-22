@@ -86,7 +86,11 @@ for prod in process.producers.values():
         prod.nEvents = cms.untracked.uint32({events})
 """
 
-fragment_first = """
+fragment_first_run = """
+process.source.firstRun = cms.untracked.uint32({run})
+"""
+
+fragment_first_lumi = """
 process.source.firstLuminosityBlock = cms.untracked.uint32({lumi})
 """
 
@@ -111,15 +115,21 @@ else:
     )
 """
 
-sum_fragment = """
+fragment_sum = """
 if hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
 
-runtime_fragment = """
+fragment_runtime = """
 process.maxSecondsUntilRampdown = cms.untracked.PSet(input = cms.untracked.int32({time}))
+"""
+
+fragment_gridpack = """
+for prod in process.producers.values():
+    if prod.hasParameter('args') and prod.type_() == 'ExternalLHEProducer':
+        prod.args = cms.vstring('{gridpack}')
 """
 
 monalisa = {
@@ -640,26 +650,34 @@ def edit_process_source(pset, config):
     cores = config.get('cores')
 
     # MC production settings
+    run_first = config['mask'].get('first run')
     lumi_first = config['mask'].get('first lumi')
     lumi_events = config['mask'].get('events per lumi')
     seeding = config.get('randomize seeds', False)
 
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])
-        if any([f for f in files]):
+        if any([f for f in files]) and not config['gridpack']:
             frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files]))
+        if config['gridpack']:
+            # ExternalLHEProducer only understands local files and does
+            # not expect the `file:` prefix. Also, there can never be
+            # more than one gridpack, so take the first element.
+            frag += fragment_gridpack.format(gridpack=os.path.abspath(files[0].replace('file:', '')))
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({0})".format([str(l) for l in lumis])
         if want_summary:
-            frag += sum_fragment
+            frag += fragment_sum
         if runtime:
-            frag += runtime_fragment.format(time=runtime)
+            frag += fragment_runtime.format(time=runtime)
         if seeding:
             frag += fragment_seeding
         if lumi_events:
             frag += fragment_lumi.format(events=lumi_events)
         if lumi_first:
-            frag += fragment_first.format(lumi=lumi_first)
+            frag += fragment_first_lumi.format(lumi=lumi_first)
+        if run_first:
+            frag += fragment_first_run.format(run=run_first)
         if cores:
             frag += fragment_cores.format(cores=cores)
 
@@ -797,15 +815,18 @@ def get_bare_size(filename):
 def run_command(data, config, env, monalisa):
     cmd = config['executable']
     args = config['arguments']
-    if config['executable'] == 'cmsRun':
+    shell = False
+    if 'cmsRun' in cmd:
         pset = config['pset']
         pset_mod = pset.replace(".py", "_mod.py")
         shutil.copy2(pset, pset_mod)
 
         edit_process_source(pset_mod, config)
 
-        cmd = ['cmsRun', '-j', 'report.xml', pset_mod]
+        cmd = [cmd, '-j', 'report.xml', pset_mod]
         cmd.extend([str(arg) for arg in args])
+        if config['executable'] != 'cmsRun':
+            shell = True
     else:
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         if isinstance(cmd, basestring):
@@ -816,9 +837,10 @@ def run_command(data, config, env, monalisa):
 
         if config.get('append inputs to args', False):
             cmd.extend([str(f) for f in config['mask']['files']])
+        shell = True
 
-    logger.info("running {0}".format(' '.join(cmd)))
-    p = run_subprocess(cmd, env=env)
+    cmd = ' '.join(cmd) if shell else cmd
+    p = run_subprocess(cmd, env=env, shell=shell)
     logger.info("executable returned with exit code {0}.".format(p.returncode))
     data['exe exit code'] = p.returncode
     data['task exit code'] = data['exe exit code']
@@ -828,7 +850,7 @@ def run_command(data, config, env, monalisa):
     taskid = str(config['monitoring']['taskid'])
     apmonSend(taskid, monitorid, {'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
 
-    if config['executable'] == 'cmsRun':
+    if 'cmsRun' in config['executable']:
         parse_fwk_report(data, config, 'report.xml')
         calculate_alder32(data)
     else:

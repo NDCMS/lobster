@@ -111,14 +111,14 @@ else:
     )
 """
 
-sum_fragment = """
+fragment_sum = """
 if hasattr(process, 'options'):
     process.options.wantSummary = cms.untracked.bool(True)
 else:
     process.options = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
 """
 
-runtime_fragment = """
+fragment_runtime = """
 process.maxSecondsUntilRampdown = cms.untracked.PSet(input = cms.untracked.int32({time}))
 """
 
@@ -651,9 +651,9 @@ def edit_process_source(pset, config):
         if lumis:
             frag += "\nprocess.source.lumisToProcess = cms.untracked.VLuminosityBlockRange({0})".format([str(l) for l in lumis])
         if want_summary:
-            frag += sum_fragment
+            frag += fragment_sum
         if runtime:
-            frag += runtime_fragment.format(time=runtime)
+            frag += fragment_runtime.format(time=runtime)
         if seeding:
             frag += fragment_seeding
         if lumi_events:

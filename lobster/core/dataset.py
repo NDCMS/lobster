@@ -88,7 +88,6 @@ class Dataset(Configurable):
             # hack because it will be slow to stat and open
             # all the input files to read the size/run/lumi info
             dset.files[fn].lumis = [(-1, -1)]
-            dset.files[fn].size = 0
 
         return dset
 

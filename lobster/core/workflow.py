@@ -7,8 +7,8 @@ import shutil
 import sys
 
 from lobster import fs, util
-from lobster.core.dataset import ParentDataset, ProductionDataset, EmptyDataset
-from lobster.core.task import MergeTaskHandler, ProductionTaskHandler, TaskHandler
+from lobster.core.dataset import EmptyDataset, MultiProductionDataset, ParentDataset, ProductionDataset
+from lobster.core.task import MergeTaskHandler, MultiProductionTaskHandler, ProductionTaskHandler, TaskHandler
 from lobster.util import Configurable
 
 import work_queue as wq
@@ -376,6 +376,8 @@ class Workflow(Configurable):
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
             return MergeTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)
+        elif isinstance(self.dataset, MultiProductionDataset):
+            return MultiProductionTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)
         elif isinstance(self.dataset, ProductionDataset) or isinstance(self.dataset, EmptyDataset):
             return ProductionTaskHandler(id_, self.label, lumis, list(self.get_outputs(id_)), taskdir)
         else:

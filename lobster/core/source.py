@@ -376,7 +376,8 @@ class TaskProvider(object):
                 'executable': None,
                 'pset': None,
                 'prologue': None,
-                'epilogue': None
+                'epilogue': None,
+                'gridpack': False
             }
 
             if merge:

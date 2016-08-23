@@ -127,7 +127,7 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 if [ -z "$LOBSTER_PROXY_INFO" -o \( -z "$LOBSTER_LCG_CP" -a -z "$LOBSTER_GFAL_COPY" \) ]; then
 	log "sourcing OSG setup"
 	slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
-	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/"$LOBSTER_OSG_LOCATION"/current/el$slc-$(uname -m)/setup.sh
+	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/"$LOBSTER_OSG_VERSION"/current/el$slc-$(uname -m)/setup.sh
 
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
 	[ -z "$LOBSTER_GFAL_COPY" ] && export LOBSTER_GFAL_COPY=$(command -v gfal-copy)

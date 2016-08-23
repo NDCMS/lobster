@@ -177,6 +177,8 @@ class AdvancedOptions(Configurable):
             How much logging output to show.  Goes from 1 to 5, where 1 is
             the most verbose (including a lot of debug output), and 5 is
             practically quiet.
+        osg_version : str
+            The version of OSG you want lobster to run on.
         payload : int
             How many tasks to keep in the queue (minimum).  Note that the
             payload will increase with the number of cores available to
@@ -213,8 +215,8 @@ class AdvancedOptions(Configurable):
                  bad_exit_codes=None,
                  dump_core=False,
                  full_monitoring=False,
-                 osg_location=None,
                  log_level=2,
+                 osg_version=None,
                  payload=10,
                  proxy=None,
                  threshold_for_failure=30,
@@ -222,6 +224,14 @@ class AdvancedOptions(Configurable):
                  wq_max_retries=10,
                  xrootd_servers=None):
         from lobster import cmssw
+        
+        self.osg_version = osg_version
+
+        if not osg_version:
+            osg_location = os.environ.get("OSG_LOCATION")
+            if not osg_location:
+                raise AttributeError("No OSG version specified or in the environment.")
+            self.osg_version = osg_location.rsplit('/',3)[1]
 
         self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold

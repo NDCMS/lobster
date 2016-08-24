@@ -10,20 +10,24 @@ from lobster.core.unit import TaskUpdate, UnitStore
 from lobster.core.config import Config, AdvancedOptions
 from lobster.core.workflow import Workflow
 
-from WMCore.DataStructs.LumiList import LumiList
 
 class DummyInterface(object):
+
     def update_units(self, data):
         self.data = data
 
+
 class DummyTask(object):
+
     def __init__(self, id, code):
         self.tag = id
         self.return_status = code
         self.output = None
         # TODO finish
 
+
 class TestSQLBackend(object):
+
     def setup(self):
         with self.interface.db as db:
             db.execute("delete from workflows")
@@ -38,7 +42,7 @@ class TestSQLBackend(object):
                 workdir=cls.workdir,
                 storage=se.StorageConfiguration(output=['file://' + cls.workdir]),
                 workflows=[],
-                advanced=AdvancedOptions(proxy=False)
+                advanced=AdvancedOptions(proxy=False, osg_version="3.3")
             )
         )
 
@@ -103,7 +107,7 @@ class TestSQLBackend(object):
             info.files[f].events = file_events
             info.files[f].lumis = file_lumis
 
-        info.total_units = sum([len(finfo.lumis) for f, finfo in info.files.items()])
+        info.total_units = sum([len(finfo.lumis) for _, finfo in info.files.items()])
 
         return Workflow(label, None), info
         # }}}
@@ -124,22 +128,22 @@ class TestSQLBackend(object):
     def test_handler(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_dbs_dataset(
-                    'test_handler', lumis=11, filesize=2.2, tasksize=3))
+            *self.create_dbs_dataset(
+                'test_handler', lumis=11, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_handler', 1)[0]
 
         handler = TaskHandler(123, 'test_handler', files, lumis, 'test', True)
 
         files_info = {
-                u'/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                u'/test/1.root': (80, [(1, 3)])
+            u'/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+            u'/test/1.root': (80, [(1, 3)])
         }
         files_skipped = []
         events_written = 123
 
         update = TaskUpdate()
         file_update, unit_update = \
-                handler.get_unit_info(False, update, files_info, files_skipped, events_written)
+            handler.get_unit_info(False, update, files_info, files_skipped, events_written)
 
         assert update.units_processed == 4
         assert update.events_read == 300
@@ -152,8 +156,8 @@ class TestSQLBackend(object):
     def test_obtain(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_dbs_dataset(
-                    'test_obtain', lumis=20, filesize=2.2, tasksize=3))
+            *self.create_dbs_dataset(
+                'test_obtain', lumis=20, filesize=2.2, tasksize=3))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_obtain', 1)[0]
 
         (jr, jd, er, ew) = self.interface.db.execute("""
@@ -163,7 +167,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 4
         assert jd == 0
@@ -171,7 +175,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (jr, jd) = self.interface.db.execute(
-                "select units_running, units_done from files_test_obtain where filename='/test/0.root'").fetchone()
+            "select units_running, units_done from files_test_obtain where filename='/test/0.root'").fetchone()
 
         assert jr == 3
         assert jd == 0
@@ -180,25 +184,26 @@ class TestSQLBackend(object):
     def test_return_good(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_dbs_dataset(
-                    'test_good', lumis=20, filesize=2.2, tasksize=6))
+            *self.create_dbs_dataset(
+                'test_good', lumis=20, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_good', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                    '/test/2.root': (60, [(1, 5)])
-                },
-                [],
-                100
-                )
+            False,
+            task_update,
+            {
+                '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                '/test/2.root': (60, [(1, 5)])
+            },
+            [],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -207,7 +212,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 0
         assert jd == 7
@@ -215,14 +220,14 @@ class TestSQLBackend(object):
         assert ew == 100
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, units_running, units_done, events_read from files_test_good where filename='/test/0.root'").fetchone()
+            "select id, units_running, units_done, events_read from files_test_good where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 3
         assert er == 220
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, units_running, units_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
+            "select id, units_running, units_done, events_read from files_test_good where filename='/test/2.root'").fetchone()
 
         assert jr == 0
         assert jd == 1
@@ -242,14 +247,15 @@ class TestSQLBackend(object):
 
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                True,
-                task_update,
-                {},
-                [],
-                0
-                )
+            True,
+            task_update,
+            {},
+            [],
+            0
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -258,7 +264,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -266,7 +272,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, units_running, units_done, events_read from files_test_bad where filename='/test/0.root'").fetchone()
+            "select id, units_running, units_done, events_read from files_test_bad where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -287,18 +293,19 @@ class TestSQLBackend(object):
 
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                True,
-                task_update,
-                {
-                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                    '/test/2.root': (160, [(1, 5), (1, 6)])
-                },
-                [],
-                100
-                )
+            True,
+            task_update,
+            {
+                '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                '/test/2.root': (160, [(1, 5), (1, 6)])
+            },
+            [],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -307,7 +314,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -315,7 +322,7 @@ class TestSQLBackend(object):
         assert ew in (0, None)
 
         (id, jr, jd, er) = self.interface.db.execute(
-                "select id, units_running, units_done, events_read from files_test_bad_again where filename='/test/0.root'").fetchone()
+            "select id, units_running, units_done, events_read from files_test_bad_again where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -325,33 +332,34 @@ class TestSQLBackend(object):
     def test_return_ugly(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_dbs_dataset(
-                    'test_ugly', lumis=11, filesize=2.2, tasksize=6))
+            *self.create_dbs_dataset(
+                'test_ugly', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_ugly', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/0.root': (120, [(1, 2), (1, 3)])
-                },
-                ['/test/1.root', '/test/2.root'],
-                50
-                )
+            False,
+            task_update,
+            {
+                '/test/0.root': (120, [(1, 2), (1, 3)])
+            },
+            ['/test/1.root', '/test/2.root'],
+            50
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         skipped = list(
-                self.interface.db.execute(
-                    "select skipped from files_{0}".format(label)))
+            self.interface.db.execute(
+                "select skipped from files_{0}".format(label)))
 
         assert skipped == [(0,), (1,), (1,), (0,), (0,)]
 
         status = list(
-                self.interface.db.execute(
-                    "select status from units_{0} where file=2 group by status".format(label)))
+            self.interface.db.execute(
+                "select status from units_{0} where file=2 group by status".format(label)))
 
         assert status == [(3,)]
 
@@ -363,7 +371,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                         (label,)).fetchone()
 
         assert jr == 0
         assert jd == 2
@@ -372,13 +380,13 @@ class TestSQLBackend(object):
         assert ew == 50
 
         (id, jr, jd) = self.interface.db.execute(
-                "select id, units_running, units_done from files_test_ugly where filename='/test/0.root'").fetchone()
+            "select id, units_running, units_done from files_test_ugly where filename='/test/0.root'").fetchone()
 
         assert jr == 0
         assert jd == 2
 
         (id, jr, jd) = self.interface.db.execute(
-                "select id, units_running, units_done from files_test_ugly where filename='/test/1.root'").fetchone()
+            "select id, units_running, units_done from files_test_ugly where filename='/test/1.root'").fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -387,24 +395,25 @@ class TestSQLBackend(object):
     def test_return_uglier(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_dbs_dataset(
-                    'test_uglier', lumis=11, filesize=2.2, tasksize=6))
+            *self.create_dbs_dataset(
+                'test_uglier', lumis=11, filesize=2.2, tasksize=6))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_uglier', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id, submissions=1)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                },
-                ['/test/2.root'],
-                100
-                )
+            False,
+            task_update,
+            {
+                '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+            },
+            ['/test/2.root'],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         # grab another task
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_uglier', 1)[0]
@@ -412,18 +421,19 @@ class TestSQLBackend(object):
         task_update.id = id
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
-                    '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
-                    '/test/4.root': (20, [(1, 9)]),
-                },
-                [],
-                100
-                )
+            False,
+            task_update,
+            {
+                '/test/2.root': (220, [(1, 5), (1, 6), (1, 7)]),
+                '/test/3.root': (220, [(1, 7), (1, 8), (1, 9)]),
+                '/test/4.root': (20, [(1, 9)]),
+            },
+            [],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
@@ -433,7 +443,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                         (label,)).fetchone()
 
         assert jr == 0
         assert jd == 13
@@ -445,15 +455,16 @@ class TestSQLBackend(object):
     def test_file_obtain(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_file_dataset(
-                    'test_file_obtain', 5, 3))
+            *self.create_file_dataset(
+                'test_file_obtain', 5, 3))
 
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_obtain', 1)[0]
 
         parameters = {'mask': {'lumis': None}}
-        TaskHandler(id, label, files, lumis, None, True).adjust(parameters, [], [], se.StorageConfiguration({}))
+        TaskHandler(id, label, files, lumis, None, True).adjust(
+            parameters, [], [], se.StorageConfiguration({}))
 
-        assert parameters['mask']['lumis'] == None
+        assert parameters['mask']['lumis'] is None
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -462,7 +473,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 3
         assert jd == 0
@@ -473,26 +484,27 @@ class TestSQLBackend(object):
     def test_file_return_good(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_file_dataset(
-                    'test_file_return_good', 5, 3))
+            *self.create_file_dataset(
+                'test_file_return_good', 5, 3))
 
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_good', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                    '/test/2.root': (160, [(1, 5), (1, 6)])
-                },
-                [],
-                100
-                )
+            False,
+            task_update,
+            {
+                '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+                '/test/2.root': (160, [(1, 5), (1, 6)])
+            },
+            [],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -501,7 +513,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 0
         assert jd == 3
@@ -512,22 +524,23 @@ class TestSQLBackend(object):
     def test_file_return_bad(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_file_dataset(
-                    'test_file_return_bad', 5, 3))
+            *self.create_file_dataset(
+                'test_file_return_bad', 5, 3))
 
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_bad', 1)[0]
 
         task_update = TaskUpdate(exit_code=1234, host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                True,
-                task_update,
-                {},
-                [],
-                0
-                )
+            True,
+            task_update,
+            {},
+            [],
+            0
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, er, ew) = self.interface.db.execute("""
             select
@@ -536,7 +549,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                     (label,)).fetchone()
 
         assert jr == 0
         assert jd == 0
@@ -547,25 +560,26 @@ class TestSQLBackend(object):
     def test_file_return_ugly(self):
         # {{{
         self.interface.register_dataset(
-                *self.create_file_dataset(
-                    'test_file_return_ugly', 5, 3))
+            *self.create_file_dataset(
+                'test_file_return_ugly', 5, 3))
 
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_file_return_ugly', 1)[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)
         file_update, unit_update = handler.get_unit_info(
-                False,
-                task_update,
-                {
-                    '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
-                    '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
-                },
-                ['/test/2.root'],
-                100
-                )
+            False,
+            task_update,
+            {
+                '/test/0.root': (220, [(1, 1), (1, 2), (1, 3)]),
+                '/test/1.root': (220, [(1, 3), (1, 4), (1, 5)]),
+            },
+            ['/test/2.root'],
+            100
+        )
 
-        self.interface.update_units({(label, "units_" + label): [(task_update, file_update, unit_update)]})
+        self.interface.update_units(
+            {(label, "units_" + label): [(task_update, file_update, unit_update)]})
 
         (jr, jd, jl, er, ew) = self.interface.db.execute("""
             select
@@ -575,7 +589,7 @@ class TestSQLBackend(object):
                 (select sum(events_read) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id),
                 (select sum(events_written) from tasks where status in (2, 6, 8) and type = 0 and workflow = workflows.id)
             from workflows where label=?""",
-            (label,)).fetchone()
+                                                         (label,)).fetchone()
 
         assert jr == 0
         assert jd == 2
@@ -584,7 +598,9 @@ class TestSQLBackend(object):
         assert ew == 100
         # }}}
 
+
 class TestCMSSWProvider(object):
+
     @classmethod
     def setup_class(cls):
         cls.workdir = tempfile.mkdtemp()
@@ -598,8 +614,8 @@ class TestCMSSWProvider(object):
         cls.provider._taskProvider__store = DummyInterface()
 
         shutil.copytree(
-                os.path.join(os.path.dirname(__file__), 'tmp_data'),
-                os.path.join(cls.workdir, 'tmp_data'))
+            os.path.join(os.path.dirname(__file__), 'tmp_data'),
+            os.path.join(cls.workdir, 'tmp_data'))
 
     @classmethod
     def teardown_class(cls):
@@ -607,7 +623,7 @@ class TestCMSSWProvider(object):
 
     # def test_return_good(self):
         # self.provider._taskProvider__taskdirs[0] = \
-                # os.path.join(self.workdir, 'tmp_data', 'running', '0')
+        # os.path.join(self.workdir, 'tmp_data', 'running', '0')
         # self.provider._taskProvider__taskworkflows[0] = 'test'
         # self.provider._taskProvider__taskoutputs[0] = []
         # self.provider

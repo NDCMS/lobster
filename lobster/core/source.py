@@ -142,6 +142,7 @@ class TaskProvider(object):
 
         logger.debug("using {} as proxy for CVMFS".format(self.__cvmfs_proxy))
         logger.debug("using {} as proxy for Frontier".format(self.__frontier_proxy))
+        logger.debug("using {} as osg_version".format(self.config.advanced.osg_version))
 
         self.__taskhandlers = {}
         self.__store = unit.UnitStore(self.config)
@@ -428,7 +429,8 @@ class TaskProvider(object):
             cmd = 'sh wrapper.sh python task.py parameters.json'
             env = {
                 'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
-                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy
+                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,
+                'LOBSTER_OSG_VERSION': self.config.advanced.osg_version
             }
 
             tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))

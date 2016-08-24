@@ -38,7 +38,7 @@ class TestSQLBackend(object):
                 workdir=cls.workdir,
                 storage=se.StorageConfiguration(output=['file://' + cls.workdir]),
                 workflows=[],
-                advanced=AdvancedOptions(proxy=False)
+                advanced=AdvancedOptions(proxy=False, osg_version="3.3")
             )
         )
 

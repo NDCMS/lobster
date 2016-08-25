@@ -126,6 +126,10 @@ class ElkInterface(Configurable):
         self.client = es.Elasticsearch([{'host': self.es_host,
                                          'port': self.es_port}])
 
+        pattern = r'[\\\/*\?\"\,\<\>\|]'
+        if re.search(pattern, project):
+            raise ValueError("illegal project {}; must not match {}".format(project, pattern))
+
         # FIXME: supposed to check that the Elasticsearch client exists
         # and cause the config file to be rejected if it doesn't
         # but breaks lobster with an sqlite3 error in unit.py

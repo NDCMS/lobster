@@ -525,6 +525,9 @@ class TaskProvider(object):
         left = self.__store.unfinished_units()
         return self.__store.merged() and left == 0
 
+    def max_taskid(self):
+        return self.__store.max_taskid()
+
     def __update_dashboard(self, queue, exclude_states):
         try:
             self.__dash_checker.update_dashboard_states(self.__dash, queue, exclude_states)

@@ -183,6 +183,7 @@ class Process(Command):
         wq.cctools_debug_config_file_size(1 << 29)
 
         self.queue = wq.WorkQueue(-1)
+        self.queue.specify_min_taskid(task_src.max_taskid()+1)
         self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
         self.queue.specify_transactions_log(os.path.join(self.config.workdir, "transactions.log"))
         self.queue.specify_name("lobster_" + self.config.label)

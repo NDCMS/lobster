@@ -136,8 +136,10 @@ class Dataset(Configurable):
                 self.dataset, self.lumi_mask, self.file_based)
 
             if self.events_per_task:
-                res.tasksize = int(
-                    math.ceil(self.events_per_task / float(res.total_events) * res.total_units))
+                if res.total_events > 0:
+                    res.tasksize = int(math.ceil(self.events_per_task / float(res.total_events) * res.total_units))
+                else:
+                    res.tasksize = 1
             else:
                 res.tasksize = self.lumis_per_task
 

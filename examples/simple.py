@@ -3,7 +3,7 @@ import datetime
 from lobster import cmssw
 from lobster.core import *
 
-version = datetime.datetime.now().strftime('%Y%m%d')
+version = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 
 storage = StorageConfiguration(
     output=[

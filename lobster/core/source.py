@@ -515,7 +515,10 @@ class TaskProvider(object):
             self.__store.update_transfers(transfers)
 
         if self.config.elk:
-            self.config.elk.index_summary(self.__store.workflow_status())
+            try:
+                self.config.elk.index_summary(self.__store.workflow_status())
+            except Exception as e:
+                logger.error('ELK failed to index summary:\n{}'.format(e))
 
     def terminate(self):
         for id in self.__store.running_tasks():

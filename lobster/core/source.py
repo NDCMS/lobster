@@ -277,8 +277,8 @@ class TaskProvider(object):
             (self.siteconf, 'siteconf', False),
             (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
             (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
-            (self.parrot_bin, 'bin', None),
-            (self.parrot_lib, 'lib', None),
+            (self.parrot_bin, 'bin', True),
+            (self.parrot_lib, 'lib', True),
         ]
 
         # Files to make the task wrapper work without referencing WMCore

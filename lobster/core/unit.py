@@ -170,6 +170,10 @@ class UnitStore:
     def disconnect(self):
         self.db.close()
 
+    def max_taskid(self):
+        maxid = self.db.execute('select ifnull(max(id), 0) from tasks').fetchone()[0]
+        return maxid
+
     def register_dataset(self, wflow, dataset_info, taskruntime=None):
         label = wflow.label
         unique_args = wflow.unique_arguments

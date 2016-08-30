@@ -171,5 +171,11 @@ configuration, which will launch an editor to edit the current
 configuration.
 
 .. note::
+   If one of the services used in the original configuration has changed or
+   become unavailable, executing ``lobster configure`` with said
+   configuration may fail.  It is recommended to pass the working directory
+   on the command line.
+
+.. note::
    The ``configure`` command uses the environment variable ``EDITOR`` to
    determine which editor to use, and uses `vi` as a default.

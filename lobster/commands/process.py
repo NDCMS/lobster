@@ -17,8 +17,6 @@ from lobster.commands.status import Status
 from lobster.core.command import Command
 from lobster.core.source import TaskProvider
 
-from pkg_resources import get_distribution
-
 import work_queue as wq
 
 logger = logging.getLogger('lobster.core')
@@ -44,6 +42,7 @@ class Terminate(Command):
 
         if config.elk:
             config.elk.end()
+
 
 class Process(Command):
 
@@ -142,9 +141,12 @@ class Process(Command):
             resource.setrlimit(
                 resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
+        def localkill(num, frame):
+            Terminate().run(args)
+
         signals = daemon.daemon.make_default_signal_map()
-        signals[signal.SIGINT] = lambda num, frame: Terminate().run(args)
-        signals[signal.SIGTERM] = lambda num, frame: Terminate().run(args)
+        signals[signal.SIGINT] = localkill
+        signals[signal.SIGTERM] = localkill
 
         with daemon.DaemonContext(
                 detach_process=not args.foreground,
@@ -166,7 +168,7 @@ class Process(Command):
             try:
                 # Fails if something with working directory creation went wrong
                 Status().run(args)
-            except:
+            except Exception:
                 pass
 
     def sprint(self):
@@ -216,7 +218,6 @@ class Process(Command):
         units_left = 0
         successful_tasks = 0
 
-        bad_exitcodes = self.config.advanced.bad_exit_codes
         categories = []
 
         self.setup_logging('all')
@@ -322,7 +323,7 @@ class Process(Command):
                 while task:
                     if task.return_status == 0:
                         successful_tasks += 1
-                    elif task.return_status in bad_exitcodes:
+                    elif task.return_status in self.config.advanced.bad_exit_codes:
                         logger.warning(
                             "blacklisting host {0} due to bad exit code from task {1}".format(task.hostname, task.tag))
                         self.queue.blacklist(task.hostname)
@@ -344,7 +345,7 @@ class Process(Command):
                 try:
                     with self.measure('return'):
                         task_src.release(tasks)
-                except:
+                except Exception:
                     tb = traceback.format_exc()
                     logger.critical("cannot recover from the following exception:\n" + tb)
                     for task in tasks:

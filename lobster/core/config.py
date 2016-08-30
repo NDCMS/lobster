@@ -4,7 +4,7 @@ import os
 import pickle
 
 from lobster.core.workflow import Category
-from lobster.util import Configurable, PartiallyMutable
+from lobster.util import Configurable
 
 
 class Items(object):
@@ -224,14 +224,14 @@ class AdvancedOptions(Configurable):
                  wq_max_retries=10,
                  xrootd_servers=None):
         from lobster import cmssw
-        
+
         self.osg_version = osg_version
 
         if not osg_version:
             osg_location = os.environ.get("OSG_LOCATION")
             if not osg_location:
                 raise AttributeError("No OSG version specified or in the environment.")
-            self.osg_version = osg_location.rsplit('/',3)[1]
+            self.osg_version = osg_location.rsplit('/', 3)[1]
 
         self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold

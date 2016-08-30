@@ -206,16 +206,17 @@ def check_execution(exitcode, update=None):
 
     def decorator(fct):
         def wrapper(data, *args, **kwargs):
+            ecode = kwargs.pop('exitcode', exitcode)
             try:
                 fct(data, *args, **kwargs)
             except Exception:
                 with mangler.output('trace'):
                     for l in traceback.format_exc().splitlines():
                         logger.debug(l)
-                data['task exit code'] = exitcode
+                data['task exit code'] = ecode
                 data.update(update)
-                logger.error("call to '{}' failed, exiting with exit code {}".format(fct.func_name, exitcode))
-                sys.exit(exitcode)
+                logger.error("call to '{}' failed, exiting with exit code {}".format(fct.func_name, ecode))
+                sys.exit(ecode)
         return wrapper
     return decorator
 
@@ -851,8 +852,11 @@ def run_command(data, config, env, monalisa):
     apmonSend(taskid, monitorid, {'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
 
     if 'cmsRun' in config['executable']:
-        parse_fwk_report(data, config, 'report.xml')
-        calculate_alder32(data)
+        if p.returncode == 0:
+            parse_fwk_report(data, config, 'report.xml')
+            calculate_alder32(data)
+        else:
+            parse_fwk_report(data, config, 'report.xml', exitcode=p.returncode)
     else:
         data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
         data['files']['output info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])

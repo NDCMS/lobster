@@ -25,6 +25,9 @@ class Proxy(Configurable):
     def __init__(self, renew=True):
         self.renew = renew
         self.__proxy = WMProxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+        self.__setup()
+
+    def __setup(self):
         if self.check() and self.__proxy.getTimeLeft() > 4 * 3600:
             if 'X509_USER_PROXY' not in os.environ:
                 os.environ['X509_USER_PROXY'] = self.__proxy.getProxyFilename()
@@ -45,6 +48,7 @@ class Proxy(Configurable):
         self.__dict__.update(state)
         with PartiallyMutable.unlock():
             self.__proxy = WMProxy({'logger': logging.getLogger("WMCore"), 'proxyValidity': '192:00'})
+            self.__setup()
 
     def check(self):
         left = self.__proxy.getTimeLeft()

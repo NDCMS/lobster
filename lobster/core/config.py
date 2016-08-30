@@ -132,7 +132,9 @@ class Config(Configurable):
     def load(cls, path):
         try:
             with open(os.path.join(path, 'config.pkl'), 'rb') as f:
-                return pickle.load(f)
+                cfg = pickle.load(f)
+                cfg.storage.activate()
+                return cfg
         except IOError as e:
             print e
             raise IOError("can't load configuration from {0}".format(

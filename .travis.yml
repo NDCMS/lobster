@@ -12,7 +12,7 @@ before_script:
   - export LOBSTER_SKIP_SRM=1
 script:
   - nosetests
-  - flake 8 lobster
+  - flake8 lobster
 addons:
   apt:
     packages:

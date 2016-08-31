@@ -35,14 +35,16 @@ status_map = {
 }
 
 conf = {
-        'cms-jobmon.cern.ch:8884': {
-            'sys_monitoring': 0,
-            'general_info': 0,
-            'job_monitoring': 0
-        }
+    'cms-jobmon.cern.ch:8884': {
+        'sys_monitoring': 0,
+        'general_info': 0,
+        'job_monitoring': 0
+    }
 }
 
+
 class DummyMonitor(object):
+
     def __init__(self, workdir):
         self._workflowid = util.checkpoint(workdir, 'id')
 
@@ -62,13 +64,15 @@ class DummyMonitor(object):
     def free(self):
         pass
 
+
 class Monitor(DummyMonitor):
+
     def __init__(self, workdir):
         super(Monitor, self).__init__(workdir)
 
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
         id, err = p.communicate()
         id = id.strip()
         db = SiteDBJSON({'cacheduration': 24})
@@ -77,7 +81,8 @@ class Monitor(DummyMonitor):
         self.__fullname = id.rsplit('/CN=', 1)[1]
         # self.__fullname = pwd.getpwnam(getpass.getuser())[4]
         if util.checkpoint(workdir, "sandbox cmssw version"):
-            self.__cmssw_version = str(util.checkpoint(workdir, "sandbox cmssw version"))
+            self.__cmssw_version = str(util.checkpoint(
+                workdir, "sandbox cmssw version"))
         else:
             self.__cmssw_version = 'Unknown'
         if util.checkpoint(workdir, "executable"):
@@ -101,9 +106,11 @@ class Monitor(DummyMonitor):
         apmonSend(self._workflowid, taskid, params, logging, conf)
 
     def generate_ids(self, taskid):
-        seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
+        seid = 'https://{}/{}'.format(self._ce,
+                                      sha1(self._workflowid).hexdigest()[-16:])
         monitorid = '{0}_{1}/{0}'.format(taskid, seid)
-        syncid = 'https://{}//{}//12345.{}'.format(self._ce, self._workflowid, taskid)
+        syncid = 'https://{}//{}//12345.{}'.format(
+            self._ce, self._workflowid, taskid)
 
         return monitorid, syncid
 
@@ -112,7 +119,7 @@ class Monitor(DummyMonitor):
             'taskId': self._workflowid,
             'jobId': 'TaskMeta',
             'tool': 'lobster',
-            'tool_ui': os.environ.get('HOSTNAME',''),
+            'tool_ui': os.environ.get('HOSTNAME', ''),
             'SubmissionType': 'direct',
             'JSToolVersion': '3.2.1',
             'scheduler': 'work_queue',
@@ -125,7 +132,7 @@ class Monitor(DummyMonitor):
             'datasetFull': '',
             'resubmitter': 'user',
             'exe': self.__executable
-            })
+        })
         self.free()
 
     def register_task(self, id):
@@ -137,11 +144,11 @@ class Monitor(DummyMonitor):
             'broker': 'condor',
             'bossId': str(id),
             'SubmissionType': 'Direct',
-            'TargetSE': 'Many_Sites', # XXX This should be the SE where input data is stored
-            'localId' : '',
+            'TargetSE': 'Many_Sites',  # XXX This should be the SE where input data is stored
+            'localId': '',
             'tool': 'lobster',
             'JSToolVersion': '3.2.1',
-            'tool_ui': os.environ.get('HOSTNAME',''),
+            'tool_ui': os.environ.get('HOSTNAME', ''),
             'scheduler': 'work_queue',
             'GridName': '/CN=' + self.__fullname,
             'ApplicationVersion': self.__cmssw_version,
@@ -152,7 +159,7 @@ class Monitor(DummyMonitor):
             # 'datasetFull': self.datasetPath,
             'resubmitter': 'user',
             'exe': self.__executable
-            })
+        })
         return monitorid, syncid
 
     def update_task(self, id, status):
@@ -170,7 +177,7 @@ class Monitor(DummyMonitor):
             # https://github.com/dmwm/WMCore/blob/6f3570a741779d209f0f720647642d51b64845da/src/python/WMCore/Services/Dashboard/DashboardReporter.py#L136
             'StatusDestination': 'Unknown',
             'RBname': 'condor'
-            })
+        })
 
 
 class TaskStateChecker(object):

@@ -10,6 +10,7 @@
 
 import collections
 import inspect
+import json
 import logging
 import os
 import shlex
@@ -332,7 +333,6 @@ def verify(workdir):
 
 
 def checkpoint(workdir, key):
-    import json
     statusfile = os.path.join(workdir, 'status.json')
     if os.path.exists(statusfile):
         with open(statusfile, 'r') as f:
@@ -341,8 +341,6 @@ def checkpoint(workdir, key):
 
 
 def register_checkpoint(workdir, key, value):
-    import json
-    import os
     statusfile = os.path.join(workdir, 'status.json')
     if not os.path.exists(statusfile):
         with open(statusfile, 'w') as f:

@@ -4,7 +4,6 @@ import time
 import sys
 import uuid
 import gzip
-import yaml
 import shutil
 import daemon
 import logging

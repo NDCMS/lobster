@@ -3,7 +3,6 @@ import json
 import logging
 import math
 import os
-import random
 from retrying import retry
 import sqlite3
 import uuid
@@ -30,52 +29,52 @@ PROCESS = 0
 MERGE = 1
 
 TaskUpdate = util.record('TaskUpdate',
-                'bytes_bare_output',
-                'bytes_output',
-                'bytes_received',
-                'bytes_sent',
-                'network_bandwidth',
-                'network_bytes_received',
-                'network_bytes_sent',
-                'allocated_cores',
-                'allocated_memory',
-                'allocated_disk',
-                'cache',
-                'cache_end_size',
-                'cache_start_size',
-                'cores',
-                'exit_code',
-                'events_read',
-                'events_written',
-                'host',
-                'units_processed',
-                'memory_resident',
-                'memory_swap',
-                'memory_virtual',
-                'status',
-                'time_submit',
-                'time_transfer_in_start',
-                'time_transfer_in_end',
-                'time_wrapper_start',
-                'time_wrapper_ready',
-                'time_stage_in_end',
-                'time_prologue_end',
-                'time_processing_end',
-                'time_epilogue_end',
-                'time_stage_out_end',
-                'time_transfer_out_start',
-                'time_transfer_out_end',
-                'time_retrieved',
-                'time_on_worker',
-                'time_total_on_worker',
-                'time_total_exhausted_execution',
-                'time_total_until_worker_failure',
-                'exhausted_attempts',
-                'time_cpu',
-                'workdir_footprint',
-                'workdir_num_files',
-                'id',
-                default=0)
+                         'bytes_bare_output',
+                         'bytes_output',
+                         'bytes_received',
+                         'bytes_sent',
+                         'network_bandwidth',
+                         'network_bytes_received',
+                         'network_bytes_sent',
+                         'allocated_cores',
+                         'allocated_memory',
+                         'allocated_disk',
+                         'cache',
+                         'cache_end_size',
+                         'cache_start_size',
+                         'cores',
+                         'exit_code',
+                         'events_read',
+                         'events_written',
+                         'host',
+                         'units_processed',
+                         'memory_resident',
+                         'memory_swap',
+                         'memory_virtual',
+                         'status',
+                         'time_submit',
+                         'time_transfer_in_start',
+                         'time_transfer_in_end',
+                         'time_wrapper_start',
+                         'time_wrapper_ready',
+                         'time_stage_in_end',
+                         'time_prologue_end',
+                         'time_processing_end',
+                         'time_epilogue_end',
+                         'time_stage_out_end',
+                         'time_transfer_out_start',
+                         'time_transfer_out_end',
+                         'time_retrieved',
+                         'time_on_worker',
+                         'time_total_on_worker',
+                         'time_total_exhausted_execution',
+                         'time_total_until_worker_failure',
+                         'exhausted_attempts',
+                         'time_cpu',
+                         'workdir_footprint',
+                         'workdir_num_files',
+                         'id',
+                         default=0)
 
 
 class UnitStore:
@@ -244,13 +243,13 @@ class UnitStore:
 
     def register_dependency(self, label, parent, total_units):
         with self.db as db:
-            self.db.execute("""
-                update workflows
-                set
-                    parent=(select id from workflows where label=?),
-                    units=?
-                where label=?""", (parent, total_units, label)
-            )
+            db.execute("""
+                        update workflows
+                        set
+                            parent=(select id from workflows where label=?),
+                            units=?
+                        where label=?""", (parent, total_units, label)
+                       )
 
     def register_files(self, infos, label, unique_args=None):
         with self.db as db:
@@ -320,18 +319,18 @@ class UnitStore:
                     (workflow,)).fetchone()
 
             logger.debug(("creating {0} task(s) for workflow {1}:" +
-                "\n\ttaper:    {4}" +
-                "\n\ttasksize: {5}" +
-                "\n\tthreshold for skipping: {2}" +
-                "\n\tthreshold for failure:  {3}").format(
-                    num,
-                    workflow,
-                    self.config.advanced.threshold_for_skipping,
-                    self.config.advanced.threshold_for_failure,
-                    taper,
-                    tasksize
-                )
-            )
+                          "\n\ttaper:    {4}" +
+                          "\n\ttasksize: {5}" +
+                          "\n\tthreshold for skipping: {2}" +
+                          "\n\tthreshold for failure:  {3}").format(
+                              num,
+                              workflow,
+                              self.config.advanced.threshold_for_skipping,
+                              self.config.advanced.threshold_for_failure,
+                              taper,
+                              tasksize
+                          )
+                         )
 
             fileinfo = list(self.db.execute("""select id, filename
                         from files_{0}
@@ -383,7 +382,7 @@ class UnitStore:
 
             for id, file, run, lumi, arg, failed in rows:
                 if (run, lumi, arg) in all_lumis:
-                    logger.debug("skipping already processed unit with "\
+                    logger.debug("skipping already processed unit with "
                             "run {}, lumi {}, arg {}".format(run, lumi, arg))
                     continue
 
@@ -784,8 +783,10 @@ class UnitStore:
                 self.units = units
                 self.size = size
                 self.maxsize = maxsize
+
             def __cmp__(self, other):
                 return cmp(self.size, other.size)
+
             def add(self, task, units, size):
                 if self.size + size > self.maxsize:
                     return False
@@ -793,6 +794,7 @@ class UnitStore:
                 self.units += units
                 self.tasks.append(task)
                 return True
+
             def left(self):
                 return self.maxsize - self.size
 
@@ -968,4 +970,3 @@ class UnitStore:
                     transfers[dataset][protocol] += Counter(data[protocol])
 
             self.db.execute("update workflows set transfers=? where dataset=?", (json.dumps(transfers[dataset]), dataset))
-

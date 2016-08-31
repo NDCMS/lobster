@@ -3,6 +3,7 @@ import glob
 import imp
 import os
 
+
 class CommandRegistry(ABCMeta):
     def __init__(cls, name, bases, attrs):
         if not hasattr(cls, 'plugins'):
@@ -21,6 +22,7 @@ class CommandRegistry(ABCMeta):
             parser = subparsers.add_parser(name, help=plugin.help)
             plugin.setup(parser)
             parser.set_defaults(plugin=plugin)
+
 
 class Command(object):
     __metaclass__ = CommandRegistry

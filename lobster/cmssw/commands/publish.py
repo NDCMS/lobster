@@ -1,15 +1,16 @@
-import os
-import subprocess
-import time
-import sys
-import uuid
-import gzip
-import yaml
-import shutil
 import daemon
+import gzip
+import json
 import logging
+import os
+import shutil
+import subprocess
+import sys
+import time
+import uuid
 
 from WMCore.DataStructs.LumiList import LumiList
+from WMCore.FwkJobReport.Report import Report
 from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
 from WMCore.Storage.TrivialFileCatalog import readTFC
@@ -18,7 +19,7 @@ from dbs.apis.dbsClient import DbsApi
 from lobster import util
 from lobster.core.command import Command
 from lobster.core.unit import UnitStore
-from lobster.cmssw.dataset import Dataset
+from lobster.cmssw.Dataset import Dataset
 
 logger = logging.getLogger('lobster.publish.')
 
@@ -89,7 +90,7 @@ def migrate_parents(parents, dbs):
                 if not migration_status:
                     logging.info('block will be migrated: %s' % block)
                     dbs_output = dbs['migrator'].submitMigration(
-                        {'migration_url': self.dbs_url_global, 'migration_input': block})
+                            {'migration_url': 'https://cmsweb.cern.ch/dbs/prod/global/', 'migration_input': block})
                     all_migrated = False
                 else:
                     migrated.append(block)
@@ -242,8 +243,10 @@ class BlockDump(object):
                 self.data['file_parent_list'].append(parent)
 
     def add_file(self, LFN, output, task, merged_task):
-        lumi_dict_to_list = lambda d: [
-            {'run_num': run, 'lumi_section_num': lumi} for run in d.keys() for lumi in d[run]]
+        def lumi_dict_to_list(d):
+            for run in d.keys():
+                for lumi in d[run]:
+                    yield {'run_num': run, 'lumi_section_num': lumi}
         PFN = self.catalog.matchLFN('direct', LFN)
         cksum = 0
         size = 0
@@ -350,7 +353,6 @@ class Publish(Command):
                 working_directory=workdir,
                 pidfile=util.get_lock(workdir)):
             db = UnitStore(config)
-            das_interface = MetaInterface()
 
             dbs = {}
             for path, key in [[('global', 'DBSReader'), 'global'],
@@ -426,8 +428,8 @@ class Publish(Command):
                         id = merged_task if merged_task else task
 
                         f = gzip.open(os.path.join(
-                            workdir, label, status, util.id2dir(id), 'report.xml.gz'), 'r')
-                        report = readtaskReport(f)[0]
+                            workdir, label, util.id2dir(id), 'report.xml.gz'), 'r')
+                        report = Report.readtaskReport(f)[0]
 
                         with open(os.path.join(workdir, label, 'successful', util.id2dir(id), 'report.json')) as f:
                             report = json.load(f)
@@ -471,7 +473,7 @@ class Publish(Command):
 
                 if inserted:
                     published.update({'dataset': block['dataset']['dataset']})
-                    info = das_interface.get_info(published)
+                    info = Dataset(published).get_info(published)
                     lumis = LumiList(lumis=sum(info.lumis.values(), []))
                     json = os.path.join(workdir, label, 'published.json')
                     lumis.writeJSON(json)

@@ -5,7 +5,9 @@ import unittest
 from lobster.core.task import TaskHandler
 from lobster.core.source import ReleaseSummary
 
+
 class DummyTask(object):
+
     def __init__(self, tag=1, exitcode=0, result=0):
         self.tag = tag
         self.return_status = exitcode
@@ -18,15 +20,19 @@ class DummyTask(object):
             return self.__dict__[name]
         return 0
 
+
 class TestTask(unittest.TestCase):
+
     def test_output_info(self):
         summary = ReleaseSummary()
         handler = TaskHandler(1, "test", [], [], [],
-                os.path.join(os.path.dirname(__file__), "data/handler/successful"))
-        failed, task_update, file_update, unit_update = handler.process(DummyTask(), summary, defaultdict(lambda: defaultdict(Counter)))
+                              os.path.join(os.path.dirname(__file__), "data/handler/successful"))
+        failed, task_update, file_update, unit_update = handler.process(
+            DummyTask(), summary, defaultdict(lambda: defaultdict(Counter)))
         outinfo = handler.output_info
         assert outinfo.lumis == [(1, 261), (1, 262), (1, 263), (1, 264), (1, 265), (1, 266), (1, 267),
-                (1, 268), (1, 269), (1, 270), (1, 271), (1, 272), (1, 273), (1, 274), (1, 275),
-                (1, 276), (1, 277), (1, 278), (1, 279), (1, 280)]
+                                 (1, 268), (1, 269), (1, 270), (1, 271), (1,
+                                                                          272), (1, 273), (1, 274), (1, 275),
+                                 (1, 276), (1, 277), (1, 278), (1, 279), (1, 280)]
         assert outinfo.events == 4000
         assert outinfo.size == 15037503

@@ -5,9 +5,11 @@ import itertools
 import numpy as np
 import os
 
-parser = argparse.ArgumentParser(description='count unique events in directories of edm files')
+parser = argparse.ArgumentParser(
+    description='count unique events in directories of edm files')
 parser.add_argument('paths', nargs='+', help='directories to analyze')
-parser.add_argument('--max', type=int, default=5000000, help='max events to analyze')
+parser.add_argument('--max', type=int, default=5000000,
+                    help='max events to analyze')
 parser.add_argument('--verbose', action='store_true', help='print progress')
 args = parser.parse_args()
 

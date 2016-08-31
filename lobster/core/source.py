@@ -95,7 +95,7 @@ class TaskProvider(object):
         self.basedirs = [config.base_directory, config.startup_directory]
         self.workdir = config.workdir
         self._storage = config.storage
-        self.statusfile = os.path.join(self.workdir, 'status.yaml')
+        self.statusfile = os.path.join(self.workdir, 'status.json')
         self.siteconf = os.path.join(self.workdir, 'siteconf')
 
         self.parrot_path = os.path.dirname(util.which('parrot_run'))

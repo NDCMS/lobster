@@ -3,6 +3,9 @@ import logging
 import os
 import sys
 
+from lobster.core import command, config
+from lobster import util
+
 # FIXME pycurl shipping with CMSSW is too old to harmonize with modern DBS!
 rm = []
 for f in sys.path:
@@ -12,9 +15,6 @@ for f in sys.path:
                 rm.append(f)
 for f in rm:
     sys.path.remove(f)
-
-from lobster.core import command, config
-from lobster import util
 
 logger = logging.getLogger('lobster')
 

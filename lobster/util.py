@@ -147,7 +147,7 @@ class Configurable(object):
             elif not hasattr(self, k):
                 return repr(getattr(self, '_{}__{}'.format(self.__class__.__name__, k)))
             return repr(getattr(self, k))
-        args = ["\n    {},".format(indent(arg)) for arg in self.__args]
+        args = ["\n    {},".format(indent(a)) for a in self.__args]
         kwargs = ["\n    {}={}".format(k, indent(attr(k)))
                   for k, v in sorted(self.__kwargs.items(), key=lambda (x, y): x)]
         s = self.__name + "({}\n)".format(",".join(args + kwargs))

@@ -11,6 +11,7 @@ from lobster import util
 
 logger = logging.getLogger('lobster.actions')
 
+
 def runplots(plotter, foremen):
     try:
         plotter.make_plots(foremen=foremen)
@@ -19,6 +20,7 @@ def runplots(plotter, foremen):
 
 
 class Actions(object):
+
     def __init__(self, config, source):
         self.config = config
         self.source = source
@@ -45,7 +47,7 @@ class Actions(object):
                 self.config.update(new_config)
                 self.config.save()
                 util.register_checkpoint(self.config.workdir, 'configuration_check', self.__last_config_update)
-            except Exception as e:
+            except Exception:
                 logger.exception('failed to update configuration:')
                 util.PartiallyMutable.purge()
 
@@ -62,7 +64,7 @@ class Actions(object):
                     for attr in attrs:
                         call = getattr(call, attr)
                     call(*args)
-                except:
+                except Exception:
                     logger.exception("caught exception while executing callback '{}' with arguments {}".format(method, args))
 
     def take(self, force=False):
@@ -85,4 +87,3 @@ class Actions(object):
                     self.p = multiprocessing.Process(target=runplots, args=(self.plotter, self.config.foremen_logs))
                     self.p.start()
                 self.__last = now
-

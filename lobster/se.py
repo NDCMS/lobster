@@ -344,15 +344,13 @@ class XrootD(StorageElement):
         super(XrootD, self).__init__(pfnprefix)
 
     def execute(self, cmd, *paths, **kwargs):
-
         cmds = cmd.split()
 
         output = []
         for path in paths:
-
             # Break the path into server and directory
             protocol, server, path = url_re.match(path).groups()
-            args = ['xrdfs',server]+cmds+[path]
+            args = ['xrdfs', server] + cmds + [path]
             try:
                 p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
                 pout, err = p.communicate()
@@ -362,8 +360,6 @@ class XrootD(StorageElement):
                 output.append(pout)
             except OSError:
                 raise AttributeError("xrd utilities not available")
-
-
         return '/n'.join(output)
 
     def exists(self, path):
@@ -376,10 +372,9 @@ class XrootD(StorageElement):
     def getsize(self, path):
         output = self.execute('stat', path)
         for line in output.splitlines():
-            field,value = line.split(':')
+            field, value = line.split(':')
             if field == 'Size':
                 return value.strip()
-        
         # Shouldn't get here unless we don't find the size.  Raise an exception
         msg = 'xrdfs stat did not return file size.  Command output:\n{}'.format(output)
         raise AttributeError(msg)
@@ -388,7 +383,7 @@ class XrootD(StorageElement):
         try:
             output = self.execute('stat', path)
             for line in output.splitlines():
-                field,value = line.split(':',1)
+                field, value = line.split(':', 1)
                 if field == 'Flags':
                     # Do some silly stuff to get the flags...
                     flags = value.split()[-1].strip('()').split('|')
@@ -403,7 +398,7 @@ class XrootD(StorageElement):
         try:
             output = self.execute('stat', path)
             for line in output.splitlines():
-                field,value = line.split(':',1)
+                field, value = line.split(':', 1)
                 if field == 'Flags':
                     # Do some silly stuff to get the flags...
                     flags = value.split()[-1].strip('()').split('|')
@@ -417,10 +412,10 @@ class XrootD(StorageElement):
     def ls(self, path):
         protocol, server, prepath = url_re.match(path).groups()
         if not prepath.endswith('/'):
-            prepath+='/'
+            prepath += '/'
         for p in self.execute('ls', path).splitlines():
             # Fun fact: xrdfs ls returns *absolute* paths but without the protocol.  Strip off the leading part.
-            p = p.replace(prepath,'',1)
+            p = p.replace(prepath, '', 1)
             logger.debug('from ls(): {}'.format(p))
             yield os.path.join(path, p)
 
@@ -432,11 +427,10 @@ class XrootD(StorageElement):
         for path in paths:
             if self.isdir(path):
                 for dirpath in self.ls(path):
-                    self.remove(dirpath) # Recursive because the directory might contain directories
-                self.execute('rmdir',path)
+                    self.remove(dirpath)  # Recursive because the directory might contain directories
+                self.execute('rmdir', path)
             else:
-                self.execute('rm',path)
-
+                self.execute('rm', path)
 
 
 class StorageConfiguration(Configurable):

@@ -40,7 +40,6 @@ for path in datasets('all'):
         category=processing,
         pset='slim.py',
         publish_label='test',
-        merge_size='3.5G',
         outputs=['output.root']
     )
 

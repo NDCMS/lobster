@@ -1,7 +1,8 @@
 import datetime
 
 from lobster import cmssw
-from lobster.core import *
+from lobster.core import AdvancedOptions, Category, Config, StorageConfiguration, Workflow
+from lobster.core import ParentDataset, ProductionDataset
 
 version = datetime.datetime.now().strftime('%Y%m%d')
 

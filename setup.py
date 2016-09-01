@@ -32,13 +32,13 @@ setup(
         'argparse',
         'elasticsearch',
         'elasticsearch_dsl',
-        'httplib2', # actually a WMCore dependency
+        'httplib2',  # actually a WMCore dependency
         'jinja2',
         'matplotlib',
         'nose',
         'numpy>=1.9',
         'pycurl',
-        'python-cjson', # actually a DBS dependency
+        'python-cjson',  # actually a DBS dependency
         'python-daemon',
         'python-dateutil',
         'pytz',
@@ -47,7 +47,7 @@ setup(
         'retrying',
         'WMCore'
     ],
-    dependency_links = [
+    dependency_links=[
         'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'
     ],
     entry_points={

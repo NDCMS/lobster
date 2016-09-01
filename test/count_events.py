@@ -1,9 +1,9 @@
 #!/usr/bin/env python
+
 import argparse
 import glob
 import itertools
 import numpy as np
-import os
 
 parser = argparse.ArgumentParser(
     description='count unique events in directories of edm files')

@@ -5,6 +5,7 @@ import os
 
 
 class CommandRegistry(ABCMeta):
+
     def __init__(cls, name, bases, attrs):
         if not hasattr(cls, 'plugins'):
             cls.plugins = {}
@@ -16,7 +17,7 @@ class CommandRegistry(ABCMeta):
         for dirname in dirnames:
             for fn in glob.glob(os.path.join(dirname, '*.py')):
                 name = os.path.basename(fn)[:-3]
-                source = imp.load_source(name, fn)
+                imp.load_source(name, fn)
         subparsers = parser.add_subparsers(title='commands')
         for name, plugin in sorted(cls.plugins.items(), key=lambda (x, y): x):
             parser = subparsers.add_parser(name, help=plugin.help)

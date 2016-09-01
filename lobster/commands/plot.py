@@ -782,13 +782,13 @@ class Plotter(object):
             label=['busy', 'idle', 'init', 'connected', 'able']
         )
 
-        for resource, unit in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
+        for resource, unit_ in (('cores', ''), ('memory', '/ MB'), ('disk', '/ MB')):
             scale = 1
-            if unit == '/ MB' \
+            if unit_ == '/ MB' \
                     and max(stats[:, headers['total_' + resource]]) > 1000 \
                     and max(stats[:, headers['committed_' + resource]]) > 1000:
                 scale = 1000
-                unit = '/ GB'
+                unit_ = '/ GB'
             self.plot(
                 [
                     (stats[:, headers['timestamp']], stats[
@@ -797,7 +797,7 @@ class Plotter(object):
                         :, headers['committed_' + resource]] / scale)
                 ],
                 '{} {}'.format(resource[0].upper() +
-                               resource[1:], unit).strip(),
+                               resource[1:], unit_).strip(),
                 os.path.join(category, resource),
                 modes=[Plotter.PLOT | Plotter.TIME],
                 label=['total', 'committed']
@@ -885,11 +885,11 @@ class Plotter(object):
             self.pie(
                 [
                     np.sum(good_tasks['time_total_on_worker'] -
-                           good_tasks['time_on_worker'])
-                    + np.sum(failed_tasks['time_total_on_worker'] -
-                             failed_tasks['time_on_worker']),
-                    np.sum(good_tasks['time_total_exhausted_execution'])
-                    + np.sum(failed_tasks['time_total_exhausted_execution']),
+                           good_tasks['time_on_worker']) +
+                    np.sum(failed_tasks['time_total_on_worker'] -
+                           failed_tasks['time_on_worker']),
+                    np.sum(good_tasks['time_total_exhausted_execution']) +
+                    np.sum(failed_tasks['time_total_exhausted_execution']),
                     np.sum(failed_tasks['time_total_on_worker']),
                     np.sum(good_tasks['time_prologue_end'] -
                            good_tasks['time_transfer_in_start']),
@@ -943,13 +943,13 @@ class Plotter(object):
         if len(good_tasks) > 0:
             output, bins = np.histogram(
                 success_tasks['time_retrieved'], 100,
-                weights=success_tasks['bytes_output'] / 1024.0**3
+                weights=success_tasks['bytes_output'] / 1024.0 ** 3
             )
 
             total_output = np.cumsum(output)
             centers = [(x + y) / 2 for x, y in zip(bins[:-1], bins[1:])]
 
-            scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0**3)
+            scale = 3600.0 / ((bins[1] - bins[0]) * 1024.0 ** 3)
 
             self.plot(
                 [(success_tasks['time_retrieved'],
@@ -1067,11 +1067,11 @@ class Plotter(object):
                     modes=[Plotter.HIST]
                 )
 
-                for resource, unit in (('cores', ''), ('disk', '/ MB'), ('memory', '/ MB')):
+                for resource, unit_ in (('cores', ''), ('disk', '/ MB'), ('memory', '/ MB')):
                     self.plot(
                         [(tasks['time_transfer_in_start'],
                           tasks['allocated_' + resource])],
-                        'allocated {} {}'.format(resource, unit).strip(),
+                        'allocated {} {}'.format(resource, unit_).strip(),
                         os.path.join(subdir, prefix + 'allocated-' + resource),
                         modes=[Plotter.PROF | Plotter.TIME]
                     )
@@ -1208,11 +1208,16 @@ class Plotter(object):
             c.name for c in self.config.categories if c.name != 'merge']
         category_summary_data = []
 
+        def date2string(d):
+            return datetime.fromtimestamp(d).strftime('%a, %d %b %Y, %H:%M')
+
+        def istotal(s):
+            return s == "Total"
+
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(
             os.path.join(os.path.dirname(__file__), 'data')))
-        env.filters["datetime"] = lambda d: datetime.fromtimestamp(
-            d).strftime('%a, %d %b %Y, %H:%M')
-        env.tests["sum"] = lambda s: s == "Total"
+        env.filters["datetime"] = date2string
+        env.tests["sum"] = istotal
         overview = env.get_template('index.html')
         wflow = env.get_template('category.html')
 

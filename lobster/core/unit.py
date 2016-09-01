@@ -663,14 +663,14 @@ class UnitStore:
             size, total, running, done, paused, available, left = self.db.execute("""
                 select tasksize, units, units_running, units_done, units_paused, units_available, units_left
                 from workflows where label=?""", (label,)).fetchone()
-            logger.debug(("updated stats for {0}:\n\t"
-                          + "tasksize:        {1}\n\t"
-                          + "units total:     {7}\n\t"
-                          + "units running:   {2}\n\t"
-                          + "units done:      {3}\n\t"
-                          + "units paused:    {4}\n\t"
-                          + "units available: {5}\n\t"
-                          + "units left:      {6}").format(label, size, running, done, paused, available, left, total))
+            logger.debug(("updated stats for {0}:\n\t" +
+                          "tasksize:        {1}\n\t" +
+                          "units total:     {7}\n\t" +
+                          "units running:   {2}\n\t" +
+                          "units done:      {3}\n\t" +
+                          "units paused:    {4}\n\t" +
+                          "units available: {5}\n\t" +
+                          "units left:      {6}").format(label, size, running, done, paused, available, left, total))
 
     def merged(self):
         unmerged = self.db.execute(
@@ -915,11 +915,10 @@ class UnitStore:
                 published_file_block=?
                 where task=?""", unmerged)
 
-            for task, workflow in self.db.execute("""select tasks.id,
-                workflows.label
-                from tasks, workflows
-                where tasks.id in ({0})
-                and tasks.workflow=workflows.id""".format(", ".join(unit_update))):
+            for task, workflow in self.db.execute("""
+                    select tasks.id, workflows.label
+                    from tasks, workflows
+                    where tasks.id in ({0}) and tasks.workflow=workflows.id""".format(", ".join(unit_update))):
                 self.db.execute(
                     "update units_{0} set status=6 where task=?".format(workflow), (task,))
 
@@ -979,11 +978,10 @@ class UnitStore:
     @retry(stop_max_attempt_number=10)
     def update_missing(self, tasks):
         with self.db:
-            for task, workflow in self.db.execute("""select tasks.id,
-                workflows.label
-                from tasks, workflows
-                where tasks.id in ({0})
-                and tasks.workflow=workflows.id""".format(", ".join(map(str, tasks)))):
+            for task, workflow in self.db.execute("""
+                    select tasks.id, workflows.label
+                    from tasks, workflows
+                    where tasks.id in ({0}) and tasks.workflow=workflows.id""".format(", ".join(map(str, tasks)))):
                 self.db.execute(
                     "update units_{0} set status=3 where task=?".format(workflow), (task,))
 

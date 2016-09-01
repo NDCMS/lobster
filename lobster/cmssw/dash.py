@@ -14,6 +14,8 @@ from lobster import util
 import time
 import work_queue as wq
 
+logger = logging.getLogger('lobster.cmssw.dashboard')
+
 UNKNOWN = 'Unknown'
 SUBMITTED = 'Pending'
 DONE = 'Done'
@@ -181,6 +183,7 @@ class Monitor(DummyMonitor):
 
 
 class TaskStateChecker(object):
+
     """
     Check the task state  at a given time interval
     """
@@ -210,7 +213,7 @@ class TaskStateChecker(object):
             self._t_previous = t_current
             try:
                 ids_list = queue._task_table.keys()
-            except:
+            except Exception:
                 raise
 
             for id in ids_list:
@@ -221,7 +224,7 @@ class TaskStateChecker(object):
                 if status not in exclude_states and status_new_or_changed:
                     try:
                         monitor.update_task(id, status)
-                    except:
+                    except Exception:
                         raise
 
                 if status_new_or_changed:

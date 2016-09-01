@@ -19,7 +19,7 @@ from dbs.apis.dbsClient import DbsApi
 from lobster import util
 from lobster.core.command import Command
 from lobster.core.unit import UnitStore
-from lobster.cmssw.Dataset import Dataset
+from lobster.cmssw.dataset import Dataset
 
 logger = logging.getLogger('lobster.publish.')
 

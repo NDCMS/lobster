@@ -6,12 +6,14 @@ import unittest
 from lobster.core import Dataset
 from lobster import fs, se, util
 
+
 class TestDataset(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         path = os.path.expandvars(
-                os.environ.get('LOBSTER_STORAGE', '/hadoop/store/user/') +
-                os.environ.get('LOBSTER_USER', os.environ['USER']) + '/')
+            os.environ.get('LOBSTER_STORAGE', '/hadoop/store/user/') +
+            os.environ.get('LOBSTER_USER', os.environ['USER']) + '/')
         if not os.path.exists(path):
             os.makedirs(path)
         cls.workdir = tempfile.mkdtemp(prefix=path)
@@ -31,7 +33,8 @@ class TestDataset(unittest.TestCase):
 
     def runTest(self):
         with util.PartiallyMutable.unlock():
-            s = se.StorageConfiguration(output=[], input=['file://' + self.workdir])
+            s = se.StorageConfiguration(
+                output=[], input=['file://' + self.workdir])
             s.activate()
 
             with fs.default():

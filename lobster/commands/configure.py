@@ -2,8 +2,8 @@ import logging
 import os
 import subprocess
 
-from lobster import util
 from lobster.core.command import Command
+
 
 class Configure(Command):
     @property

@@ -364,9 +364,7 @@ class ElkInterface(Configurable):
                                 agg['params']['interval'] = 1e10
                                 field_path = agg['params']['field']
 
-                                filter_words = \
-                                    vis_source['query']['query_string']\
-                                    ['query'].split(' ')
+                                filter_words = vis_source['query']['query_string']['query'].split(' ')
                                 filter_found = False
 
                                 for i, word in enumerate(filter_words):
@@ -797,9 +795,7 @@ class ElkInterface(Configurable):
                         vis_source = json.loads(
                             vis.kibanaSavedObjectMeta.searchSourceJSON)
 
-                        filter_words = \
-                            vis_source['query']['query_string']\
-                            ['query'].split(' ')
+                        filter_words = vis_source['query']['query_string']['query'].split(' ')
 
                         for i, word in enumerate(filter_words):
                             if word.startswith(field_path + ':>='):
@@ -911,7 +907,7 @@ class ElkInterface(Configurable):
             task_update = dict(task_update.__dict__)
 
             task_update['megabytes_output'] = \
-                task_update['bytes_output'] / 1024.0**2
+                task_update['bytes_output'] / 1024.0 ** 2
 
             task_update['allocated_disk_MB'] = \
                 task_update['allocated_disk'] / 1024.0
@@ -1083,7 +1079,7 @@ class ElkInterface(Configurable):
 
                 fields = ['timestamp', 'workers_lost', 'workers_able',
                           'workers_connected', 'workers_idled_out',
-                          'workers_busy',  'workers_fast_aborted',
+                          'workers_busy', 'workers_fast_aborted',
                           'workers_blacklisted', 'workers_joined',
                           'workers_idle', 'workers_released', 'workers_ready',
                           'workers_removed', 'workers_full', 'workers_init']

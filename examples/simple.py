@@ -41,6 +41,7 @@ for path in datasets('all'):
         pset='slim.py',
         publish_label='test',
         outputs=[]
+        )
     )
 
 config = Config(

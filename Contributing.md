@@ -9,8 +9,12 @@ dashboard monitoring, `cmsRun` support, sandboxing.
 
 # Coding conventions
 
-The code should ideally adhere to python's pep-8.  Install and run `flake8`
-to see offending code fragments.
+The code should ideally adhere to python's pep-8.  Install `flake8` and run
+```
+flake8 --exclude=.git,docs .
+```
+from the top source directory to see offending code fragments. Travis will
+run a `flake8` check on all pull requests.
 
 ## Naming conventions
 

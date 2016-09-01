@@ -43,7 +43,6 @@ setup(
         'python-dateutil',
         'pytz',
         'pyxdg',
-        'pyyaml',
         'requests',
         'retrying',
         'WMCore'

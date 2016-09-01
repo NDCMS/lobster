@@ -10,6 +10,7 @@
 
 import collections
 import inspect
+import json
 import logging
 import os
 import shlex
@@ -332,19 +333,24 @@ def verify(workdir):
 
 
 def checkpoint(workdir, key):
-    import yaml
-    statusfile = os.path.join(workdir, 'status.yaml')
+    statusfile = os.path.join(workdir, 'status.json')
     if os.path.exists(statusfile):
-        with open(statusfile, 'rb') as f:
-            s = yaml.load(f)
+        with open(statusfile, 'r') as f:
+            s = json.load(f)
             return s.get(key)
 
 
 def register_checkpoint(workdir, key, value):
-    import yaml
-    statusfile = os.path.join(workdir, 'status.yaml')
-    with open(statusfile, 'a') as f:
-        yaml.dump({key: value}, f, default_flow_style=False)
+    statusfile = os.path.join(workdir, 'status.json')
+    if not os.path.exists(statusfile):
+        with open(statusfile, 'w') as f:
+            json.dump({key: value}, f)
+    else:
+        with open(statusfile, 'r') as f:
+            s = json.load(f)
+            s[key] = value
+        with open(statusfile, 'w') as f:
+            f.write(json.dumps(s, sort_keys=True, indent=4))
 
 
 def get_version():

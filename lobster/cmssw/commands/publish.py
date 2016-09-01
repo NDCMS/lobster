@@ -90,7 +90,7 @@ def migrate_parents(parents, dbs):
                 if not migration_status:
                     logging.info('block will be migrated: %s' % block)
                     dbs_output = dbs['migrator'].submitMigration(
-                            {'migration_url': 'https://cmsweb.cern.ch/dbs/prod/global/', 'migration_input': block})
+                        {'migration_url': 'https://cmsweb.cern.ch/dbs/prod/global/', 'migration_input': block})
                     all_migrated = False
                 else:
                     migrated.append(block)
@@ -254,7 +254,7 @@ class BlockDump(object):
             c = subprocess.Popen('cksum %s' %
                                  PFN, shell=True, stdout=subprocess.PIPE)
             cksum, size = c.stdout.read().split()[:2]
-        except:
+        except Exception:
             logging.warning("error calculating checksum")
 
         file_dict = {'check_sum': int(cksum),
@@ -390,7 +390,7 @@ class Publish(Command):
                     try:
                         pset_hash = hash_pset(tmp_path)
                         db.update_pset_hash(pset_hash, label)
-                    except:
+                    except Exception:
                         logger.warning(
                             'error calculating the cmssw parameter set hash')
                     os.remove(tmp_path)
@@ -475,12 +475,11 @@ class Publish(Command):
                     published.update({'dataset': block['dataset']['dataset']})
                     info = Dataset(published).get_info(published)
                     lumis = LumiList(lumis=sum(info.lumis.values(), []))
-                    json = os.path.join(workdir, label, 'published.json')
-                    lumis.writeJSON(json)
+                    filename = os.path.join(workdir, label, 'published.json')
+                    lumis.writeJSON(filename)
 
                     logger.info('publishing dataset %s complete' % label)
-                    logger.info(
-                        'json file of published runs and lumis saved to %s' % json)
+                    logger.info('json file of published runs and lumis saved to %s' % filename)
 
                 if len(missing) > 0:
                     template = "the following task(s) have not been published because their output could not be found: {0}"

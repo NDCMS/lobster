@@ -30,9 +30,12 @@ processing = Category(
 workflows = []
 
 
-for path in datasets('all'):
+for path in datasets.datasets('all'):
+    _, major, minor, _ = path.split('/')
+    minor = datasets.mctag.sub('', minor)
+    label = (major + '_' + minor).replace('-', '_')
     workflows.append(Workflow(
-        label='ttH',
+        label=label,
         dataset=cmssw.Dataset(
             dataset=path,
             events_per_task=5000

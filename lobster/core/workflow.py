@@ -17,6 +17,7 @@ logger = logging.getLogger('lobster.workflow')
 
 
 class Category(Configurable):
+
     """
     Resource specification for one or more
     :class:`~lobster.core.workflow.Workflow`.
@@ -119,6 +120,7 @@ class Category(Configurable):
 
 
 class Workflow(Configurable):
+
     """
     A specification for processing a dataset.
 
@@ -364,8 +366,10 @@ class Workflow(Configurable):
         self.version, self.sandbox = self.sandbox.package(basedirs, workdir)
 
         self.copy_inputs(basedirs)
-        if self.pset and not self.outputs:
+        if self.pset and self.outputs is not None:
             self.determine_outputs(basedirs)
+        elif self.outputs is None:
+            self.outputs = []
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

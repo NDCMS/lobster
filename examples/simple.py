@@ -40,7 +40,7 @@ for path in datasets('all'):
         category=processing,
         pset='slim.py',
         publish_label='test',
-        outputs=['output.root']
+        outputs=[]
     )
 
 config = Config(

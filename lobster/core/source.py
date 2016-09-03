@@ -472,7 +472,7 @@ class TaskProvider(object):
 
                 merge = isinstance(handler, MergeTaskHandler)
 
-                if wflow.merge_size <= 0 or merge:
+                if (wflow.merge_size <= 0 or merge) and len(handler.outputs) > 0:
                     outfn = handler.outputs[0][1]
                     outinfo = handler.output_info
                     for dep in wflow.dependents:

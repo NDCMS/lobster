@@ -366,10 +366,8 @@ class Workflow(Configurable):
         self.version, self.sandbox = self.sandbox.package(basedirs, workdir)
 
         self.copy_inputs(basedirs)
-        if self.pset and self.outputs is not None:
+        if self.pset and self.outputs is None:
             self.determine_outputs(basedirs)
-        elif self.outputs is None:
-            self.outputs = []
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

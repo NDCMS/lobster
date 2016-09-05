@@ -159,8 +159,9 @@ class Workflow(Configurable):
             also passed to the executable.
         outputs : list
             A list of strings which specifies the files produced by the
-            workflow.  Will be automatically determined for CMSSW
-            workflows.
+            workflow. If `outputs=[]`, no output files will be returned.
+            If `outputs=None`, outputs will be automatically determined
+            for CMSSW workflows.
         output_format : str
             How the output files should be renamed on the storage element.
             This is a new-style format string, allowing for the fields

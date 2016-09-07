@@ -1058,12 +1058,21 @@ class Plotter(object):
                     modes=[Plotter.PROF | Plotter.TIME]
                 )
 
-                efficiency = tasks['time_cpu'] / (1. * tasks['cores'] * (
+                efficiency = tasks['time_cpu'] / (1. * (
                     tasks['time_processing_end'] - tasks['time_prologue_end']))
                 self.plot(
                     [(tasks['time_retrieved'], efficiency)],
                     'Executable CPU/Wall time', os.path.join(
                         subdir, prefix + 'exe-efficiency'),
+                    modes=[Plotter.HIST]
+                )
+
+                efficiency = tasks['time_cpu'] / (1. * tasks['cores'] * (
+                    tasks['time_processing_end'] - tasks['time_prologue_end']))
+                self.plot(
+                    [(tasks['time_retrieved'], efficiency)],
+                    'Executable CPU/(Wall time * Cores)', os.path.join(
+                        subdir, prefix + 'exe-normed-efficiency'),
                     modes=[Plotter.HIST]
                 )
 

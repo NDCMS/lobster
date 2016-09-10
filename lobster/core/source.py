@@ -91,7 +91,7 @@ class ReleaseSummary(object):
 class TaskProvider(util.Timing):
 
     def __init__(self, config, interval=300):
-        util.Timing.__init__(self, 'dash', 'handler', 'elk', 'transfers', 'cleanup', 'propagate', 'sqlite')
+        util.Timing.__init__(self, 'dash', 'handler', 'updates', 'elk', 'transfers', 'cleanup', 'propagate', 'sqlite')
 
         self.config = config
         self.basedirs = [config.base_directory, config.startup_directory]
@@ -457,7 +457,7 @@ class TaskProvider(util.Timing):
             with self.measure('dash'):
                 self.__dash.update_task(task.tag, dash.DONE)
 
-            with self.measure('handler'):
+            with self.measure('updates'):
                 handler = self.__taskhandlers[task.tag]
                 failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
 

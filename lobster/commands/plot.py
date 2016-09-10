@@ -701,8 +701,8 @@ class Plotter(object):
             'time_send', 'time_receive', 'time_status_msgs',
             'time_internal', 'time_polling', 'time_application'
         ]
-        lobster_labels = ['status', 'create',
-                          'action', 'update', 'fetch', 'return']
+        lobster_labels = ['status', 'create', 'action', 'update', 'fetch', 'return']
+        return_labels = ['dash', 'handler', 'elk', 'transfers', 'cleanup', 'propagate', 'sqlite']
 
         times = stats[:, headers['timestamp']]
         centers = ((times + np.roll(times, 1, 0)) * 0.5)[1:]
@@ -710,13 +710,13 @@ class Plotter(object):
         centers[-1] = times[-1]
 
         def diff(label):
-            label = 'total_{}_time'.format(
-                label) if 'time' not in label else label
+            label = 'total_{}_time'.format(label) if 'time' not in label else label
             quant = stats[:, headers[label]]
             return (quant - np.roll(quant, 1, 0))[1:]
 
         wq_stats = dict((label, diff(label)) for label in wq_labels)
         lobster_stats = dict((label, diff(label)) for label in lobster_labels)
+        return_stats = dict((label, diff('source_' + label)) for label in return_labels)
 
         time_diff = ((times - np.roll(times, 1, 0)) * 1e6)[1:]
         everything = np.sum(lobster_stats.values(), axis=0)
@@ -753,8 +753,22 @@ class Plotter(object):
             ],
             'WQ fraction', os.path.join(category, 'wq-fraction'),
             modes=[Plotter.STACK | Plotter.TIME],
-            labels=[x.replace('time_', '').replace('_', ' ')
-                    for x in wq_labels] + ['other'],
+            labels=[x.replace('time_', '').replace('_', ' ') for x in wq_labels] + ['other'],
+            ymax=1.
+        )
+
+        everything = np.sum(return_stats.values(), axis=0)
+        other = lobster_stats['return'] - everything
+
+        self.plot(
+            [
+                (centers, np.divide(return_stats[label], everything)) for label in return_labels
+            ] + [
+                (centers, np.divide(other, everything))
+            ],
+            'Return fraction', os.path.join(category, 'return-fraction'),
+            modes=[Plotter.STACK | Plotter.TIME],
+            labels=[x.replace('_', ' ') for x in return_labels] + ['other'],
             ymax=1.
         )
 

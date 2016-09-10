@@ -88,9 +88,11 @@ class ReleaseSummary(object):
         return s[:-1]
 
 
-class TaskProvider(object):
+class TaskProvider(util.Timing):
 
     def __init__(self, config, interval=300):
+        util.Timing.__init__(self, 'dash', 'handler', 'elk', 'transfers', 'cleanup', 'propagate', 'sqlite')
+
         self.config = config
         self.basedirs = [config.base_directory, config.startup_directory]
         self.workdir = config.workdir
@@ -452,73 +454,84 @@ class TaskProvider(object):
         transfers = defaultdict(lambda: defaultdict(Counter))
 
         for task in tasks:
-            self.__dash.update_task(task.tag, dash.DONE)
+            with self.measure('dash'):
+                self.__dash.update_task(task.tag, dash.DONE)
 
-            handler = self.__taskhandlers[task.tag]
-            failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
+            with self.measure('handler'):
+                handler = self.__taskhandlers[task.tag]
+                failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
 
-            wflow = getattr(self.config.workflows, handler.dataset)
+                wflow = getattr(self.config.workflows, handler.dataset)
 
-            if self.config.elk:
-                self.config.elk.index_task(task)
-                self.config.elk.index_task_update(task_update)
+            with self.measure('elk'):
+                if self.config.elk:
+                    self.config.elk.index_task(task)
+                    self.config.elk.index_task_update(task_update)
 
-            if failed:
-                faildir = util.move(wflow.workdir, handler.id, 'failed')
-                summary.dir(str(handler.id), faildir)
-                cleanup += [lf for rf, lf in handler.outputs]
-            else:
-                util.move(wflow.workdir, handler.id, 'successful')
+            with self.measure('handler'):
+                if failed:
+                    faildir = util.move(wflow.workdir, handler.id, 'failed')
+                    summary.dir(str(handler.id), faildir)
+                    cleanup += [lf for rf, lf in handler.outputs]
+                else:
+                    util.move(wflow.workdir, handler.id, 'successful')
 
-                merge = isinstance(handler, MergeTaskHandler)
+                    merge = isinstance(handler, MergeTaskHandler)
 
-                if (wflow.merge_size <= 0 or merge) and len(handler.outputs) > 0:
-                    outfn = handler.outputs[0][1]
-                    outinfo = handler.output_info
-                    for dep in wflow.dependents:
-                        propagate[dep.label][outfn] = outinfo
+                    if (wflow.merge_size <= 0 or merge) and len(handler.outputs) > 0:
+                        outfn = handler.outputs[0][1]
+                        outinfo = handler.output_info
+                        for dep in wflow.dependents:
+                            propagate[dep.label][outfn] = outinfo
 
-                if merge:
-                    files = handler.input_files
-                    cleanup += files
+                    if merge:
+                        files = handler.input_files
+                        cleanup += files
 
-                if wflow.cleanup_input:
-                    input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
+                    if wflow.cleanup_input:
+                        input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
-            self.__dash.update_task(task.tag, dash.RETRIEVED)
+            with self.measure('dash'):
+                self.__dash.update_task(task.tag, dash.RETRIEVED)
 
             update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
 
             del self.__taskhandlers[task.tag]
 
-        self.__dash.free()
+        with self.measure('dash'):
+            self.__dash.free()
 
         if len(update) > 0:
-            logger.info(summary)
-            self.__store.update_units(update)
+            with self.measure('sqlite'):
+                logger.info(summary)
+                self.__store.update_units(update)
 
-        if wflow.cleanup_input and len(input_files) > 0:
-            cleanup.extend(self.__store.finished_files(input_files))
+        with self.measure('cleanup'):
+            if wflow.cleanup_input and len(input_files) > 0:
+                cleanup.extend(self.__store.finished_files(input_files))
 
-        if len(cleanup) > 0:
-            try:
-                fs.remove(*cleanup)
-            except (IOError, OSError):
-                pass
-            except ValueError as e:
-                logger.error("error removing {0}:\n{1}".format(task.tag, e))
+            if len(cleanup) > 0:
+                try:
+                    fs.remove(*cleanup)
+                except (IOError, OSError):
+                    pass
+                except ValueError as e:
+                    logger.error("error removing {0}:\n{1}".format(task.tag, e))
 
-        for label, infos in propagate.items():
-            self.__store.register_files(infos, label)
+        with self.measure('propagate'):
+            for label, infos in propagate.items():
+                self.__store.register_files(infos, label)
 
         if len(transfers) > 0:
-            self.__store.update_transfers(transfers)
+            with self.measure('transfers'):
+                self.__store.update_transfers(transfers)
 
         if self.config.elk:
-            try:
-                self.config.elk.index_summary(self.__store.workflow_status())
-            except Exception as e:
-                logger.error('ELK failed to index summary:\n{}'.format(e))
+            with self.measure('elk'):
+                try:
+                    self.config.elk.index_summary(self.__store.workflow_status())
+                except Exception as e:
+                    logger.error('ELK failed to index summary:\n{}'.format(e))
 
     def terminate(self):
         for id in self.__store.running_tasks():

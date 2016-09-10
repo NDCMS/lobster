@@ -44,23 +44,10 @@ class Terminate(Command):
             config.elk.end()
 
 
-class Process(Command):
+class Process(Command, util.Timing):
 
     def __init__(self):
-        self.times = {
-            'action': 0,
-            'create': 0,
-            'fetch': 0,
-            'return': 0,
-            'status': 0,
-            'update': 0
-        }
-
-    @contextmanager
-    def measure(self, what):
-        t = time.time()
-        yield
-        self.times[what] += int((time.time() - t) * 1e6)
+        util.Timing.__init__(self, 'action', 'create', 'fetch', 'return', 'status', 'update')
 
     @property
     def help(self):

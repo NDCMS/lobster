@@ -1,5 +1,3 @@
-from contextlib import contextmanager
-
 import daemon
 import datetime
 import inspect
@@ -44,23 +42,10 @@ class Terminate(Command):
             config.elk.end()
 
 
-class Process(Command):
+class Process(Command, util.Timing):
 
     def __init__(self):
-        self.times = {
-            'action': 0,
-            'create': 0,
-            'fetch': 0,
-            'return': 0,
-            'status': 0,
-            'update': 0
-        }
-
-    @contextmanager
-    def measure(self, what):
-        t = time.time()
-        yield
-        self.times[what] += int((time.time() - t) * 1e6)
+        util.Timing.__init__(self, 'action', 'create', 'fetch', 'return', 'status', 'update')
 
     @property
     def help(self):
@@ -84,6 +69,7 @@ class Process(Command):
                 " ".join(
                     ["#timestamp", "units_left"] +
                     ["total_{}_time".format(k) for k in sorted(self.times.keys())] +
+                    ["total_source_{}_time".format(k) for k in sorted(self.source.times.keys())] +
                     self.log_attributes
                 ) + "\n"
             )
@@ -100,6 +86,7 @@ class Process(Command):
             statsfile.write(" ".join(map(str,
                                          [int(int(now.strftime('%s')) * 1e6 + now.microsecond), left] +
                                          [self.times[k] for k in sorted(self.times.keys())] +
+                                         [self.source.times[k] for k in sorted(self.source.times.keys())] +
                                          [getattr(stats, a) for a in self.log_attributes]
                                          )) + "\n"
                             )
@@ -173,8 +160,8 @@ class Process(Command):
 
     def sprint(self):
         with util.PartiallyMutable.unlock():
-            task_src = TaskProvider(self.config)
-        action = actions.Actions(self.config, task_src)
+            self.source = TaskProvider(self.config)
+        action = actions.Actions(self.config, self.source)
 
         logger.info("using wq from {0}".format(wq.__file__))
         logger.info("running Lobster version {0}".format(util.get_version()))
@@ -185,7 +172,7 @@ class Process(Command):
         wq.cctools_debug_config_file_size(1 << 29)
 
         self.queue = wq.WorkQueue(-1)
-        self.queue.specify_min_taskid(task_src.max_taskid() + 1)
+        self.queue.specify_min_taskid(self.source.max_taskid() + 1)
         self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
         self.queue.specify_transactions_log(os.path.join(self.config.workdir, "transactions.log"))
         self.queue.specify_name("lobster_" + self.config.label)
@@ -238,10 +225,10 @@ class Process(Command):
             if 'wall_time' not in constraints:
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)
 
-        while not task_src.done():
+        while not self.source.done():
             with self.measure('status'):
-                tasks_left = task_src.tasks_left()
-                units_left = task_src.work_left()
+                tasks_left = self.source.tasks_left()
+                units_left = self.source.work_left()
 
                 logger.debug("expecting {0} tasks, still".format(tasks_left))
                 self.queue.specify_num_tasks_left(tasks_left)
@@ -255,7 +242,7 @@ class Process(Command):
 
                     # let the task source shut down gracefully
                     logger.info("terminating task source")
-                    task_src.terminate()
+                    self.source.terminate()
                     logger.info("terminating gracefully")
                     break
 
@@ -266,7 +253,7 @@ class Process(Command):
                     have[c] = {'running': cstats.tasks_running, 'queued': cstats.tasks_waiting}
 
                 stats = self.queue.stats_hierarchy
-                tasks = task_src.obtain(stats.total_cores, have)
+                tasks = self.source.obtain(stats.total_cores, have)
 
                 expiry = None
                 if self.config.advanced.proxy:
@@ -307,7 +294,7 @@ class Process(Command):
                     units_left))
 
             with self.measure('update'):
-                task_src.update(self.queue)
+                self.source.update(self.queue)
 
             # recurring actions are triggered here; plotting etc should run
             # while we have WQ hand us back tasks w/o any database
@@ -344,7 +331,7 @@ class Process(Command):
             if len(tasks) > 0:
                 try:
                     with self.measure('return'):
-                        task_src.release(tasks)
+                        self.source.release(tasks)
                 except Exception:
                     tb = traceback.format_exc()
                     logger.critical("cannot recover from the following exception:\n" + tb)

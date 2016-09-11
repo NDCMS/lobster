@@ -73,7 +73,8 @@ process.Timing = cms.Service("Timing",
     useJobReport = cms.untracked.bool(True),
     summaryOnly = cms.untracked.bool(True))
 
-process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
+#process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
+process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(1))
 
 import os
 _, major, minor, _ = os.environ["CMSSW_VERSION"].split('_', 3)
@@ -400,18 +401,24 @@ def copy_inputs(data, config, env):
                     os.path.join(path, file)
                 ]
 
-                if fast_track or run_subprocess(args, retry={53: 5}).returncode == 0:
+                # if fast_track or run_subprocess(args, retry={53: 5}).returncode == 0:
+                if True:
                     if config['disable streaming']:
+                        logger.info("input is {}".format(input))
+                        logger.info("server is {}".format(server))
+                        logger.info("path is {}".format(path))
+                        logger.info("file is {}".format(file))
                         logger.info("streaming has been disabled, attempting stage-in")
                         args = [
+                            "rm *root;",
                             "env",
                             "XRD_LOGLEVEL=Debug",
                             "xrdcp",
-                            os.path.join(input, file),
+                            os.path.join(input, file.lstrip('/')),
                             os.path.basename(file)
                         ]
 
-                        p = run_subprocess(args)
+                        p = run_subprocess(" ".join(args), shell=True)
                         if p.returncode == 0:
                             filename = 'file:' + os.path.basename(file)
                             config['mask']['files'].append(filename)
@@ -659,7 +666,7 @@ def edit_process_source(pset, config):
     with open(pset, 'a') as fp:
         frag = fragment.format(events=config['mask']['events'])
         if any([f for f in files]) and not config['gridpack']:
-            frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files]))
+            frag += "\nprocess.source.fileNames = cms.untracked.vstring({0})".format(repr([str(f) for f in files[-1:]]))
         if config['gridpack']:
             # ExternalLHEProducer only understands local files and does
             # not expect the `file:` prefix. Also, there can never be

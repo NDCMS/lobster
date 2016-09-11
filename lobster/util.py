@@ -16,6 +16,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import time
 
 from contextlib import contextmanager
 from pkg_resources import get_distribution
@@ -278,6 +279,26 @@ def record(cls, *fields, **defaults):
             return ', '.join(['{0}=?'.format(f) for f in fields[start:stop]])
 
     return Record
+
+
+class Timing(object):
+
+    """
+    Baseclass to simplify keeping track of the timing of things.
+    """
+
+    def __init__(self, *keys):
+        self._times = {k: 0 for k in keys}
+
+    @property
+    def times(self):
+        return dict(self._times)
+
+    @contextmanager
+    def measure(self, what):
+        t = time.time()
+        yield
+        self._times[what] += int((time.time() - t) * 1e6)
 
 
 def id2dir(id):

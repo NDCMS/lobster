@@ -856,15 +856,16 @@ class Plotter(object):
         )
 
         if len(good_tasks) > 0:
-            def integrate_wall((x, y)):
-                indices = np.logical_and(stats[:, 0] >= x, stats[:, 0] < y)
-                values = stats[indices, headers['tasks_running']]
-                if len(values) > 0:
-                    return np.sum(values) * (y - x) / len(values)
-                return 0
+            def integrate_wall(q):
+                def integrate((x, y)):
+                    indices = np.logical_and(stats[:, 0] >= x, stats[:, 0] < y)
+                    values = stats[indices, headers[q]]
+                    if len(values) > 0:
+                        return np.sum(values) * (y - x) / len(values)
+                    return 0
+                return integrate
 
-            walltime = np.array(
-                map(integrate_wall, zip(edges[:-1], edges[1:])))
+            walltime = np.array(map(integrate_wall('committed_cores'), zip(edges[:-1], edges[1:])))
             cputime = self.updatecpu(success_tasks, edges)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
@@ -881,13 +882,33 @@ class Plotter(object):
                 modes=[Plotter.HIST | Plotter.TIME]
             )
 
-            ratio = np.nan_to_num(
-                np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
 
             self.plot(
                 [(centers, ratio)],
                 'Integrated CPU / Wall', os.path.join(
                     category, 'cpu-wall-int'),
+                bins=50,
+                modes=[Plotter.HIST | Plotter.TIME]
+            )
+
+            walltime = np.array(map(integrate_wall('total_cores'), zip(edges[:-1], edges[1:])))
+            walltime[walltime == 0] = 1e-6
+
+            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
+
+            self.plot(
+                [(centers, ratio)],
+                'CPU / Coretime', os.path.join(category, 'cpu-cores'),
+                bins=50,
+                modes=[Plotter.HIST | Plotter.TIME]
+            )
+
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+
+            self.plot(
+                [(centers, ratio)],
+                'Integrated CPU / Coretime', os.path.join(category, 'cpu-cores-int'),
                 bins=50,
                 modes=[Plotter.HIST | Plotter.TIME]
             )

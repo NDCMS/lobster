@@ -71,8 +71,8 @@ class Actions(object):
         self.update_configuration()
 
         if self.config.advanced.proxy and not self.config.advanced.proxy.check():
-            from lobster.process import Terminate
             logger.error("proxy expired!")
+            from lobster.commands.process import Terminate
             Terminate().kill(self.config)
 
         now = datetime.datetime.now()

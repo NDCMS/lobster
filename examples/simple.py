@@ -7,8 +7,8 @@ version = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 
 storage = StorageConfiguration(
     output=[
-        "hdfs:///store/user/$USER/lobster_test_" + version,
         "file:///hadoop/store/user/$USER/lobster_test_" + version,
+        "hdfs:///store/user/$USER/lobster_test_" + version,
         # ND is not in the XrootD redirector, thus hardcode server.
         # Note the double-slash after the hostname!
         "root://deepthought.crc.nd.edu//store/user/$USER/lobster_test_" + version,
@@ -47,5 +47,8 @@ config = Config(
     plotdir='~/www/lobster/test_' + version,
     storage=storage,
     workflows=workflows,
-    advanced=AdvancedOptions(log_level=1)
+    advanced=AdvancedOptions(
+        bad_exit_codes=[127, 160],
+        log_level=1
+    )
 )

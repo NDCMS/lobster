@@ -133,8 +133,7 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
         for l, v in zip(labels, vals):
             f.write('{0}\t{1}\n'.format(l, v))
 
-    patches, texts = ax.pie([max(0, val)
-                             for val in vals], labels=newlabels, **kwargs)
+    patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
 
     boxes = []
     newlabels = []
@@ -917,27 +916,29 @@ class Plotter(object):
 
     def make_workflow_plots(self, subdir, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
+            headers, stats = self.__category_stats[subdir]
+            dtime = stats[:, headers['timestamp']] - np.roll(stats[:, headers['timestamp']], 1, 0)
+            dtime[dtime < 0] = 0.
+            mcommitted = (stats[:, headers['committed_cores']] + np.roll(stats[:, headers['committed_cores']], 1, 0)) * .5
+            mtotal = (stats[:, headers['total_cores']] + np.roll(stats[:, headers['total_cores']], 1, 0)) * .5
+
             self.pie(
                 [
-                    np.sum(good_tasks['time_total_on_worker'] -
-                           good_tasks['time_on_worker']) +
-                    np.sum(failed_tasks['time_total_on_worker'] -
-                           failed_tasks['time_on_worker']),
-                    np.sum(good_tasks['time_total_exhausted_execution']) +
-                    np.sum(failed_tasks['time_total_exhausted_execution']),
-                    np.sum(failed_tasks['time_total_on_worker']),
-                    np.sum(good_tasks['time_prologue_end'] -
-                           good_tasks['time_transfer_in_start']),
-                    np.sum(good_tasks['time_processing_end'] -
-                           good_tasks['time_prologue_end']),
-                    np.sum(good_tasks['time_transfer_out_end'] -
-                           good_tasks['time_processing_end'])
+                    np.dot(dtime, mtotal - mcommitted),
+                    np.dot(good_tasks['cores'], good_tasks['time_total_on_worker'] - good_tasks['time_on_worker']) +
+                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker'] - failed_tasks['time_on_worker']),
+                    (
+                        np.dot(good_tasks['cores'], good_tasks['time_total_exhausted_execution']) +
+                        np.dot(failed_tasks['cores'], failed_tasks['time_total_exhausted_execution'])
+                    ),
+                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker']),
+                    np.dot(good_tasks['cores'], good_tasks['time_prologue_end'] - good_tasks['time_transfer_in_start']),
+                    np.dot(good_tasks['cores'], good_tasks['time_processing_end'] - good_tasks['time_prologue_end']),
+                    np.dot(good_tasks['cores'], good_tasks['time_transfer_out_end'] - good_tasks['time_processing_end'])
                 ],
-                ["Eviction", "Exhausted", "Failed",
-                    "Overhead", "Processing", "Stage-out"],
+                ["Cores-idle", "Eviction", "Exhausted", "Failed", "Overhead", "Processing", "Stage-out"],
                 os.path.join(subdir, "time-pie"),
-                colors=["crimson", "coral", "red",
-                        "dodgerblue", "green", "skyblue"]
+                colors=["maroon", "crimson", "coral", "red", "dodgerblue", "green", "skyblue"]
             )
 
             workflows = []

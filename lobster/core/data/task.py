@@ -407,7 +407,7 @@ def copy_inputs(data, config, env):
                             "env",
                             "XRD_LOGLEVEL=Debug",
                             "xrdcp",
-                            os.path.join(input, file),
+                            os.path.join(input, file.lstrip('/')),
                             os.path.basename(file)
                         ]
 

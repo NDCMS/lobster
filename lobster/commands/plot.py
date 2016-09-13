@@ -133,8 +133,7 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
         for l, v in zip(labels, vals):
             f.write('{0}\t{1}\n'.format(l, v))
 
-    patches, texts = ax.pie([max(0, val)
-                             for val in vals], labels=newlabels, **kwargs)
+    patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
 
     boxes = []
     newlabels = []
@@ -856,15 +855,16 @@ class Plotter(object):
         )
 
         if len(good_tasks) > 0:
-            def integrate_wall((x, y)):
-                indices = np.logical_and(stats[:, 0] >= x, stats[:, 0] < y)
-                values = stats[indices, headers['tasks_running']]
-                if len(values) > 0:
-                    return np.sum(values) * (y - x) / len(values)
-                return 0
+            def integrate_wall(q):
+                def integrate((x, y)):
+                    indices = np.logical_and(stats[:, 0] >= x, stats[:, 0] < y)
+                    values = stats[indices, headers[q]]
+                    if len(values) > 0:
+                        return np.sum(values) * (y - x) / len(values)
+                    return 0
+                return integrate
 
-            walltime = np.array(
-                map(integrate_wall, zip(edges[:-1], edges[1:])))
+            walltime = np.array(map(integrate_wall('committed_cores'), zip(edges[:-1], edges[1:])))
             cputime = self.updatecpu(success_tasks, edges)
 
             centers = [(x + y) / 2 for x, y in zip(edges[:-1], edges[1:])]
@@ -881,8 +881,7 @@ class Plotter(object):
                 modes=[Plotter.HIST | Plotter.TIME]
             )
 
-            ratio = np.nan_to_num(
-                np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
 
             self.plot(
                 [(centers, ratio)],
@@ -892,31 +891,54 @@ class Plotter(object):
                 modes=[Plotter.HIST | Plotter.TIME]
             )
 
+            walltime = np.array(map(integrate_wall('total_cores'), zip(edges[:-1], edges[1:])))
+            walltime[walltime == 0] = 1e-6
+
+            ratio = np.nan_to_num(np.divide(cputime * 1.0, walltime))
+
+            self.plot(
+                [(centers, ratio)],
+                'CPU / Coretime', os.path.join(category, 'cpu-cores'),
+                bins=50,
+                modes=[Plotter.HIST | Plotter.TIME]
+            )
+
+            ratio = np.nan_to_num(np.divide(np.cumsum(cputime) * 1.0, np.cumsum(walltime)))
+
+            self.plot(
+                [(centers, ratio)],
+                'Integrated CPU / Coretime', os.path.join(category, 'cpu-cores-int'),
+                bins=50,
+                modes=[Plotter.HIST | Plotter.TIME]
+            )
+
         return edges
 
     def make_workflow_plots(self, subdir, edges, good_tasks, failed_tasks, success_tasks, merge_tasks, xmin=None, xmax=None):
         if len(good_tasks) > 0 or len(failed_tasks) > 0:
+            headers, stats = self.__category_stats[subdir]
+            dtime = stats[:, headers['timestamp']] - np.roll(stats[:, headers['timestamp']], 1, 0)
+            dtime[dtime < 0] = 0.
+            mcommitted = (stats[:, headers['committed_cores']] + np.roll(stats[:, headers['committed_cores']], 1, 0)) * .5
+            mtotal = (stats[:, headers['total_cores']] + np.roll(stats[:, headers['total_cores']], 1, 0)) * .5
+
             self.pie(
                 [
-                    np.sum(good_tasks['time_total_on_worker'] -
-                           good_tasks['time_on_worker']) +
-                    np.sum(failed_tasks['time_total_on_worker'] -
-                           failed_tasks['time_on_worker']),
-                    np.sum(good_tasks['time_total_exhausted_execution']) +
-                    np.sum(failed_tasks['time_total_exhausted_execution']),
-                    np.sum(failed_tasks['time_total_on_worker']),
-                    np.sum(good_tasks['time_prologue_end'] -
-                           good_tasks['time_transfer_in_start']),
-                    np.sum(good_tasks['time_processing_end'] -
-                           good_tasks['time_prologue_end']),
-                    np.sum(good_tasks['time_transfer_out_end'] -
-                           good_tasks['time_processing_end'])
+                    np.dot(dtime, mtotal - mcommitted),
+                    np.dot(good_tasks['cores'], good_tasks['time_total_on_worker'] - good_tasks['time_on_worker']) +
+                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker'] - failed_tasks['time_on_worker']),
+                    (
+                        np.dot(good_tasks['cores'], good_tasks['time_total_exhausted_execution']) +
+                        np.dot(failed_tasks['cores'], failed_tasks['time_total_exhausted_execution'])
+                    ),
+                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker']),
+                    np.dot(good_tasks['cores'], good_tasks['time_prologue_end'] - good_tasks['time_transfer_in_start']),
+                    np.dot(good_tasks['cores'], good_tasks['time_processing_end'] - good_tasks['time_prologue_end']),
+                    np.dot(good_tasks['cores'], good_tasks['time_transfer_out_end'] - good_tasks['time_processing_end'])
                 ],
-                ["Eviction", "Exhausted", "Failed",
-                    "Overhead", "Processing", "Stage-out"],
+                ["Cores-idle", "Eviction", "Exhausted", "Failed", "Overhead", "Processing", "Stage-out"],
                 os.path.join(subdir, "time-pie"),
-                colors=["crimson", "coral", "red",
-                        "dodgerblue", "green", "skyblue"]
+                colors=["maroon", "crimson", "coral", "red", "dodgerblue", "green", "skyblue"]
             )
 
             workflows = []

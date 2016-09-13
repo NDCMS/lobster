@@ -410,14 +410,11 @@ class XrootD(StorageElement):
             return False
 
     def ls(self, path):
-        protocol, server, prepath = url_re.match(path).groups()
-        if not prepath.endswith('/'):
-            prepath += '/'
+        protocol, server, _ = url_re.match(path).groups()
         for p in self.execute('ls', path).splitlines():
-            # Fun fact: xrdfs ls returns *absolute* paths but without the protocol.  Strip off the leading part.
-            p = p.replace(prepath, '', 1)
-            logger.debug('from ls(): {}'.format(p))
-            yield os.path.join(path, p)
+            # We need to add the protocol back so that `lfn2pfn` above
+            # can recognize and remove just the pfnprefix.
+            yield "{0}://{1}{2}".format(protocol, server, p)
 
     def mkdir(self, path, mode=None):
         self.execute('mkdir -p', path)

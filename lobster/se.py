@@ -229,7 +229,7 @@ class Hadoop(StorageElement):
 
     def remove(self, *paths):
         while len(paths) != 0:
-            self.__execute('rm', *(paths[:50]))
+            self.__execute('rm -f', *(paths[:50]))
             paths = paths[50:]
 
 

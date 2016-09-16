@@ -29,3 +29,4 @@ for fn in sys.argv[2:]:
 
 with open(sys.argv[1], 'w') as f:
     json.dump(data, f, indent=2)
+    f.write('\n')

@@ -728,7 +728,7 @@ class UnitStore:
                         units_done * 100.0 / units,
                     1) || ' %',
                 '' || ifnull(round(
-                        ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units_done,
+                        ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units,
                     1), 0.0) || ' %'
             from workflows""")
 

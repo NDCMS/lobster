@@ -35,12 +35,45 @@ commands, use ``lobster -h`` and ``lobster <cmd> -h``.
 
     tail -f /my/working/directory/process.{err,log}
 
-5. Validate the output directory to catch any stray or missing files::
+Additional useful commands
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    lobster validate --dry-run config.py
+* Print the configuration of a working directory::
 
-   and, after verifying the printout from the above, run it again without
-   the ``--dry-run`` argument.
+    lobster configuration /my/working/directory
+
+  And to change the configuration::
+
+    lobster configuration /my/working/directory
+
+  See also :ref:`changing-configuration`.
+
+* Print the current status of processing on the terminal with::
+
+    lobster status /my/working/directory
+
+* Validate the output directory to catch any stray or missing files::
+
+    lobster validate --dry-run /my/working/directory
+
+  and, after verifying the printout from the above, run it again without
+  the ``--dry-run`` argument.
+
+* Stop a Lobster run cleanly::
+
+    lobster terminate /my/working/directory
+
+  This will give Lobster a chance to gracefully exit, but may take a few
+  minutes to take effect (at least one iteration of sending out and
+  receiving tasks).
+
+  .. note::
+     To immediately stop Lobster from running, use::
+
+       kill -9 `cat /my/working/directory/lobster.pid`
+
+     This may result in database corruption, though, and should only be
+     used when the running Lobster project is not to be continued.
 
 .. _submission:
 Submitting workers
@@ -152,6 +185,8 @@ Notre Dame would look akin to the following::
 It may be necessary to adjust memory setting of the Java VM with, e.g.,
 the option ``LIBHDFS_OPTS=-Xmx100m``.
 
+.. _changing-configuration:
+
 Changing configuration options
 ------------------------------
 
@@ -168,7 +203,9 @@ can be changed.
 
 Lobster also provides a ``configure`` convenience command to edit the
 configuration, which will launch an editor to edit the current
-configuration.
+configuration::
+
+    lobster configure /my/working/directory
 
 .. note::
    If one of the services used in the original configuration has changed or

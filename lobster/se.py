@@ -593,7 +593,7 @@ class StorageConfiguration(Configurable):
                 Local(path)
             elif protocol == 'hdfs':
                 host, port = server.split(':')
-                    Hadoop(host, port, path)
+                Hadoop(host, port, path)
             elif protocol == 'srm':
                 SRM(url)
             elif protocol == 'root':

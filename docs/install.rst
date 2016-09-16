@@ -25,14 +25,14 @@ Dependencies
   adding the `bin` directory to your path (the following instructions may
   need to be changed for the newest version)::
 
-    wget -O - http://ccl.cse.nd.edu/software/files/cctools-5.2.0-x86_64-redhat6.tar.gz|tar xvzf -
-    export PATH=$PWD/cctools-5.2.0-x86_64-redhat6/bin:$PATH
-    export PYTHONPATH=$PWD/cctools-5.2.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
+    wget -O - http://ccl.cse.nd.edu/software/files/cctools-6.0.0-x86_64-redhat6.tar.gz|tar xvzf -
+    export PATH=$PWD/cctools-6.0.0-x86_64-redhat6/bin:$PATH
+    export PYTHONPATH=$PWD/cctools-6.0.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
 
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=cctools-131-d794bbb0-cvmfs-40cf5bba
+      cctools=cctools-132-588ffb3d-cvmfs-40cf5bba
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 
@@ -107,6 +107,6 @@ Try manually installing ``numpy``::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools cctools-131-d794bbb0-cvmfs-40cf5bba
+    setenv cctools cctools-132-588ffb3d-cvmfs-40cf5bba
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}

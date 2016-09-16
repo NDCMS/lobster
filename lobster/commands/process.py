@@ -127,8 +127,7 @@ class Process(Command, util.Timing):
 
         if self.config.advanced.dump_core:
             logger.info("setting core dump size to unlimited")
-            resource.setrlimit(
-                resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         def localkill(num, frame):
             Terminate().run(args)
@@ -142,12 +141,14 @@ class Process(Command, util.Timing):
         openfiles = [f for f in process.open_files() if f.path not in preserved]
         openconns = process.connections()
 
-        if len(openconns) > 0 or len(openfiles) > 0:
-            logger.error("cannot daemonize due to open files or connections")
+        for c in openconns:
+            logger.debug("open connection: {}".format(c))
+            args.preserve.append(c.fd)
+
+        if len(openfiles) > 0:
+            logger.error("cannot daemonize due to open files")
             for f in openfiles:
-                logger.error("open file: {}".format(f))
-            for c in openconns:
-                logger.error("open connection: {}".format(c))
+                logger.error("open file: {}".format(f.path))
             raise RuntimeError("open files or connections")
 
         with daemon.DaemonContext(
@@ -201,6 +202,11 @@ class Process(Command, util.Timing):
             self.queue.enable_monitoring(None)
 
         logger.info("starting queue as {0}".format(self.queue.name))
+
+        process = psutil.Process()
+        openfiles = [f for f in process.open_files()]
+        for f in openfiles:
+            logger.error(f)
 
         abort_active = False
         abort_threshold = self.config.advanced.abort_threshold

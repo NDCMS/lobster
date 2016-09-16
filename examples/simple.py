@@ -7,8 +7,8 @@ version = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 
 storage = StorageConfiguration(
     output=[
+        "hdfs://eddie.crc.nd.edu:19000/store/user/$USER/lobster_test_" + version,
         "file:///hadoop/store/user/$USER/lobster_test_" + version,
-        "hdfs:///store/user/$USER/lobster_test_" + version,
         # ND is not in the XrootD redirector, thus hardcode server.
         # Note the double-slash after the hostname!
         "root://deepthought.crc.nd.edu//store/user/$USER/lobster_test_" + version,

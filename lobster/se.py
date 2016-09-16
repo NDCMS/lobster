@@ -2,7 +2,8 @@ import logging
 import os
 import random
 import re
-import string
+import snakebite.client
+import snakebite.errors
 import subprocess
 import xml.dom.minidom
 
@@ -180,57 +181,44 @@ class Local(StorageElement):
 
 class Hadoop(StorageElement):
 
-    def __init__(self, pfnprefix='/hadoop'):
+    def __init__(self, host, port, pfnprefix='/hadoop'):
         super(Hadoop, self).__init__(pfnprefix)
-
-    def __execute(self, cmd, *paths, **kwargs):
-        cmds = cmd.split()
-        args = ['hadoop', 'fs', '-' + cmds[0]] + cmds[1:] + list(paths)
-        try:
-            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            pout, perr = p.communicate()
-            if p.returncode != 0 and not kwargs.get('safe', False):
-                msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), perr, pout)
-                raise IOError(msg)
-        except OSError:
-            raise AttributeError("hadoop filesystem utilities not available")
-        return pout
+        self.__c = snakebite.client.Client(host, int(port))
 
     def exists(self, path):
         try:
-            self.__execute('stat', path)
+            self.__c.stat([path])
             return True
-        except IOError:
+        except snakebite.errors.FileNotFoundException:
             return False
 
     def getsize(self, path):
-        return int(self.__execute('stat %b', path))
+        return self.__c.stat([path])['blocksize']
 
     def isdir(self, path):
-        return self.__execute('stat %F', path).strip() == 'directory'
+        return self.__c.stat([path])['file_type'] == 'd'
 
     def isfile(self, path):
-        return self.__execute('stat %F', path).strip() == 'regular file'
+        return self.__c.stat([path])['file_type'] == 'f'
 
     def ls(self, path):
-        for line in self.__execute('ls', path).splitlines()[1:]:
-            yield line.split(None, 7)[-1]
+        for data in self.__c.ls([path]):
+            yield data['path']
 
     def mkdir(self, path, mode):
-        self.__execute('mkdir', path)
-        self.__execute('chmod ' + oct(mode), path)
+        for data in self.__c.mkdir([path], mode=mode):
+            pass
 
     def permissions(self, path):
-        output = self.__execute('ls -d', path).splitlines()[1].split(None, 1)[0]
-        tr = string.maketrans('rwx-', '1110')
-        # first character of output is either 'd' or '-' and needs to be
-        # removed
-        return int(output[1:].translate(tr), 2)
+        return self.__c.stat([path])['permission']
 
     def remove(self, *paths):
-        while len(paths) != 0:
-            self.__execute('rm -f', *(paths[:50]))
-            paths = paths[50:]
+        for p in paths:
+            try:
+                for data in self.__c.delete([p]):
+                    pass
+            except snakebite.errors.FileNotFoundException:
+                pass
 
 
 class Chirp(StorageElement):
@@ -604,10 +592,8 @@ class StorageConfiguration(Configurable):
             elif protocol == 'file':
                 Local(path)
             elif protocol == 'hdfs':
-                try:
-                    Hadoop(path)
-                except NameError:
-                    raise NotImplementedError("hadoop support is missing on this system")
+                host, port = server.split(':')
+                    Hadoop(host, port, path)
             elif protocol == 'srm':
                 SRM(url)
             elif protocol == 'root':

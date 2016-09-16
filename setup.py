@@ -45,6 +45,7 @@ setup(
         'pyxdg',
         'requests',
         'retrying',
+        'snakebite<2.0',
         'WMCore'
     ],
     dependency_links=[

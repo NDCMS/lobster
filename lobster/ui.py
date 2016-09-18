@@ -10,7 +10,7 @@ from lobster import util
 rm = []
 for f in sys.path:
     if '/cvmfs' in f:
-        for pkg in ('pycurl', 'numpy', 'matplotlib'):
+        for pkg in ('numpy', 'matplotlib'):
             if pkg in f:
                 rm.append(f)
 for f in rm:

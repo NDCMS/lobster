@@ -4,7 +4,7 @@ Installation
 .. note::
    These steps should always be performed in a valid CMSSW environment
    (after executing `cmsenv`)!  Lobster will need python 2.7 or greater
-   (but not python 3).  CMSSW version `7_6_1` or above are recommended to
+   (but not python 3).  CMSSW version `8_0_15` or above are recommended to
    use.
 
 Prerequisites
@@ -13,7 +13,7 @@ Prerequisites
 Check you python version after running `cmsenv`::
 
     $ python -V
-    Python 2.7.6
+    Python 2.7.11
 
 Dependencies
 ~~~~~~~~~~~~
@@ -89,16 +89,9 @@ easy modification of the source::
     ./install_dependencies.sh
     pip install .
 
-Troubleshooting
-~~~~~~~~~~~~~~~
-
-If Lobster installation fails with an error like::
-
-    Command "python setup.py egg_info" failed with error code 1 in /tmp/pip-build-G1nd85/matplotlib/
-
-Try manually installing ``numpy``::
-
-    pip install numpy
+.. note::
+   When using older CMSSW releases, `matplotlib` may fail to install.  This
+   can be solved by installing `numpy` first with ``pip install numpy``.
 
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
 

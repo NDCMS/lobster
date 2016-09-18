@@ -37,7 +37,7 @@ class TestDataset(unittest.TestCase):
                 output=[], input=['file://' + self.workdir])
             s.activate()
 
-            with fs.default():
+            with fs.alternative():
                 info = Dataset(files='eggs').get_info()
                 assert len(info.files) == 10
 

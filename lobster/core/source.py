@@ -190,7 +190,7 @@ class TaskProvider(util.Timing):
             if create and not util.checkpoint(self.workdir, wflow.label):
                 wflow.setup(self.workdir, self.basedirs)
                 logger.info("querying backend for {0}".format(wflow.label))
-                with fs.default():
+                with fs.alternative():
                     dataset_info = wflow.dataset.get_info()
 
                 logger.info("registering {0} in database".format(wflow.label))
@@ -427,6 +427,7 @@ class TaskProvider(util.Timing):
 
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
+                f.write('\n')
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
             env = {

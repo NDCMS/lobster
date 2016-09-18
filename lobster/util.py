@@ -366,12 +366,14 @@ def register_checkpoint(workdir, key, value):
     if not os.path.exists(statusfile):
         with open(statusfile, 'w') as f:
             json.dump({key: value}, f)
+            f.write('\n')
     else:
         with open(statusfile, 'r') as f:
             s = json.load(f)
             s[key] = value
         with open(statusfile, 'w') as f:
-            f.write(json.dumps(s, sort_keys=True, indent=4))
+            json.dump(s, f, sort_keys=True, indent=4)
+            f.write('\n')
 
 
 def get_version():

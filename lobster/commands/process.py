@@ -4,6 +4,7 @@ import inspect
 import logging
 import logging.handlers
 import os
+import psutil
 import resource
 import signal
 import sys
@@ -122,11 +123,11 @@ class Process(Command, util.Timing):
             ttyfile = open(os.path.join(self.config.workdir, 'process.err'), 'a')
             logger.info("saving stderr and stdout to {0}".format(
                 os.path.join(self.config.workdir, 'process.err')))
+            args.preserve.append(ttyfile)
 
         if self.config.advanced.dump_core:
             logger.info("setting core dump size to unlimited")
-            resource.setrlimit(
-                resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         def localkill(num, frame):
             Terminate().run(args)
@@ -134,6 +135,21 @@ class Process(Command, util.Timing):
         signals = daemon.daemon.make_default_signal_map()
         signals[signal.SIGINT] = localkill
         signals[signal.SIGTERM] = localkill
+
+        process = psutil.Process()
+        preserved = [f.name for f in args.preserve]
+        openfiles = [f for f in process.open_files() if f.path not in preserved]
+        openconns = process.connections()
+
+        for c in openconns:
+            logger.debug("open connection: {}".format(c))
+            args.preserve.append(c.fd)
+
+        if len(openfiles) > 0:
+            logger.error("cannot daemonize due to open files")
+            for f in openfiles:
+                logger.error("open file: {}".format(f.path))
+            raise RuntimeError("open files or connections")
 
         with daemon.DaemonContext(
                 detach_process=not args.foreground,
@@ -186,6 +202,11 @@ class Process(Command, util.Timing):
             self.queue.enable_monitoring(None)
 
         logger.info("starting queue as {0}".format(self.queue.name))
+
+        process = psutil.Process()
+        openfiles = [f for f in process.open_files()]
+        for f in openfiles:
+            logger.error(f)
 
         abort_active = False
         abort_threshold = self.config.advanced.abort_threshold

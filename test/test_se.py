@@ -36,7 +36,7 @@ class TestSE(unittest.TestCase):
         s.activate()
 
         with util.PartiallyMutable.unlock():
-            with fs.default():
+            with fs.alternative():
                 ds = dataset.Dataset(files='spam/')
                 info = ds.get_info()
                 assert len(info.files) == 10

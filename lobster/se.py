@@ -611,7 +611,7 @@ class StorageConfiguration(Configurable):
         """Sets file system access methods.
 
         Replaces default file system access methods with the ones specified
-        per configuration for input and output storage element access.
+        per configuration for input and output_storage_element access.
         """
         FileSystem.configure(
             list(self._initialize(self.output)),

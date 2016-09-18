@@ -446,7 +446,7 @@ class Publish(Command):
                                 'could not find expected output for task(s) {0}'.format(task))
                             missing.append(task)
                         else:
-                            fileinfo = report['files']['output info'][local]
+                            fileinfo = report['files']['output_info'][local]
                             logger.info('adding %s to block' % LFN)
                             block.add_file_config(LFN)
                             block.add_file(LFN, fileinfo, task, merged_task)

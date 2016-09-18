@@ -169,7 +169,7 @@ class Workflow(Configurable):
             the ID of the task, and the extension of the output file.
         local : bool
             If set to `True`, Lobster will assume this workflow's input is
-            present on the output storage element.
+            present on the output_storage_element.
         pset : str
             The CMSSW configuration to use, if any.
         globaltag : str

@@ -598,7 +598,8 @@ class StorageConfiguration(Configurable):
             elif protocol == 'file':
                 yield Local(path)
             elif protocol == 'hdfs':
-                yield Hadoop(path)
+                host, port = server.split(':')
+                yield Hadoop(host, port, path)
             elif protocol == 'srm':
                 yield SRM(url)
             elif protocol == 'root':

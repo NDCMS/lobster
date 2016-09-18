@@ -598,10 +598,7 @@ class StorageConfiguration(Configurable):
             elif protocol == 'file':
                 yield Local(path)
             elif protocol == 'hdfs':
-                try:
-                    yield Hadoop(path)
-                except NameError:
-                    raise NotImplementedError("hadoop support is missing on this system")
+                yield Hadoop(path)
             elif protocol == 'srm':
                 yield SRM(url)
             elif protocol == 'root':

@@ -73,13 +73,12 @@ if 'LOBSTER_SKIP_HADOOP' not in os.environ:
     class TestHadoop(TestSE):
 
         def runTest(self):
-            self.query('hdfs://' + self.workdir.replace('/hadoop', '', 1))
+            self.query('hdfs://eddie.crc.nd.edu:19000' + self.workdir.replace('/hadoop', '', 1))
 
     class TestHadoopPermissions(TestSE):
 
         def runTest(self):
-            self.permissions(
-                'hdfs://' + self.workdir.replace('/hadoop', '', 1))
+            self.permissions('hdfs://eddie.crc.nd.edu:19000' + self.workdir.replace('/hadoop', '', 1))
 
 if 'LOBSTER_SKIP_SRM' not in os.environ:
     class TestSRM(TestSE):

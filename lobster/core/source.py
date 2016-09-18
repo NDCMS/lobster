@@ -427,6 +427,7 @@ class TaskProvider(util.Timing):
 
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
+                f.write('\n')
 
             cmd = 'sh wrapper.sh python task.py parameters.json'
             env = {

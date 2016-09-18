@@ -891,6 +891,7 @@ def run_prologue(data, config, env):
 def run_epilogue(data, config, env):
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)
+        f.write('\n')
     run_step(data, config, env, 'epilogue')
     with open('report.json', 'r') as f:
         update = json.load(f)

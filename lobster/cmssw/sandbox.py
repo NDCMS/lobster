@@ -60,12 +60,12 @@ class Sandbox(lobster.core.Sandbox):
         return False
 
     def _recycle(self, outdir):
-        shutil.copy2(self._recycle, outdir)
-        for file in tarfile.open(self._recycle):
+        shutil.copy2(self.recycle, outdir)
+        for file in tarfile.open(self.recycle):
             if ".SCRAM" in file.name:
                 rtname = os.path.dirname(os.path.normpath(file.name)).split("/")[0]
                 break
-        return rtname, os.path.join(outdir, os.path.split(self._recycle)[-1])
+        return rtname, os.path.join(outdir, os.path.split(self.recycle)[-1])
 
     def _package(self, basedirs, outdir):
         indir = lobster.util.findpath(basedirs, self.release)

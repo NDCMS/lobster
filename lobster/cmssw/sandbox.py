@@ -34,8 +34,8 @@ class Sandbox(lobster.core.Sandbox):
 
     _mutable = {}
 
-    def __init__(self, include=None, release=None, blacklist=None):
-        super(Sandbox, self).__init__(blacklist)
+    def __init__(self, include=None, release=None, blacklist=None, recycle=None):
+        super(Sandbox, self).__init__(recycle, blacklist)
         if release:
             self.release = os.path.expandvars(os.path.expanduser(release))
         else:

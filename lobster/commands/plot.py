@@ -1085,7 +1085,7 @@ class Plotter(object):
                         subdir, prefix + 'workdir-footprint'),
                 )
 
-                bandwidth = tasks['network_bytes_received'] / \
+                bandwidth = tasks['network_bytes_received'] * 8 / \
                     1e6 / tasks['time_on_worker']
                 self.plot(
                     [(tasks['time_retrieved'], bandwidth)],

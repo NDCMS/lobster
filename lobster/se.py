@@ -586,7 +586,7 @@ class StorageConfiguration(Configurable):
                 return fn
         raise IOError("Can't create LFN without local storage access")
 
-    def _initialize(self, methods):
+    def _initialize(self, methods, failures):
         for url in methods:
             protocol, server, path = url_re.match(url).groups()
 
@@ -594,7 +594,8 @@ class StorageConfiguration(Configurable):
                 try:
                     yield Chirp(server, path)
                 except chirp.AuthenticationFailure:
-                    raise AttributeError("cannot access chirp server")
+                    if failures:
+                        raise AttributeError("cannot access chirp server")
             elif protocol == 'file':
                 yield Local(path)
             elif protocol == 'hdfs':
@@ -607,15 +608,15 @@ class StorageConfiguration(Configurable):
             else:
                 logger.debug("implementation of master access missing for URL {0}".format(url))
 
-    def activate(self):
+    def activate(self, failures=True):
         """Sets file system access methods.
 
         Replaces default file system access methods with the ones specified
         per configuration for input and output storage element access.
         """
         FileSystem.configure(
-            list(self._initialize(self.output)),
-            list(self._initialize(self.input))
+            list(self._initialize(self.output, failures)),
+            list(self._initialize(self.input, failures))
         )
 
     def preprocess(self, parameters, merge):

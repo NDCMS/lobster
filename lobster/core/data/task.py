@@ -145,7 +145,7 @@ def run_subprocess(*args, **kwargs):
     logger.info("executing '{}'".format(" ".join(*args)))
 
     retry = kwargs.pop('retry', {})
-    capture = kwargs.pop('capture', True)
+    capture = kwargs.pop('capture', False)
 
     outfd, outfn = tempfile.mkstemp()
 
@@ -259,7 +259,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args, retry={53: 5})
+            p = run_subprocess(args, retry={53: 5}, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:
@@ -275,7 +275,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args, retry={53: 5})
+            p = run_subprocess(args, retry={53: 5}, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:
@@ -290,7 +290,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args)
+            p = run_subprocess(args, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:
@@ -844,7 +844,7 @@ def run_command(data, config, env, monalisa):
         shell = True
 
     cmd = ' '.join(cmd) if shell else cmd
-    p = run_subprocess(cmd, env=env, shell=shell, capture=False)
+    p = run_subprocess(cmd, env=env, shell=shell)
     logger.info("executable returned with exit code {0}.".format(p.returncode))
     data['exe exit code'] = p.returncode
     data['task exit code'] = data['exe exit code']
@@ -874,7 +874,7 @@ def run_step(data, config, env, name):
     step = config.get(name, [])
     if step and len(step) > 0:
         logger.info(name)
-        p = run_subprocess(step, env=env, capture=False)
+        p = run_subprocess(step, env=env)
         # Was originally a subprocess.check_call, but this has the
         # potential to confuse log file output because print buffers
         # differently from the underlying process.  Therefore, do what

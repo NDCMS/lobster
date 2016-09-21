@@ -145,6 +145,8 @@ def run_subprocess(*args, **kwargs):
     logger.info("executing '{}'".format(" ".join(*args)))
 
     retry = kwargs.pop('retry', {})
+    capture = kwargs.pop('capture', False)
+
     outfd, outfn = tempfile.mkstemp()
 
     logger.debug("using {} to store command output".format(outfn))
@@ -156,13 +158,14 @@ def run_subprocess(*args, **kwargs):
 
     _, _ = p.communicate()
 
+    p.stdout = ""
     with open(outfn, 'r') as fd:
-        outlines = fd.readlines()
-        p.stdout = "\n".join(outlines)
+        with mangler.output('cmd'):
+            for line in fd:
+                logger.debug(line.strip())
+                if capture:
+                    p.stdout += line
     os.unlink(outfn)
-    with mangler.output('cmd'):
-        for line in outlines:
-            logger.debug(line.strip())
 
     if p.returncode in retry:
         logger.info("retrying command")
@@ -256,7 +259,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args, retry={53: 5})
+            p = run_subprocess(args, retry={53: 5}, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:
@@ -272,7 +275,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args, retry={53: 5})
+            p = run_subprocess(args, retry={53: 5}, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:
@@ -287,7 +290,7 @@ def check_output(config, localname, remotename):
                 "stat",
                 os.path.join(path, remotename)
             ]
-            p = run_subprocess(args)
+            p = run_subprocess(args, capture=True)
             try:
                 return compare(p.stdout, localname)
             except RuntimeError as e:

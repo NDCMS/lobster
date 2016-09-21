@@ -26,7 +26,7 @@ log() {
 }
 
 date +%s > t_wrapper_start
-log "startup" "wrapper_started" "echo -e 'hostname: $(hostname)\nkernel: $(uname -a)'"
+log "startup" "wrapper started" "echo -e 'hostname: $(hostname)\nkernel: $(uname -a)'"
 
 log "trace" "tracing google" traceroute -w 1 www.google.com
 log "env" "environment at startup" env
@@ -171,7 +171,7 @@ cd "$basedir"
 
 log "top" "machine load" top -Mb\|head -n 50
 log "env" "environment before execution" env
-log "wrapper_ready"
+log "wrapper ready"
 date +%s > t_wrapper_ready
 
 log "dir" "working directory before execution" ls -l

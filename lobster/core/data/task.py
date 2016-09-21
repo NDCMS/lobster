@@ -195,7 +195,7 @@ def check_execution(exitcode, update=None):
     """Decorator to quit upon exception.
 
     Execute the wrapper function, and, in case it throws an exception, set
-    the task_exit_code and update the first argument of the wrapped
+    task_exit_code and update the first argument of the wrapped
     function with the optional update passed to the decorator.
 
     The first argument of the wrapped function **must** be a dictionary to
@@ -320,7 +320,7 @@ def check_parrot_cache(data):
                     fullcache = int(f.read())
                     selfstart = data['task_timing']['wrapper_start']
 
-                    # If our wrapper_started before the cache was filled, we are
+                    # If our wrapper started before the cache was filled, we are
                     # still a cold cache task (value 0.)  Otherwise, we were
                     # operating on a hot cache.
                     data['cache']['type'] = int(selfstart > fullcache)

@@ -480,8 +480,8 @@ class StorageConfiguration(Configurable):
             URLs will be attempted for all input files.
     """
     _mutable = {
-        'input': (None, [], False),
-        'output': (None, [], False)
+        'input': ('config.storage.activate', [], False),
+        'output': ('config.storage.activate', [], False)
     }
 
     # Map protocol shorthands to actual protocol names

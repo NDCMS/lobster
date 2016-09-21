@@ -133,7 +133,7 @@ class Config(Configurable):
         try:
             with open(os.path.join(path, 'config.pkl'), 'rb') as f:
                 cfg = pickle.load(f)
-                cfg.storage.activate()
+                cfg.storage.activate(failures=False)
                 return cfg
         except IOError as e:
             print e

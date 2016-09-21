@@ -23,7 +23,6 @@ class Validate(Command):
         logger = logging.getLogger('lobster.validate')
 
         store = UnitStore(config)
-        config.storage.activate()
 
         stats = dict((w.label, [0, 0]) for w in config.workflows)
 

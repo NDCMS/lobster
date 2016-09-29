@@ -22,7 +22,7 @@ commands, use ``lobster -h`` and ``lobster <cmd> -h``.
 
     lobster process config.py
 
-3. Submit workers, see also submission_::
+3. Submit workers, see also `Submitting workers`_::
 
     label=shuffle
     cores=4
@@ -75,7 +75,6 @@ Additional useful commands
      This may result in database corruption, though, and should only be
      used when the running Lobster project is not to be continued.
 
-.. _submission:
 Submitting workers
 ------------------
 

@@ -819,7 +819,6 @@ def get_bare_size(filename):
 def run_command(data, config, env, monalisa):
     cmd = config['executable']
     args = config['arguments']
-    shell = False
     if 'cmsRun' in cmd:
         pset = config['pset']
         pset_mod = pset.replace(".py", "_mod.py")
@@ -829,8 +828,6 @@ def run_command(data, config, env, monalisa):
 
         cmd = [cmd, '-j', 'report.xml', pset_mod]
         cmd.extend([str(arg) for arg in args])
-        if config['executable'] != 'cmsRun':
-            shell = True
     else:
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         if isinstance(cmd, basestring):
@@ -841,10 +838,8 @@ def run_command(data, config, env, monalisa):
 
         if config.get('append inputs to args', False):
             cmd.extend([str(f) for f in config['mask']['files']])
-        shell = True
 
-    cmd = ' '.join(cmd) if shell else cmd
-    p = run_subprocess(cmd, env=env, shell=shell)
+    p = run_subprocess(cmd, env=env)
     logger.info("executable returned with exit code {0}.".format(p.returncode))
     data['exe_exit_code'] = p.returncode
     data['task_exit_code'] = data['exe_exit_code']

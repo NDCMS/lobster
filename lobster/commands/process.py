@@ -203,11 +203,6 @@ class Process(Command, util.Timing):
 
         logger.info("starting queue as {0}".format(self.queue.name))
 
-        process = psutil.Process()
-        openfiles = [f for f in process.open_files()]
-        for f in openfiles:
-            logger.error(f)
-
         abort_active = False
         abort_threshold = self.config.advanced.abort_threshold
         abort_multiplier = self.config.advanced.abort_multiplier

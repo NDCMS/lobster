@@ -46,6 +46,20 @@ conf = {
 
 
 def mayfail(errors, retval=None):
+    """Allow decorated methods to fail with certain errors.
+
+    Will return `retval` when the decorated method fails with the
+    exception(s) specified by `errors`.
+
+    Parameters
+    ----------
+    errors : type or list of type
+        An `Exception` subclass or list thereof that are considered
+        non-fatal.
+    retval, optional
+        The return value of the decorated function if it throws a non-fatal
+        exception.
+    """
     def wrapper(fct):
         def decorator(*args, **kwargs):
             try:

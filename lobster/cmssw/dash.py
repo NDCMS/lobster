@@ -45,6 +45,29 @@ conf = {
 }
 
 
+def mayfail(errors, retval=None):
+    def wrapper(fct):
+        def decorator(*args, **kwargs):
+            try:
+                return fct(*args, **kwargs)
+            except Exception as e:
+                if issubclass(errors, Exception):
+                    if not isinstance(e, errors):
+                        raise
+                    else:
+                        logger.info("ignoring error '{}'".format(e))
+                else:
+                    for error in errors:
+                        if isinstance(e, error):
+                            logger.info("ignoring error '{}'".format(e))
+                            break
+                    else:
+                        raise
+            return retval
+        return decorator
+    return wrapper
+
+
 class DummyMonitor(object):
 
     def __init__(self, workdir):
@@ -75,12 +98,14 @@ class Monitor(DummyMonitor):
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
-        id, err = p.communicate()
-        id = id.strip()
-        db = SiteDBJSON({'cacheduration': 24})
+        id_, _ = p.communicate()
+        id_ = id_.strip()
 
-        self.__username = db.dnUserName(dn=id)
-        self.__fullname = id.rsplit('/CN=', 1)[1]
+        self.__id = id_
+        self.__db = SiteDBJSON({'cacheduration': 24})
+
+        self.__username = None
+        self.__fullname = id_.rsplit('/CN=', 1)[1]
         # self.__fullname = pwd.getpwnam(getpass.getuser())[4]
         if util.checkpoint(workdir, "sandbox cmssw version"):
             self.__cmssw_version = str(util.checkpoint(
@@ -100,6 +125,12 @@ class Monitor(DummyMonitor):
 
     def __del__(self):
         self.free()
+
+    @property
+    def _username(self):
+        if not self.__username:
+            self.__username = self.__db.dnUserName(dn=self.__id)
+        return self.__username
 
     def free(self):
         apmonFree()
@@ -129,14 +160,15 @@ class Monitor(DummyMonitor):
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
-            'CMSUser': self.__username,
-            'user': self.__username,
+            'CMSUser': self._username,
+            'user': self._username,
             'datasetFull': '',
             'resubmitter': 'user',
             'exe': self.__executable
         })
         self.free()
 
+    @mayfail(RuntimeError, (None, None))
     def register_task(self, id):
         monitorid, syncid = self.generate_ids(id)
         self.send(monitorid, {
@@ -156,14 +188,15 @@ class Monitor(DummyMonitor):
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
-            'CMSUser': self.__username,
-            'user': self.__username,
+            'CMSUser': self._username,
+            'user': self._username,
             # 'datasetFull': self.datasetPath,
             'resubmitter': 'user',
             'exe': self.__executable
         })
         return monitorid, syncid
 
+    @mayfail(RuntimeError)
     def update_task(self, id, status):
         monitorid, syncid = self.generate_ids(id)
         self.send(monitorid, {

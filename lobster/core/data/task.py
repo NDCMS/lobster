@@ -877,7 +877,7 @@ def run_step(data, config, env, name):
         # a non-zero return code.
         if p.returncode != 0:
             raise subprocess.CalledProcessError
-    data['task_timing']['{} end'.format(name)] = int(datetime.now().strftime('%s'))
+    data['task_timing']['{}_end'.format(name)] = int(datetime.now().strftime('%s'))
 
 
 @check_execution(exitcode=180)

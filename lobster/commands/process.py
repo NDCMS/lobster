@@ -357,6 +357,7 @@ class Process(Command, util.Timing):
                     raise
         if units_left == 0:
             logger.info("no more work left to do")
+            util.sendemail("Your job is done!", self.config.advanced.email_address)
             if self.config.elk:
                 self.config.elk.end()
             if action:

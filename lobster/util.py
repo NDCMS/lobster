@@ -15,10 +15,12 @@ import logging
 import os
 import shlex
 import shutil
+import smtplib
 import subprocess
 import time
 
 from contextlib import contextmanager
+from email.mime.text import MIMEText
 from pkg_resources import get_distribution
 
 logger = logging.getLogger('lobster.util')
@@ -375,6 +377,16 @@ def register_checkpoint(workdir, key, value):
             json.dump(s, f, sort_keys=True, indent=4)
             f.write('\n')
 
+def sendemail(emailmsg, you):
+    if you:
+        msg = MIMEText(emailmsg)
+        me = 'Lobster@nd.edu'
+        msg['Subject'] = 'No Reply'
+        msg['From'] = me
+        msg['To'] = you
+        s = smtplib.SMTP('localhost')
+        s.sendmail(me,[you], msg.as_string())
+        s.quit()
 
 def get_version():
     if 'site-packages' in __file__:

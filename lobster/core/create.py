@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 import logging
+import math
 
 logger = logging.getLogger('lobster.algo')
 
@@ -109,7 +110,7 @@ class Algo(object):
                 needed_category_tasks = max(required, needed_category_tasks)
 
             needed_category_tasks -= queued[wflow.category.name]['queued']
-            needed_workflow_tasks = max(0, int(needed_category_tasks * workflow_fraction))
+            needed_workflow_tasks = max(0, int(math.ceil(needed_category_tasks * workflow_fraction)))
 
             if needed_category_tasks <= 0:
                 continue

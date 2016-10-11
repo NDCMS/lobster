@@ -1,8 +1,6 @@
 Running
 =======
 
-.. contents::
-
 .. note::
    These steps should always be performed in a valid CMSSW environment
    (after executing `cmsenv`), and with the `virtualenv` activated!

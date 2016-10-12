@@ -89,10 +89,6 @@ easy modification of the source::
     ./install_dependencies.sh
     pip install .
 
-.. note::
-   When using older CMSSW releases, `matplotlib` may fail to install.  This
-   can be solved by installing `numpy` first with ``pip install numpy``.
-
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
 
 .. rubric:: Footnotes

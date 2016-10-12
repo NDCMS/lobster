@@ -15,6 +15,7 @@ Contents:
    config
    run
    monitor
+   trouble
 
 Indices and tables
 ==================

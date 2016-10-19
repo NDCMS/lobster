@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=cctools-132-588ffb3d-cvmfs-40cf5bba
+      cctools=cctools-134-54a4c3fe-cvmfs-40cf5bba
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
 
@@ -89,10 +89,6 @@ easy modification of the source::
     ./install_dependencies.sh
     pip install .
 
-.. note::
-   When using older CMSSW releases, `matplotlib` may fail to install.  This
-   can be solved by installing `numpy` first with ``pip install numpy``.
-
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
 
 .. rubric:: Footnotes
@@ -100,6 +96,6 @@ easy modification of the source::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools cctools-132-588ffb3d-cvmfs-40cf5bba
+    setenv cctools cctools-134-54a4c3fe-cvmfs-40cf5bba
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}

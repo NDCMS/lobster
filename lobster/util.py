@@ -377,11 +377,12 @@ def register_checkpoint(workdir, key, value):
             json.dump(s, f, sort_keys=True, indent=4)
             f.write('\n')
 
-def sendemail(emailmsg, you):
+def sendemail(emailmsg, config):
+    you = config.advanced.email_address
     if you:
-        msg = MIMEText(emailmsg)
+        msg = MIMEText(emailmsg + "\n\n" + "workdir: " + config.workdir + "\n" + "plotdir: " + config.plotdir + "\n\n" + "From Notre Dame Lobster Team")
         me = 'Lobster@nd.edu'
-        msg['Subject'] = 'No Reply'
+        msg['Subject'] = 'Notre Dame Lobster -- No Reply'
         msg['From'] = me
         msg['To'] = you
         s = smtplib.SMTP('localhost')

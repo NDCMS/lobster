@@ -377,8 +377,9 @@ def register_checkpoint(workdir, key, value):
             json.dump(s, f, sort_keys=True, indent=4)
             f.write('\n')
 
+
 def sendemail(emailmsg, config):
-    you = config.advanced.email_address
+    you = config.advanced.email
     if you:
         msg = MIMEText(emailmsg + "\n\n" + "workdir: " + config.workdir + "\n" + "plotdir: " + config.plotdir + "\n\n" + "From Notre Dame Lobster Team")
         me = 'Lobster@nd.edu'
@@ -386,8 +387,9 @@ def sendemail(emailmsg, config):
         msg['From'] = me
         msg['To'] = you
         s = smtplib.SMTP('localhost')
-        s.sendmail(me,[you], msg.as_string())
+        s.sendmail(me, [you], msg.as_string())
         s.quit()
+
 
 def get_version():
     if 'site-packages' in __file__:

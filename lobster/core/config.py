@@ -173,7 +173,7 @@ class AdvancedOptions(Configurable):
             tasks send to it.
         dump_core : bool
             Produce core dumps.  Useful to debug `WorkQueue`.
-        email_address : str
+        email : str
             The email address you want to receive emails from Lobster.
         full_monitoring : bool
             Produce full monitoring output.  Useful to debug `WorkQueue`.
@@ -219,7 +219,7 @@ class AdvancedOptions(Configurable):
                  abort_multiplier=4,
                  bad_exit_codes=None,
                  dump_core=False,
-                 email_address=None,
+                 email=None,
                  full_monitoring=False,
                  log_level=2,
                  osg_version=None,
@@ -244,7 +244,7 @@ class AdvancedOptions(Configurable):
         self.abort_multiplier = abort_multiplier
         self.bad_exit_codes = bad_exit_codes if bad_exit_codes else [169]
         self.dump_core = dump_core
-        self.email_address = email_address
+        self.email = email
         self.full_monitoring = full_monitoring
         self.log_level = log_level
         self.payload = payload

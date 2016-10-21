@@ -225,7 +225,7 @@ def check_execution(exitcode, update=None, timing=None):
         def wrapper(data, *args, **kwargs):
             ecode = kwargs.pop('exitcode', exitcode)
             try:
-                fct(data, *args, **kwargs)
+                result = fct(data, *args, **kwargs)
             except Exception:
                 with mangler.output('trace'):
                     for l in traceback.format_exc().splitlines():
@@ -237,6 +237,7 @@ def check_execution(exitcode, update=None, timing=None):
             finally:
                 if timing:
                     data['task_timing'][update] = int(datetime.now().strftime('%s'))
+            return result
         return wrapper
     return decorator
 

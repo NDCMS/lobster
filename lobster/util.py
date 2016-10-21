@@ -382,7 +382,7 @@ def sendemail(emailmsg, config):
     you = config.advanced.email
     if you:
         msg = MIMEText(emailmsg + "\n\n" + "workdir: " + config.workdir + "\n" + "plotdir: " + config.plotdir + "\n\n" + "From Notre Dame Lobster Team")
-        me = 'Lobster@nd.edu'
+        me = you
         msg['Subject'] = 'Notre Dame Lobster -- No Reply'
         msg['From'] = me
         msg['To'] = you

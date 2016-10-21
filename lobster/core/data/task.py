@@ -236,7 +236,7 @@ def check_execution(exitcode, update=None, timing=None):
                 sys.exit(ecode)
             finally:
                 if timing:
-                    data['task_timing'][update] = int(datetime.now().strftime('%s'))
+                    data['task_timing'][timing] = int(datetime.now().strftime('%s'))
             return result
         return wrapper
     return decorator

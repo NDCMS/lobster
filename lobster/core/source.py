@@ -145,6 +145,7 @@ class TaskProvider(util.Timing):
         logger.debug("using {} as proxy for CVMFS".format(self.__cvmfs_proxy))
         logger.debug("using {} as proxy for Frontier".format(self.__frontier_proxy))
         logger.debug("using {} as osg_version".format(self.config.advanced.osg_version))
+        util.sendemail("Your Lobster job has started!", self.config)
 
         self.__taskhandlers = {}
         self.__store = unit.UnitStore(self.config)

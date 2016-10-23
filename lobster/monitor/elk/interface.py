@@ -1132,10 +1132,12 @@ class ElkInterface(Configurable):
 
         for item in list(summary)[1:]:
             workflow_summary = dict(zip(keys, item))
-            workflow_summary['percent_progress'] = \
-                float(workflow_summary['percent_progress'].replace('%', ''))
-            workflow_summary['percent_merged'] = \
-                float(workflow_summary['percent_merged'].replace('%', ''))
+            if workflow_summary['percent_progress']:
+                workflow_summary['percent_progress'] = \
+                    float(workflow_summary['percent_progress'].replace('%', ''))
+            if workflow_summary['percent_merged']:
+                workflow_summary['percent_merged'] = \
+                    float(workflow_summary['percent_merged'].replace('%', ''))
 
             workflow_summaries[workflow_summary['label']] = workflow_summary
 

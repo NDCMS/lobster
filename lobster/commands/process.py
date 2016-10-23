@@ -351,12 +351,14 @@ class Process(Command, util.Timing):
                 except Exception:
                     tb = traceback.format_exc()
                     logger.critical("cannot recover from the following exception:\n" + tb)
+                    util.sendemail("You job has crashed from the following exception:\n" + tb, self.config)
                     for task in tasks:
                         logger.critical(
                             "tried to return task {0} from {1}".format(task.tag, task.hostname))
                     raise
         if units_left == 0:
             logger.info("no more work left to do")
+            util.sendemail("Your job is done!", self.config)
             if self.config.elk:
                 self.config.elk.end()
             if action:

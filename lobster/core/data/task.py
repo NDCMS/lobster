@@ -194,7 +194,7 @@ def calculate_alder32(data):
         data['files']['output_info'][fn]['adler32'] = checksum
 
 
-def check_execution(exitcode, update=None):
+def check_execution(exitcode, update=None, timing=None):
     """Decorator to quit upon exception.
 
     Execute the wrapper function, and, in case it throws an exception, set
@@ -203,6 +203,20 @@ def check_execution(exitcode, update=None):
 
     The first argument of the wrapped function **must** be a dictionary to
     contain information about the Lobster task.
+
+    Parameters
+    ----------
+    exitcode : int
+        The exit code with which the wrapper should quit when the decorated
+        function raises an exception.
+    update : dict
+        Update the dictionary passed to the decorated function as a first
+        parameter with this dictionary when the function raises an
+        exception.
+    timing : str
+        Update the dictionary passed to the decorated function by adding a
+        key `timing` with the seconds since UNIX epoch to the `task_timing`
+        sub-dictionary.
     """
     if update is None:
         update = {}
@@ -211,7 +225,7 @@ def check_execution(exitcode, update=None):
         def wrapper(data, *args, **kwargs):
             ecode = kwargs.pop('exitcode', exitcode)
             try:
-                fct(data, *args, **kwargs)
+                result = fct(data, *args, **kwargs)
             except Exception:
                 with mangler.output('trace'):
                     for l in traceback.format_exc().splitlines():
@@ -220,6 +234,10 @@ def check_execution(exitcode, update=None):
                 data.update(update)
                 logger.error("call to '{}' failed, exiting with exit code {}".format(fct.func_name, ecode))
                 sys.exit(ecode)
+            finally:
+                if timing:
+                    data['task_timing'][timing] = int(datetime.now().strftime('%s'))
+            return result
         return wrapper
     return decorator
 
@@ -299,12 +317,11 @@ def check_output(config, localname, remotename):
     return True
 
 
-@check_execution(exitcode=211, update={'stageout_exit_code': 211, 'output_size': 0})
+@check_execution(exitcode=211, update={'stageout_exit_code': 211, 'output_size': 0}, timing='stage_out_end')
 def check_outputs(data, config):
     for local, remote in config['output files']:
         if not check_output(config, local, remote):
             raise IOError("could not verify output file '{}'".format(remote))
-    data['task_timing']['stage_out_end'] = int(datetime.now().strftime('%s'))
 
 
 def check_parrot_cache(data):
@@ -331,7 +348,7 @@ def check_parrot_cache(data):
                     data['cache']['type'] = 0
 
 
-@check_execution(exitcode=179)
+@check_execution(exitcode=179, timing='stage_in_end')
 def copy_inputs(data, config, env):
     """Copies input files if desired.
 
@@ -511,10 +528,8 @@ def copy_inputs(data, config, env):
         for fn in config['mask']['files']:
             logger.debug(fn)
 
-    data['task_timing']['stage_in_end'] = int(datetime.now().strftime('%s'))
 
-
-@check_execution(exitcode=210, update={'stageout_exit_code': 210})
+@check_execution(exitcode=210, update={'stageout_exit_code': 210}, timing='stage_out_end')
 def copy_outputs(data, config, env):
     """Copy output files.
 
@@ -637,8 +652,6 @@ def copy_outputs(data, config, env):
 
     if len(target_se) > 0:
         data['output storager element'] = max(((se, target_se.count(se)) for se in set(target_se)), key=lambda (x, y): y)[0]
-
-    data['task_timing']['stage_out_end'] = int(datetime.now().strftime('%s'))
 
 
 def edit_process_source(pset, config):
@@ -815,7 +828,7 @@ def get_bare_size(filename):
     return size
 
 
-@check_execution(exitcode=185)
+@check_execution(exitcode=185, timing='processing_end')
 def run_command(data, config, env, monalisa):
     cmd = config['executable']
     args = config['arguments']
@@ -859,7 +872,6 @@ def run_command(data, config, env, monalisa):
         data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
         data['files']['output_info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
         data['cpu_time'] = usage.ru_stime
-    data['task_timing']['processing_end'] = int(datetime.now().strftime('%s'))
 
     if p.returncode != 0:
         raise subprocess.CalledProcessError
@@ -877,15 +889,14 @@ def run_step(data, config, env, name):
         # a non-zero return code.
         if p.returncode != 0:
             raise subprocess.CalledProcessError
-    data['task_timing']['{}_end'.format(name)] = int(datetime.now().strftime('%s'))
 
 
-@check_execution(exitcode=180)
+@check_execution(exitcode=180, timing='prologue_end')
 def run_prologue(data, config, env):
     run_step(data, config, env, 'prologue')
 
 
-@check_execution(exitcode=199)
+@check_execution(exitcode=199, timing='epilogue_end')
 def run_epilogue(data, config, env):
     with open('report.json', 'w') as f:
         json.dump(data, f, indent=2)

@@ -47,7 +47,7 @@ class FileSystem(object):
             for imp in FileSystem._defaults:
                 try:
                     return imp.fixresult(getattr(imp, attr)(*map(imp.lfn2pfn, args), **kwargs))
-                except (IOError, OSError) as e:
+                except imp.errors as e:
                     logger.debug(
                         "method {0} of {1} failed with {2}, using args {3}, {4}".format(attr, imp, e, args, kwargs))
                     lasterror = e
@@ -107,6 +107,10 @@ class StorageElement(object):
         self._pfnprefix = pfnprefix
         if not self._pfnprefix.endswith('/'):
             self._pfnprefix += '/'
+
+    @property
+    def errors(self):
+        return (IOError, OSError)
 
     def lfn2pfn(self, path):
         if path.startswith('/'):
@@ -193,6 +197,10 @@ class Hadoop(StorageElement):
     def __init__(self, host, port, pfnprefix='/hadoop'):
         super(Hadoop, self).__init__(pfnprefix)
         self.__c = snakebite.client.Client(host, int(port))
+
+    @property
+    def errors(self):
+        return (Exception,)
 
     def exists(self, path):
         try:

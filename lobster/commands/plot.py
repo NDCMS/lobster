@@ -785,8 +785,8 @@ class Plotter(object):
                  stats[:, headers['workers_idle']]),
                 (stats[:, headers['timestamp']],
                  stats[:, headers['workers_init']]),
-                (stats[:, headers['timestamp']], stats[
-                    :, headers['workers_connected']]),
+                (stats[:, headers['timestamp']],
+                 stats[:, headers['workers_connected']]),
                 (stats[:, headers['timestamp']],
                  stats[:, headers['workers_able']])
             ],

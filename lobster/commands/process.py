@@ -93,6 +93,7 @@ class Process(Command, util.Timing):
                             )
 
         if self.config.elk:
+            stats = self.queue.stats_hierarchy
             self.config.elk.index_stats(now, left, self.times, self.log_attributes, stats, category)
 
     def setup(self, argparser):

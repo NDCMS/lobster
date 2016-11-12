@@ -1308,8 +1308,7 @@ class Plotter(object):
             return summaries + \
                 [['Total'] + total + [
                     '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-                    '{} %'.format(
-                        round(total[-4] * 100. / total[-5] if total[-5] > 0 else 0, 1))
+                    '{} %'.format(round(total[-4] * 100. / total[-6] if total[-6] > 0 else 0, 1))
                 ]]
 
         for category in self.config.categories:

@@ -698,15 +698,17 @@ class UnitStore:
         return cur.fetchone()[0]
 
     def workflow_info(self, label):
-        cur = self.db.execute("""select workflow,
-            path,
-            release,
-            global_tag,
-            publish_label,
-            cfg,
-            pset_hash,
-            id,
-            uuid
+        cur = self.db.execute("""
+            select
+                dataset,
+                path,
+                release,
+                global_tag,
+                publish_label,
+                cfg,
+                pset_hash,
+                id,
+                uuid
             from workflows
             where label=?""", (label,))
 

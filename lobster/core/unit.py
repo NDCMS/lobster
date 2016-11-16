@@ -236,12 +236,10 @@ class UnitStore:
             foreign key(task) references tasks(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
-        self.db.execute(
-            "create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
-        self.db.execute(
-            "create index if not exists index_events_{0} on units_{0}(run, lumi)".format(label))
-        self.db.execute(
-            "create index if not exists index_files_{0} on units_{0}(file)".format(label))
+        self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
+        self.db.execute("create index if not exists index_events_{0} on units_{0}(run, lumi)".format(label))
+        self.db.execute("create index if not exists index_files_{0} on units_{0}(file)".format(label))
+        self.db.execute("create index if not exists index_task_{0} on units_{0}(task)".format(label))
         self.db.commit()
 
         self.register_files(dataset_info.files, label, unique_args)

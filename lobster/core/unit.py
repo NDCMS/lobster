@@ -900,27 +900,17 @@ class UnitStore:
 
             return res
 
-    def update_published(self, block):
-        unmerged = [(name, task) for (name, task, merge_task) in block]
-        unit_update = [task for (name, task, merge_task) in block]
-
+    def update_published(self, label, tasks, block):
+        update = [(block, t) for t in tasks]
         with self.db:
-            self.db.executemany("""update tasks
-                set status=6,
-                published_file_block=?
-                where id=?""", unmerged)
-
-            self.db.executemany("""update tasks
-                set status=6,
-                published_file_block=?
-                where task=?""", unmerged)
-
-            for task, workflow in self.db.execute("""
-                    select tasks.id, workflows.label
-                    from tasks, workflows
-                    where tasks.id in ({0}) and tasks.workflow=workflows.id""".format(", ".join(unit_update))):
-                self.db.execute(
-                    "update units_{0} set status=6 where task=?".format(workflow), (task,))
+            self.db.executemany("""
+                update tasks
+                set status=6, published_file_block=?
+                where id=?""", update)
+            self.db.executemany("""
+                update units_{}
+                set status=6
+                where task=?""".format(label), tasks)
 
     def successful_tasks(self, label):
         dset_id = self.db.execute(

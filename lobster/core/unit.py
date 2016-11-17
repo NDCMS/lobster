@@ -549,8 +549,8 @@ class UnitStore:
                 # update files in the workflow
                 if len(file_updates) > 0:
                     self.db.executemany("""update files_{0} set
-                        units_running=(select count(*) from units_{0} where status==1 and file=files_{0}.id),
-                        units_done=(select count(*) from units_{0} where status==2 and file=files_{0}.id),
+                        units_running=(select count(*) from units_{0} where file=files_{0}.id and status==1),
+                        units_done=(select count(*) from units_{0} where file=files_{0}.id and status==2),
                         events_read=(events_read + ?),
                         skipped=(skipped + ?)
                         where id=?""".format(dset),

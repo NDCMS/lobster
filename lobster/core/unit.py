@@ -200,7 +200,9 @@ class UnitStore:
                        units,
                        units_masked,
                        units_left,
-                       events)
+                       events,
+                       stop_on_file_boundary
+                       )
                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
             wflow.label,
             label,
@@ -355,8 +357,7 @@ class UnitStore:
 
             tasksize = int(math.ceil(tasksize * taper))
 
-            logger.debug(
-                "creating tasks with adjusted size {}".format(tasksize))
+            logger.debug("creating tasks with adjusted size {}".format(tasksize))
 
             rows = []
             for i in range(0, len(files), 40):
@@ -368,8 +369,7 @@ class UnitStore:
                     order by file
                     """.format(workflow, ', '.join('?' for _ in chunk)), chunk))
 
-            logger.debug("creating tasks from {} files, {} units".format(
-                len(files), len(rows)))
+            logger.debug("creating tasks from {} files, {} units".format(len(files), len(rows)))
 
             # files and lumis for individual tasks
             files = set()
@@ -416,6 +416,12 @@ class UnitStore:
                     current_size = 0
                     num -= 1
 
+                # We are done creating tasks here, *if* we are about to
+                # add the current unit to a new task, but have already
+                # created enough tasks.
+                if current_size == 0 and num <= 0:
+                    break
+
                 units.append((id, file, run, lumi))
                 files.add(file)
 
@@ -429,10 +435,6 @@ class UnitStore:
 
                     current_size = 0
                     num -= 1
-
-                if current_size == 0:
-                    if num <= 0:
-                        break
 
             if current_size > 0:
                 insert_task(files, units, arg)
@@ -703,7 +705,7 @@ class UnitStore:
                 units,
                 units - units_masked,
                 units_done,
-                ifnull((select sum(units_processed) from tasks where workflows=workflows.id and status=8 and type=0), 0),
+                ifnull((select sum(units_processed) from tasks where workflow=workflows.id and status=8 and type=0), 0),
                 units_paused,
                 '' || round(
                         units_done * 100.0 / units,

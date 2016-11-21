@@ -112,7 +112,7 @@ class TestSQLBackend(object):
         total_lumis = len(set(lumis))
         info.stop_on_file_boundary = (total_lumis != info.total_units)
 
-        return Workflow(label, None, sandbox_release=''), info
+        return Workflow(label, None), info
         # }}}
 
     def test_create_datasets(self):
@@ -186,15 +186,14 @@ class TestSQLBackend(object):
     def test_obtain_split(self):
         # {{{
         self.interface.register_dataset(
-            *self.create_dbs_dataset(
-                'test_obtain_split', lumis=20, filesize=2.2, tasksize=10))
+            *self.create_dbs_dataset('test_obtain_split', lumis=20, filesize=2.2, tasksize=10))
         (id, label, files, lumis, arg, _) = self.interface.pop_units('test_obtain_split', 1)[0]
 
-        (single_file_max,) = self.interface.db.execute(
-            "select single_file_max from workflows where label=?", ('test_obtain_split',)).fetchone()
+        (stop_on_file_boundary,) = self.interface.db.execute(
+            "select stop_on_file_boundary from workflows where label=?", ('test_obtain_split',)).fetchone()
 
         assert len(files) == 1
-        assert single_file_max == 1
+        assert stop_on_file_boundary == 1
         # }}}
 
     def test_return_good(self):
@@ -251,10 +250,11 @@ class TestSQLBackend(object):
     def test_return_good_split(self):
         # {{{
         self.interface.register_dataset(
-            *self.create_dbs_dataset(
-                'test_good_split', lumis=20, filesize=2.2, tasksize=6))
+            *self.create_dbs_dataset('test_good_split', lumis=20, filesize=2.2, tasksize=6))
 
-        (id, label, files, lumis, arg, _) = self.interface.pop_units('test_good_split', 1)[0]
+        tasks = self.interface.pop_units('test_good_split', 1)
+        assert(len(tasks) == 1)
+        (id, label, files, lumis, arg, _) = tasks[0]
 
         task_update = TaskUpdate(host='hostname', id=id)
         handler = TaskHandler(id, label, files, lumis, None, True)

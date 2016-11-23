@@ -404,7 +404,7 @@ class Workflow(Configurable):
             inputs.extend((r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in reports)
 
             if self.edm_output:
-                args = ['output=' + self.outputs[0]]
+                args = ['outputFile=' + self.outputs[0]]
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
             else:
                 cmd = 'hadd'

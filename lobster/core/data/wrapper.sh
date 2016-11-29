@@ -92,6 +92,9 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 
 	export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 	export PARROT_CACHE=${WORKER_TMPDIR:-${TMPDIR:-.}}
+	# Make sure that the cvmfs cache is actually shared, this can save
+	# up to 1 GB per task in disk usage.
+	export PARROT_CVMFS_ALIEN_CACHE=${PARROT_CACHE}/cvmfs
 	export PARROT_HELPER=$(readlink -f ${PARROT_PATH%bin*}lib/libparrot_helper.so)
 
 	log "parrot helper: $PARROT_HELPER"

@@ -57,6 +57,7 @@ class Mangler(logging.Formatter):
         chevron = '>' * (record.levelno / logging.DEBUG + 1)
         return fmt.format(chevron=chevron, message=record.msg, date=time.strftime("%c"), context=self.context)
 
+
 mangler = Mangler()
 
 console = logging.StreamHandler()
@@ -1014,6 +1015,7 @@ def write_zipfiles(data):
             zipf = gzip.open(filename + ".gz", "wb")
             zipf.writelines(f)
             zipf.close()
+
 
 data = {
     'files': {

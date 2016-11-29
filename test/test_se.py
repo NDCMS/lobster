@@ -69,6 +69,7 @@ class TestLocalPermissions(TestSE):
     def runTest(self):
         self.permissions('file://' + self.workdir)
 
+
 if 'LOBSTER_SKIP_HADOOP' not in os.environ:
     class TestHadoop(TestSE):
 
@@ -123,6 +124,7 @@ class TestFailure(TestSE):
 
     def runTest(self):
         self.query(['file:///fuckup', 'file://' + self.workdir])
+
 
 if __name__ == '__main__':
     unittest.main()

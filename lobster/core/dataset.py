@@ -39,6 +39,7 @@ class DatasetInfo(object):
     def __init__(self):
         self.file_based = False
         self.files = defaultdict(FileInfo)
+        self.stop_on_file_boundary = False
         self.tasksize = 1
         self.total_events = 0
         self.total_units = 0
@@ -93,6 +94,7 @@ class Dataset(Configurable):
 
 
 class EmptyDataset(Configurable):
+
     """
     Dataset specification for non-cmsRun workflows with no input files.
 
@@ -121,6 +123,7 @@ class EmptyDataset(Configurable):
 
 
 class ProductionDataset(Configurable):
+
     """
     Dataset specification for Monte-Carlo event generation.
 
@@ -167,6 +170,7 @@ class ProductionDataset(Configurable):
 
 
 class MultiProductionDataset(ProductionDataset):
+
     """
     Dataset specification for Monte-Carlo event generation from a set
     of gridpacks.
@@ -218,6 +222,7 @@ class MultiProductionDataset(ProductionDataset):
 
 
 class ParentDataset(Configurable):
+
     """
     Process the output of another workflow.
 

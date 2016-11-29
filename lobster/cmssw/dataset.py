@@ -205,6 +205,6 @@ class Dataset(Configurable):
             logger.debug("split lumis detected in {} - "
                          "{} unique (run, lumi) but "
                          "{} unique (run, lumi, file) - "
-                         "enforcing a limit of one file per task".format(dataset, total_lumis, result.total_units))
+                         "enforcing a limit of one file per task".format(self.dataset, total_lumis, result.total_units))
 
         return result

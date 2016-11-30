@@ -253,7 +253,7 @@ class AdvancedOptions(Configurable):
         self.full_monitoring = full_monitoring
         self.log_level = log_level
         self.payload = payload
-        self.proxy = proxy if proxy is None else cmssw.Proxy()
+        self.proxy = proxy if proxy is not None else cmssw.Proxy()
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries

@@ -111,7 +111,7 @@ class Dashboard(Monitor, util.Configurable):
         apmonFree()
 
     def send(self, taskid, params):
-        apmonSend(self._workflowid, taskid, params, logging, conf)
+        apmonSend(self._workflowid, taskid, params, logging.getLogger("MonaLisa"), conf)
 
     def setup(self, config):
         super(Dashboard, self).setup(config)

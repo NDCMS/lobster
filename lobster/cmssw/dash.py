@@ -45,10 +45,10 @@ conf = {
 }
 
 
-class DummyMonitor(object):
+class Monitor(object):
 
-    def __init__(self, workdir):
-        self._workflowid = util.checkpoint(workdir, 'id')
+    def setup(self, config):
+        self._workflowid = util.checkpoint(config.workdir, 'id')
 
     def generate_ids(self, taskid):
         return "dummy", "dummy"
@@ -63,34 +63,26 @@ class DummyMonitor(object):
     def update_task(self, id, status):
         pass
 
+    def update_tasks(self, queue, exclude):
+        pass
+
     def free(self):
         pass
 
 
-class Monitor(DummyMonitor):
+class Dashboard(Monitor, util.Configurable):
 
-    def __init__(self, workdir):
-        super(Monitor, self).__init__(workdir)
+    _mutable = {}
 
-        p = subprocess.Popen(["voms-proxy-info", "-identity"],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        id, err = p.communicate()
-        id = id.strip()
-        db = SiteDBJSON({'cacheduration': 24})
+    def __init__(self, interval=300, username=None, fullname=None):
+        self.interval = interval
+        self.__previous = 0
+        self.__states = {}
+        self.username = username if username else self.__get_user()
+        self.fullname = fullname if fullname else self.__get_distinguished_name().rsplit('/CN=', 1)[1]
 
-        self.__username = db.dnUserName(dn=id)
-        self.__fullname = id.rsplit('/CN=', 1)[1]
-        # self.__fullname = pwd.getpwnam(getpass.getuser())[4]
-        if util.checkpoint(workdir, "sandbox cmssw version"):
-            self.__cmssw_version = str(util.checkpoint(
-                workdir, "sandbox cmssw version"))
-        else:
-            self.__cmssw_version = 'Unknown'
-        if util.checkpoint(workdir, "executable"):
-            self.__executable = str(util.checkpoint(workdir, "executable"))
-        else:
-            self.__executable = 'Unknown'
+        self.__cmssw_version = 'Unknown'
+        self.__executable = 'Unknown'
 
         try:
             self._ce = loadSiteLocalConfig().siteName
@@ -99,13 +91,34 @@ class Monitor(DummyMonitor):
             self._ce = socket.getfqdn()
 
     def __del__(self):
-        self.free()
+        try:
+            self.free()
+        except Exception:
+            pass
+
+    def __get_distinguished_name(self):
+        p = subprocess.Popen(["voms-proxy-info", "-identity"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        id_, err = p.communicate()
+        return id_.strip()
+
+    def __get_user(self):
+        db = SiteDBJSON({'cacheduration': 24, 'logger': logging.getLogger("WMCore")})
+        return db.dnUserName(dn=self.__get_distinguished_name())
 
     def free(self):
         apmonFree()
 
     def send(self, taskid, params):
         apmonSend(self._workflowid, taskid, params, logging, conf)
+
+    def setup(self, config):
+        super(Dashboard, self).setup(config)
+        if util.checkpoint(config.workdir, "sandbox cmssw version"):
+            self.__cmssw_version = str(util.checkpoint(config.workdir, "sandbox cmssw version"))
+        if util.checkpoint(config.workdir, "executable"):
+            self.__executable = str(util.checkpoint(config.workdir, "executable"))
 
     def generate_ids(self, taskid):
         seid = 'https://{}/{}'.format(self._ce,
@@ -125,12 +138,12 @@ class Monitor(DummyMonitor):
             'SubmissionType': 'direct',
             'JSToolVersion': '3.2.1',
             'scheduler': 'work_queue',
-            'GridName': '/CN=' + self.__fullname,
+            'GridName': '/CN=' + self.fullname,
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
-            'CMSUser': self.__username,
-            'user': self.__username,
+            'CMSUser': self.username,
+            'user': self.username,
             'datasetFull': '',
             'resubmitter': 'user',
             'exe': self.__executable
@@ -152,12 +165,12 @@ class Monitor(DummyMonitor):
             'JSToolVersion': '3.2.1',
             'tool_ui': os.environ.get('HOSTNAME', ''),
             'scheduler': 'work_queue',
-            'GridName': '/CN=' + self.__fullname,
+            'GridName': '/CN=' + self.fullname,
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
-            'CMSUser': self.__username,
-            'user': self.__username,
+            'CMSUser': self.username,
+            'user': self.username,
             # 'datasetFull': self.datasetPath,
             'resubmitter': 'user',
             'exe': self.__executable
@@ -181,51 +194,28 @@ class Monitor(DummyMonitor):
             'RBname': 'condor'
         })
 
-
-class TaskStateChecker(object):
-
-    """
-    Check the task state  at a given time interval
-    """
-
-    def __init__(self, interval):
-        self._t_interval = interval
-        self._t_previous = 0
-        self._previous_states = {}
-
-    def report_in_interval(self, t_current):
-        """
-        Returns True if the lapse time between the current time
-        and the last time reported is greater than the interval time defined
-        """
-
-        report = t_current - self._t_previous >= self._t_interval \
-            if self._t_previous else True
-        return report
-
-    def update_dashboard_states(self, monitor, queue, exclude_states):
+    def update_tasks(self, queue, exclude):
         """
         Update dashboard states for all tasks.
         This is done only if the task status changed.
         """
-        t_current = time.time()
-        if self.report_in_interval(t_current):
-            self._t_previous = t_current
-            try:
-                ids_list = queue._task_table.keys()
-            except Exception:
-                raise
+        report = time.time() > self.__previous + self.interval
+        if not report:
+            return
+        with util.PartiallyMutable.unlock():
+            self.__previous = time.time()
 
-            for id in ids_list:
-                status = status_map[queue.task_state(id)]
-                status_new_or_changed = not self._previous_states.get(id) or \
-                    self._previous_states.get(id, status) != status
+        try:
+            ids = queue._task_table.keys()
+        except Exception:
+            raise
 
-                if status not in exclude_states and status_new_or_changed:
-                    try:
-                        monitor.update_task(id, status)
-                    except Exception:
-                        raise
+        for id_ in ids:
+            status = status_map[queue.task_state(id_)]
+            if status in exclude:
+                continue
+            if not self.__states.get(id_) or self.__states.get(id_, status) != status:
+                continue
 
-                if status_new_or_changed:
-                    self._previous_states.update({id: status})
+            self.update_task(id_, status)
+            self.__states.update({id_: status})

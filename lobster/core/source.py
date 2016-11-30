@@ -90,7 +90,7 @@ class ReleaseSummary(object):
 
 class TaskProvider(util.Timing):
 
-    def __init__(self, config, interval=300):
+    def __init__(self, config):
         util.Timing.__init__(self, 'dash', 'handler', 'updates', 'elk', 'transfers', 'cleanup', 'propagate', 'sqlite')
 
         self.config = config
@@ -105,10 +105,6 @@ class TaskProvider(util.Timing):
         self.parrot_lib = os.path.join(self.workdir, 'lib')
 
         self.__algo = Algo(config)
-
-        self.__dash = None
-        self.__dash_checker = dash.TaskStateChecker(interval)
-
         self.__host = socket.getfqdn()
         try:
             siteconf = loadSiteLocalConfig()
@@ -164,12 +160,6 @@ class TaskProvider(util.Timing):
             self.taskid = util.checkpoint(self.workdir, 'id')
             util.register_checkpoint(self.workdir, 'RESTARTED', str(datetime.datetime.utcnow()))
 
-        if self.config.advanced.use_dashboard and self.config.advanced.proxy:
-            logger.info("using dashboard with task id {0}".format(self.taskid))
-            monitor = dash.Monitor
-        else:
-            monitor = dash.DummyMonitor
-
         if not util.checkpoint(self.workdir, 'executable'):
             # We can actually have more than one exe name (one per task label)
             # Set 'cmsRun' if any of the tasks are of that type,
@@ -224,14 +214,13 @@ class TaskProvider(util.Timing):
             else:
                 self.config.elk.resume()
 
+        self.config.advanced.dashboard.setup(self.config)
         if create:
             self.config.save()
-            self.__dash = monitor(self.workdir)
-            self.__dash.register_run()
+            self.config.advanced.dashboard.register_run()
         else:
-            self.__dash = monitor(self.workdir)
             for id in self.__store.reset_units():
-                self.__dash.update_task(id, dash.ABORTED)
+                self.config.advanced.dashboard.update_task(id, dash.ABORTED)
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -358,7 +347,7 @@ class TaskProvider(util.Timing):
             inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
             outputs = [(os.path.join(jdir, f), f) for f in ['report.json']]
 
-            monitorid, syncid = self.__dash.register_task(id)
+            monitorid, syncid = self.config.advanced.dashboard.register_task(id)
 
             config = {
                 'mask': {
@@ -443,7 +432,7 @@ class TaskProvider(util.Timing):
 
         logger.info("creating task(s) {0}".format(", ".join(map(str, ids))))
 
-        self.__dash.free()
+        self.config.advanced.dashboard.free()
 
         return tasks
 
@@ -457,7 +446,7 @@ class TaskProvider(util.Timing):
 
         for task in tasks:
             with self.measure('dash'):
-                self.__dash.update_task(task.tag, dash.DONE)
+                self.config.advanced.dashboard.update_task(task.tag, dash.DONE)
 
             with self.measure('updates'):
                 handler = self.__taskhandlers[task.tag]
@@ -494,14 +483,14 @@ class TaskProvider(util.Timing):
                         input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
             with self.measure('dash'):
-                self.__dash.update_task(task.tag, dash.RETRIEVED)
+                self.config.advanced.dashboard.update_task(task.tag, dash.RETRIEVED)
 
             update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
 
             del self.__taskhandlers[task.tag]
 
         with self.measure('dash'):
-            self.__dash.free()
+            self.config.advanced.dashboard.free()
 
         if len(update) > 0:
             with self.measure('sqlite'):
@@ -537,7 +526,7 @@ class TaskProvider(util.Timing):
 
     def terminate(self):
         for id in self.__store.running_tasks():
-            self.__dash.update_task(str(id), dash.CANCELLED)
+            self.config.advanced.dashboard.update_task(str(id), dash.CANCELLED)
 
     def done(self):
         left = self.__store.unfinished_units()
@@ -546,18 +535,16 @@ class TaskProvider(util.Timing):
     def max_taskid(self):
         return self.__store.max_taskid()
 
-    def __update_dashboard(self, queue, exclude_states):
-        try:
-            self.__dash_checker.update_dashboard_states(self.__dash, queue, exclude_states)
-        except:
-            logger.warning("Could not update task states to dashboard")
-
     def update(self, queue):
         # update dashboard status for all unfinished tasks.
         # WAITING_RETRIEVAL is not a valid status in dashboard,
         # so skipping it for now.
         exclude_states = (dash.DONE, dash.WAITING_RETRIEVAL)
-        self.__update_dashboard(queue, exclude_states)
+        try:
+            self.config.advanced.dashboard.update_tasks(queue, exclude_states)
+        except Exception as e:
+            logger.warning("could not update task states to dashboard")
+            logger.exception(e)
 
     def update_paused(self):
         """Have the unit store updated the statistics for paused units.

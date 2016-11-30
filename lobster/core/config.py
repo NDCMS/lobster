@@ -158,8 +158,6 @@ class AdvancedOptions(Configurable):
 
     Parameters
     ----------
-        use_dashboard : bool
-            Use the CMS dashboard to report task status.
         abort_threshold : int
             After how many successful tasks outliers in runtime should be
             killed.
@@ -171,6 +169,9 @@ class AdvancedOptions(Configurable):
             workers.  As soon as a task returns with an exit code from this
             list, the worker it ran on will be blacklisted and no more
             tasks send to it.
+        dashboard : :class:`~lobster.cmssw.Dashboard`
+            Use the CMS dashboard to report task status.  Set or `False` to
+            disable.
         dump_core : bool
             Produce core dumps.  Useful to debug `WorkQueue`.
         email : str
@@ -214,10 +215,10 @@ class AdvancedOptions(Configurable):
     }
 
     def __init__(self,
-                 use_dashboard=True,
                  abort_threshold=10,
                  abort_multiplier=4,
                  bad_exit_codes=None,
+                 dashboard=None,
                  dump_core=False,
                  email=None,
                  full_monitoring=False,
@@ -239,16 +240,20 @@ class AdvancedOptions(Configurable):
                 raise AttributeError("No OSG version specified or in the environment.")
             self.osg_version = osg_location.rsplit('/', 3)[1]
 
-        self.use_dashboard = use_dashboard
         self.abort_threshold = abort_threshold
         self.abort_multiplier = abort_multiplier
         self.bad_exit_codes = bad_exit_codes if bad_exit_codes else [169]
+        self.dashboard = dashboard
+        if dashboard is None:
+            self.dashboard = cmssw.Dashboard()
+        elif not dashboard:
+            self.dashboard = cmssw.Monitor()
         self.dump_core = dump_core
         self.email = email
         self.full_monitoring = full_monitoring
         self.log_level = log_level
         self.payload = payload
-        self.proxy = proxy if proxy is not None else cmssw.Proxy()
+        self.proxy = proxy if proxy is None else cmssw.Proxy()
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries

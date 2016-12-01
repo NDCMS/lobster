@@ -659,14 +659,14 @@ class UnitStore:
         return unmerged == 0
 
     def estimate_tasks_left(self):
-        rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_available * 1. / tasksize, tasksize
+        rows = [ts for (ts,) in self.db.execute("""
+            select (units_available - units_running) * 1. / tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return 0
 
-        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
+        return sum(int(math.ceil(ntasks)) for ntasks in rows)
 
     def unfinished_units(self):
         cur = self.db.execute(

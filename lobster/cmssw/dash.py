@@ -72,14 +72,31 @@ class Monitor(object):
 
 class Dashboard(Monitor, util.Configurable):
 
+    """
+    Dashboard support for CMS.
+
+    Will send task information to the CMS dashboard for global monitoring.
+
+    Parameters
+    ----------
+    interval : int
+        The interval in which status updates for all tasks should be sent.
+    username : str or None
+        The CMS username, or `None` (the default) to look it up
+        automatically in the database.
+    commonname : str or None
+        The common/full name of the user, or `None` (the default) to obtain
+        it from the proxy information.
+    """
+
     _mutable = {}
 
-    def __init__(self, interval=300, username=None, fullname=None):
+    def __init__(self, interval=300, username=None, commonname=None):
         self.interval = interval
         self.__previous = 0
         self.__states = {}
         self.username = username if username else self.__get_user()
-        self.fullname = fullname if fullname else self.__get_distinguished_name().rsplit('/CN=', 1)[1]
+        self.commonname = commonname if commonname else self.__get_distinguished_name().rsplit('/CN=', 1)[1]
 
         self.__cmssw_version = 'Unknown'
         self.__executable = 'Unknown'
@@ -138,7 +155,7 @@ class Dashboard(Monitor, util.Configurable):
             'SubmissionType': 'direct',
             'JSToolVersion': '3.2.1',
             'scheduler': 'work_queue',
-            'GridName': '/CN=' + self.fullname,
+            'GridName': '/CN=' + self.commonname,
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',
@@ -165,7 +182,7 @@ class Dashboard(Monitor, util.Configurable):
             'JSToolVersion': '3.2.1',
             'tool_ui': os.environ.get('HOSTNAME', ''),
             'scheduler': 'work_queue',
-            'GridName': '/CN=' + self.fullname,
+            'GridName': '/CN=' + self.commonname,
             'ApplicationVersion': self.__cmssw_version,
             'taskType': 'analysis',
             'vo': 'cms',

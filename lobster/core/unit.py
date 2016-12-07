@@ -670,7 +670,7 @@ class UnitStore:
 
     def unfinished_units(self):
         cur = self.db.execute(
-            "select sum(units - units_done - units_paused) from workflows")
+            "select sum(units - units_done - units_paused - units_masked) from workflows")
         res = cur.fetchone()[0]
         return 0 if res is None else res
 

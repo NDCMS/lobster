@@ -32,9 +32,9 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=cctools-140-8e7d5576-cvmfs-40cf5bba
-      export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
-      export PATH=/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:$PATH
+      cctools=lobster-140-8e7d5576-cvmfs-40cf5bba
+      export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
+      export PATH=/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:$PATH
 
      For `tcsh` users these lines have to be adapted [#ftools]_.  You might
      want to add these lines to the shell startup file.
@@ -96,6 +96,6 @@ easy modification of the source::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools cctools-140-8e7d5576-cvmfs-40cf5bba
-    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/lib/python2.6/site-packages
-    setenv PATH /afs/crc.nd.edu/group/ccl/software/$cctools/x86_64/redhat6/bin:${PATH}
+    setenv cctools lobster-140-8e7d5576-cvmfs-40cf5bba
+    setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
+    setenv PATH /afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:${PATH}

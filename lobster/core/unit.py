@@ -776,11 +776,11 @@ class UnitStore:
                 (
                     (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
                     or
-                    units_done + units_paused == units
+                    units_done + units_paused + units_masked == units
                 )
                 and
                 (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
-                units_done + units_paused == units
+                units_done + units_masked + units_paused == units
             from workflows
             where label=?
         """, (bytes, workflow)).fetchone()

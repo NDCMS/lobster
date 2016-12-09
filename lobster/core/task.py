@@ -17,6 +17,7 @@ logger = logging.getLogger('lobster.cmssw.taskhandler')
 
 
 class TaskHandler(object):
+
     """
     Handles mapping of lumi sections to files etc.
     """
@@ -24,7 +25,7 @@ class TaskHandler(object):
     def __init__(self, id, dataset, files, lumis, outputs, taskdir, local=False):
         self._id = id
         self._dataset = dataset
-        self._files = [(id, file) for id, file in files]
+        self._files = [(i, file) for i, file in files]
         self._file_based = any([file_ is None or run < 0 or lumi < 0 for (_, file_, run, lumi) in lumis])
         self._units = lumis
         self.outputs = outputs
@@ -267,6 +268,7 @@ class TaskHandler(object):
 
 
 class MergeTaskHandler(TaskHandler):
+
     def __init__(self, id_, dataset, files, lumis, outputs, taskdir):
         super(MergeTaskHandler, self).__init__(id_, dataset, files, lumis, outputs, taskdir)
         self._local = True
@@ -279,6 +281,7 @@ class MergeTaskHandler(TaskHandler):
 
 
 class ProductionTaskHandler(TaskHandler):
+
     def __init__(self, id_, dataset, lumis, outputs, taskdir):
         super(ProductionTaskHandler, self).__init__(id_, dataset, [], lumis, outputs, taskdir)
         self._file_based = True
@@ -293,6 +296,7 @@ class ProductionTaskHandler(TaskHandler):
 
 
 class MultiProductionTaskHandler(ProductionTaskHandler):
+
     def __init__(self, id_, dataset, gridpacks, lumis, outputs, taskdir):
         super(ProductionTaskHandler, self).__init__(id_, dataset, gridpacks, lumis, outputs, taskdir)
         self._file_based = True

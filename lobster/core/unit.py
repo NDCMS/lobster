@@ -110,7 +110,8 @@ class UnitStore:
             publish_label text,
             release text,
             uuid text,
-            transfers text default '{}')""")
+            transfers text default '{}',
+            stop_on_file_boundary)""")
         self.db.execute("""create table if not exists tasks(
             bytes_bare_output int default 0 not null,
             bytes_output int default 0 not null,
@@ -165,6 +166,10 @@ class UnitStore:
             workdir_num_files int default 0 not null,
             foreign key(workflow) references workflows(id))""")
 
+        self.db.execute("create index if not exists index_w_label on workflows(label)")
+        self.db.execute("create index if not exists index_t_workflow on tasks(workflow, status)")
+        self.db.execute("create index if not exists index_t_workflowplus on tasks(workflow, status, type)")
+
         self.db.commit()
 
     def disconnect(self):
@@ -195,8 +200,10 @@ class UnitStore:
                        units,
                        units_masked,
                        units_left,
-                       events)
-                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
+                       events,
+                       stop_on_file_boundary
+                       )
+                       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
             wflow.label,
             label,
             wflow.label,
@@ -211,7 +218,8 @@ class UnitStore:
             dataset_info.total_units * len(unique_args),
             dataset_info.masked_units,
             dataset_info.total_units * len(unique_args),
-            dataset_info.total_events))
+            dataset_info.total_events,
+            getattr(dataset_info, 'stop_on_file_boundary', False)))
 
         self.db.execute("""create table if not exists files_{0}(
             id integer primary key autoincrement,
@@ -236,10 +244,10 @@ class UnitStore:
             foreign key(task) references tasks(id),
             foreign key(file) references files_{0}(id))""".format(label))
 
-        self.db.execute("create index if not exists index_filename_{0} on files_{0}(filename)".format(label))
-        self.db.execute("create index if not exists index_events_{0} on units_{0}(run, lumi)".format(label))
-        self.db.execute("create index if not exists index_files_{0} on units_{0}(file)".format(label))
-        self.db.execute("create index if not exists index_task_{0} on units_{0}(task)".format(label))
+        self.db.execute("create index if not exists index_f_filename_{0} on files_{0}(filename)".format(label))
+        self.db.execute("create index if not exists index_u_events_{0} on units_{0}(run, lumi)".format(label))
+        self.db.execute("create index if not exists index_u_files_{0} on units_{0}(file, status)".format(label))
+        self.db.execute("create index if not exists index_u_task_{0} on units_{0}(task)".format(label))
         self.db.commit()
 
         self.register_files(dataset_info.files, label, unique_args)
@@ -320,8 +328,8 @@ class UnitStore:
                 Factor to apply to the tasksize.
         """
         with self.db:
-            workflow_id, tasksize = self.db.execute(
-                "select id, tasksize from workflows where label=?",
+            workflow_id, tasksize, stop_on_file_boundary = self.db.execute(
+                "select id, tasksize, stop_on_file_boundary from workflows where label=?",
                 (workflow,)).fetchone()
 
             logger.debug(("creating {0} task(s) for workflow {1}:" +
@@ -349,8 +357,7 @@ class UnitStore:
 
             tasksize = int(math.ceil(tasksize * taper))
 
-            logger.debug(
-                "creating tasks with adjusted size {}".format(tasksize))
+            logger.debug("creating tasks with adjusted size {}".format(tasksize))
 
             rows = []
             for i in range(0, len(files), 40):
@@ -359,17 +366,14 @@ class UnitStore:
                     select id, file, run, lumi, arg, failed
                     from units_{0}
                     where file in ({1}) and status not in (1, 2, 6, 7, 8)
+                    order by file
                     """.format(workflow, ', '.join('?' for _ in chunk)), chunk))
 
-            logger.debug("creating tasks from {} files, {} units".format(
-                len(files), len(rows)))
+            logger.debug("creating tasks from {} files, {} units".format(len(files), len(rows)))
 
             # files and lumis for individual tasks
             files = set()
             units = []
-
-            # lumi veto to avoid duplicated processing
-            all_lumis = set()
 
             # task container and current task size
             tasks = []
@@ -377,8 +381,7 @@ class UnitStore:
 
             def insert_task(files, units, arg):
                 cur = self.db.cursor()
-                cur.execute(
-                    "insert into tasks(workflow, status, type) values (?, 1, 0)", (workflow_id,))
+                cur.execute("insert into tasks(workflow, status, type) values (?, 1, 0)", (workflow_id,))
                 task_id = cur.lastrowid
 
                 tasks.append((
@@ -390,24 +393,13 @@ class UnitStore:
                     False))
 
             for id, file, run, lumi, arg, failed in rows:
-                if (run, lumi, arg) in all_lumis:
-                    logger.debug("skipping already processed unit with "
-                                 "run {}, lumi {}, arg {}".format(run, lumi, arg))
-                    continue
-
                 if failed > self.config.advanced.threshold_for_failure:
                     logger.debug("skipping run {}, "
                                  "lumi {} "
                                  "with failure count {} "
                                  "exceeding `config.advanced.threshold_for_failure={}`".format(
-                                     run, lumi, failed, self.config.advanced.threshold_for_failure
-                                 )
-                                 )
+                                     run, lumi, failed, self.config.advanced.threshold_for_failure))
                     continue
-
-                if current_size == 0:
-                    if num <= 0:
-                        break
 
                 if failed == self.config.advanced.threshold_for_failure:
                     logger.debug("creating isolation task for run {}, lumi {} with failure count {}".format(
@@ -415,32 +407,23 @@ class UnitStore:
                     insert_task([file], [(id, file, run, lumi)], arg)
                     continue
 
-                if lumi > 0:
-                    all_lumis.add((run, lumi, arg))
-                    if arg is not None:
-                        cursor = self.db.execute("""
-                            select id, file, run, lumi
-                            from units_{0}
-                            where
-                                run=? and lumi=? and arg=? and
-                                status not in (1, 2, 6, 7, 8) and
-                                failed < ?""".format(workflow),
-                                                 (run, lumi, arg, self.config.advanced.threshold_for_failure))
-                    else:
-                        cursor = self.db.execute("""
-                            select id, file, run, lumi
-                            from units_{0}
-                            where
-                                run=? and lumi=? and
-                                status not in (1, 2, 6, 7, 8) and
-                                failed < ?""".format(workflow),
-                                                 (run, lumi, self.config.advanced.threshold_for_failure))
-                    for (ls_id, ls_file, ls_run, ls_lumi) in cursor:
-                        units.append((ls_id, ls_file, ls_run, ls_lumi))
-                        files.add(ls_file)
-                else:
-                    units.append((id, file, run, lumi))
-                    files.add(file)
+                if stop_on_file_boundary and (len(files) == 1) and (file not in files):
+                    insert_task(files, units, arg)
+
+                    files = set()
+                    units = []
+
+                    current_size = 0
+                    num -= 1
+
+                # We are done creating tasks here, *if* we are about to
+                # add the current unit to a new task, but have already
+                # created enough tasks.
+                if current_size == 0 and num <= 0:
+                    break
+
+                units.append((id, file, run, lumi))
+                files.add(file)
 
                 current_size += 1
 
@@ -549,8 +532,8 @@ class UnitStore:
                 # update files in the workflow
                 if len(file_updates) > 0:
                     self.db.executemany("""update files_{0} set
-                        units_running=(select count(*) from units_{0} where status==1 and file=files_{0}.id),
-                        units_done=(select count(*) from units_{0} where status==2 and file=files_{0}.id),
+                        units_running=(select count(*) from units_{0} where file=files_{0}.id and status==1),
+                        units_done=(select count(*) from units_{0} where file=files_{0}.id and status==2),
                         events_read=(events_read + ?),
                         skipped=(skipped + ?)
                         where id=?""".format(dset),
@@ -607,7 +590,7 @@ class UnitStore:
                         avg((time_epilogue_end - time_stage_in_end) * 1. / units),
                         1
                     )
-                from tasks where status in (2, 6, 7, 8) and workflow=? and type=0""", (id,)).fetchone()
+                from tasks where workflow=? and status in (2, 6, 7, 8) and type=0""", (id,)).fetchone()
 
             if tasks > 10:
                 bettersize = max(1, int(math.ceil(targettime / unittime)))
@@ -639,8 +622,8 @@ class UnitStore:
                         select count(*)
                         from units_{0}
                         where
-                            (failed > ? or file in (select id from files_{0} where skipped >= ?))
-                            and status in (0, 3, 4)
+                            (file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)) or
+                            (failed > ? and status in (0, 3, 4))
                     ), 0) + ?
             where label=?""".format(label),
                         (self.config.advanced.threshold_for_failure,
@@ -650,7 +633,7 @@ class UnitStore:
         self.db.execute("""
             update workflows set
                 units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + (units_paused - ?)),
-                units_left=units - (units_running + units_done + units_paused)
+                units_left=units - (units_masked + units_running + units_done + units_paused)
             where label=?""".format(label), (parent_paused, label))
 
         if self.db.execute("select units_paused from workflows where label=?", (label,)).fetchone()[0] > 0:
@@ -676,18 +659,18 @@ class UnitStore:
         return unmerged == 0
 
     def estimate_tasks_left(self):
-        rows = [xs for xs in self.db.execute("""
-            select label, id, units_left, units_available * 1. / tasksize, tasksize
+        rows = [ts for (ts,) in self.db.execute("""
+            select (units_available - units_running) * 1. / tasksize
             from workflows
             where units_left > 0""")]
         if len(rows) == 0:
             return 0
 
-        return sum(int(math.ceil(tasks)) for _, _, _, tasks, _ in rows)
+        return sum(int(math.ceil(ntasks)) for ntasks in rows)
 
     def unfinished_units(self):
         cur = self.db.execute(
-            "select sum(units - units_done - units_paused) from workflows")
+            "select sum(units - units_done - units_paused - units_masked) from workflows")
         res = cur.fetchone()[0]
         return 0 if res is None else res
 
@@ -717,18 +700,22 @@ class UnitStore:
             select
                 label,
                 events,
-                ifnull((select sum(events_read) from tasks where status in (2, 6, 7, 8) and type = 0 and workflow = workflows.id), 0),
-                ifnull((select sum(events_written) from tasks where status in (2, 6, 7, 8) and type = 0 and workflow = workflows.id), 0),
+                ifnull((select sum(events_read) from tasks where workflow=workflows.id and status in (2, 6, 7, 8) and type=0), 0),
+                ifnull((select sum(events_written) from tasks where workflow=workflows.id and status in (2, 6, 7, 8) and type=0), 0),
                 units,
                 units - units_masked,
                 units_done,
-                ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0),
+                ifnull((select sum(units_processed) from tasks where workflow=workflows.id and status=8 and type=0), 0),
                 units_paused,
                 '' || round(
-                        units_done * 100.0 / units,
+                        units_done * 100.0 / (units - units_masked),
                     1) || ' %',
                 '' || ifnull(round(
-                        ifnull((select sum(units_processed) from tasks where status = 8 and type = 0 and workflow = workflows.id), 0) * 100.0 / units,
+                        ifnull((
+                            select sum(units_processed)
+                            from tasks
+                            where workflow=workflows.id and status=8 and type=0
+                        ), 0) * 100.0 / (units - units_masked),
                     1), 0.0) || ' %'
             from workflows""")
 
@@ -793,11 +780,11 @@ class UnitStore:
                 (
                     (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
                     or
-                    units_done + units_paused == units
+                    units_done + units_paused + units_masked == units
                 )
                 and
                 (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
-                units_done + units_paused == units
+                units_done + units_masked + units_paused == units
             from workflows
             where label=?
         """, (bytes, workflow)).fetchone()
@@ -834,8 +821,8 @@ class UnitStore:
             rows = self.db.execute("""
                 select id, units, bytes_bare_output
                 from tasks
-                where status=? and workflow=? and type=0
-                order by bytes_bare_output desc""", (SUCCESSFUL, dset_id)).fetchall()
+                where workflow=? and status=? and type=0
+                order by bytes_bare_output desc""", (dset_id, SUCCESSFUL)).fetchall()
 
             # If we don't have enough rows, or the smallest two tasks can't be
             # merge, set this up so that the loop below is not evaluted and we
@@ -873,7 +860,7 @@ class UnitStore:
 
             if len(merges) == 0 and units_complete:
                 rows = self.db.execute(
-                    """select count(*) from tasks where status=1 and workflow=?""", (dset_id,)).fetchone()
+                    """select count(*) from tasks where workflow=? and status=1""", (dset_id,)).fetchone()
                 if rows[0] == 0:
                     logger.debug("fully merged {0}".format(workflow))
                     self.db.execute(
@@ -919,7 +906,7 @@ class UnitStore:
         cur = self.db.execute("""
             select id, type
             from tasks
-            where status=2 and workflow=?
+            where and workflow=? and status=2
             """, (dset_id,))
 
         return cur
@@ -930,7 +917,7 @@ class UnitStore:
 
         cur = self.db.execute("""select id, type
             from tasks
-            where status=8 and workflow=?
+            where workflow=? and status=8
             """, (dset_id,))
 
         return cur
@@ -987,11 +974,13 @@ class UnitStore:
         for label, files in infos.items():
             for i in range(0, len(files), 999):
                 chunk = list(files)[i:i + 999]
-                res.extend(self.db.execute("""select filename
-                    from files_{0}
-                    where id in ({1})
-                    and (units_done == units)""".format(label, ', '.join('?' for _ in chunk)), tuple(chunk))
-                           )
+                res.extend(
+                    self.db.execute(
+                        """select filename
+                        from files_{0}
+                        where id in ({1}) and (units_done == units)""".format(label, ', '.join('?' for _ in chunk)), tuple(chunk)
+                    )
+                )
 
         return (x[0] for x in res)
 

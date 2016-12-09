@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import math
 import os
@@ -41,16 +42,22 @@ class Cache(object):
     def __init__(self):
         self.cachedir = xdg.BaseDirectory.save_cache_path('lobster')
 
-    def cache(self, name, baseinfo, dataset):
+    def __cachename(self, name, mask):
+        m = hashlib.sha256()
+        m.update(name)
+        if mask:
+            m.update(mask)
+        return os.path.join(self.cachedir,
+                            "{}-{}.pkl".format(name.strip('/').split('/')[0], m.hexdigest()))
+
+    def cache(self, name, mask, baseinfo, dataset):
         logger.debug("writing dataset '{}' to cache".format(name))
-        cache = os.path.join(self.cachedir, name.replace('/', ':')) + '.pkl'
-        with open(cache, 'wb') as fd:
+        with open(self.__cachename(name, mask), 'wb') as fd:
             pickle.dump((baseinfo, dataset), fd)
 
-    def cached(self, name, baseinfo):
-        cache = os.path.join(self.cachedir, name.replace('/', ':')) + '.pkl'
+    def cached(self, name, mask, baseinfo):
         try:
-            with open(cache, 'rb') as fd:
+            with open(self.__cachename(name, mask), 'rb') as fd:
                 info, dset = pickle.load(fd)
                 if baseinfo == info:
                     logger.debug("retrieved dataset '{}' from cache".format(name))
@@ -132,8 +139,7 @@ class Dataset(Configurable):
         if self.dataset not in Dataset.__dsets:
             if self.lumi_mask:
                 self.lumi_mask = self.__get_mask(self.lumi_mask)
-            res = self.query_database(
-                self.dataset, self.lumi_mask, self.file_based)
+            res = self.query_database()
 
             if self.events_per_task:
                 if res.total_events > 0:
@@ -148,47 +154,57 @@ class Dataset(Configurable):
         self.total_units = Dataset.__dsets[self.dataset].total_units
         return Dataset.__dsets[self.dataset]
 
-    def query_database(self, dataset, mask, file_based):
+    def query_database(self):
         cred = Proxy({'logger': logging.getLogger("WMCore")})
         dbs = DASWrapper(self.dbs_instance, ca_info=cred.getProxyFilename())
 
-        baseinfo = dbs.listFileSummaries(dataset=dataset)
+        baseinfo = dbs.listFileSummaries(dataset=self.dataset)
         if baseinfo is None or (len(baseinfo) == 1 and baseinfo[0] is None):
-            raise ValueError('unable to retrive information for dataset {}'.format(dataset))
+            raise ValueError('unable to retrive information for dataset {}'.format(self.dataset))
 
-        result = self.__cache.cached(dataset, baseinfo)
-        if result:
-            return result
+        if not self.file_based:
+            result = self.__cache.cached(self.dataset, self.lumi_mask, baseinfo)
+            if result:
+                return result
+        total_lumis = sum([info['num_lumi'] for info in baseinfo])
 
         result = DatasetInfo()
         result.total_events = sum([info['num_event'] for info in baseinfo])
 
-        for info in dbs.listFiles(dataset=dataset, detail=True):
+        for info in dbs.listFiles(dataset=self.dataset, detail=True):
             fn = info['logical_file_name']
             result.files[fn].events = info['event_count']
             result.files[fn].size = info['file_size']
 
-        if file_based:
-            for info in dbs.listFiles(dataset=dataset):
+        if self.file_based:
+            for info in dbs.listFiles(dataset=self.dataset):
                 fn = info['logical_file_name']
                 result.files[fn].lumis = [(-2, -2)]
         else:
-            blocks = dbs.listBlocks(dataset=dataset)
-            if mask:
-                unmasked_lumis = LumiList(filename=mask)
+            blocks = dbs.listBlocks(dataset=self.dataset)
+            if self.lumi_mask:
+                unmasked_lumis = LumiList(filename=self.lumi_mask)
             for block in blocks:
                 runs = dbs.listFileLumis(block_name=block['block_name'])
                 for run in runs:
                     fn = run['logical_file_name']
                     for lumi in run['lumi_section_num']:
-                        if not mask or ((run['run_num'], lumi) in unmasked_lumis):
+                        if not self.lumi_mask or ((run['run_num'], lumi) in unmasked_lumis):
                             result.files[fn].lumis.append((run['run_num'], lumi))
-                        elif mask and ((run['run_num'], lumi) not in unmasked_lumis):
+                        elif self.lumi_mask and ((run['run_num'], lumi) not in unmasked_lumis):
                             result.masked_units += 1
 
         result.unmasked_units = sum([len(f.lumis) for f in result.files.values()])
         result.total_units = result.unmasked_units + result.masked_units
 
-        self.__cache.cache(dataset, baseinfo, result)
+        if not self.file_based:
+            self.__cache.cache(self.dataset, self.lumi_mask, baseinfo, result)
+
+        result.stop_on_file_boundary = (result.total_units != total_lumis)
+        if result.stop_on_file_boundary:
+            logger.debug("split lumis detected in {} - "
+                         "{} unique (run, lumi) but "
+                         "{} unique (run, lumi, file) - "
+                         "enforcing a limit of one file per task".format(self.dataset, total_lumis, result.total_units))
 
         return result

@@ -381,7 +381,7 @@ def register_checkpoint(workdir, key, value):
 def sendemail(emailmsg, config):
     you = config.advanced.email
     if you:
-        msg = MIMEText(emailmsg + "\n\n" + "workdir: " + config.workdir + "\n" + "plotdir: " + config.plotdir + "\n\n" + "From Notre Dame Lobster Team")
+        msg = MIMEText(emailmsg + "\n\n" + "workdir: " + config.workdir + "\n" + "plotdir: " + config.plotdir + "\n\n" + "From the Notre Dame Lobster Team")
         me = you
         msg['Subject'] = 'Notre Dame Lobster -- No Reply'
         msg['From'] = me

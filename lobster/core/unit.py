@@ -633,7 +633,7 @@ class UnitStore:
         self.db.execute("""
             update workflows set
                 units_available=ifnull((select count(*) from units_{0}), 0) - (units_running + units_done + (units_paused - ?)),
-                units_left=units - (units_running + units_done + units_paused)
+                units_left=units - (units_masked + units_running + units_done + units_paused)
             where label=?""".format(label), (parent_paused, label))
 
         if self.db.execute("select units_paused from workflows where label=?", (label,)).fetchone()[0] > 0:
@@ -670,7 +670,7 @@ class UnitStore:
 
     def unfinished_units(self):
         cur = self.db.execute(
-            "select sum(units - units_done - units_paused) from workflows")
+            "select sum(units - units_done - units_paused - units_masked) from workflows")
         res = cur.fetchone()[0]
         return 0 if res is None else res
 
@@ -708,10 +708,14 @@ class UnitStore:
                 ifnull((select sum(units_processed) from tasks where workflow=workflows.id and status=8 and type=0), 0),
                 units_paused,
                 '' || round(
-                        units_done * 100.0 / units,
+                        units_done * 100.0 / (units - units_masked),
                     1) || ' %',
                 '' || ifnull(round(
-                        ifnull((select sum(units_processed) from tasks where workflow=workflows.id and status=8 and type=0), 0) * 100.0 / units,
+                        ifnull((
+                            select sum(units_processed)
+                            from tasks
+                            where workflow=workflows.id and status=8 and type=0
+                        ), 0) * 100.0 / (units - units_masked),
                     1), 0.0) || ' %'
             from workflows""")
 
@@ -776,11 +780,11 @@ class UnitStore:
                 (
                     (select sum(bytes_bare_output) from tasks where workflow=workflows.id and status=2) > ?
                     or
-                    units_done + units_paused == units
+                    units_done + units_paused + units_masked == units
                 )
                 and
                 (select count(*) from tasks where workflow=workflows.id and status=2) > 0,
-                units_done + units_paused == units
+                units_done + units_masked + units_paused == units
             from workflows
             where label=?
         """, (bytes, workflow)).fetchone()

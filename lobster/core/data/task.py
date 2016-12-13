@@ -586,6 +586,7 @@ def copy_outputs(data, config, env):
                         logger.critical(e)
                         data['transfers']['file']['stageout failure'] += 1
             elif output.startswith('srm://') or output.startswith('gsiftp://'):
+                protocol = output[:output.find(':')]
                 prg = []
                 if len(os.environ["LOBSTER_LCG_CP"]) > 0 and output.startswith('srm://'):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
@@ -594,6 +595,7 @@ def copy_outputs(data, config, env):
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
 
                 if len(prg) < 1:
+                    data['transfers'][protocol]['stageout failure'] += 1
                     continue
 
                 args = prg + [
@@ -617,10 +619,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
-                    data['transfers']['srm']['stageout success'] += 1
+                    data['transfers'][protocol]['stageout success'] += 1
                     break
                 else:
-                    data['transfers']['srm']['failure'] += 1
+                    data['transfers'][protocol]['failure'] += 1
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 

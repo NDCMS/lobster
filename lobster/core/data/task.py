@@ -593,32 +593,34 @@ def copy_outputs(data, config, env):
                     # FIXME gfal is very picky about its environment
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
 
-                if len(prg) > 0:
-                    args = prg + [
-                        "file://" + os.path.join(os.getcwd(), localname),
-                        os.path.join(output, remotename)
-                    ]
+                if len(prg) < 1:
+                    continue
 
-                    pruned_env = dict(env)
-                    for k in ['LD_LIBRARY_PATH', 'PATH']:
-                        pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+                args = prg + [
+                    "file://" + os.path.join(os.getcwd(), localname),
+                    os.path.join(output, remotename)
+                ]
 
-                    ldpath = pruned_env.get('LD_LIBRARY_PATH', '')
-                    if ldpath != '':
-                        ldpath += ':'
-                    ldpath += os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
-                    pruned_env['LD_LIBRARY_PATH'] = ldpath
+                pruned_env = dict(env)
+                for k in ['LD_LIBRARY_PATH', 'PATH']:
+                    pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
 
-                    p = run_subprocess(args, env=pruned_env)
-                    if p.returncode == 0 and check_output(config, localname, remotename):
-                        transferred.append(localname)
-                        match = server_re.match(args[-1])
-                        if match:
-                            target_se.append(match.group(1))
-                        data['transfers']['srm']['stageout success'] += 1
-                        break
-                    else:
-                        data['transfers']['srm']['stageout failure'] += 1
+                ldpath = pruned_env.get('LD_LIBRARY_PATH', '')
+                if ldpath != '':
+                    ldpath += ':'
+                ldpath += os.path.join(os.path.dirname(os.path.dirname(prg[0])), 'lib64')
+                pruned_env['LD_LIBRARY_PATH'] = ldpath
+
+                p = run_subprocess(args, env=pruned_env)
+                if p.returncode == 0 and check_output(config, localname, remotename):
+                    transferred.append(localname)
+                    match = server_re.match(args[-1])
+                    if match:
+                        target_se.append(match.group(1))
+                    data['transfers']['srm']['stageout success'] += 1
+                    break
+                else:
+                    data['transfers']['srm']['failure'] += 1
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 

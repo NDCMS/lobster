@@ -587,7 +587,7 @@ def copy_outputs(data, config, env):
                         data['transfers']['file']['stageout failure'] += 1
             elif output.startswith('srm://') or output.startswith('gsiftp://'):
                 prg = []
-                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and not output.startswith('gsiftp://'):
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and output.startswith('srm://'):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment

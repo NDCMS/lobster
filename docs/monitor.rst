@@ -46,6 +46,7 @@ Code  Reason
 172   Failed to find old releasetop
 173   Failed to create new release area
 174   `cmsenv` failure
+175   Failed to source the environment (may be parrot related)
 179   Stagein failure
 180   Prologue failure
 185   Failed to run command

@@ -593,8 +593,7 @@ def copy_outputs(data, config, env):
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
-
-                if len(prg) < 1:
+                else:
                     data['transfers'][protocol]['stageout failure'] += 1
                     continue
 

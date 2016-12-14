@@ -586,12 +586,16 @@ def copy_outputs(data, config, env):
                         logger.critical(e)
                         data['transfers']['file']['stageout failure'] += 1
             elif output.startswith('srm://') or output.startswith('gsiftp://'):
+                protocol = output[:output.find(':')]
                 prg = []
-                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and not output.startswith('gsiftp://'):
+                if len(os.environ["LOBSTER_LCG_CP"]) > 0 and output.startswith('srm://'):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
                     prg = [os.environ["LOBSTER_GFAL_COPY"]]
+                else:
+                    data['transfers'][protocol]['stageout failure'] += 1
+                    continue
 
                 args = prg + [
                     "file://" + os.path.join(os.getcwd(), localname),
@@ -614,10 +618,10 @@ def copy_outputs(data, config, env):
                     match = server_re.match(args[-1])
                     if match:
                         target_se.append(match.group(1))
-                    data['transfers']['srm']['stageout success'] += 1
+                    data['transfers'][protocol]['stageout success'] += 1
                     break
                 else:
-                    data['transfers']['srm']['stageout failure'] += 1
+                    data['transfers'][protocol]['failure'] += 1
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 

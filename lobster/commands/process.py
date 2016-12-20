@@ -242,6 +242,7 @@ class Process(Command, util.Timing):
             if 'wall_time' not in constraints:
                 self.queue.activate_fast_abort_category(category.name, abort_multiplier)
 
+        proxy_email_sent = False
         while not self.source.done():
             with self.measure('status'):
                 tasks_left = self.source.tasks_left()
@@ -276,10 +277,10 @@ class Process(Command, util.Timing):
                 if self.config.advanced.proxy:
                     expiry = self.config.advanced.proxy.expires()
                     proxy_time_left = self.config.advanced.proxy.time_left()
-                    if proxy_time_left < 24 * 3600:
-                        _ = proxy_time_left
-                        util.sendemail("Your proxy is about to expire.\n Timeleft {0}:{1:02}\n".format(_ / 3600, _ / 60) + str(_), self.config)
-                    
+                    if proxy_time_left < 200 * 3600 & not proxy_email_sent:  
+                        util.sendemail("Your proxy is about to expire.\n" + "Timeleft: " + str(datetime.timedelta(seconds = proxy_time_left)), self.config)
+                        proxy_email_sent = True
+
                 for category, cmd, id, inputs, outputs, env, dir in tasks:
                     task = wq.Task(cmd)
                     task.specify_category(category)

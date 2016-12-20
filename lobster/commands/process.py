@@ -277,7 +277,9 @@ class Process(Command, util.Timing):
                 if self.config.advanced.proxy:
                     expiry = self.config.advanced.proxy.expires()
                     proxy_time_left = self.config.advanced.proxy.time_left()
-                    if proxy_time_left < 200 * 3600 & not proxy_email_sent:  
+                    if proxy_time_left >= 24 * 3600: 
+                        proxy_email_sent = False
+                    if proxy_time_left < 24 * 3600 and not proxy_email_sent:  
                         util.sendemail("Your proxy is about to expire.\n" + "Timeleft: " + str(datetime.timedelta(seconds = proxy_time_left)), self.config)
                         proxy_email_sent = True
 

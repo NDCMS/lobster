@@ -275,7 +275,11 @@ class Process(Command, util.Timing):
                 expiry = None
                 if self.config.advanced.proxy:
                     expiry = self.config.advanced.proxy.expires()
-
+                    proxy_time_left = self.config.advanced.proxy.time_left()
+                    if proxy_time_left < 24 * 3600:
+                        _ = proxy_time_left
+                        util.sendemail("Your proxy is about to expire.\n Timeleft {0}:{1:02}\n".format(_ / 3600, _ / 60) + str(_), self.config)
+                    
                 for category, cmd, id, inputs, outputs, env, dir in tasks:
                     task = wq.Task(cmd)
                     task.specify_category(category)

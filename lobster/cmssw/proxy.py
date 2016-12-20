@@ -60,3 +60,6 @@ class Proxy(Configurable):
 
     def expires(self):
         return int(time.time()) + self.__proxy.getTimeLeft()
+
+    def time_left(self):
+        return self.__proxy.getTimeLeft()

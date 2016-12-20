@@ -555,16 +555,10 @@ class UnitStore:
         """
         if roots is None:
             roots = [w for w in self.config.workflows if not w.parent]
-        for r in roots:
-            merged, paused = self.db.execute(
-                "select merged, units_paused from workflows where label=?", (r.label,)).fetchone()
-            if paused > 0:
-                for m in r.family():
-                    self.db.execute(
-                        "update workflows set merged=0 where label=?", (m.label,))
-                    self.update_workflow_stats(m.label)
-            elif len(r.dependents) > 0:
-                self.update_workflow_stats(r.dependents)
+        with self.db:
+            for m in [r.family for r in roots]:
+                self.db.execute("update workflows set merged=0 where label=?", (m.label,))
+                self.update_workflow_stats(m.label)
 
     def update_workflow_runtime(self, updates):
         """Update workflow runtimes in the database.

@@ -148,8 +148,6 @@ rel=$(echo CMSSW_*)
 arch=$(ls $rel/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
 old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment) || exit_on_error $? 172 "Failed to determine old releasetop!"
 
-export SCRAM_ARCH=$arch
-
 log "creating new release $rel"
 mkdir lobster_release_tmp || exit_on_error $? 173 "Failed to create temporary directory"
 cd lobster_release_tmp
@@ -157,12 +155,11 @@ scramv1 project -f CMSSW $rel || exit_on_error $? 173 "Failed to create new rele
 new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
 cd $rel
 log "preparing sandbox release $rel"
-for i in bin cfipython config lib module python src; do
+for i in bin cfipython lib module python src; do
 	rm -rf "$i"
 	mv "$basedir/$rel/$i" .
 	# ls -lR $i
 done
-
 
 log "fixing python paths"
 for f in $(find -iname __init__.py); do

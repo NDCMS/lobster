@@ -364,7 +364,24 @@ class Workflow(Configurable):
     def setup(self, workdir, basedirs):
         self.workdir = os.path.join(workdir, self.label)
 
-        self.version, self.sandbox = self.sandbox.package(basedirs, workdir)
+        if hasattr(self.sandbox, '__iter__'):
+            boxes = self.sandbox
+        else:
+            boxes = [self.sandbox]
+
+        versions = set()
+        archs = set()
+        self.sandboxes = []
+        for box in boxes:
+            version, arch, sandbox = box.package(basedirs, workdir)
+            versions.add(version)
+            if arch in archs:
+                raise AttributeError("More than one sandbox supplied for the same architecture!")
+            archs.add(arch)
+            self.sandboxes.append(sandbox)
+        if len(versions) > 1:
+            raise AttributeError("More than one CMSSW version specified!")
+        self.version = versions.pop()
 
         self.copy_inputs(basedirs)
         if self.pset and self.outputs is None:
@@ -392,12 +409,17 @@ class Workflow(Configurable):
             outfn = self.output_format.format(base=base, ext=ext[1:], id=id)
             yield fn, os.path.join(self.label, outfn)
 
-    def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
+    def adjust(self, params, env, taskdir, inputs, outputs, merge, reports=None, unique=None):
         cmd = self.command
         args = self.arguments[:]
         pset = os.path.basename(self.pset) if self.pset else self.pset
 
-        inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
+        env['LOBSTER_CMSSW_VERSION'] = self.version
+
+        for box in self.sandboxes:
+            # Remove the hash from the sandbox name
+            cleaned = os.path.basename(box).rsplit('-', 1)[0] + '.tar.bz2'
+            inputs.append((box, cleaned, True))
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))

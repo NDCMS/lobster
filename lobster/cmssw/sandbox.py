@@ -1,6 +1,8 @@
 import fnmatch
+import glob
 import hashlib
 import logging
+import re
 import os
 import shutil
 import tarfile
@@ -45,13 +47,13 @@ class Sandbox(lobster.core.Sandbox):
                 raise AttributeError("Need to be either in a `cmsenv` or specify a sandbox release!")
         self.include = include or []
 
-    def __release2filename(self, rel):
+    def __release2filename(self, indir, rel, arch):
         """Returns a filename for a given release top, i.e., the file system
         path of a release.
         """
         p = os.path.abspath(os.path.expandvars(os.path.expanduser(rel)))
-        v = os.path.split(p)[1]
-        return "sandbox-{v}-{d}.tar.bz2".format(v=v, d=hashlib.sha1(p).hexdigest()[:7])
+        version = arch.split('_', 1)[0]
+        return "sandbox-{r}-{v}-{d}.tar.bz2".format(r=rel, v=version, d=hashlib.sha1(p).hexdigest()[:7])
 
     def __dontpack(self, fn):
         res = ('/.' in fn and '/.SCRAM' not in fn) or '/CVS/' in fn
@@ -60,21 +62,43 @@ class Sandbox(lobster.core.Sandbox):
         return False
 
     def _recycle(self, outdir):
+        release_and_arch = re.compile(r'([^/]+)/.SCRAM/(slc[^/]+)')
         shutil.copy2(self.recycle, outdir)
-        for file in tarfile.open(self.recycle):
-            if ".SCRAM" in file.name:
-                rtname = os.path.dirname(os.path.normpath(file.name)).split("/")[0]
+        for f in tarfile.open(self.recycle):
+            m = release_and_arch.search(f.name)
+            if m:
+                rtname, rtarch = m.groups()
                 break
-        return rtname, os.path.join(outdir, os.path.split(self.recycle)[-1])
+        else:
+            raise AttributeError("Can't determine CMSSW release and arch from recycled sandbox!")
+        return rtname, rtarch, os.path.join(outdir, os.path.split(self.recycle)[-1])
+
+    def _get_cmssw_arch(self, dirname):
+        candidates = glob.glob('{}/.SCRAM/slc*'.format(dirname))
+        if len(candidates) != 1:
+            raise AttributeError("Can't determine SCRAM arch!")
+        return os.path.basename(candidates[0])
+
+    def _get_cmssw_version(self, dirname):
+        with open(os.path.join(dirname, '.SCRAM', 'Environment')) as fd:
+            for line in fd:
+                k, v = line.strip().split('=')
+                if k == 'SCRAM_PROJECTVERSION':
+                    return v
+            else:
+                raise AttributeError("Can't determine CMSSW project version")
 
     def _package(self, basedirs, outdir):
         indir = lobster.util.findpath(basedirs, self.release)
-        rtname = os.path.split(os.path.normpath(indir))[1]
-        outfile = os.path.join(outdir, self.__release2filename(indir))
+
+        rtarch = self._get_cmssw_arch(indir)
+        rtname = self._get_cmssw_version(indir)
+
+        outfile = os.path.join(outdir, self.__release2filename(indir, rtname, rtarch))
 
         if os.path.exists(outfile):
             logger.info("reusing sandbox in {0}".format(outfile))
-            return rtname, outfile
+            return rtname, rtarch, outfile
 
         def ignore_file(fn):
             for test in self.blacklist:
@@ -87,7 +111,7 @@ class Sandbox(lobster.core.Sandbox):
         tarball = tarfile.open(outfile, "w|bz2")
 
         # package bin, etc
-        subdirs = ['.SCRAM', 'bin', 'cfipython', 'config', 'lib', 'module', 'python']
+        subdirs = ['.SCRAM', 'bin', 'cfipython', 'lib', 'python']
         subdirs += [os.path.join('src', incl) for incl in self.include]
 
         for (path, dirs, files) in os.walk(os.path.join(indir, 'src')):
@@ -112,4 +136,4 @@ class Sandbox(lobster.core.Sandbox):
 
         tarball.close()
 
-        return rtname, outfile
+        return rtname, rtarch, outfile

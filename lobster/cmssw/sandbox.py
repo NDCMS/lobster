@@ -51,7 +51,7 @@ class Sandbox(lobster.core.Sandbox):
         """Returns a filename for a given release top, i.e., the file system
         path of a release.
         """
-        p = os.path.abspath(os.path.expandvars(os.path.expanduser(rel)))
+        p = os.path.abspath(os.path.expandvars(os.path.expanduser(indir)))
         version = arch.split('_', 1)[0]
         return "sandbox-{r}-{v}-{d}.tar.bz2".format(r=rel, v=version, d=hashlib.sha1(p).hexdigest()[:7])
 

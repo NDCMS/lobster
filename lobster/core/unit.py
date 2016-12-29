@@ -556,7 +556,7 @@ class UnitStore:
         if roots is None:
             roots = [w for w in self.config.workflows if not w.parent]
         with self.db:
-            for m in [r.family for r in roots]:
+            for m in sum([list(r.family()) for r in roots], []):
                 self.db.execute("update workflows set merged=0 where label=?", (m.label,))
                 self.update_workflow_stats(m.label)
 

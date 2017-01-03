@@ -302,7 +302,10 @@ class Publish(Command):
         # For debugging
         # from pprint import pprint
         # pprint(dump)
-        dbs['local'].insertBulkBlock(dump)
+        try:
+            dbs['local'].insertBulkBlock(dump)
+        except Exception as e:
+            logger.exception(e)
 
         return tasks, block
 

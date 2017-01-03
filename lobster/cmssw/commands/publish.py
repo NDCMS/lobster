@@ -359,6 +359,10 @@ class Publish(Command):
 
                 dset = (dataset if dataset else dset).strip('/').split('/')[0]
 
+                if label == publish_label:
+                    publish_label = '{}_{}'.format(args.config.label.split('_', 1)[1],
+                                                   publish_label)
+
                 if not pset_hash or pset_hash == 'None':
                     try:
                         pset_hash = hash_pset(cfg, label, args)

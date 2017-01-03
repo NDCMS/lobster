@@ -897,7 +897,7 @@ class UnitStore:
             self.db.executemany("""
                 update units_{}
                 set status=6
-                where task=?""".format(label), tasks)
+                where task=?""".format(label), [(t,) for t in tasks])
 
     def successful_tasks(self, label):
         dset_id = self.db.execute(

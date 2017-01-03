@@ -137,7 +137,7 @@ class Publish(Command):
     def setup(self, argparser):
         argparser.add_argument('--migrate-parents', dest='migrate_parents',
                                default=False, help='migrate parents to local DBS')
-        argparser.add_argument('--block-size', dest='block_size', type=int, default=400,
+        argparser.add_argument('--block-size', dest='block_size', type=int, default=50,
                                help='number of files to publish per file block.')
         argparser.add_argument('--workflows', nargs='*', help='workflows to publish (default is all workflows)')
         argparser.add_argument('--datasets', nargs='*', help='dataset names to use for publication')

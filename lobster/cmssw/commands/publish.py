@@ -299,8 +299,9 @@ class Publish(Command):
             'file_parent_list': []
         }
 
-        from pprint import pprint
-        logger.debug(pprint(dump))
+        # For debugging
+        # from pprint import pprint
+        # pprint(dump)
         dbs['local'].insertBulkBlock(dump)
 
         return tasks, block
@@ -387,7 +388,6 @@ class Publish(Command):
                     first_task += args.block_size
 
                     if len(processed) > 0:
-                        logger.debug(processed)
                         db.update_published(label, processed, block['block_name'])
 
                 missing = list(set(tasks) - set(inserted))

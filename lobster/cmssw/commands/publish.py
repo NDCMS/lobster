@@ -141,6 +141,7 @@ class Publish(Command):
                                help='number of files to publish per file block.')
         argparser.add_argument('--workflows', nargs='*', help='workflows to publish (default is all workflows)')
         argparser.add_argument('--datasets', nargs='*', help='dataset names to use for publication')
+        argparser.add_argument('--version', default=1, type=int, help='version of the dataset')
         argparser.add_argument('-f', '--foreground', action='store_true', default=False,
                                help='do not daemonize;  run in the foreground instead')
 
@@ -158,7 +159,7 @@ class Publish(Command):
                 return None, None
         return pfn, matched
 
-    def insert_dataset(self, dbs, primary, user, label, hash_):
+    def insert_dataset(self, dbs, primary, user, label, hash_, version):
         primary_dataset = {
             # 'create_by': '',
             'primary_ds_type': 'NOTSET',
@@ -169,7 +170,6 @@ class Publish(Command):
         if len(output) > 0:
             primary_dataset = dict((k, v) for k, v in output[0].items() if k != 'primary_ds_id')
 
-        version = 1
         dataset = {
             'primary_ds_name': primary,
             'physics_group_name': 'NoGroup',
@@ -367,7 +367,7 @@ class Publish(Command):
                         logger.warning('error calculating the cmssw parameter set hash')
 
                 # block = BlockDump(user, dset, dbs['global'], publish_hash, publish_label, release, pset_hash, gtag)
-                primary_dataset, dataset = self.insert_dataset(dbs, dset, user, publish_label, publish_hash)
+                primary_dataset, dataset = self.insert_dataset(dbs, dset, user, publish_label, publish_hash, args.version)
                 tasks = list(db.successful_tasks(label))
                 logger.info('found {} successful {} tasks to publish'.format(len(tasks), label))
 

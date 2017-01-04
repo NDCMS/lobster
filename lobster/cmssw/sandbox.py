@@ -115,7 +115,7 @@ class Sandbox(lobster.core.Sandbox):
         subdirs += [os.path.join('src', incl) for incl in self.include]
 
         for (path, dirs, files) in os.walk(os.path.join(indir, 'src')):
-            for subdir in ['data', 'python']:
+            for subdir in ['data', 'python', 'interface']:
                 if subdir in dirs:
                     rtpath = os.path.join(os.path.relpath(path, indir), subdir)
                     subdirs.append(rtpath)

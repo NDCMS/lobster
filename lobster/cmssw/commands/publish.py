@@ -3,7 +3,6 @@
 # * use username in PFN construction
 # * no all CAPS variable names - should be reserved for constants
 # * fix filetype setting
-# * add file, dataset configurations
 # * migrate parents
 import daemon
 import json
@@ -152,6 +151,16 @@ class Publish(Command):
                              help='username to use for publication (default: from SiteDB)')
         details.add_argument('--version', default=1, type=int, help='version of the dataset (default: 1)')
 
+    def __get_config(self, args, label, pset_hash):
+        workflow = getattr(args.config, label)
+        return {
+            'release_version': workflow.version,
+            'pset_hash': pset_hash,
+            'app_name': workflow.command,
+            'output_module_label': 'o',
+            'global_tag': workflow.globaltag
+        }
+
     def __get_distinguished_name(self):
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
                              stdout=subprocess.PIPE,
@@ -271,20 +280,12 @@ class Publish(Command):
 
         return file_
 
-    def insert_block(self, dbs, primary_dataset, dataset, user, basedir, datasetdir, stageoutdir, chunk):
+    def insert_block(self, dbs, primary_dataset, dataset, user, config, basedir, datasetdir, stageoutdir, chunk):
         block = self.prepare_block(dataset, user)
 
         files = []
         tasks = []
 
-        # FIXME fill with meaningful values
-        config = {
-            'release_version': 'CMSSW_8_0_0',
-            'pset_hash': '6b57d231e28e4ebd8065fc7621fa1f5b',
-            'app_name': 'cmsRun',
-            'output_module_label': 'o',
-            'global_tag': '80X_mcRun2_asymptotic_2016_miniAODv2_v1'
-        }
         configs = []
 
         logger.info('preparing DBS entry for {} task block: {}'.format(len(chunk), block['block_name']))
@@ -393,9 +394,11 @@ class Publish(Command):
                 basedir = os.path.join(args.config.workdir, label, 'successful')
                 datasetdir = os.path.join('/store/user', user, dset, publish_label + '_' + publish_hash)
 
+                config = self.__get_config(args, label, pset_hash)
+
                 while first_task < len(tasks):
                     chunk = tasks[first_task:first_task + args.block_size]
-                    processed, block = self.insert_block(dbs, primary_dataset, dataset, user, basedir, datasetdir, stageoutdir, chunk)
+                    processed, block = self.insert_block(dbs, primary_dataset, dataset, user, config, basedir, datasetdir, stageoutdir, chunk)
                     inserted += processed
                     first_task += args.block_size
 

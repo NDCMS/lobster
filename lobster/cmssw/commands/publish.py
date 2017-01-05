@@ -1,7 +1,6 @@
 # TODO
 # * make sure that primary dataset name is allowed - fail with useful message
 # * use username in PFN construction
-# * allow to specify DBS instance with a command line option
 # * no all CAPS variable names - should be reserved for constants
 # * fix filetype setting
 # * add file, dataset configurations
@@ -135,17 +134,21 @@ class Publish(Command):
         return 'publish results in the CMS Data Aggregation System'
 
     def setup(self, argparser):
-        argparser.add_argument('--migrate-parents', dest='migrate_parents', default=False,
-                               help='migrate parents to local DBS')
-        argparser.add_argument('--block-size', dest='block_size', type=int, default=50,
-                               help='number of files to publish per file block (default: 50)')
-        argparser.add_argument('--workflows', nargs='*', help='workflows to publish (default: all workflows)')
-        argparser.add_argument('--user', default=None,
-                               help='username to use for publication (default: from SiteDB)')
-        argparser.add_argument('--datasets', nargs='*', help='dataset names to use for publication')
-        argparser.add_argument('--version', default=1, type=int, help='version of the dataset (default: 1)')
-        argparser.add_argument('-f', '--foreground', action='store_true', default=False,
-                               help='do not daemonize;  run in the foreground instead')
+        general = argparser.add_argument_group('general options')
+        general.add_argument('--workflows', nargs='*', help='workflows to publish (default: all workflows)')
+        general.add_argument('--datasets', nargs='*', help='dataset names to use for publication')
+        general.add_argument('-f', '--foreground', action='store_true', default=False,
+                             help='do not daemonize;  run in the foreground instead')
+
+        details = argparser.add_argument_group('publishing options')
+        details.add_argument('--block-size', dest='block_size', type=int, default=50,
+                             help='number of files to publish per file block (default: 50)')
+        details.add_argument('--instance', default='phys03', help='DBS instance to publish to (default: phys03)')
+        details.add_argument('--migrate-parents', dest='migrate_parents', default=False,
+                             help='migrate parents to local DBS')
+        details.add_argument('--user', default=None,
+                             help='username to use for publication (default: from SiteDB)')
+        details.add_argument('--version', default=1, type=int, help='version of the dataset (default: 1)')
 
     def __get_distinguished_name(self):
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
@@ -334,9 +337,7 @@ class Publish(Command):
             args.datasets = [None] * len(args.workflows)
 
         args.config.storage.activate()
-
         user = args.user or self.__get_user()
-        publish_instance = 'phys03'  # FIXME configuraion parameter
 
         if not args.foreground:
             ttyfile = open(os.path.join(args.config.workdir, 'publish.err'), 'a')
@@ -354,21 +355,14 @@ class Publish(Command):
 
             dbs = {}
             for path, key in [[('global', 'DBSReader'), 'global'],
-                              [(publish_instance, 'DBSWriter'), 'local'],
-                              [(publish_instance, 'DBSReader'), 'reader'],
-                              [(publish_instance, 'DBSMigrate'), 'migrator']]:
+                              [(args.instance, 'DBSWriter'), 'local'],
+                              [(args.instance, 'DBSReader'), 'reader'],
+                              [(args.instance, 'DBSMigrate'), 'migrator']]:
                 dbs[key] = DbsApi('https://cmsweb.cern.ch/dbs/prod/{0}/'.format(os.path.join(*path)))
 
             for label, dataset in zip(args.workflows, args.datasets):
-                (dset,
-                 stageoutdir,
-                 release,
-                 gtag,
-                 publish_label,
-                 cfg,
-                 pset_hash,
-                 ds_id,
-                 publish_hash) = [str(x) for x in db.workflow_info(label)]
+                (dset, stageoutdir, release, gtag, publish_label, cfg, pset_hash, ds_id, publish_hash) = \
+                    [str(x) for x in db.workflow_info(label)]
 
                 if dataset is None and not dset.startswith('/'):
                     logger.error('invalid dataset "{}", please specify a primary dataset manually'.format(dset))

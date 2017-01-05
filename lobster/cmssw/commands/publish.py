@@ -135,16 +135,18 @@ class Publish(Command):
 
     def setup(self, argparser):
         general = argparser.add_argument_group('general options')
-        general.add_argument('--workflows', nargs='*', help='workflows to publish (default: all workflows)')
-        general.add_argument('--datasets', nargs='*', help='dataset names to use for publication')
         general.add_argument('-f', '--foreground', action='store_true', default=False,
                              help='do not daemonize;  run in the foreground instead')
+        general.add_argument('--workflows', nargs='*', metavar='WORKFLOW',
+                             help='workflows to publish (default: all workflows)')
+        general.add_argument('--datasets', nargs='*', metavar='DATASET',
+                             help='dataset names to use for publication')
 
         details = argparser.add_argument_group('publishing options')
-        details.add_argument('--block-size', dest='block_size', type=int, default=50,
+        details.add_argument('--block-size', dest='block_size', type=int, default=50, metavar='SIZE',
                              help='number of files to publish per file block (default: 50)')
         details.add_argument('--instance', default='phys03', help='DBS instance to publish to (default: phys03)')
-        details.add_argument('--migrate-parents', dest='migrate_parents', default=False,
+        details.add_argument('--migrate-parents', dest='migrate_parents', default=False, action='store_true',
                              help='migrate parents to local DBS')
         details.add_argument('--user', default=None,
                              help='username to use for publication (default: from SiteDB)')

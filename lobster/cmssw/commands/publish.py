@@ -14,7 +14,7 @@ import sys
 import time
 import uuid
 
-# from RestClient.ErrorHandling.RestClientExceptions import HTTPError
+from RestClient.ErrorHandling.RestClientExceptions import HTTPError
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
 from WMCore.Storage.TrivialFileCatalog import readTFC
@@ -320,10 +320,12 @@ class Publish(Command):
 
         # For debugging
         # from pprint import pprint
-        # pprint(dump)
+        # pprint(config)
         try:
             dbs['local'].insertBulkBlock(dump)
-        except Exception as e:
+        except HTTPError as e:
+            if e.code in (400, 412):
+                raise e
             logger.exception(e)
 
         return tasks, block

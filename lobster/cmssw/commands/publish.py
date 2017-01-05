@@ -37,7 +37,7 @@ def hash_pset(cfg, label, args):
                 fix = "import sys \nif not hasattr(sys, 'argv'): sys.argv = ['{0}']\n"
                 outfile.write(fix.format(tmp_path))
                 outfile.write(infile.read())
-        return subprocess.check_output(['edmConfigHash', tmp_path])
+        return subprocess.check_output(['edmConfigHash', tmp_path]).splitlines()[-1]
     finally:
         os.remove(tmp_path)
 
@@ -153,6 +153,9 @@ class Publish(Command):
 
     def __get_config(self, args, label, pset_hash):
         workflow = getattr(args.config.workflows, label)
+        if workflow.pset and workflow.globaltag is None:
+            with util.PartiallyMutable.unlock():
+                workflow.determine_globaltag([args.config.workdir, args.config.startup_directory])
         return {
             'release_version': workflow.version,
             'pset_hash': pset_hash,

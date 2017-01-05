@@ -1,5 +1,4 @@
 # TODO
-# * get username from SiteDB
 # * make sure that primary dataset name is allowed - fail with useful message
 # * use username in PFN construction
 # * allow to specify DBS instance with a command line option
@@ -18,6 +17,7 @@ import time
 import uuid
 
 # from RestClient.ErrorHandling.RestClientExceptions import HTTPError
+from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import SiteLocalConfig
 from WMCore.Storage.TrivialFileCatalog import readTFC
 from dbs.apis.dbsClient import DbsApi
@@ -135,15 +135,28 @@ class Publish(Command):
         return 'publish results in the CMS Data Aggregation System'
 
     def setup(self, argparser):
-        argparser.add_argument('--migrate-parents', dest='migrate_parents',
-                               default=False, help='migrate parents to local DBS')
+        argparser.add_argument('--migrate-parents', dest='migrate_parents', default=False,
+                               help='migrate parents to local DBS')
         argparser.add_argument('--block-size', dest='block_size', type=int, default=50,
-                               help='number of files to publish per file block.')
-        argparser.add_argument('--workflows', nargs='*', help='workflows to publish (default is all workflows)')
+                               help='number of files to publish per file block (default: 50)')
+        argparser.add_argument('--workflows', nargs='*', help='workflows to publish (default: all workflows)')
+        argparser.add_argument('--user', default=None,
+                               help='username to use for publication (default: from SiteDB)')
         argparser.add_argument('--datasets', nargs='*', help='dataset names to use for publication')
-        argparser.add_argument('--version', default=1, type=int, help='version of the dataset')
+        argparser.add_argument('--version', default=1, type=int, help='version of the dataset (default: 1)')
         argparser.add_argument('-f', '--foreground', action='store_true', default=False,
                                help='do not daemonize;  run in the foreground instead')
+
+    def __get_distinguished_name(self):
+        p = subprocess.Popen(["voms-proxy-info", "-identity"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        id_, err = p.communicate()
+        return id_.strip()
+
+    def __get_user(self):
+        db = SiteDBJSON({'cacheduration': 24, 'logger': logging.getLogger("WMCore")})
+        return db.dnUserName(dn=self.__get_distinguished_name())
 
     def match_pfn(self, relative, lfn):
         matched = self.__catalog.matchLFN('direct', lfn)
@@ -322,7 +335,7 @@ class Publish(Command):
 
         args.config.storage.activate()
 
-        user = 'matze'  # FIXME get the same way as proxy/SiteDB
+        user = args.user or self.__get_user()
         publish_instance = 'phys03'  # FIXME configuraion parameter
 
         if not args.foreground:

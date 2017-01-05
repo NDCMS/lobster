@@ -152,7 +152,7 @@ class Publish(Command):
         details.add_argument('--version', default=1, type=int, help='version of the dataset (default: 1)')
 
     def __get_config(self, args, label, pset_hash):
-        workflow = getattr(args.config, label)
+        workflow = getattr(args.config.workflows, label)
         return {
             'release_version': workflow.version,
             'pset_hash': pset_hash,

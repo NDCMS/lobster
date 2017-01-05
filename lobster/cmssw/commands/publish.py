@@ -410,7 +410,7 @@ class Publish(Command):
                     if len(processed) > 0:
                         db.update_published(label, processed, block['block_name'])
 
-                missing = list(set(tasks) - set(inserted))
+                missing = list(set(t for (t, _) in tasks) - set(inserted))
                 if len(missing) > 0:
                     template = "the following task(s) have not been published because their output could not be found: {0}"
                     logger.warning(template.format(", ".join(map(str, missing))))

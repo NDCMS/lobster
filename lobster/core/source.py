@@ -373,6 +373,13 @@ class TaskProvider(util.Timing):
                 'gridpack': False
             }
 
+            cmd = 'sh wrapper.sh python task.py parameters.json'
+            env = {
+                'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
+                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,
+                'LOBSTER_OSG_VERSION': self.config.advanced.osg_version
+            }
+
             if merge:
                 missing = []
                 infiles = []
@@ -400,12 +407,12 @@ class TaskProvider(util.Timing):
                     logger.debug("skipping task {0} with only one input file!".format(id))
 
                 # takes care of the fields set to None in config
-                wflow.adjust(config, jdir, inputs, outputs, merge, reports=inreports)
+                wflow.adjust(config, env, jdir, inputs, outputs, merge, reports=inreports)
 
                 files = infiles
             else:
                 # takes care of the fields set to None in config
-                wflow.adjust(config, jdir, inputs, outputs, merge, unique=unique_arg)
+                wflow.adjust(config, env, jdir, inputs, outputs, merge, unique=unique_arg)
 
             handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
@@ -418,13 +425,6 @@ class TaskProvider(util.Timing):
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
                 json.dump(config, f, indent=2)
                 f.write('\n')
-
-            cmd = 'sh wrapper.sh python task.py parameters.json'
-            env = {
-                'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
-                'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,
-                'LOBSTER_OSG_VERSION': self.config.advanced.osg_version
-            }
 
             tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))
 

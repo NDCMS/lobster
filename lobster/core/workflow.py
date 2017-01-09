@@ -142,10 +142,12 @@ class Workflow(Configurable):
         merge_size : str
             Activates output file merging when set.  Accepts the suffixes
             *k*, *m*, *g* for kilobyte, megabyte, …
-        sandbox : Sandbox
-            The sandbox to use.  Currently can be either a
-            :class:`~lobster.cmssw.Sandbox` or a
-            :class:`~lobster.core.Sandbox`.
+        sandbox : Sandbox or list of Sandbox
+            The sandbox(es) to use.  Currently can be a
+            :class:`~lobster.cmssw.Sandbox`.  When multiple sandboxes are
+            used, one sandbox per computing architecture to be run on is
+            expected, containing the same release, and an
+            :class:`ValueError` will be raised otherwise.
         command : str
             Which executable to run (for non-CMSSW workflows)
         extra_inputs : list
@@ -364,7 +366,24 @@ class Workflow(Configurable):
     def setup(self, workdir, basedirs):
         self.workdir = os.path.join(workdir, self.label)
 
-        self.version, self.sandbox = self.sandbox.package(basedirs, workdir)
+        if hasattr(self.sandbox, '__iter__'):
+            boxes = self.sandbox
+        else:
+            boxes = [self.sandbox]
+
+        versions = set()
+        archs = set()
+        self.sandboxes = []
+        for box in boxes:
+            version, arch, sandbox = box.package(basedirs, workdir)
+            versions.add(version)
+            if arch in archs:
+                raise ValueError("More than one sandbox supplied for the same architecture!")
+            archs.add(arch)
+            self.sandboxes.append(sandbox)
+        if len(versions) > 1:
+            raise ValueError("More than one CMSSW version specified!")
+        self.version = versions.pop()
 
         self.copy_inputs(basedirs)
         if self.pset and self.outputs is None:
@@ -392,12 +411,17 @@ class Workflow(Configurable):
             outfn = self.output_format.format(base=base, ext=ext[1:], id=id)
             yield fn, os.path.join(self.label, outfn)
 
-    def adjust(self, params, taskdir, inputs, outputs, merge, reports=None, unique=None):
+    def adjust(self, params, env, taskdir, inputs, outputs, merge, reports=None, unique=None):
         cmd = self.command
         args = self.arguments[:]
         pset = os.path.basename(self.pset) if self.pset else self.pset
 
-        inputs.append((self.sandbox, 'sandbox.tar.bz2', True))
+        env['LOBSTER_CMSSW_VERSION'] = self.version
+
+        for box in self.sandboxes:
+            # Remove the hash from the sandbox name
+            cleaned = os.path.basename(box).rsplit('-', 1)[0] + '.tar.bz2'
+            inputs.append((box, cleaned, True))
         if merge:
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'merge_reports.py'), 'merge_reports.py', True))
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))

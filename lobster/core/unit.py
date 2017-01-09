@@ -556,7 +556,7 @@ class UnitStore:
         if roots is None:
             roots = [w for w in self.config.workflows if not w.parent]
         with self.db:
-            for m in [r.family for r in roots]:
+            for m in sum([list(r.family()) for r in roots], []):
                 self.db.execute("update workflows set merged=0 where label=?", (m.label,))
                 self.update_workflow_stats(m.label)
 
@@ -662,9 +662,11 @@ class UnitStore:
 
         return sum(int(math.ceil(ntasks)) for ntasks in rows)
 
-    def unfinished_units(self):
-        cur = self.db.execute(
-            "select sum(units - units_done - units_paused - units_masked) from workflows")
+    def unfinished_units(self, label=None):
+        if label:
+            cur = self.db.execute("select units - units_done - units_paused - units_masked from workflows where label=?", (label,))
+        else:
+            cur = self.db.execute("select sum(units - units_done - units_paused - units_masked) from workflows")
         res = cur.fetchone()[0]
         return 0 if res is None else res
 
@@ -910,7 +912,7 @@ class UnitStore:
         cur = self.db.execute("""
             select id, type
             from tasks
-            where and workflow=? and status=2
+            where workflow=? and status=2
             """, (dset_id,))
 
         return cur

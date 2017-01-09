@@ -140,35 +140,18 @@ log "env" "environment after sourcing startup scripts" env
 log "proxy" "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
 log "dir" "working directory at startup" ls -l
 
-tar xjf sandbox.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
+log "creating new release $LOBSTER_CMSSW_VERSION"
+
+scramv1 project -f CMSSW $LOBSTER_CMSSW_VERSION || exit_on_error $? 173 "Failed to create new release"
+arch=$(ls $LOBSTER_CMSSW_VERSION/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
+
+log "unpacking sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2"
+for d in bin cfipython lib python src; do
+	tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2 $LOBSTER_CMSSW_VERSION/$d || exit_on_error $? 170 "Failed to unpack sandbox!"
+done
 
 basedir=$PWD
-
-rel=$(echo CMSSW_*)
-arch=$(ls $rel/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
-old_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment) || exit_on_error $? 172 "Failed to determine old releasetop!"
-
-export SCRAM_ARCH=$arch
-
-log "creating new release $rel"
-mkdir lobster_release_tmp || exit_on_error $? 173 "Failed to create temporary directory"
-cd lobster_release_tmp
-scramv1 project -f CMSSW $rel || exit_on_error $? 173 "Failed to create new release"
-new_release_top=$(awk -F= '/RELEASETOP/ {print $2}' $rel/.SCRAM/slc*/Environment)
-cd $rel
-log "preparing sandbox release $rel"
-for i in bin cfipython config lib module python src; do
-	rm -rf "$i"
-	mv "$basedir/$rel/$i" .
-	# ls -lR $i
-done
-
-
-log "fixing python paths"
-for f in $(find -iname __init__.py); do
-	sed -i -e "s@$old_release_top@$new_release_top@" "$f"
-done
-
+cd $LOBSTER_CMSSW_VERSION
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 

@@ -142,10 +142,12 @@ class Workflow(Configurable):
         merge_size : str
             Activates output file merging when set.  Accepts the suffixes
             *k*, *m*, *g* for kilobyte, megabyte, …
-        sandbox : Sandbox
-            The sandbox to use.  Currently can be either a
-            :class:`~lobster.cmssw.Sandbox` or a
-            :class:`~lobster.core.Sandbox`.
+        sandbox : Sandbox or list of Sandbox
+            The sandbox(es) to use.  Currently can be a
+            :class:`~lobster.cmssw.Sandbox`.  When multiple sandboxes are
+            used, one sandbox per computing architecture to be run on is
+            expected, containing the same release, and an
+            :class:`ValueError` will be raised otherwise.
         command : str
             Which executable to run (for non-CMSSW workflows)
         extra_inputs : list
@@ -376,11 +378,11 @@ class Workflow(Configurable):
             version, arch, sandbox = box.package(basedirs, workdir)
             versions.add(version)
             if arch in archs:
-                raise AttributeError("More than one sandbox supplied for the same architecture!")
+                raise ValueError("More than one sandbox supplied for the same architecture!")
             archs.add(arch)
             self.sandboxes.append(sandbox)
         if len(versions) > 1:
-            raise AttributeError("More than one CMSSW version specified!")
+            raise ValueError("More than one CMSSW version specified!")
         self.version = versions.pop()
 
         self.copy_inputs(basedirs)

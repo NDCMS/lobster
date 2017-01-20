@@ -32,7 +32,7 @@ from WMCore.DataStructs.LumiList import LumiList
 matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('axes.formatter', limits=(-3, 4))
 matplotlib.rc('figure', figsize=(8, 1.5))
-matplotlib.rc('figure.subplot', left=0.09, right=0.92, bottom=0.275)
+matplotlib.rc('figure.subplot', left=0.09, right=0.96, bottom=0.275)
 matplotlib.rc('font', size=7)
 matplotlib.rc(
     'font', **{'sans-serif': 'Liberation Sans', 'family': 'sans-serif'})

@@ -228,7 +228,7 @@ class Publish(Command):
     # def insert_dataset(self, dbs, primary, user, label, hash_):
     def prepare_block(self, dataset, user):
         site_config_path = '/cvmfs/cms.cern.ch/SITECONF/{}/JobConfig/site-local-config.xml'.format(os.environ['CMS_LOCAL_SITE'])
-        site = SiteLocalConfig(site_config_path).localStageOutSEName()
+        site = SiteLocalConfig(site_config_path).siteName
 
         block = {
             # 'site_list': [site],
@@ -327,7 +327,7 @@ class Publish(Command):
         try:
             dbs['local'].insertBulkBlock(dump)
         except HTTPError as e:
-            if e.code in (400, 412):
+            if e.code in (401, 412):
                 raise e
             logger.exception(e)
 

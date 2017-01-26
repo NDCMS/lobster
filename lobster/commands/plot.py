@@ -1305,10 +1305,13 @@ class Plotter(object):
         def add_total(summaries):
             numbers = zip(*[s[1:-2] for s in summaries])
             total = map(sum, numbers)
+            total_mergeable = sum([s[-8] for s in summaries if
+                                   getattr(self.config.workflows, s[0], None) and
+                                   getattr(self.config.workflows, s[0]).merge_size > 0])
             return summaries + \
                 [['Total'] + total + [
                     '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-                    '{} %'.format(round(total[-4] * 100. / total[-6] if total[-6] > 0 else 0, 1))
+                    '{} %'.format(round(total[-4] * 100. / total_mergeable if total_mergeable > 0 else 0, 1))
                 ]]
 
         for category in self.config.categories:
@@ -1360,6 +1363,8 @@ class Plotter(object):
                     transfers=self.merge_transfers(transfers, labels)
                 ).encode('utf-8'))
 
+        # Add the total from the unit store query
+        category_summary_data.append(summary_data[-1])
         with open(os.path.join(self.__plotdir, 'index.html'), 'w') as f:
             f.write(overview.render(
                 id=self.config.label,
@@ -1368,7 +1373,7 @@ class Plotter(object):
                 plot_endtime=self.__xmax,
                 run_starttime=self.__total_xmin,
                 run_endtime=self.__total_xmax,
-                summary=add_total(category_summary_data),
+                summary=category_summary_data,
                 bad_tasks=len(failed_tasks) > 0,
                 good_tasks=len(success_tasks) > 0,
                 foremen=foremen_names,

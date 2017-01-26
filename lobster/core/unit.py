@@ -716,9 +716,11 @@ class UnitStore:
             from workflows""")
 
         yield "Label Events read written Units unmasked written merged paused failed skipped Progress Merged".split()
+
         total = None
+        total_mergeable = 0
         for row in cursor:
-            failed, skipped = self.db.execute("""
+            failed, skipped, mergeable = self.db.execute("""
                 select
                     ifnull((
                         select count(*)
@@ -729,7 +731,8 @@ class UnitStore:
                         select count(*)
                         from units_{0}
                         where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
-                    ), 0)
+                    ), 0),
+                    not ((select count(id) from tasks where workflow=workflows.id and type=1) == 0 and merged)
                 from workflows where label=?
                 """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
             row = row[:-2] + (failed, skipped) + row[-2:]
@@ -737,12 +740,13 @@ class UnitStore:
                 total = list(row[1:-2])
             else:
                 total = map(sum, zip(total, row[1:-2]))
+            if mergeable:
+                total_mergeable += row[-8]
 
             yield row
         yield ['Total'] + total + [
             '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-            '{} %'.format(
-                round(total[-4] * 100. / total[-5], 1) if total[-5] > 0 else 0.)
+            '{} %'.format(round(total[-4] * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)
         ]
 
     @retry(stop_max_attempt_number=10)

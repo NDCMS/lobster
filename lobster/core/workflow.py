@@ -177,9 +177,6 @@ class Workflow(Configurable):
         globaltag : str
             Which GlobalTag this workflow uses.  Needed for publication of
             CMSSW workflows, and can be automatically determined for these.
-
-            TODO: check that the globaltag is determined independently of
-            the outputs.
         edm_output : bool
             Autodetermined when outputs are determined automatically.
             Tells Lobster if the output of this workflow is in EDM format.
@@ -336,8 +333,6 @@ class Workflow(Configurable):
         with open(util.findpath(basedirs, self.pset), 'r') as f:
             source = imp.load_source('cms_config_source', self.pset, f)
             process = source.process
-            if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
-                self.global_tag = process.GlobalTag.globaltag.value()
             for label, module in process.outputModules.items():
                 self.outputs.append(module.fileName.value().replace('file:', ''))
             if 'TFileService' in process.services:
@@ -345,6 +340,14 @@ class Workflow(Configurable):
                 self.edm_output = False
 
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
+
+    def determine_globaltag(self, basedirs):
+        sys.argv = [os.path.basename(self.pset)] + self.arguments
+        with open(util.findpath(basedirs, self.pset), 'r') as f:
+            source = imp.load_source('cms_config_source', self.pset, f)
+            process = source.process
+            if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
+                self.globaltag = process.GlobalTag.globaltag.value()
 
     def validate(self):
         with fs.alternative():
@@ -388,6 +391,9 @@ class Workflow(Configurable):
         self.copy_inputs(basedirs)
         if self.pset and self.outputs is None:
             self.determine_outputs(basedirs)
+
+        if self.pset and self.globaltag is None:
+            self.determine_globaltag(basedirs)
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

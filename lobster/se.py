@@ -41,8 +41,7 @@ class FileSystem(object):
             return self.__dict__[attr]
 
         def switch(*args, **kwargs):
-            logger.debug(
-                "resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
+            logger.debug("resolving file system method '{0}' with arguments {1!r}, {2!r}".format(attr, args, kwargs))
             lasterror = None
             for imp in FileSystem._defaults:
                 try:
@@ -58,6 +57,11 @@ class FileSystem(object):
             raise AttributeError(
                 "no resolution found for method '{0}' with arguments '{1}': {2}".format(attr, args, lasterror))
         return switch
+
+    def lfn2pfn(self, lfn, instance):
+        for imp in FileSystem._defaults:
+            if isinstance(imp, instance):
+                return imp.lfn2pfn(lfn)
 
     @classmethod
     def configure(cls, defaults, alternatives):
@@ -128,7 +132,7 @@ class StorageElement(object):
         def pfn2lfn(p):
             return p.replace(self._pfnprefix, '', 1)
 
-        if isinstance(res, str):
+        if isinstance(res, basestring):
             return pfn2lfn(res)
 
         try:

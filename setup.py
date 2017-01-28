@@ -10,7 +10,15 @@ setup(
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
-    packages=['lobster', 'lobster.cmssw', 'lobster.core', 'lobster.commands', 'lobster.monitor', 'lobster.monitor.elk'],
+    packages=[
+        'lobster',
+        'lobster.cmssw',
+        'lobster.cmssw.commands',
+        'lobster.core',
+        'lobster.commands',
+        'lobster.monitor',
+        'lobster.monitor.elk'
+    ],
     package_data={'lobster': [
         'core/data/task.py',
         'core/data/wrapper.sh',

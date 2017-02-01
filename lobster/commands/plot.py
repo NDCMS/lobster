@@ -264,8 +264,12 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                     ha="center", transform=ax.transAxes, backgroundcolor='white')
 
         if 'label' in kwargs or 'labels' in kwargs:
-            ax.legend(bbox_to_anchor=(0.5, 0.9), loc='lower center', ncol=len(
-                kwargs.get('label', kwargs.get('labels'))), prop={'size': 7}, numpoints=1)
+            ax.legend(bbox_to_anchor=(.5, .95),
+                      frameon=False,
+                      loc='lower center',
+                      ncol=len(kwargs.get('label', kwargs.get('labels'))),
+                      numpoints=1,
+                      prop={'size': 7})
 
         mp_pickle(plotdir, filename, data)
         mp_saveimg(plotdir, filename)

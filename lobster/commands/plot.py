@@ -1,9 +1,11 @@
 # vim: fileencoding=utf-8
 
 from collections import defaultdict, Counter
+from cycler import cycler
 from datetime import datetime
 import glob
 import gzip
+import itertools
 import jinja2
 import logging
 import multiprocessing
@@ -23,6 +25,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 import numpy as np
 
+from scipy.interpolate import UnivariateSpline
+
 from lobster import util
 from lobster.core import unit
 from lobster.core.command import Command
@@ -33,9 +37,9 @@ matplotlib.rc('axes', labelsize='large')
 matplotlib.rc('axes.formatter', limits=(-3, 4))
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.96, bottom=0.275)
+matplotlib.rc('hatch', linewidth=.3)
 matplotlib.rc('font', size=7)
-matplotlib.rc(
-    'font', **{'sans-serif': 'Liberation Sans', 'family': 'sans-serif'})
+matplotlib.rc('font', **{'sans-serif': 'Liberation Sans', 'family': 'sans-serif'})
 
 logger = logging.getLogger('lobster.plotting')
 
@@ -103,8 +107,8 @@ def mp_call(arg):
     try:
         fct(*args, **kwargs)
     except Exception as e:
-        logger.error('method {0} failed with "{1}", using args {2}, {3}'.format(
-            fct, e, args, kwargs))
+        logger.error('method {0} failed with "{1}", using args {2}, {3}'.format(fct, e, args, kwargs))
+        logger.exception(e)
 
 
 def mp_pickle(plotdir, name, data):
@@ -121,6 +125,19 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
     ratio = 0.75
     ax.set_position([0.3, 0.3, ratio * 0.7, 0.7])
 
+    paper = kwargs.pop('paper', False)
+    if paper:
+        plt.rcParams['patch.force_edgecolor'] = True
+        if 'colors' in kwargs:
+            del kwargs['colors']
+        hatching = [p * 5 for p in ['/', '\\', '|', '-', 'x', '+', '*']]
+        monochrome = \
+            cycler('hatch', hatching) * \
+            cycler('edgecolor', ['k']) * \
+            cycler('color', ['w']) * \
+            cycler('linewidth', [.5])
+        ax.set_prop_cycle(monochrome)
+
     newlabels = []
     total = sum(vals)
     for label, val in zip(labels, vals):
@@ -134,6 +151,11 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
             f.write('{0}\t{1}\n'.format(l, v))
 
     patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
+
+    if paper:
+        for p, h in zip(patches, itertools.cycle(hatching)):
+            p.set_hatch(h)
+            p.set_linewidth(.5)
 
     boxes = []
     newlabels = []
@@ -152,16 +174,70 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
     return mp_saveimg(plotdir, name)
 
 
+def smooth_data(a):
+    b = []
+    for (x, y) in a:
+        if isinstance(x, list):
+            x = np.array(x)
+        if isinstance(y, list):
+            y = np.array(y)
+        if len(x) == 0:
+            b.append(([], []))
+            continue
+        s = np.linspace(x.min(), x.max(), 400)
+        t = UnivariateSpline(x, y, s=.1)
+        b.append((s, t(s)))
+        del t
+    return b
+
+
 def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
     if not modes:
         modes = [Plotter.HIST, Plotter.PROF | Plotter.TIME]
 
+    paper = kwargs.pop('paper', False)
+
     for mode in modes:
         filename = stub
         fig, ax = plt.subplots()
+        hatching = []
 
         # to pickle plot contents
         data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}
+
+        if paper:
+            hatching = [p * 8 for p in ['/', '\\', '|', '-', 'x', '+', '*']]
+            if 'color' in kwargs:
+                del kwargs['color']
+            if mode & Plotter.HIST:
+                monochrome = \
+                    cycler('hatch', hatching) * \
+                    cycler('edgecolor', ['k']) * \
+                    cycler('color', ['w']) * \
+                    cycler('linewidth', [.5])
+                ax.set_prop_cycle(monochrome)
+            elif mode & Plotter.STACK:
+                a = smooth_data(a)
+                monochrome = \
+                    cycler('hatch', hatching) * \
+                    cycler('edgecolor', ['k']) * \
+                    cycler('facecolor', ['w']) * \
+                    cycler('linewidth', [.5])
+                ax.set_prop_cycle(monochrome)
+            elif mode & Plotter.PROF:
+                kwargs['linewidth'] = .8
+                monochrome = \
+                    cycler('color', ['k', 'gray']) * \
+                    cycler('marker', ['o', 'v', '^', 's', 'P', 'X', 'D'])
+                ax.set_prop_cycle(monochrome)
+            else:
+                a = smooth_data(a)
+                monochrome = \
+                    cycler('color', ['k', 'gray']) * \
+                    cycler('linewidth', [1.]) * \
+                    cycler('linestyle', ['-', '--', ':', '-.']) * \
+                    cycler('marker', [''])
+                ax.set_prop_cycle(monochrome)
 
         if mode & Plotter.TIME:
             f = np.vectorize(unix2matplotlib)
@@ -184,16 +260,19 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             if mode & Plotter.TIME:
                 borders = (unix2matplotlib(xmin), unix2matplotlib(xmax))
                 count, bins, patches = ax.hist([x for (x, y) in a], weights=[y for (x, y) in a],
-                                               bins=bins, histtype='barstacked', range=borders, **kwargs)
+                                               bins=bins, histtype='stepfilled', stacked=True,
+                                               range=borders, **kwargs)
                 if '/' not in ylabel:
                     ax.set_ylabel('{} / {:.0f} min'.format(ylabel,
                                                            (bins[1] - bins[0]) * 24 * 60.))
             else:
                 ax.hist([y for (x, y) in a], bins=bins,
-                        histtype='barstacked', **kwargs)
+                        histtype='stepfilled', stacked=True, **kwargs)
         elif mode & Plotter.PROF:
             filename += '-prof'
             data['data'] = []
+
+            markers = itertools.cycle(['o', 'v', '^', 's', 'P', 'X', 'D'])
 
             for i, (x, y) in enumerate(a):
                 borders = (unix2matplotlib(xmin), unix2matplotlib(xmax))
@@ -215,8 +294,8 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
 
                 centers = np.array([.5 * (x + y)
                                     for x, y in zip(edges[:-1], edges[1:])])
-                ax.errorbar(centers[sel], avg[sel], yerr=err[
-                            sel], fmt='o', ms=3, capsize=0, **newargs)
+                ax.errorbar(centers[sel], avg[sel], yerr=err[sel],
+                            fmt='o', marker=next(markers), ms=3, capsize=0, **newargs)
 
                 data['data'].append((centers, avg, err))
 
@@ -236,7 +315,15 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
             for x, y in a:
                 ys.append(y)
                 t = x
-            ax.stackplot(t, *ys, edgecolor='none', **kwargs)
+            if not paper:
+                kwargs['edgecolor'] = 'none'
+            ps = ax.stackplot(t, *ys, **kwargs)
+            if paper:
+                for p, h in zip(ps, itertools.cycle(hatching)):
+                    p.set_edgecolor('k')
+                    p.set_facecolor('w')
+                    p.set_hatch(h)
+                    p.set_linewidth(.5)
 
         ax.grid(True)
 
@@ -291,8 +378,9 @@ class Plotter(object):
     PROF = 8
     STACK = 16
 
-    def __init__(self, config, outdir=None):
+    def __init__(self, config, outdir=None, paper=False):
         self.config = config
+        self.__paper = paper
         self.__store = unit.UnitStore(config)
 
         util.verify(self.config.workdir)
@@ -564,13 +652,14 @@ class Plotter(object):
             'modes': modes,
             'xmin': self.__xmin,
             'xmax': self.__xmax,
-            'plotdir': self.__plotdir
+            'plotdir': self.__plotdir,
+            'paper': self.__paper
         }
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_plot, args, kwargs))
 
     def pie(self, vals, labels, name, **kwargs_raw):
-        kwargs = {'plotdir': self.__plotdir}
+        kwargs = {'plotdir': self.__plotdir, 'paper': self.__paper}
         kwargs.update(kwargs_raw)
         self.__plotargs.append((mp_pie, [vals, labels, name], kwargs))
 
@@ -1403,8 +1492,10 @@ class Plot(Command):
                                help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
         argparser.add_argument("--foreman-logs", default=None, metavar="FOREMAN_LIST", dest="foreman_list", nargs='+', type=str,
                                help="specify log files for foremen;  valid values: log1 log2 log3...logN")
+        argparser.add_argument('--paper', action='store_true', default=False,
+                               help="use black & white style for publications")
         argparser.add_argument('--outdir', help="specify output directory")
 
     def run(self, args):
-        p = Plotter(args.config, args.outdir)
+        p = Plotter(args.config, args.outdir, args.paper)
         p.make_plots(args.xmin, args.xmax, args.foreman_list)

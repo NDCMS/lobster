@@ -366,7 +366,7 @@ def mp_saveimg(plotdir, name):
     logger.info("Saving {0}".format(name))
 
     plt.savefig(os.path.join(plotdir, name + '.png'))
-    # plt.savefig(os.path.join(self.__plotdir, name + '.pdf'))
+    plt.savefig(os.path.join(plotdir, name + '.pdf'))
 
     plt.close()
 

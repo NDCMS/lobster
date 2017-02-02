@@ -118,19 +118,19 @@
         <h1 id="navtasks">Task Summary</h1>
         <div class="sidebar">
         {% if good_tasks or bad_tasks %}
-            <a class="workflow" href="all/time-pie.png"><img alt="" src="all/time-pie.png"/></a>
+            <a class="workflow" href="all/time-pie.pdf"><img alt="" src="all/time-pie.png"/></a>
         {% endif %}
         </div>
         <div class="maincontent">
-            <a class="workflow" href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
+            <a class="workflow" href="tasks-plot.pdf"><img alt="" src="tasks-plot.png"/></a>
         {% if good_tasks or bad_tasks %}
-            <a class="workflow" href="all/all-tasks-hist.png"><img alt="" src="all/all-tasks-hist.png"/></a>
+            <a class="workflow" href="all/all-tasks-hist.pdf"><img alt="" src="all/all-tasks-hist.png"/></a>
         {% if good_tasks %}
             <h3>Efficiency</h3>
-            <a href="all/cpu-wall-hist.png"><img alt="" src="all/cpu-wall-hist.png"/></a>
-            <a href="all/cpu-wall-int-hist.png"><img alt="" src="all/cpu-wall-int-hist.png"/></a>
-            <a href="all/cpu-cores-hist.png"><img alt="" src="all/cpu-cores-hist.png"/></a>
-            <a href="all/cpu-cores-int-hist.png"><img alt="" src="all/cpu-cores-int-hist.png"/></a>
+            <a href="all/cpu-wall-hist.pdf"><img alt="" src="all/cpu-wall-hist.png"/></a>
+            <a href="all/cpu-wall-int-hist.pdf"><img alt="" src="all/cpu-wall-int-hist.png"/></a>
+            <a href="all/cpu-cores-hist.pdf"><img alt="" src="all/cpu-cores-hist.png"/></a>
+            <a href="all/cpu-cores-int-hist.pdf"><img alt="" src="all/cpu-cores-int-hist.png"/></a>
         {% endif %}
         {% endif %}
         </div>
@@ -141,23 +141,23 @@
         </div>
         <div class="maincontent">
             <h3>Tasks and Workers</h3>
-            <a href="all/workers-plot.png"><img alt="" src="all/workers-plot.png"/></a>
-            <a href="all/turnover-hist.png"><img alt="" src="all/turnover-hist.png"/></a>
-            <a href="all/worker-deaths-hist.png"><img alt="" src="all/worker-deaths-hist.png"/></a>
-            <a href="all/tasks-plot.png"><img alt="" src="all/tasks-plot.png"/></a>
+            <a href="all/workers-plot.pdf"><img alt="" src="all/workers-plot.png"/></a>
+            <a href="all/turnover-hist.pdf"><img alt="" src="all/turnover-hist.png"/></a>
+            <a href="all/worker-deaths-hist.pdf"><img alt="" src="all/worker-deaths-hist.png"/></a>
+            <a href="all/tasks-plot.pdf"><img alt="" src="all/tasks-plot.png"/></a>
             <h3>Resources</h3>
-            <a href="all/cores-plot.png"><img alt="" src="all/cores-plot.png"/></a>
-            <a href="all/memory-plot.png"><img alt="" src="all/memory-plot.png"/></a>
-            <a href="all/disk-plot.png"><img alt="" src="all/disk-plot.png"/></a>
+            <a href="all/cores-plot.pdf"><img alt="" src="all/cores-plot.png"/></a>
+            <a href="all/memory-plot.pdf"><img alt="" src="all/memory-plot.png"/></a>
+            <a href="all/disk-plot.pdf"><img alt="" src="all/disk-plot.png"/></a>
             <h3>Time Breakdown</h3>
-            <a href="all/lobster-fraction-stack.png"><img alt="" src="all/lobster-fraction-stack.png"/></a>
-            <a href="all/wq-fraction-stack.png"><img alt="" src="all/wq-fraction-stack.png"/></a>
-            <a href="all/return-fraction-stack.png"><img alt="" src="all/return-fraction-stack.png"/></a>
+            <a href="all/lobster-fraction-stack.pdf"><img alt="" src="all/lobster-fraction-stack.png"/></a>
+            <a href="all/wq-fraction-stack.pdf"><img alt="" src="all/wq-fraction-stack.png"/></a>
+            <a href="all/return-fraction-stack.pdf"><img alt="" src="all/return-fraction-stack.png"/></a>
             <h3>Output Performance</h3>
             {% if good_tasks %}
-            <a href="all/output-hist.png"><img alt="" src="all/output-hist.png"/></a>
-            <a href="all/output-total-plot.png"><img alt="" src="all/output-total-plot.png"/></a>
-            <a href="units-total-plot.png"><img alt="" src="units-total-plot.png"/></a>
+            <a href="all/output-hist.pdf"><img alt="" src="all/output-hist.png"/></a>
+            <a href="all/output-total-plot.pdf"><img alt="" src="all/output-total-plot.png"/></a>
+            <a href="units-total-plot.pdf"><img alt="" src="units-total-plot.png"/></a>
             {% else %}
             <p>No output yet!</p>
             {% endif %}
@@ -167,19 +167,19 @@
         <h1>Foreman Summary</h1>
         <span id="foremanmore" class="button depressed"><a href="#" id="foremanmore">Individual Foreman Summaries</a></span>
         <div style="margin-left:410px;">
-            <a href="foreman-tasks-plot.png"><img alt="" src="foreman-tasks-plot.png"/></a>
-            <a href="foreman-idle-plot.png"><img alt="" src="foreman-idle-plot.png"/></a>
-            <a href="foreman-efficiency-plot.png"><img alt="" src="foreman-efficiency-plot.png"/></a>
+            <a href="foreman-tasks-plot.pdf"><img alt="" src="foreman-tasks-plot.png"/></a>
+            <a href="foreman-idle-plot.pdf"><img alt="" src="foreman-idle-plot.png"/></a>
+            <a href="foreman-efficiency-plot.pdf"><img alt="" src="foreman-efficiency-plot.png"/></a>
         </div>
 
         {% for foreman in foremen %}
         <div class="foreman more"><h1>{{ foreman }} summary</h1></div>
         <div class="foreman more" style="float:left">
-            <a href="{{ foreman }}-time-pie.png"><img alt="" src="{{ foreman }}-time-pie.png"/></a>
+            <a href="{{ foreman }}-time-pie.pdf"><img alt="" src="{{ foreman }}-time-pie.png"/></a>
         </div>
         <div class="foreman more" style="margin-left:410px;"><ul class = "img-list">
-            <a href="{{ foreman }}-workers-plot.png"><img alt="" src="{{ foreman }}-workers-plot.png"/></a>
-            <a href="{{ foreman }}-turnover-hist.png"><img alt="" src="{{ foreman }}-turnover-hist.png"/></a>
+            <a href="{{ foreman }}-workers-plot.pdf"><img alt="" src="{{ foreman }}-workers-plot.png"/></a>
+            <a href="{{ foreman }}-turnover-hist.pdf"><img alt="" src="{{ foreman }}-turnover-hist.png"/></a>
         </ul></div>
         {% endfor %}
         {% endif %}

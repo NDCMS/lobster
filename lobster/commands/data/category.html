@@ -7,11 +7,11 @@
         <link rel="stylesheet" href="../styles.css">
 
         {% macro label_wrapper(img_name, label) %}
-        <li><a class="workflow" href="{{ img_name }}"><img alt="{{ label }}"
+        <li><a class="workflow" href="{{ img_name }}.pdf"><img alt="{{ label }}"
                     {% for k, v in kwargs.iteritems() %}
                         {{ k }}="{{ v }}"
                     {% endfor %}
-                src="{{ img_name }}"/>
+                src="{{ img_name }}.png"/>
                 <span class="text-content"><span>
                     {{ label }}
                 </span></span>
@@ -172,17 +172,17 @@
         <h1 id="navtasks">Task Summary</h1>
         <div class="sidebar">
         {% if good_tasks or bad_tasks %}
-            <a class="workflow" href="time-pie.png"><img class="side" alt="" src="time-pie.png"/></a>
+            <a class="workflow" href="time-pie.pdf"><img class="side" alt="" src="time-pie.png"/></a>
         {% endif %}
         </div>
         <div class="maincontent">
-            <a class="workflow" href="tasks-plot.png"><img alt="" src="tasks-plot.png"/></a>
+            <a class="workflow" href="tasks-plot.pdf"><img alt="" src="tasks-plot.png"/></a>
         {% if good_tasks or bad_tasks %}
-            <a class="workflow" href="all-tasks-hist.png"><img alt="" src="all-tasks-hist.png"/></a>
+            <a class="workflow" href="all-tasks-hist.pdf"><img alt="" src="all-tasks-hist.png"/></a>
         {% if good_tasks %}
             <h3>Efficiency</h3>
-            <a href="cpu-wall-hist.png"><img alt="" src="cpu-wall-hist.png"/></a>
-            <a href="cpu-wall-int-hist.png"><img alt="" src="cpu-wall-int-hist.png"/></a>
+            <a href="cpu-wall-hist.pdf"><img alt="" src="cpu-wall-hist.png"/></a>
+            <a href="cpu-wall-int-hist.pdf"><img alt="" src="cpu-wall-int-hist.png"/></a>
         {% endif %}
         {% if good_tasks or bad_tasks %}
 	    <h3>Transfer Protocol Summary</h3>
@@ -211,49 +211,49 @@
         <h2 id="navgood">Successful Tasks</h2>
         {% if good_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="good-time-detail-pie.png"><img class="side" alt="" src="good-time-detail-pie.png"/></a>
+            <a class="workflow" href="good-time-detail-pie.pdf"><img class="side" alt="" src="good-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Resources Utilized</h3>
-            <a class="workflow" href="good-memory-hist.png"><img alt="" src="good-memory-hist.png"/></a>
-            <a class="workflow" href="good-workdir-footprint-hist.png"><img alt="" src="good-workdir-footprint-hist.png"/></a>
-            <a class="workflow" href="good-cores-hist.png"><img alt="" src="good-cores-hist.png"/></a>
-            <a class="workflow" href="good-network-bandwidth-prof.png"><img alt="" src="good-network-bandwidth-prof.png"/></a>
-            <a class="workflow" href="good-exe-efficiency-hist.png"><img alt="" src="good-exe-efficiency-hist.png"/></a>
-            <a class="workflow" href="good-exhausted-attempts-prof.png"><img alt="" src="good-exhausted-attempts-prof.png"/></a>
+            <a class="workflow" href="good-memory-hist.pdf"><img alt="" src="good-memory-hist.png"/></a>
+            <a class="workflow" href="good-workdir-footprint-hist.pdf"><img alt="" src="good-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="good-cores-hist.pdf"><img alt="" src="good-cores-hist.png"/></a>
+            <a class="workflow" href="good-network-bandwidth-prof.pdf"><img alt="" src="good-network-bandwidth-prof.png"/></a>
+            <a class="workflow" href="good-exe-efficiency-hist.pdf"><img alt="" src="good-exe-efficiency-hist.png"/></a>
+            <a class="workflow" href="good-exhausted-attempts-prof.pdf"><img alt="" src="good-exhausted-attempts-prof.png"/></a>
             <h3>Task Resources Allocated</h3>
-            <a class="workflow" href="good-allocated-memory-prof.png"><img alt="" src="good-allocated-memory-prof.png"/></a>
-            <a class="workflow" href="good-allocated-disk-prof.png"><img alt="" src="good-allocated-disk-prof.png"/></a>
-            <a class="workflow" href="good-allocated-cores-prof.png"><img alt="" src="good-allocated-cores-prof.png"/></a>
-            <a class="workflow" href="good-tasksize-prof.png"><img alt="" src="good-tasksize-prof.png"/></a>
+            <a class="workflow" href="good-allocated-memory-prof.pdf"><img alt="" src="good-allocated-memory-prof.png"/></a>
+            <a class="workflow" href="good-allocated-disk-prof.pdf"><img alt="" src="good-allocated-disk-prof.png"/></a>
+            <a class="workflow" href="good-allocated-cores-prof.pdf"><img alt="" src="good-allocated-cores-prof.png"/></a>
+            <a class="workflow" href="good-tasksize-prof.pdf"><img alt="" src="good-tasksize-prof.png"/></a>
             <h3>Task Timing</h3>
             <p>
                 <span id="goodhist" class="button left pressed"><a href="#" id="goodhist">statistics</a></span><span id="goodhist" class="button right depressed"><a href="#" id="goodprof">profile</a></span>
                 <span id="goodmore" class="button depressed"><a href="#" id="goodmore">show timeline breakdown</a></span>
             </p>
             <div class="good more"><ul class="img-list">
-                {{ label_wrapper('good-eviction-hist.png', 'Time lost to eviction', class="good") }}
-                {{ label_wrapper('good-exhaustion-hist.png', 'Time lost to exceeding allocated resources', class="good") }}
+                {{ label_wrapper('good-eviction-hist', 'Time lost to eviction', class="good") }}
+                {{ label_wrapper('good-exhaustion-hist', 'Time lost to exceeding allocated resources', class="good") }}
             </ul></div>
             <div><ul class="img-list">
-                {{ label_wrapper('good-runtime-hist.png', 'Time from wrapper start to processing end', class='good') }}
-                {{ label_wrapper('good-overhead-hist.png', 'Time from wrapper start to begin processing the first event', class='good') }}
+                {{ label_wrapper('good-runtime-hist', 'Time from wrapper start to processing end', class='good') }}
+                {{ label_wrapper('good-overhead-hist', 'Time from wrapper start to begin processing the first event', class='good') }}
             </ul></div>
             <div class="good more"><ul class="img-list">
-                {{ label_wrapper('good-transfer-in-hist.png', 'Time to transfer input files', class='good') }}
-                {{ label_wrapper('good-startup-hist.png', 'Time between completing the input file transfer and starting the wrapper', class='good') }}
-                {{ label_wrapper('good-stage-in-hist.png', 'Time to stage in all additional input files', class='good more') }}
-                {{ label_wrapper('good-prologue-hist.png', 'Time to run the prologue command', class='good more') }}
-                {{ label_wrapper('good-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='good') }}
+                {{ label_wrapper('good-transfer-in-hist', 'Time to transfer input files', class='good') }}
+                {{ label_wrapper('good-startup-hist', 'Time between completing the input file transfer and starting the wrapper', class='good') }}
+                {{ label_wrapper('good-stage-in-hist', 'Time to stage in all additional input files', class='good more') }}
+                {{ label_wrapper('good-prologue-hist', 'Time to run the prologue command', class='good more') }}
+                {{ label_wrapper('good-setup-release-hist', 'Time to set up release and initialize cms environment', class='good') }}
             </ul></div>
             <div><ul class="img-list">
-                {{ label_wrapper('good-processing-hist.png', 'Time the executable took to run', class='good') }}
+                {{ label_wrapper('good-processing-hist', 'Time the executable took to run', class='good') }}
             </ul></div>
             <div class="good more"><ul class="img-list">
-                {{ label_wrapper('good-epilogue-hist.png', 'Time to run the epilogue command', class='good more') }}
-                {{ label_wrapper('good-stage-out-hist.png', 'Time to stage out all output files', class='good more') }}
-                {{ label_wrapper('good-transfer-out-wait-hist.png', 'Time between stageout completion and WQ task.receive_output_start', class='good more') }}
-                {{ label_wrapper('good-transfer-out-wq-hist.png', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='good more') }}
+                {{ label_wrapper('good-epilogue-hist', 'Time to run the epilogue command', class='good more') }}
+                {{ label_wrapper('good-stage-out-hist', 'Time to stage out all output files', class='good more') }}
+                {{ label_wrapper('good-transfer-out-wait-hist', 'Time between stageout completion and WQ task.receive_output_start', class='good more') }}
+                {{ label_wrapper('good-transfer-out-wq-hist', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='good more') }}
             </ul></div>
         </div>
         {% else %}
@@ -263,44 +263,44 @@
         <h2 id="navmerge">Merge tasks</h2>
         {% if merge_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="merge-time-detail-pie.png"><img class="side" alt="" src="merge-time-detail-pie.png"/></a>
+            <a class="workflow" href="merge-time-detail-pie.pdf"><img class="side" alt="" src="merge-time-detail-pie.png"/></a>
         </div>
         <div class="maincontent">
             <h3>Task Resources</h3>
-            <a class="workflow" href="merge-memory-hist.png"><img alt="" src="merge-memory-hist.png"/></a>
-            <a class="workflow" href="merge-workdir-footprint-hist.png"><img alt="" src="merge-workdir-footprint-hist.png"/></a>
-            <a class="workflow" href="merge-cores-hist.png"><img alt="" src="merge-cores-hist.png"/></a>
-            <a class="workflow" href="merge-network-bandwidth-prof.png"><img alt="" src="merge-network-bandwidth-prof.png"/></a>
-            <a class="workflow" href="merge-exe-efficiency-hist.png"><img alt="" src="merge-exe-efficiency-hist.png"/></a>
-            <a class="workflow" href="merge-exhausted-attempts-prof.png"><img alt="" src="merge-exhausted-attempts-prof.png"/></a>
+            <a class="workflow" href="merge-memory-hist.pdf"><img alt="" src="merge-memory-hist.png"/></a>
+            <a class="workflow" href="merge-workdir-footprint-hist.pdf"><img alt="" src="merge-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="merge-cores-hist.pdf"><img alt="" src="merge-cores-hist.png"/></a>
+            <a class="workflow" href="merge-network-bandwidth-prof.pdf"><img alt="" src="merge-network-bandwidth-prof.png"/></a>
+            <a class="workflow" href="merge-exe-efficiency-hist.pdf"><img alt="" src="merge-exe-efficiency-hist.png"/></a>
+            <a class="workflow" href="merge-exhausted-attempts-prof.pdf"><img alt="" src="merge-exhausted-attempts-prof.png"/></a>
             <h3>Task Timing</h3>
             <p>
                 <span id="mergehist" class="button left pressed"><a href="#" id="mergehist">statistics</a></span><span id="mergehist" class="button right depressed"><a href="#" id="mergeprof">profile</a></span>
                 <span id="mergemore" class="button depressed"><a href="#" id="mergemore">show timeline breakdown</a></span>
             </p>
             <div class="merge more"><ul class="img-list">
-                {{ label_wrapper('merge-eviction-hist.png', 'Time lost to eviction', class="merge") }}
-                {{ label_wrapper('merge-exhausted-hist.png', 'Time lost to exceeding allocated resources', class="merge") }}
+                {{ label_wrapper('merge-eviction-hist', 'Time lost to eviction', class="merge") }}
+                {{ label_wrapper('merge-exhausted-hist', 'Time lost to exceeding allocated resources', class="merge") }}
             </ul></div>
             <div><ul class="img-list">
-                {{ label_wrapper('merge-runtime-hist.png', 'Time from wrapper start to processing end', class='merge') }}
-                {{ label_wrapper('merge-overhead-hist.png', 'Time from wrapper start to begin processing the first event', class='merge') }}
+                {{ label_wrapper('merge-runtime-hist', 'Time from wrapper start to processing end', class='merge') }}
+                {{ label_wrapper('merge-overhead-hist', 'Time from wrapper start to begin processing the first event', class='merge') }}
             </ul></div>
             <div class="merge more"><ul class="img-list">
-                {{ label_wrapper('merge-transfer-in-hist.png', 'Time to transfer input files', class='merge') }}
-                {{ label_wrapper('merge-startup-hist.png', 'Time between completing the input file transfer and starting the wrapper', class='merge') }}
-                {{ label_wrapper('merge-stage-in-hist.png', 'Time to stage in all additional input files', class='merge more') }}
-                {{ label_wrapper('merge-prologue-hist.png', 'Time to run the prologue command', class='merge more') }}
-                {{ label_wrapper('merge-setup-release-hist.png', 'Time to set up release and initialize cms environment', class='merge') }}
+                {{ label_wrapper('merge-transfer-in-hist', 'Time to transfer input files', class='merge') }}
+                {{ label_wrapper('merge-startup-hist', 'Time between completing the input file transfer and starting the wrapper', class='merge') }}
+                {{ label_wrapper('merge-stage-in-hist', 'Time to stage in all additional input files', class='merge more') }}
+                {{ label_wrapper('merge-prologue-hist', 'Time to run the prologue command', class='merge more') }}
+                {{ label_wrapper('merge-setup-release-hist', 'Time to set up release and initialize cms environment', class='merge') }}
             </ul></div>
             <div><ul class="img-list">
-                {{ label_wrapper('merge-processing-hist.png', 'Time the executable took to run', class='merge') }}
+                {{ label_wrapper('merge-processing-hist', 'Time the executable took to run', class='merge') }}
             </ul></div>
             <div class="merge more"><ul class="img-list">
-                {{ label_wrapper('merge-epilogue-hist.png', 'Time to run the epilogue command', class='merge more') }}
-                {{ label_wrapper('merge-stage-out-hist.png', 'Time to stage out all output files', class='merge more') }}
-                {{ label_wrapper('merge-transfer-out-wait-hist.png', 'Time between stageout completion and WQ task.receive_output_start', class='merge more') }}
-                {{ label_wrapper('merge-transfer-out-wq-hist.png', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='merge more') }}
+                {{ label_wrapper('merge-epilogue-hist', 'Time to run the epilogue command', class='merge more') }}
+                {{ label_wrapper('merge-stage-out-hist', 'Time to stage out all output files', class='merge more') }}
+                {{ label_wrapper('merge-transfer-out-wait-hist', 'Time between stageout completion and WQ task.receive_output_start', class='merge more') }}
+                {{ label_wrapper('merge-transfer-out-wq-hist', 'Time between WQ task.receive_output_start and task.receive_output_finish', class='merge more') }}
             </ul></div>
         </div>
         {% else %}
@@ -310,18 +310,18 @@
         <h2 id="navbad">Failed tasks</h2>
         {% if bad_tasks %}
         <div class="sidebar">
-            <a class="workflow" href="failed-pie.png"><img class="side" alt="" src="failed-pie.png"/></a>
+            <a class="workflow" href="failed-pie.pdf"><img class="side" alt="" src="failed-pie.png"/></a>
         </div>
         <div class="maincontent">
             <p>A mapping of the exit codes can be found in the <a href="http://lobster.readthedocs.org/en/latest/monitor.html#task-exit-codes">documentation</a>.</p>
             <h3>Failure Modes</h3>
-            <a class="workflow" href="failed-tasks-hist.png"><img alt="" src="failed-tasks-hist.png"/></a>
+            <a class="workflow" href="failed-tasks-hist.pdf"><img alt="" src="failed-tasks-hist.png"/></a>
             <h3>Task Resources</h3>
-            <a class="workflow" href="failed-memory-hist.png"><img alt="" src="failed-memory-hist.png"/></a>
-            <a class="workflow" href="failed-workdir-footprint-hist.png"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
-            <a class="workflow" href="failed-cores-hist.png"><img alt="" src="failed-cores-hist.png"/></a>
-            <a class="workflow" href="failed-network-bandwidth-prof.png"><img alt="" src="failed-network-bandwidth-prof.png"/></a>
-            <a class="workflow" href="failed-exhausted-attempts-prof.png"><img alt="" src="failed-exhausted-attempts-prof.png"/></a>
+            <a class="workflow" href="failed-memory-hist.pdf"><img alt="" src="failed-memory-hist.png"/></a>
+            <a class="workflow" href="failed-workdir-footprint-hist.pdf"><img alt="" src="failed-workdir-footprint-hist.png"/></a>
+            <a class="workflow" href="failed-cores-hist.pdf"><img alt="" src="failed-cores-hist.png"/></a>
+            <a class="workflow" href="failed-network-bandwidth-prof.pdf"><img alt="" src="failed-network-bandwidth-prof.png"/></a>
+            <a class="workflow" href="failed-exhausted-attempts-prof.pdf"><img alt="" src="failed-exhausted-attempts-prof.png"/></a>
             <h3>Task Logs</h3>
             <table class="fancy">
                 <tr>

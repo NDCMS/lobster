@@ -193,7 +193,7 @@ def smooth_data(a):
 
 def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
     if not modes:
-        modes = [Plotter.HIST, Plotter.PROF | Plotter.TIME]
+        modes = [Plotter.PROF | Plotter.TIME, Plotter.HIST]
 
     paper = kwargs.pop('paper', False)
 

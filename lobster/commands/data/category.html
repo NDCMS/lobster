@@ -20,8 +20,11 @@
 
         <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
         <script>
-            function src_replace(sel, a, b) {
-                $(sel).attr("src", function(idx, src) {
+            function src_replace(cls, a, b) {
+                $("img." + cls).attr("src", function(idx, src) {
+                    return src.replace(a, b);
+                });
+                $("img." + cls).closest("a").attr("href", function(idx, src) {
                     return src.replace(a, b);
                 });
             };
@@ -60,7 +63,7 @@
                 });
 
                 $("a#mergehist").bind('click', function() {
-                    src_replace("img.merge", "-prof", "-hist");
+                    src_replace("merge", "-prof", "-hist");
                     $("span#mergehist.left").removeClass("depressed");
                     $("span#mergehist.left").addClass("pressed");
                     $("span#mergehist.right").removeClass("pressed");
@@ -68,7 +71,7 @@
                     return false;
                 });
                 $("a#mergeprof").bind('click', function() {
-                    src_replace("img.merge", "-hist", "-prof");
+                    src_replace("merge", "-hist", "-prof");
                     $("span#mergehist.left").removeClass("pressed");
                     $("span#mergehist.left").addClass("depressed");
                     $("span#mergehist.right").removeClass("depressed");
@@ -77,7 +80,7 @@
                 });
 
                 $("a#goodhist").bind('click', function() {
-                    src_replace("img.good", "-prof", "-hist");
+                    src_replace("good", "-prof", "-hist");
                     $("span#goodhist.left").removeClass("depressed");
                     $("span#goodhist.left").addClass("pressed");
                     $("span#goodhist.right").removeClass("pressed");
@@ -85,7 +88,7 @@
                     return false;
                 });
                 $("a#goodprof").bind('click', function() {
-                    src_replace("img.good", "-hist", "-prof");
+                    src_replace("good", "-hist", "-prof");
                     $("span#goodhist.right").removeClass("depressed");
                     $("span#goodhist.right").addClass("pressed");
                     $("span#goodhist.left").removeClass("pressed");

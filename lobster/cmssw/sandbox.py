@@ -111,7 +111,7 @@ class Sandbox(lobster.core.Sandbox):
         tarball = tarfile.open(outfile, "w|bz2")
 
         # package bin, etc
-        subdirs = ['.SCRAM', 'bin', 'cfipython', 'lib', 'python']
+        subdirs = ['.SCRAM', 'bin', 'cfipython', 'external', 'lib', 'python']
         subdirs += [os.path.join('src', incl) for incl in self.include]
 
         for (path, dirs, files) in os.walk(os.path.join(indir, 'src')):

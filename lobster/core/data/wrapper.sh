@@ -146,7 +146,7 @@ scramv1 project -f CMSSW $LOBSTER_CMSSW_VERSION || exit_on_error $? 173 "Failed 
 arch=$(ls $LOBSTER_CMSSW_VERSION/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
 
 log "unpacking sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2"
-for d in bin cfipython lib python src; do
+for d in bin cfipython external lib python src; do
 	tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2 $LOBSTER_CMSSW_VERSION/$d || exit_on_error $? 170 "Failed to unpack sandbox!"
 done
 

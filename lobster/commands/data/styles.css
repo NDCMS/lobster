@@ -191,11 +191,11 @@ span.text-content {
     color: white;
     display: table;
     font-size: 1.5em;
-    height: 150px;
-    left: 15px;
+    height: 160px;
+    left: -15px;
     position: absolute;
     top: -5px;
-    width: 750px;
+    width: 830px;
     opacity: 0;
     -webkit-transition: opacity 500ms;
     -moz-transition: opacity 500ms;

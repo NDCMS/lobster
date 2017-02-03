@@ -344,11 +344,12 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                 var = np.std(y)
                 med = np.median(y)
                 stats[label] = (avg, var, med)
-            info = u"{0} μ = {1:.3g}, σ = {2:.3g} median = {3:.3g}"
-            ax.text(0.75, 0.6,
-                    '\n'.join([info.format(label + ':', avg, var, med)
-                               for label, (avg, var, med) in stats.items()]),
-                    ha="center", transform=ax.transAxes, backgroundcolor='white')
+            info = u"{0}μ = {1:.3g}, σ = {2:.3g}, median = {3:.3g}"
+            t = ax.text(0.75, 0.7,
+                        '\n'.join([info.format(label + ': ' if len(stats) > 1 else '', avg, var, med)
+                                   for label, (avg, var, med) in stats.items()]),
+                        ha="center", va="center", transform=ax.transAxes, backgroundcolor='w')
+            t.set_bbox({'color': 'w', 'alpha': .5, 'edgecolor': 'w'})
 
         if 'label' in kwargs or 'labels' in kwargs:
             ax.legend(bbox_to_anchor=(.5, .95),

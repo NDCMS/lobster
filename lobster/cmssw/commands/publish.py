@@ -4,6 +4,7 @@
 # * no all CAPS variable names - should be reserved for constants
 # * fix filetype setting
 # * migrate parents
+# * make this work for remote SEs
 import daemon
 import json
 import logging
@@ -124,7 +125,7 @@ class Publish(Command):
 
     def __init__(self):
         # FIXME this should really be SE specific
-        storage_path = '/cvmfs/cms.cern.ch/SITECONF/{}/PhEDEx/storage.xml'.format(os.environ['CMS_LOCAL_SITE'])
+        storage_path = '/cvmfs/cms.cern.ch/SITECONF/local/PhEDEx/storage.xml'
         self.__catalog = readTFC(storage_path)
         self.__dbs = {}
 
@@ -232,7 +233,7 @@ class Publish(Command):
 
     # def insert_dataset(self, dbs, primary, user, label, hash_):
     def prepare_block(self, dataset, user):
-        site_config_path = '/cvmfs/cms.cern.ch/SITECONF/{}/JobConfig/site-local-config.xml'.format(os.environ['CMS_LOCAL_SITE'])
+        site_config_path = '/cvmfs/cms.cern.ch/SITECONF/local/JobConfig/site-local-config.xml'
         site = SiteLocalConfig(site_config_path).siteName
 
         block = {

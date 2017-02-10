@@ -148,9 +148,7 @@ export SCRAM_ARCH=$arch
 scramv1 project -f CMSSW $LOBSTER_CMSSW_VERSION || exit_on_error $? 173 "Failed to create new release"
 
 log "unpacking sandbox-${LOBSTER_CMSSW_VERSION}-${arch}.tar.bz2"
-for d in bin cfipython external lib python src; do
-	tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch}.tar.bz2 $LOBSTER_CMSSW_VERSION/$d || exit_on_error $? 170 "Failed to unpack sandbox!"
-done
+tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch}.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
 basedir=$PWD
 cd $LOBSTER_CMSSW_VERSION

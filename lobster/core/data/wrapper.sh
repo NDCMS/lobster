@@ -127,9 +127,11 @@ fi
 log "sourcing CMS setup"
 source /cvmfs/cms.cern.ch/cmsset_default.sh || exit_on_error $? 175 "Failed to source CMS"
 
+slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
+arch=$(echo sandbox-${LOBSTER_CMSSW_VERSION}-slc${slc}*.tar.bz2 | grep -oe "slc${slc}_[^.]*")
+
 if [ -z "$LOBSTER_PROXY_INFO" -o \( -z "$LOBSTER_LCG_CP" -a -z "$LOBSTER_GFAL_COPY" \) ]; then
 	log "sourcing OSG setup"
-	slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
 	source /cvmfs/oasis.opensciencegrid.org/osg-software/osg-wn-client/"$LOBSTER_OSG_VERSION"/current/el$slc-$(uname -m)/setup.sh || exit_on_error $? 175 "Failed to source OSG"
 
 	[ -z "$LOBSTER_LCG_CP" ] && export LOBSTER_LCG_CP=$(command -v lcg-cp)
@@ -140,15 +142,13 @@ log "env" "environment after sourcing startup scripts" env
 log "proxy" "proxy information" env X509_USER_PROXY=proxy voms-proxy-info
 log "dir" "working directory at startup" ls -l
 
-log "creating new release $LOBSTER_CMSSW_VERSION"
+log "creating new release $LOBSTER_CMSSW_VERSION for scram arch $arch"
 
+export SCRAM_ARCH=$arch
 scramv1 project -f CMSSW $LOBSTER_CMSSW_VERSION || exit_on_error $? 173 "Failed to create new release"
-arch=$(ls $LOBSTER_CMSSW_VERSION/.SCRAM/|grep slc) || exit_on_error $? 171 "Failed to determine SL release!"
 
-log "unpacking sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2"
-for d in bin cfipython external lib python src; do
-	tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch%%_*}.tar.bz2 $LOBSTER_CMSSW_VERSION/$d || exit_on_error $? 170 "Failed to unpack sandbox!"
-done
+log "unpacking sandbox-${LOBSTER_CMSSW_VERSION}-${arch}.tar.bz2"
+tar xjf sandbox-${LOBSTER_CMSSW_VERSION}-${arch}.tar.bz2 || exit_on_error $? 170 "Failed to unpack sandbox!"
 
 basedir=$PWD
 cd $LOBSTER_CMSSW_VERSION

@@ -139,6 +139,7 @@ class Process(Command, util.Timing):
 
         process = psutil.Process()
         preserved = [f.name for f in args.preserve]
+        preserved += [os.path.realpath(os.path.abspath(f)) for f in preserved]
         openfiles = [f for f in process.open_files() if f.path not in preserved]
         openconns = process.connections()
 

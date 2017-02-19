@@ -503,20 +503,9 @@ class Plotter(object):
         # fix units of time
         stats[:, 0] /= 1e6
 
-        stats[:, headers['workers_joined']] = np.maximum(stats[:, headers[
-                                                         'workers_joined']] - np.roll(stats[:, headers['workers_joined']], 1, 0), 0)
-        stats[:, headers['workers_removed']] = np.maximum(stats[:, headers[
-                                                          'workers_removed']] - np.roll(stats[:, headers['workers_removed']], 1, 0), 0)
-        stats[:, headers['workers_lost']] = np.maximum(
-            stats[:, headers['workers_lost']] - np.roll(stats[:, headers['workers_lost']], 1, 0), 0)
-        stats[:, headers['workers_idled_out']] = np.maximum(stats[:, headers[
-                                                            'workers_idled_out']] - np.roll(stats[:, headers['workers_idled_out']], 1, 0), 0)
-        stats[:, headers['workers_fast_aborted']] = np.maximum(stats[:, headers[
-                                                               'workers_fast_aborted']] - np.roll(stats[:, headers['workers_fast_aborted']], 1, 0), 0)
-        stats[:, headers['workers_blacklisted']] = np.maximum(stats[:, headers[
-                                                              'workers_blacklisted']] - np.roll(stats[:, headers['workers_blacklisted']], 1, 0), 0)
-        stats[:, headers['workers_released']] = np.maximum(stats[:, headers[
-                                                           'workers_released']] - np.roll(stats[:, headers['workers_released']], 1, 0), 0)
+        for label in ['joined', 'removed', 'lost', 'idled_out', 'fast_aborted', 'blacklisted', 'released']:
+            field = 'workers_{}'.format(label)
+            stats[:, headers[field]] = np.maximum(stats[:, headers[field]] - np.roll(stats[:, headers[field]], 1, 0), 0)
 
         if not filename and category == 'all':
             self.__total_xmin = stats[0, 0]

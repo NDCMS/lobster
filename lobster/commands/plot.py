@@ -1477,9 +1477,9 @@ class Plot(Command):
 
     def setup(self, argparser):
         argparser.add_argument("--from", default=None, metavar="START", dest="xmin",
-                               help="plot data from START.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+                               help="plot data from START.  Valid values: 1970-01-30, 1970-01-30_00:00, 00:00")
         argparser.add_argument("--to", default=None, metavar="END", dest="xmax",
-                               help="plot data until END.  Valid values: 1970-01-01, 1970-01-01_00:00, 00:00")
+                               help="plot data until END.  Valid values: 1970-01-30, 1970-01-30_00:00, 00:00")
         argparser.add_argument("--foreman-logs", default=None, metavar="FOREMAN_LIST", dest="foreman_list", nargs='+', type=str,
                                help="specify log files for foremen;  valid values: log1 log2 log3...logN")
         argparser.add_argument('--paper', action='store_true', default=False,

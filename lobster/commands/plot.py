@@ -208,11 +208,16 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
         modes = [Plotter.PROF | Plotter.TIME, Plotter.HIST]
 
     paper = kwargs.pop('paper', False)
+    oldxlabel = xlabel
+    oldylabel = ylabel
 
     for mode in modes:
         filename = stub
         fig, ax = plt.subplots()
         hatching = []
+
+        xlabel = oldxlabel
+        ylabel = oldylabel
 
         ax.yaxis.set_major_formatter(BetterFormatter())
 

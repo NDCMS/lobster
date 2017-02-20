@@ -350,7 +350,7 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
         if ymax:
             ax.axis(ymax=ymax)
 
-        if not mode & Plotter.TIME and mode & Plotter.HIST:
+        if not mode & Plotter.TIME and mode & Plotter.HIST and not paper:
             labels = kwargs.get('label', [''] * len(a))
             stats = {}
             for label, (x, y) in zip(labels, a):

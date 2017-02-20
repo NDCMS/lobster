@@ -23,6 +23,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
+import matplotlib.ticker as ticker
 import numpy as np
 
 from scipy.interpolate import UnivariateSpline
@@ -201,6 +202,8 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
         filename = stub
         fig, ax = plt.subplots()
         hatching = []
+
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y, p: format(int(y), ',')))
 
         # to pickle plot contents
         data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}

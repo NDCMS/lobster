@@ -35,7 +35,6 @@ from lobster.core.command import Command
 from WMCore.DataStructs.LumiList import LumiList
 
 matplotlib.rc('axes', labelsize='large')
-matplotlib.rc('axes.formatter', limits=(-3, 4))
 matplotlib.rc('figure', figsize=(8, 1.5))
 matplotlib.rc('figure.subplot', left=0.09, right=0.96, bottom=0.275)
 matplotlib.rc('hatch', linewidth=.3)
@@ -192,6 +191,18 @@ def smooth_data(a):
     return b
 
 
+class BetterFormatter(ticker.ScalarFormatter):
+
+    def __init__(self):
+        super(BetterFormatter, self).__init__(useMathText=True)
+        self.set_powerlimits((-3, 7))
+
+    def pprint_val(self, value):
+        if round(value, 0) == value:
+            value = int(value)
+        return "{:,}".format(value)
+
+
 def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None, xmin=None, xmax=None, plotdir=None, **kwargs):
     if not modes:
         modes = [Plotter.PROF | Plotter.TIME, Plotter.HIST]
@@ -203,7 +214,7 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
         fig, ax = plt.subplots()
         hatching = []
 
-        ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y, p: format(int(y), ',')))
+        ax.yaxis.set_major_formatter(BetterFormatter())
 
         # to pickle plot contents
         data = {'data': a, 'bins': bins, 'labels': kwargs.get('label')}

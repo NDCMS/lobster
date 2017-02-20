@@ -200,6 +200,8 @@ class BetterFormatter(ticker.ScalarFormatter):
     def pprint_val(self, value):
         if round(value, 0) == value:
             value = int(value)
+        if self.orderOfMagnitude != 0:
+            value /= 10.0 ** self.orderOfMagnitude
         return "{:,}".format(value)
 
 

@@ -21,20 +21,27 @@ class Validate(Command):
                                help='remove intermediate files that have been merged')
 
     def print_stats(self, stats):
-        logger.info('{0:<20} {1:>20} {2:>20} {3:>23}'.format('label',
+        width = max([len(x) for x in stats])
+        logger.info('{0:<{width}} {1:>20} {2:>20} {3:>23}'.format('label',
                                                              '# of bad files',
                                                              '# of merged files',
-                                                             '# of uncleaned files'))
-        logger.info('-' * 86)
+                                                             '# of uncleaned files',
+                                                             width=width))
+        logger.info('-' * (66 + width))
         for label, (fails, merges, uncleaned) in stats.items():
             if fails > 0 or merges > 0 or uncleaned > 0:
-                logger.info('{0:<20} {1:>20} {2:>20} {3:>23}'.format(label, fails, merges, uncleaned))
+                logger.info('{0:<{width}} {1:>20} {2:>20} {3:>23}'.format(label,
+                                                                          fails,
+                                                                          merges,
+                                                                          uncleaned,
+                                                                          width=width))
 
-        logger.info('-' * 86)
-        logger.info('{0:<20} {1:>20} {2:>20} {3:>23}'.format('total',
-                                                             sum(f for f, m, c in stats.values()),
-                                                             sum(m for f, m, c in stats.values()),
-                                                             sum(c for f, m, c in stats.values())))
+        logger.info('-' * (66 + width))
+        logger.info('{0:<{width}} {1:>20} {2:>20} {3:>23}'.format('total',
+                                                                  sum(f for f, m, c in stats.values()),
+                                                                  sum(m for f, m, c in stats.values()),
+                                                                  sum(c for f, m, c in stats.values()),
+                                                                  width=width))
 
     def process_workflow(self, store, stats, wflow):
         files = set(fs.ls(wflow.label))

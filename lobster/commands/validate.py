@@ -23,10 +23,10 @@ class Validate(Command):
     def print_stats(self, stats):
         width = max([len(x) for x in stats])
         logger.info('{0:<{width}} {1:>20} {2:>20} {3:>23}'.format('label',
-                                                             '# of bad files',
-                                                             '# of merged files',
-                                                             '# of uncleaned files',
-                                                             width=width))
+                                                                  '# of bad files',
+                                                                  '# of merged files',
+                                                                  '# of uncleaned files',
+                                                                  width=width))
         logger.info('-' * (66 + width))
         for label, (fails, merges, uncleaned) in stats.items():
             if fails > 0 or merges > 0 or uncleaned > 0:

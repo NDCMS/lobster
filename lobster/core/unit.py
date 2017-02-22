@@ -723,8 +723,8 @@ class UnitStore:
 
         total = None
         total_mergeable = 0
-        for row in cursor:
-            workflow = getattr(self.config.workflows, row[0])
+        for label, events, read, written, units, unmasked, units_done, merged, paused, progress, merged in cursor:
+            workflow = getattr(self.config.workflows, label)
             mergeable = workflow.merge_size > 1
             failed, skipped = self.db.execute("""
                 select
@@ -739,19 +739,21 @@ class UnitStore:
                         where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
                     ), 0)
                 from workflows where label=?
-                """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
-            row = row[:-2] + (failed, skipped) + row[-2:]
+                """.format(label), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label)).fetchone()
+            row = [label, events, read, written, units, unmasked, units_done, merged, paused, failed, skipped]
             if total is None:
-                total = list(row[1:-2])
+                total = row
             else:
-                total = map(sum, zip(total, row[1:-2]))
+                total = map(sum, zip(total, row))
             if mergeable:
-                total_mergeable += row[-8]
+                total_mergeable += unmasked
 
-            yield row
+            yield row + [progress, merged]
+
+        total_unmasked, total_units_done, total_merged = total[5:8]
         yield ['Total'] + total + [
-            '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-            '{} %'.format(round(total[-4] * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)
+            '{} %'.format(round(total_units_done * 100. / total_unmasked, 1)),
+            '{} %'.format(round(total_merged * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)
         ]
 
     @retry(stop_max_attempt_number=10)

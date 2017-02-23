@@ -701,7 +701,11 @@ class UnitStore:
                 units,
                 units - units_masked,
                 units_done,
-                ifnull((select sum(units_processed) from tasks where workflow=workflows.id and status=8 and type=0), 0),
+                ifnull((
+                    select sum(units_processed)
+                    from tasks
+                    where workflow=workflows.id and ((status=8 and type=0) or (status=2 and type=0 and workflows.merged=1))
+                ), 0),
                 units_paused,
                 '' || round(
                         units_done * 100.0 / (units - units_masked),
@@ -710,7 +714,7 @@ class UnitStore:
                         ifnull((
                             select sum(units_processed)
                             from tasks
-                            where workflow=workflows.id and status=8 and type=0
+                            where workflow=workflows.id and ((status=8 and type=0) or (status=2 and type=0 and workflows.merged=1))
                         ), 0) * 100.0 / (units - units_masked),
                     1), 0.0) || ' %'
             from workflows""")
@@ -719,8 +723,13 @@ class UnitStore:
 
         total = None
         total_mergeable = 0
-        for row in cursor:
-            failed, skipped, mergeable = self.db.execute("""
+        for label, events, read, written, units, unmasked, units_done, merged, paused, progress_percent, merged_percent in cursor:
+            workflow = getattr(self.config.workflows, label)
+            mergeable = workflow.merge_size > 1
+            if not mergeable:
+                merged = 0
+                merged_percent = '0.0 %'
+            failed, skipped = self.db.execute("""
                 select
                     ifnull((
                         select count(*)
@@ -731,22 +740,23 @@ class UnitStore:
                         select count(*)
                         from units_{0}
                         where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
-                    ), 0),
-                    not ((select count(id) from tasks where workflow=workflows.id and type=1) == 0 and merged)
+                    ), 0)
                 from workflows where label=?
-                """.format(row[0]), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, row[0])).fetchone()
-            row = row[:-2] + (failed, skipped) + row[-2:]
+                """.format(label), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label)).fetchone()
+            row = [events, read, written, units, unmasked, units_done, merged, paused, failed, skipped]
             if total is None:
-                total = list(row[1:-2])
+                total = row
             else:
-                total = map(sum, zip(total, row[1:-2]))
+                total = map(sum, zip(total, row))
             if mergeable:
-                total_mergeable += row[-8]
+                total_mergeable += unmasked
 
-            yield row
+            yield [label] + row + [progress_percent, merged_percent]
+
+        total_unmasked, total_units_done, total_merged = total[4:7]
         yield ['Total'] + total + [
-            '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
-            '{} %'.format(round(total[-4] * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)
+            '{} %'.format(round(total_units_done * 100. / total_unmasked, 1)),
+            '{} %'.format(round(total_merged * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)
         ]
 
     @retry(stop_max_attempt_number=10)

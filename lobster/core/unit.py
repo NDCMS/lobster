@@ -100,6 +100,8 @@ class UnitStore:
             units_left int default 0,
             units_available int default 0,
             units_paused int default 0,
+            units_skipped int default 0,
+            units_failed int default 0,
             units_running int default 0,
             taskruntime int default null,
             tasksize int,
@@ -611,19 +613,26 @@ class UnitStore:
 
         self.db.execute("""
             update workflows set
-                units_running=ifnull((select count(*) from units_{0} where status == 1), 0),
-                units_done=ifnull((select count(*) from units_{0} where status in (2, 6, 7, 8)), 0),
-                units_paused=ifnull((
+                units_failed=ifnull((
                         select count(*)
                         from units_{0}
-                        where
-                            (file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)) or
-                            (failed > ? and status in (0, 3, 4))
-                    ), 0) + ?
-            where label=?""".format(label),
-                        (self.config.advanced.threshold_for_skipping,
-                         self.config.advanced.threshold_for_failure, parent_paused, label,)
-                        )
+                        where failed > ? and status in (0, 3, 4)
+                    ), 0),
+                units_skipped=ifnull((
+                        select count(*)
+                        from units_{0}
+                        where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
+                    ), 0)
+            where label=?""".format(label), (
+                    self.config.advanced.threshold_for_failure,
+                    self.config.advanced.threshold_for_skipping, label))
+
+        self.db.execute("""
+            update workflows set
+                units_running=ifnull((select count(*) from units_{0} where status == 1), 0),
+                units_done=ifnull((select count(*) from units_{0} where status in (2, 6, 7, 8)), 0),
+                units_paused=units_failed + units_skipped + ?
+            where label=?""".format(label), (parent_paused, label))
 
         self.db.execute("""
             update workflows set
@@ -645,19 +654,10 @@ class UnitStore:
                     units_paused,
                     units_available,
                     units_left,
-                    ifnull((
-                        select count(*)
-                        from units_{0}
-                        where failed > ? and status in (0, 3, 4)
-                    ), 0),
-                    ifnull((
-                        select count(*)
-                        from units_{0}
-                        where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
-                    ), 0)
-                from workflows where label=?""".format(label), (
-                         self.config.advanced.threshold_for_failure,
-                         self.config.advanced.threshold_for_skipping, label)).fetchone()
+                    units_failed,
+                    units_skipped
+                from workflows where label=?""".format(label), (label,)).fetchone()
+
             logger.debug(("updated stats for {0}:\n\t" +
                           "tasksize:                  {1}\n\t" +
                           "units total:               {2}\n\t" +
@@ -730,6 +730,8 @@ class UnitStore:
                     where workflow=workflows.id and ((status=8 and type=0) or (status=2 and type=0 and workflows.merged=1))
                 ), 0),
                 units_paused,
+                units_failed,
+                units_skipped,
                 '' || round(
                         units_done * 100.0 / (units - units_masked),
                     1) || ' %',
@@ -746,26 +748,14 @@ class UnitStore:
 
         total = None
         total_mergeable = 0
-        for label, events, read, written, units, unmasked, units_done, merged, paused, progress_percent, merged_percent in cursor:
+        for label, events, read, written, units, unmasked, units_done, merged, paused, \
+                failed, skipped, progress_percent, merged_percent in cursor:
             workflow = getattr(self.config.workflows, label)
             mergeable = workflow.merge_size > 1
             if not mergeable:
                 merged = 0
                 merged_percent = '0.0 %'
-            failed, skipped = self.db.execute("""
-                select
-                    ifnull((
-                        select count(*)
-                        from units_{0}
-                        where failed > ? and status in (0, 3, 4)
-                    ), 0),
-                    ifnull((
-                        select count(*)
-                        from units_{0}
-                        where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
-                    ), 0)
-                from workflows where label=?
-                """.format(label), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label)).fetchone()
+
             row = [events, read, written, units, unmasked, units_done, merged, paused - failed - skipped, failed, skipped]
             if total is None:
                 total = row

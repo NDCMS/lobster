@@ -4,6 +4,7 @@ import logging
 import math
 import os
 from retrying import retry
+import shlex
 import sqlite3
 import uuid
 
@@ -635,17 +636,39 @@ class UnitStore:
                 self.update_workflow_stats(child)
 
         if logger.getEffectiveLevel() <= logging.DEBUG:
-            size, total, running, done, paused, available, left = self.db.execute("""
-                select tasksize, units, units_running, units_done, units_paused, units_available, units_left
-                from workflows where label=?""", (label,)).fetchone()
+            size, total, running, done, paused, available, left, failed, skipped = self.db.execute("""
+                select
+                    tasksize,
+                    units,
+                    units_running,
+                    units_done,
+                    units_paused,
+                    units_available,
+                    units_left,
+                    ifnull((
+                        select count(*)
+                        from units_{0}
+                        where failed > ? and status in (0, 3, 4)
+                    ), 0),
+                    ifnull((
+                        select count(*)
+                        from units_{0}
+                        where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
+                    ), 0)
+                from workflows where label=?""".format(label), (
+                         self.config.advanced.threshold_for_failure,
+                         self.config.advanced.threshold_for_skipping, label)).fetchone()
             logger.debug(("updated stats for {0}:\n\t" +
-                          "tasksize:        {1}\n\t" +
-                          "units total:     {7}\n\t" +
-                          "units running:   {2}\n\t" +
-                          "units done:      {3}\n\t" +
-                          "units paused:    {4}\n\t" +
-                          "units available: {5}\n\t" +
-                          "units left:      {6}").format(label, size, running, done, paused, available, left, total))
+                          "tasksize:                  {1}\n\t" +
+                          "units total:               {2}\n\t" +
+                          "units running:             {3}\n\t" +
+                          "units done:                {4}\n\t" +
+                          "units missing upstream:    {5}\n\t" +
+                          "units failed:              {6}\n\t" +
+                          "units skipped:             {7}\n\t" +
+                          "units available:           {8}\n\t" +
+                          "units left:                {9}").format(
+                              label, size, total, running, done, parent_paused, failed, skipped, available, left))
 
     def merged(self):
         unmerged = self.db.execute(
@@ -719,7 +742,7 @@ class UnitStore:
                     1), 0.0) || ' %'
             from workflows""")
 
-        yield "Label Events read written Units unmasked written merged paused failed skipped Progress Merged".split()
+        yield shlex.split("Label Events read written Units unmasked written merged 'missing upstream' failed skipped Progress Merged")
 
         total = None
         total_mergeable = 0
@@ -743,7 +766,7 @@ class UnitStore:
                     ), 0)
                 from workflows where label=?
                 """.format(label), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label)).fetchone()
-            row = [events, read, written, units, unmasked, units_done, merged, paused, failed, skipped]
+            row = [events, read, written, units, unmasked, units_done, merged, paused - failed - skipped, failed, skipped]
             if total is None:
                 total = row
             else:

@@ -91,9 +91,57 @@
                 <th>unmasked</th>
                 <th>written</th>
                 <th>merged</th>
-                <th>paused</th>
-                <th>failed</th>
-                <th>skipped</th>
+		<th>
+		    <div class="tooltip">upstream<br>missing
+		        <span class="tooltiptext">
+			    Units which were failed or skipped in upstream workflows, and would need to be completed
+			    before the dependent units in this workflow can be processed.<br><br>
+
+			    If you want to increase skipping/failure thresholds so that these units are attempted
+			    again, run <span class="code"><br>lobster configure /my/working/directory<br></span> and increase
+			    <span class="code">threshold_for_failure</span> and/or <span class="code">threshold_for_skipping</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+                <th>
+		    <div class="tooltip">failed
+		        <span class="tooltiptext">
+			    Units for which the executable has not exited successfully more than
+			    <span class="code">threshold_for_failure</span>.<br><br>
+
+			    If you want to increase the failure threshold so that these units are attempted
+			    again, run <span class="code">lobster configure /my/working/directory</span> and increase
+			    <span class="code">threshold_for_failure</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+                <th>
+		    <div class="tooltip">skipped
+		        <span class="tooltiptext">
+			    Units for which accessing the input file has failed more than
+			    <span class="code">threshold_for_skipping</span>.<br><br>
+
+			    If you want to increase the skipping threshold so that these units are attempted
+			    again, run <span class="code">lobster configure /my/working/directory</span> and increase
+			    <span class="code">threshold_for_skipping</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
                 <th>Progress</th>
                 <th>Merged</th>
             </tr>

@@ -726,6 +726,9 @@ class UnitStore:
         for label, events, read, written, units, unmasked, units_done, merged, paused, progress_percent, merged_percent in cursor:
             workflow = getattr(self.config.workflows, label)
             mergeable = workflow.merge_size > 1
+            if not mergeable:
+                merged = 0
+                merged_percent = '0.0 %'
             failed, skipped = self.db.execute("""
                 select
                     ifnull((
@@ -750,7 +753,7 @@ class UnitStore:
 
             yield [label] + row + [progress_percent, merged_percent]
 
-        total_unmasked, total_units_done, total_merged = total[5:8]
+        total_unmasked, total_units_done, total_merged = total[4:7]
         yield ['Total'] + total + [
             '{} %'.format(round(total_units_done * 100. / total_unmasked, 1)),
             '{} %'.format(round(total_merged * 100. / total_mergeable, 1) if total_mergeable > 0 else 0.)

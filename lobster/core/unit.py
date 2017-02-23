@@ -623,9 +623,8 @@ class UnitStore:
                         from units_{0}
                         where file in (select id from files_{0} where skipped >= ?) and status in (0, 3, 4)
                     ), 0)
-            where label=?""".format(label), (
-                    self.config.advanced.threshold_for_failure,
-                    self.config.advanced.threshold_for_skipping, label))
+            where label=?""".format(label), (self.config.advanced.threshold_for_failure,
+                                             self.config.advanced.threshold_for_skipping, label))
 
         self.db.execute("""
             update workflows set

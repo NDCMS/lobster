@@ -19,18 +19,22 @@ class Status(Command):
         logger = logging.getLogger('lobster.status')
         store = unit.UnitStore(config)
         data = list(store.workflow_status())
+        headers = [x.split() for x in data.pop(0)]
+        header_rows = max([len(x) for x in headers])
+        for i in range(0, header_rows):
+            data.insert(i, [x[i] if len(x) > i else '' for x in headers])
 
         widths = \
             [max(map(len, (xs[0] for xs in data)))] + \
             [max(map(len, (str(xs[i]) for xs in data)))
              for i in range(1, len(data[0]))]
-        data.insert(1, ['=' * w for w in widths])
+        data.insert(header_rows + 1, ['=' * w for w in widths])
         headfmt = ' '.join('{{:^{0}}}'.format(w) for w in widths)
         mainfmt = '{{:{0}}} '.format(
             widths[0]) + ' '.join('{{:>{0}}}'.format(w) for w in widths[1:])
-        report = \
-            headfmt.format(*data[0]) + '\n' + \
-            '\n'.join([mainfmt.format(*map(str, row)) for row in data[1:]])
+        report = '\n'.join(
+            [headfmt.format(*data[i]) for i in range(0, header_rows)] +
+            [mainfmt.format(*map(str, row)) for row in data[2:]])
 
         logger.info("workflow summary:\n" + report)
 

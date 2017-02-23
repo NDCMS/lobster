@@ -620,8 +620,8 @@ class UnitStore:
                             (failed > ? and status in (0, 3, 4))
                     ), 0) + ?
             where label=?""".format(label),
-                        (self.config.advanced.threshold_for_failure,
-                         self.config.advanced.threshold_for_skipping, parent_paused, label,)
+                        (self.config.advanced.threshold_for_skipping,
+                         self.config.advanced.threshold_for_failure, parent_paused, label,)
                         )
 
         self.db.execute("""

@@ -723,7 +723,7 @@ class UnitStore:
 
         total = None
         total_mergeable = 0
-        for label, events, read, written, units, unmasked, units_done, merged, paused, progress, merged in cursor:
+        for label, events, read, written, units, unmasked, units_done, merged, paused, progress_percent, merged_percent in cursor:
             workflow = getattr(self.config.workflows, label)
             mergeable = workflow.merge_size > 1
             failed, skipped = self.db.execute("""
@@ -740,7 +740,7 @@ class UnitStore:
                     ), 0)
                 from workflows where label=?
                 """.format(label), (self.config.advanced.threshold_for_failure, self.config.advanced.threshold_for_skipping, label)).fetchone()
-            row = [label, events, read, written, units, unmasked, units_done, merged, paused, failed, skipped]
+            row = [events, read, written, units, unmasked, units_done, merged, paused, failed, skipped]
             if total is None:
                 total = row
             else:
@@ -748,7 +748,7 @@ class UnitStore:
             if mergeable:
                 total_mergeable += unmasked
 
-            yield row + [progress, merged]
+            yield [label] + row + [progress_percent, merged_percent]
 
         total_unmasked, total_units_done, total_merged = total[5:8]
         yield ['Total'] + total + [

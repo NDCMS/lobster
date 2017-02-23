@@ -83,14 +83,14 @@
         <h1 id="navwflow">Category Summary</h1>
         <table class="fancy">
             <tr>
-                <th>Category</th>
-                <th>Events</th>
-                <th>read</th>
-                <th>written</th>
-                <th>Units</th>
-                <th>unmasked</th>
-                <th>written</th>
-                <th>merged</th>
+                <th>category</th>
+		<th>total<br>events</th>
+		<th>read<br>events</th>
+		<th>written<br>events</th>
+		<th>total<br>units</th>
+		<th>unmasked<br>units</th>
+		<th>written<br>units</th>
+		<th>merged<br>units</th>
 		<th>
 		    <div class="tooltip">upstream<br>missing
 		        <span class="tooltiptext">
@@ -109,7 +109,7 @@
 	            </div>
 	        </th>
                 <th>
-		    <div class="tooltip">failed
+		    <div class="tooltip">failed<br>units
 		        <span class="tooltiptext">
 			    Units for which the executable has not exited successfully more than
 			    <span class="code">threshold_for_failure</span>.<br><br>
@@ -126,7 +126,7 @@
 	            </div>
 	        </th>
                 <th>
-		    <div class="tooltip">skipped
+		    <div class="tooltip">skipped<br>units
 		        <span class="tooltiptext">
 			    Units for which accessing the input file has failed more than
 			    <span class="code">threshold_for_skipping</span>.<br><br>
@@ -142,8 +142,8 @@
 		        </span>
 	            </div>
 	        </th>
-                <th>Progress</th>
-                <th>Merged</th>
+                <th>progress</th>
+                <th>merged</th>
             </tr>
             {% for row in summary %}
             {% if loop.revindex == 1 %}

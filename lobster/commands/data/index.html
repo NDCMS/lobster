@@ -100,7 +100,14 @@
 	        <th>read</th>
 	        <th class="coldivider">written</th>
 		<th>total</th>
-		<th>unmasked</th>
+		<th>
+		    <div class="tooltip">unmasked
+			<span class="tooltiptext">Units which are not masked by <span class="code">lumi_mask</span>.
+			If no mask has been specified, all units are unmasked. For more information see the
+			<a href="http://lobster.readthedocs.io/en/latest/config.html#lobster.cmssw.dataset.Dataset">documentation</a>.
+		        </span>
+	            </div>
+	        </th>
 		<th>written</th>
 		<th>merged</th>
 		<th>

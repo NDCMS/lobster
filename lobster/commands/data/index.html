@@ -82,15 +82,27 @@
 
         <h1 id="navwflow">Category Summary</h1>
         <table class="fancy">
+	    <col>
+	    <colgroup span="1"></colgroup>
+	    <colgroup span="3"></colgroup>
+	    <colgroup span="7"></colgroup>
+	    <colgroup span="1"></colgroup>
+	    <colgroup span="1"></colgroup>
             <tr>
-                <th>category</th>
-		<th>total<br>events</th>
-		<th>read<br>events</th>
-		<th>written<br>events</th>
-		<th>total<br>units</th>
-		<th>unmasked<br>units</th>
-		<th>written<br>units</th>
-		<th>merged<br>units</th>
+	        <th colspan="1" scope="colgroup" class="coldivider"></th>
+	        <th colspan="3" scope="colgroup" class="topcolgroup">Events</th>
+	        <th colspan="7" scope="colgroup" class="topcolgroup">Units</th>
+	        <th colspan="2" scope="colgroup"></th>
+            </tr>
+	    <tr>
+		<th class="coldivider">Category</th>
+	        <th>total</th>
+	        <th>read</th>
+	        <th class="coldivider">written</th>
+		<th>total</th>
+		<th>unmasked</th>
+		<th>written</th>
+		<th>merged</th>
 		<th>
 		    <div class="tooltip">stuck
 		        <span class="tooltiptext">
@@ -109,7 +121,7 @@
 	            </div>
 	        </th>
                 <th>
-		    <div class="tooltip">failed<br>units
+		    <div class="tooltip">failed
 		        <span class="tooltiptext">
 			    Units for which the executable has not exited successfully more than
 			    <span class="code">threshold_for_failure</span>.<br><br>
@@ -125,8 +137,8 @@
 		        </span>
 	            </div>
 	        </th>
-                <th>
-		    <div class="tooltip">skipped<br>units
+                <th class=coldivider>
+		    <div class="tooltip">skipped
 		        <span class="tooltiptext">
 			    Units for which accessing the input file has failed more than
 			    <span class="code">threshold_for_skipping</span>.<br><br>
@@ -142,8 +154,8 @@
 		        </span>
 	            </div>
 	        </th>
-                <th>progress</th>
-                <th>merged</th>
+		<th>Processed</th>
+		<th>Merged</th>
             </tr>
             {% for row in summary %}
             {% if loop.revindex == 1 %}

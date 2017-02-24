@@ -159,6 +159,15 @@ table.fancy th, table.fancy td {
     background-color: #eee;
 }
 
+table.fancy th.coldivider {
+    border-right:1px solid #ccc;
+}
+
+table.fancy th.topcolgroup {
+    border-right:1px solid #ccc;
+    text-align: center;
+}
+
 table.fancy th, table.fancy tr.footer td {
     text-align:left;
     padding-top:5px;

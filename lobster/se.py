@@ -236,7 +236,7 @@ class Hadoop(StorageElement):
     def remove(self, *paths):
         for path in list(paths):
             try:
-                client.delete([path]).next()
+                self.__c.delete([path]).next()
             except snakebite.errors.FileNotFoundException:
                 pass
 

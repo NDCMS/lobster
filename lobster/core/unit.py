@@ -662,7 +662,7 @@ class UnitStore:
                           "units total:               {2}\n\t" +
                           "units running:             {3}\n\t" +
                           "units done:                {4}\n\t" +
-                          "units missing upstream:    {5}\n\t" +
+                          "units stuck upstream:      {5}\n\t" +
                           "units failed:              {6}\n\t" +
                           "units skipped:             {7}\n\t" +
                           "units available:           {8}\n\t" +
@@ -743,7 +743,7 @@ class UnitStore:
                     1), 0.0) || ' %'
             from workflows""")
 
-        yield shlex.split("Label Events read written Units unmasked written merged 'missing upstream' failed skipped Progress Merged")
+        yield shlex.split("Label Events read written Units unmasked written merged 'stuck upstream' failed skipped Progress Merged")
 
         total = None
         total_mergeable = 0

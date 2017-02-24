@@ -4,7 +4,6 @@ import logging
 import math
 import os
 from retrying import retry
-import shlex
 import sqlite3
 import uuid
 
@@ -743,7 +742,7 @@ class UnitStore:
                     1), 0.0) || ' %'
             from workflows""")
 
-        yield shlex.split("Label Events read written Units unmasked written merged 'stuck upstream' failed skipped Progress Merged")
+        yield "Label Events read written Units unmasked written merged stuck failed skipped Progress Merged".split()
 
         total = None
         total_mergeable = 0

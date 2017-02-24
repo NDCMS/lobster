@@ -234,11 +234,11 @@ class Hadoop(StorageElement):
         return self.__c.stat([path])['permission']
 
     def remove(self, *paths):
-        try:
-            for data in self.__c.delete(list(paths)):
+        for path in list(paths):
+            try:
+                client.delete([path]).next()
+            except snakebite.errors.FileNotFoundException:
                 pass
-        except snakebite.errors.FileNotFoundException:
-            pass
 
 
 class Chirp(StorageElement):

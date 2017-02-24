@@ -209,8 +209,8 @@ class AdvancedOptions(Configurable):
     _mutable = {
         'bad_exit_codes': (None, [], False),
         'payload': (None, [], False),
-        'threshold_for_failure': ('source.update_paused', [], False),
-        'threshold_for_skipping': ('source.update_paused', [], False),
+        'threshold_for_failure': ('source.update_stuck', [], False),
+        'threshold_for_skipping': ('source.update_stuck', [], False),
         'xrootd_servers': ('source.copy_siteconf', [], False)
     }
 

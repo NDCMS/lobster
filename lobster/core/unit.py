@@ -730,6 +730,7 @@ class UnitStore:
                 units_paused,
                 units_failed,
                 units_skipped,
+                units_left,
                 '' || round(
                         units_done * 100.0 / (units - units_masked),
                     1) || ' %',
@@ -742,19 +743,19 @@ class UnitStore:
                     1), 0.0) || ' %'
             from workflows""")
 
-        yield "Label Events read written Units unmasked written merged stuck failed skipped Progress Merged".split()
+        yield "Label Events read written Units unmasked written merged stuck failed skipped left Progress Merged".split()
 
         total = None
         total_mergeable = 0
         for label, events, read, written, units, unmasked, units_done, merged, paused, \
-                failed, skipped, progress_percent, merged_percent in cursor:
+                failed, skipped, left, progress_percent, merged_percent in cursor:
             workflow = getattr(self.config.workflows, label)
             mergeable = workflow.merge_size > 1
             if not mergeable:
                 merged = 0
                 merged_percent = '0.0 %'
 
-            row = [events, read, written, units, unmasked, units_done, merged, paused - failed - skipped, failed, skipped]
+            row = [events, read, written, units, unmasked, units_done, merged, paused - failed - skipped, failed, skipped, left]
             if total is None:
                 total = row
             else:

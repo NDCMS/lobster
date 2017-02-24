@@ -91,7 +91,7 @@
             <tr>
 	        <th colspan="1" scope="colgroup" class="coldivider"></th>
 	        <th colspan="3" scope="colgroup" class="topcolgroup">Events</th>
-	        <th colspan="7" scope="colgroup" class="topcolgroup">Units</th>
+	        <th colspan="8" scope="colgroup" class="topcolgroup">Units</th>
 	        <th colspan="2" scope="colgroup"></th>
             </tr>
 	    <tr>
@@ -145,7 +145,7 @@
 		        </span>
 	            </div>
 	        </th>
-                <th class=coldivider>
+		<th>
 		    <div class="tooltip">skipped
 		        <span class="tooltiptext">
 			    Units for which accessing the input file has failed more than
@@ -159,6 +159,15 @@
 			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
 			    your configuration after the start of a run, and advanced configuration
 			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+                <th class=coldivider>
+		    <div class="tooltip">left
+		        <span class="tooltiptext">
+			    Units which are available for processing but haven't been attempted yet:<br><br>
+
+			    <span class="code">left = unmasked - running - written - failed - skipped - stuck</span>
 		        </span>
 	            </div>
 	        </th>

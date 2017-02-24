@@ -131,7 +131,7 @@
             <tr>
 	        <th colspan="1" scope="colgroup" class="coldivider"></th>
 	        <th colspan="3" scope="colgroup" class="topcolgroup">Events</th>
-	        <th colspan="7" scope="colgroup" class="topcolgroup">Units</th>
+	        <th colspan="8" scope="colgroup" class="topcolgroup">Units</th>
 	        <th colspan="2" scope="colgroup"></th>
 		{% if jsons|length > 0 %}<th colspan="1" scope="colgroup"></th>{% endif %}
             </tr>
@@ -186,7 +186,7 @@
 		        </span>
 	            </div>
 	        </th>
-                <th class=coldivider>
+		<th>
 		    <div class="tooltip">skipped
 		        <span class="tooltiptext">
 			    Units for which accessing the input file has failed more than
@@ -203,6 +203,15 @@
 		        </span>
 	            </div>
 	        </th>
+                <th class=coldivider>
+		    <div class="tooltip">left
+		        <span class="tooltiptext">
+			    Units which are available for processing but haven't been attempted yet:<br><br>
+
+			    <span class="code">left = unmasked - running - written - failed - skipped - stuck</span>
+		        </span>
+	            </div>
+		</th>
                 <th>Progress</th>
                 <th>Merged</th>
                 {% if jsons|length > 0 %}<th>JSON</th>{% endif %}
@@ -217,9 +226,9 @@
                 {% if loop.index != 1 and loop.revindex > 2 %}{% set cell = "{0:,}".format(cell).replace(",", "&nbsp;") %}{% endif %}
                 {% if loop.index != 1 %}{% set attr=' class="right"' %}{% else %}{% set attr='' %}{% endif %}
                 <td{{attr}}>
-                    {% if loop.revindex == 3 and cell != '0' and row != summary[-1] %}
+                    {% if loop.revindex == 4 and cell != '0' and row != summary[-1] %}
                         <a href="../logs/skipped_{{row[0]}}.txt">{{cell}}</a>
-                    {% elif loop.revindex == 4 and cell != '0' and row != summary[-1] %}
+                    {% elif loop.revindex == 5 and cell != '0' and row != summary[-1] %}
                         <a href="../logs/failed_{{row[0]}}">{{cell}}</a>
                     {% else %}
                         {{ cell }}

@@ -1,5 +1,4 @@
 @import url(https://fonts.googleapis.com/css?family=Lobster+Two:700italic);
-@import url(https://fonts.googleapis.com/css?family=Share+Tech+Mono);
 @import url(https://code.cdn.mozilla.net/fonts/fira.css);
 
 body {
@@ -79,7 +78,7 @@ nav li.inactive:hover {
 .lobster {font-family: 'Lobster Two', cursive;}
 
 .code {
-    font-family: 'Share Tech Mono', monospace;
+    font-family: "Fira Mono", monospace;
     color: #ccc;
     white-space: nowrap;
 }

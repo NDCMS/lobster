@@ -81,7 +81,7 @@ nav li.inactive:hover {
 .code {
     font-family: 'Share Tech Mono', monospace;
     color: #ccc;
-
+    white-space: nowrap;
 }
 
 img {

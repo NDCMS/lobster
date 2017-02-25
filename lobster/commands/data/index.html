@@ -82,20 +82,97 @@
 
         <h1 id="navwflow">Category Summary</h1>
         <table class="fancy">
+	    <col>
+	    <colgroup span="1"></colgroup>
+	    <colgroup span="3"></colgroup>
+	    <colgroup span="7"></colgroup>
+	    <colgroup span="1"></colgroup>
+	    <colgroup span="1"></colgroup>
             <tr>
-                <th>Category</th>
-                <th>Events</th>
-                <th>read</th>
-                <th>written</th>
-                <th>Units</th>
-                <th>unmasked</th>
-                <th>written</th>
-                <th>merged</th>
-                <th>paused</th>
-                <th>failed</th>
-                <th>skipped</th>
-                <th>Progress</th>
-                <th>Merged</th>
+	        <th colspan="1" scope="colgroup" class="coldivider"></th>
+	        <th colspan="3" scope="colgroup" class="topcolgroup">Events</th>
+	        <th colspan="8" scope="colgroup" class="topcolgroup">Units</th>
+	        <th colspan="2" scope="colgroup"></th>
+            </tr>
+	    <tr>
+		<th class="coldivider">Category</th>
+	        <th>total</th>
+	        <th>read</th>
+	        <th class="coldivider">written</th>
+		<th>total</th>
+		<th>
+		    <div class="tooltip">unmasked
+			<span class="tooltiptext">Units which are not masked by <span class="code">lumi_mask</span>.
+			If no mask has been specified, all units are unmasked. For more information see the
+			<a href="http://lobster.readthedocs.io/en/latest/config.html#lobster.cmssw.dataset.Dataset">documentation</a>.
+		        </span>
+	            </div>
+	        </th>
+		<th>written</th>
+		<th>merged</th>
+		<th>
+		    <div class="tooltip">stuck
+		        <span class="tooltiptext">
+			    Units which cannot be attempted because their input is a unit in a parent workflow that failed
+			    or was skipped.
+
+			    If you want to increase skipping/failure thresholds so that the parent units are attempted
+			    again, run <span class="code">lobster configure /my/working/directory</span> and increase
+			    <span class="code">threshold_for_failure</span> and/or <span class="code">threshold_for_skipping</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. If the parent unit
+			    finishes successfully, the stuck units will automatically be attempted. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+                <th>
+		    <div class="tooltip">failed
+		        <span class="tooltiptext">
+			    Units for which the executable has not exited successfully more than
+			    <span class="code">threshold_for_failure</span>.<br><br>
+
+			    If you want to increase the failure threshold so that these units are attempted
+			    again, run <span class="code">lobster configure /my/working/directory</span> and increase
+			    <span class="code">threshold_for_failure</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+		<th>
+		    <div class="tooltip">skipped
+		        <span class="tooltiptext">
+			    Units for which accessing the input file has failed more than
+			    <span class="code">threshold_for_skipping</span>.<br><br>
+
+			    If you want to increase the skipping threshold so that these units are attempted
+			    again, run <span class="code">lobster configure /my/working/directory</span> and increase
+			    <span class="code">threshold_for_skipping</span>
+			    in the <span class="code">lobster.core.config.AdvancedOptions</span> section. For more information
+			    see the documentation on
+			    <a href=http://lobster.readthedocs.io/en/latest/run.html#changing-configuration-options>updating</a>
+			    your configuration after the start of a run, and advanced configuration
+			    <a href=http://lobster.readthedocs.io/en/latest/config.html#lobster.core.config.AdvancedOptions>options</a>.
+		        </span>
+	            </div>
+	        </th>
+                <th class=coldivider>
+		    <div class="tooltip">left
+		        <span class="tooltiptext">
+			    Units which are available for processing but haven't been attempted yet:<br><br>
+
+			    left = unmasked - running - written - failed - skipped - stuck
+		        </span>
+	            </div>
+	        </th>
+		<th>Processed</th>
+		<th>Merged</th>
             </tr>
             {% for row in summary %}
             {% if loop.revindex == 1 %}

@@ -590,8 +590,8 @@ class Plotter(object):
                     codes[exit_code][1].append(str(id))
                     work.append([s, t])
 
-        for label, _, _, _, _, _, _, _, paused, failed, skipped, _, _ in list(self.__store.workflow_status())[1:-1]:
-            if paused == 0:
+        for label, _, _, _, _, _, _, _, _, failed, skipped, _, _, _ in list(self.__store.workflow_status())[1:-1]:
+            if failed + skipped == 0:
                 continue
 
             failed = self.__store.failed_units(label)

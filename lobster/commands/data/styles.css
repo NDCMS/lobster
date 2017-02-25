@@ -77,6 +77,12 @@ nav li.inactive:hover {
 
 .lobster {font-family: 'Lobster Two', cursive;}
 
+.code {
+    font-family: "Fira Mono", monospace;
+    color: #ccc;
+    white-space: nowrap;
+}
+
 img {
     max-width: 800px;
     width: 100%;
@@ -150,6 +156,15 @@ table.fancy {
 table.fancy th, table.fancy td {
     padding:3px 7px 2px 7px;
     background-color: #eee;
+}
+
+table.fancy th.coldivider {
+    border-right:1px solid #ccc;
+}
+
+table.fancy th.topcolgroup {
+    border-right:1px solid #ccc;
+    text-align: center;
 }
 
 table.fancy th, table.fancy tr.footer td {
@@ -242,4 +257,30 @@ ul.img-list li:hover span.text-content {
 
 .pressed {
     box-shadow: 0px 1em 10px 0px rgba(0,0,0,0.28) inset;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 380px;
+    background-color:#666;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    border-radius: 6px;
+    position: absolute;
+    z-index: 1;
+    font-weight: normal;
+    border-style: solid;
+    border-color: black;
+    display: inline-block;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
 }

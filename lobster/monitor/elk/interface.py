@@ -1125,7 +1125,7 @@ class ElkInterface(Configurable):
 
         keys = ['label', 'events', 'events_read', 'events_written', 'units',
                 'units_unmasked', 'units_written', 'units_merged',
-                'units_paused', 'units_failed', 'units_skipped',
+                'units_stuck', 'units_failed', 'units_skipped', 'units_left',
                 'percent_progress', 'percent_merged']
 
         workflow_summaries = {}

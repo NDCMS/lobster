@@ -548,10 +548,10 @@ class TaskProvider(util.Timing):
             logger.warning("could not update task states to dashboard")
             logger.exception(e)
 
-    def update_paused(self):
-        """Have the unit store updated the statistics for paused units.
+    def update_stuck(self):
+        """Have the unit store updated the statistics for stuck units.
         """
-        self.__store.update_workflow_stats_paused()
+        self.__store.update_workflow_stats_stuck()
 
     def update_runtime(self, category):
         """Update the runtime for all workflows with the corresponding

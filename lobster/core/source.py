@@ -437,7 +437,9 @@ class TaskProvider(util.Timing):
         return tasks
 
     def release(self, tasks):
-        cleanup = []
+        fail_cleanup = []
+        merge_cleanup = []
+        input_cleanup = []
         update = defaultdict(list)
         propagate = defaultdict(dict)
         input_files = defaultdict(set)
@@ -463,7 +465,7 @@ class TaskProvider(util.Timing):
                 if failed:
                     faildir = util.move(wflow.workdir, handler.id, 'failed')
                     summary.dir(str(handler.id), faildir)
-                    cleanup += [lf for rf, lf in handler.outputs]
+                    fail_cleanup.extend([lf for rf, lf in handler.outputs])
                 else:
                     util.move(wflow.workdir, handler.id, 'successful')
 
@@ -476,8 +478,7 @@ class TaskProvider(util.Timing):
                             propagate[dep.label][outfn] = outinfo
 
                     if merge:
-                        files = handler.input_files
-                        cleanup += files
+                        merge_cleanup.extend(handler.input_files)
 
                     if wflow.cleanup_input:
                         input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
@@ -499,15 +500,16 @@ class TaskProvider(util.Timing):
 
         with self.measure('cleanup'):
             if wflow.cleanup_input and len(input_files) > 0:
-                cleanup.extend(self.__store.finished_files(input_files))
+                input_cleanup.extend(self.__store.finished_files(input_files))
 
-            if len(cleanup) > 0:
-                try:
-                    fs.remove(*cleanup)
-                except (IOError, OSError):
-                    pass
-                except ValueError as e:
-                    logger.error("error removing {0}:\n{1}".format(task.tag, e))
+            for cleanup in [fail_cleanup, merge_cleanup + input_cleanup]:
+                if len(cleanup) > 0:
+                    try:
+                        fs.remove(*cleanup)
+                    except (IOError, OSError):
+                        pass
+                    except ValueError as e:
+                        logger.error("error removing {0}:\n{1}".format(task.tag, e))
 
         with self.measure('propagate'):
             for label, infos in propagate.items():

@@ -234,11 +234,24 @@ class Hadoop(StorageElement):
         return self.__c.stat([path])['permission']
 
     def remove(self, *paths):
+        """Remove paths.
+
+        First try passing the entire list of paths to be removed. This
+        approach is almost instantaneous, but fails if any of the paths
+        do not exist. In that case, we try again, one by one. This takes
+        tens of milliseconds per path, but ensures that any paths that
+        do exist are removed.
+
+        """
         try:
             for data in self.__c.delete(list(paths)):
                 pass
         except snakebite.errors.FileNotFoundException:
-            pass
+            for path in paths:
+                try:
+                    self.__c.delete([path]).next()
+                except snakebite.errors.FileNotFoundException:
+                    pass
 
 
 class Chirp(StorageElement):

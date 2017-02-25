@@ -54,6 +54,10 @@ Workflow specification
 
 .. autoclass:: lobster.core.workflow.Workflow
 
+.. autoclass:: lobster.core.sandbox.Sandbox
+
+.. autoclass:: lobster.cmssw.sandbox.Sandbox
+
 Dataset specification
 ~~~~~~~~~~~~~~~~~~~~~
 

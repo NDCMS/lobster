@@ -69,6 +69,8 @@ Dataset specification
 
 .. autoclass:: lobster.core.dataset.ProductionDataset
 
+.. autoclass:: lobster.core.dataset.MultiProductionDataset
+
 .. autoclass:: lobster.cmssw.dataset.Dataset
 
 Monitoring

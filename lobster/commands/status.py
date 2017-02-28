@@ -28,13 +28,13 @@ class Status(Command):
             [max(map(len, (xs[0] for xs in data)))] + \
             [max(map(len, (str(xs[i]) for xs in data)))
              for i in range(1, len(data[0]))]
-        data.insert(header_rows + 1, ['=' * w for w in widths])
+        data.insert(header_rows, ['=' * w for w in widths])
         headfmt = ' '.join('{{:^{0}}}'.format(w) for w in widths)
         mainfmt = '{{:{0}}} '.format(
             widths[0]) + ' '.join('{{:>{0}}}'.format(w) for w in widths[1:])
         report = '\n'.join(
             [headfmt.format(*data[i]) for i in range(0, header_rows)] +
-            [mainfmt.format(*map(str, row)) for row in data[2:]])
+            [mainfmt.format(*map(str, row)) for row in data[header_rows:]])
 
         logger.info("workflow summary:\n" + report)
 

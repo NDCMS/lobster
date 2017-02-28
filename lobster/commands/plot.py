@@ -1414,7 +1414,7 @@ class Plotter(object):
                                    getattr(self.config.workflows, s[0]).merge_size > 0])
             return summaries + \
                 [['Total'] + total + [
-                    '{} %'.format(round(total[-5] * 100. / total[-6], 1)),
+                    '{} %'.format(round(total[-5] * 100. / total[-6] if total[-6] > 0 else 0, 1)),
                     '{} %'.format(round(total[-4] * 100. / total_mergeable if total_mergeable > 0 else 0, 1))
                 ]]
 

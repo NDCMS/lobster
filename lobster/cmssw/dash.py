@@ -6,7 +6,20 @@ import subprocess
 
 from hashlib import sha1
 
-from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+try:
+    from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+except ImportError:
+    # WMCore changed their API at commit 84953579a
+    from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI
+    def apmonSend(workflowid, taskid, params, logger, conf):
+        with DashboardAPI(logr=logger, apmonServer=conf) as dash:
+            dash.apMonSend(params)
+
+    def apmonFree(*args):
+        # We only create DashboardAPIs in context managers who handle the
+        # freeing of resources, so we don't need to do it explicitly
+        pass
+
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 from lobster import util

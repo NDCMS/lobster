@@ -23,6 +23,8 @@ from contextlib import contextmanager
 from email.mime.text import MIMEText
 from pkg_resources import get_distribution
 
+VERSION = "1.5"
+
 logger = logging.getLogger('lobster.util')
 
 
@@ -401,7 +403,7 @@ def get_version():
         diff = subprocess.check_output(shlex.split('git diff'))
         status = 'dirty' if diff else 'clean'
         os.chdir(start)
-        version = '{major}-{head}-{status}'.format(major=1.5, head=head, status=status)
+        version = '{major}-{head}-{status}'.format(major=VERSION, head=head, status=status)
     return version
 
 

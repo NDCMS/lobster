@@ -109,7 +109,7 @@ class TaskProvider(util.Timing):
         try:
             siteconf = loadSiteLocalConfig()
             self.__ce = siteconf.siteName
-            self.__se = siteconf.localStageOutSEName()
+            self.__se = siteconf.localStageOutPNN()
             self.__frontier_proxy = siteconf.frontierProxies[0]
         except SiteConfigError:
             logger.error("can't load siteconfig, defaulting to hostname")
@@ -358,7 +358,7 @@ class TaskProvider(util.Timing):
                 'monitoring': {
                     'monitorid': monitorid,
                     'syncid': syncid,
-                    'taskid': self.taskid
+                    'taskid': self.taskid,
                 },
                 'default host': self.__host,
                 'default ce': self.__ce,

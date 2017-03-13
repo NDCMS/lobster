@@ -6,19 +6,7 @@ import subprocess
 
 from hashlib import sha1
 
-try:
-    from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
-except ImportError:
-    # WMCore changed their API at commit 84953579a
-    from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI
-    def apmonSend(workflowid, taskid, params, logger, conf):
-        with DashboardAPI(logr=logger, apmonServer=conf) as dash:
-            dash.apMonSend(params)
-
-    def apmonFree(*args):
-        # We only create DashboardAPIs in context managers who handle the
-        # freeing of resources, so we don't need to do it explicitly
-        pass
+from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI
 
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
@@ -47,14 +35,6 @@ status_map = {
     wq.WORK_QUEUE_TASK_RETRIEVED: RETRIEVED,
     wq.WORK_QUEUE_TASK_DONE: DONE,
     wq.WORK_QUEUE_TASK_CANCELED: ABORTED
-}
-
-conf = {
-    'cms-jobmon.cern.ch:8884': {
-        'sys_monitoring': 0,
-        'general_info': 0,
-        'job_monitoring': 0
-    }
 }
 
 
@@ -113,6 +93,7 @@ class Dashboard(Monitor, util.Configurable):
 
         self.__cmssw_version = 'Unknown'
         self.__executable = 'Unknown'
+        self.__dash = None
 
         try:
             self._ce = loadSiteLocalConfig().siteName
@@ -120,11 +101,10 @@ class Dashboard(Monitor, util.Configurable):
             logger.error("can't load siteconfig, defaulting to hostname")
             self._ce = socket.getfqdn()
 
-    def __del__(self):
-        try:
-            self.free()
-        except Exception:
-            pass
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        del state['_Dashboard__dash']
+        return state
 
     def __get_distinguished_name(self):
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
@@ -137,11 +117,14 @@ class Dashboard(Monitor, util.Configurable):
         db = SiteDBJSON({'cacheduration': 24, 'logger': logging.getLogger("WMCore")})
         return db.dnUserName(dn=self.__get_distinguished_name())
 
-    def free(self):
-        apmonFree()
-
-    def send(self, taskid, params):
-        apmonSend(self._workflowid, taskid, params, logging.getLogger("MonaLisa"), conf)
+    def send(self, params):
+        if not self.__dash:
+            lggr = logging.getLogger("WMCore")
+            lggr.setLevel(logging.FATAL)
+            self.__dash = DashboardAPI(logr=lggr)
+            lggr.setLevel(logging.FATAL)
+        with self.__dash as dashboard:
+            dashboard.apMonSend(params)
 
     def setup(self, config):
         super(Dashboard, self).setup(config)
@@ -151,16 +134,14 @@ class Dashboard(Monitor, util.Configurable):
             self.__executable = str(util.checkpoint(config.workdir, "executable"))
 
     def generate_ids(self, taskid):
-        seid = 'https://{}/{}'.format(self._ce,
-                                      sha1(self._workflowid).hexdigest()[-16:])
-        monitorid = '{0}_{1}/{0}'.format(taskid, seid)
-        syncid = 'https://{}//{}//12345.{}'.format(
-            self._ce, self._workflowid, taskid)
+        # seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
+        monitorid = '{0}_0'
+        syncid = 'https://{}//{}//12345.{}'.format(self._ce, self._workflowid, taskid)
 
         return monitorid, syncid
 
     def register_run(self):
-        self.send('TaskMeta', {
+        self.send({
             'taskId': self._workflowid,
             'jobId': 'TaskMeta',
             'tool': 'lobster',
@@ -182,7 +163,7 @@ class Dashboard(Monitor, util.Configurable):
 
     def register_task(self, id):
         monitorid, syncid = self.generate_ids(id)
-        self.send(monitorid, {
+        self.send({
             'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,
@@ -209,7 +190,7 @@ class Dashboard(Monitor, util.Configurable):
 
     def update_task(self, id, status):
         monitorid, syncid = self.generate_ids(id)
-        self.send(monitorid, {
+        self.send({
             'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,

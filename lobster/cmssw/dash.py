@@ -6,7 +6,7 @@ import subprocess
 
 from hashlib import sha1
 
-from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI
+from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI, DASHBOARDURL
 
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
@@ -36,6 +36,22 @@ status_map = {
     wq.WORK_QUEUE_TASK_DONE: DONE,
     wq.WORK_QUEUE_TASK_CANCELED: ABORTED
 }
+
+
+def patch_dash(dash):
+    """Patch inconsistent WMCore
+
+    """
+    from WMCore.Services.Dashboard import apmon
+
+    def new_apmon():
+        apMonConf = {DASHBOARDURL: {'sys_monitoring': 0, 'general_info': 0, 'job_monitoring': 0}}
+        try:
+            return apmon.ApMon(apMonConf, 0)
+        except Exception:
+            logger.exception("can't create ApMon instance")
+        return None
+    dash.__dict__['_getApMonInstance'] = new_apmon
 
 
 class Monitor(object):
@@ -117,13 +133,15 @@ class Dashboard(Monitor, util.Configurable):
         db = SiteDBJSON({'cacheduration': 24, 'logger': logging.getLogger("WMCore")})
         return db.dnUserName(dn=self.__get_distinguished_name())
 
-    def send(self, params):
+    def send(self, kind, params):
         if not self.__dash:
             lggr = logging.getLogger("WMCore")
             lggr.setLevel(logging.FATAL)
             self.__dash = DashboardAPI(logr=lggr)
-            lggr.setLevel(logging.FATAL)
+            patch_dash(self.__dash)
         with self.__dash as dashboard:
+            params['MessageType'] = kind
+            params['MessageTS'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
             dashboard.apMonSend(params)
 
     def setup(self, config):
@@ -134,14 +152,14 @@ class Dashboard(Monitor, util.Configurable):
             self.__executable = str(util.checkpoint(config.workdir, "executable"))
 
     def generate_ids(self, taskid):
-        # seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
-        monitorid = '{0}_0'
+        seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
+        monitorid = '{0}_{1}/{0}'.format(taskid, seid)
         syncid = 'https://{}//{}//12345.{}'.format(self._ce, self._workflowid, taskid)
 
         return monitorid, syncid
 
     def register_run(self):
-        self.send({
+        self.send('TaskMeta', {
             'taskId': self._workflowid,
             'jobId': 'TaskMeta',
             'tool': 'lobster',
@@ -163,10 +181,11 @@ class Dashboard(Monitor, util.Configurable):
 
     def register_task(self, id):
         monitorid, syncid = self.generate_ids(id)
-        self.send({
+        self.send('JobMeta', {
             'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,
+            'GridJobSyncId': syncid,
             'broker': 'condor',
             'bossId': str(id),
             'SubmissionType': 'Direct',
@@ -190,7 +209,7 @@ class Dashboard(Monitor, util.Configurable):
 
     def update_task(self, id, status):
         monitorid, syncid = self.generate_ids(id)
-        self.send({
+        self.send('JobStatus', {
             'taskId': self._workflowid,
             'jobId': monitorid,
             'sid': syncid,

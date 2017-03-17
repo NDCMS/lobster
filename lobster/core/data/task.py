@@ -38,16 +38,22 @@ from ROOT import TFile
 class Dash(object):
 
     def __init__(self):
-        self.__api = DashboardAPI(logr=logging.getLogger('mona'))
+        # self.__api = DashboardAPI(logr=logging.getLogger('mona'))
+        self.__api = DashboardAPI()
 
     def configure(self, config):
         self.__jobid = str(config['monitoring']['monitorid'])
         self.__taskid = str(config['monitoring']['taskid'])
+        self.__syncid = str(config['monitoring']['syncid'])
 
     def __call__(self, params):
         with self.__api as dashboard:
-            params['taskid'] = self.__taskid
-            params['jobid'] = self.__jobid
+            params['MessageType'] = 'jobRuntime'
+            params['MessageTS'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+            params['taskId'] = self.__taskid
+            params['jobId'] = self.__jobid
+            params['sid'] = self.__syncid
+            params['SyncGridJobId'] = self.__syncid
             dashboard.apMonSend(params)
 
 

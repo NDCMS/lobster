@@ -120,7 +120,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	# FIXME the -M could be removed once local site setting via
 	# environment works
 	log "starting parrot to access CMSSW..."
-	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconf -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
+	exec $PARROT_PATH/parrot_run -M /cvmfs/cms.cern.ch/SITECONF/local=$PWD/siteconf -M /sbin/ifconfig=/bin/echo -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 	# exec $PARROT_PATH/parrot_run -t "$PARROT_CACHE/ex_parrot_$(whoami)" bash $0 "$*"
 fi
 

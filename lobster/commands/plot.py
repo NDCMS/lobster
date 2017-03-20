@@ -1409,13 +1409,13 @@ class Plotter(object):
         def add_total(summaries):
             numbers = zip(*[s[1:-2] for s in summaries])
             total = map(sum, numbers)
-            total_mergeable = sum([s[-8] for s in summaries if
+            total_mergeable = sum([s[-9] for s in summaries if
                                    getattr(self.config.workflows, s[0], None) and
                                    getattr(self.config.workflows, s[0]).merge_size > 0])
             return summaries + \
                 [['Total'] + total + [
-                    '{} %'.format(round(total[-5] * 100. / total[-6] if total[-6] > 0 else 0, 1)),
-                    '{} %'.format(round(total[-4] * 100. / total_mergeable if total_mergeable > 0 else 0, 1))
+                    '{} %'.format(round(total[-6] * 100. / total[-7] if total[-7] > 0 else 0, 1)),
+                    '{} %'.format(round(total[-5] * 100. / total_mergeable if total_mergeable > 0 else 0, 1))
                 ]]
 
         for category in self.config.categories:

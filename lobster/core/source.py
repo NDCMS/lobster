@@ -219,8 +219,9 @@ class TaskProvider(util.Timing):
             self.config.save()
             self.config.advanced.dashboard.register_run()
         else:
-            for id in self.__store.reset_units():
-                self.config.advanced.dashboard.update_task(id, dash.ABORTED)
+            self.config.advanced.dashboard.update_task_status(
+                (id_, dash.ABORTED) for id_ in self.__store.reset_units()
+            )
 
         for p in (self.parrot_bin, self.parrot_lib):
             if not os.path.exists(p):
@@ -337,6 +338,12 @@ class TaskProvider(util.Timing):
 
         tasks = []
         ids = []
+        registration = dict(
+            zip(
+                [t[0] for t in taskinfos],
+                self.config.advanced.dashboard.register_tasks(t[0] for t in taskinfos)
+            )
+        )
 
         for (id, label, files, lumis, unique_arg, merge) in taskinfos:
             wflow = getattr(self.config.workflows, label)
@@ -347,7 +354,7 @@ class TaskProvider(util.Timing):
             inputs.append((os.path.join(jdir, 'parameters.json'), 'parameters.json', False))
             outputs = [(os.path.join(jdir, f), f) for f in ['report.json']]
 
-            monitorid, syncid = self.config.advanced.dashboard.register_task(id)
+            monitorid, syncid = registration[id]
 
             config = {
                 'mask': {
@@ -446,10 +453,12 @@ class TaskProvider(util.Timing):
         summary = ReleaseSummary()
         transfers = defaultdict(lambda: defaultdict(Counter))
 
-        for task in tasks:
-            with self.measure('dash'):
-                self.config.advanced.dashboard.update_task(task.tag, dash.DONE)
+        with self.measure('dash'):
+            self.config.advanced.dashboard.update_task_status(
+                (task.tag, dash.DONE) for task in tasks
+            )
 
+        for task in tasks:
             with self.measure('updates'):
                 handler = self.__taskhandlers[task.tag]
                 failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
@@ -483,15 +492,14 @@ class TaskProvider(util.Timing):
                     if wflow.cleanup_input:
                         input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
-            with self.measure('dash'):
-                self.config.advanced.dashboard.update_task(task.tag, dash.RETRIEVED)
-
             update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
 
             del self.__taskhandlers[task.tag]
 
         with self.measure('dash'):
-            self.config.advanced.dashboard.free()
+            self.config.advanced.dashboard.update_task_status(
+                (task.tag, dash.RETRIEVED) for task in tasks
+            )
 
         if len(update) > 0:
             with self.measure('sqlite'):
@@ -527,8 +535,9 @@ class TaskProvider(util.Timing):
                     logger.error('ELK failed to index summary:\n{}'.format(e))
 
     def terminate(self):
-        for id in self.__store.running_tasks():
-            self.config.advanced.dashboard.update_task(str(id), dash.CANCELLED)
+        self.config.advanced.dashboard.update_task_status(
+            (str(id), dash.CANCELLED) for id in self.__store.running_tasks()
+        )
 
     def done(self):
         left = self.__store.unfinished_units()

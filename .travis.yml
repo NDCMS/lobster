@@ -13,7 +13,7 @@ before_script:
   - export LOBSTER_SKIP_HADOOP=1
   - export LOBSTER_SKIP_SRM=1
 env:
-  - TESTCOMMAND="flake8 --exclude=.git,cctools-ndcms_mid2016_scale_run,docs ."
+  - TESTCOMMAND="flake8 --exclude=.git,cctools-*,docs ."
   - TESTCOMMAND=nosetests
 script:
   - $TESTCOMMAND

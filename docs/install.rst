@@ -1,7 +1,7 @@
 Installation
 ============
 
-.. note::
+.. warning::
    These steps should always be performed in a valid CMSSW environment
    (after executing `cmsenv`)!  Lobster will need python 2.7 or greater
    (but not python 3).  CMSSW version `8_0_15` or above are recommended to
@@ -22,12 +22,12 @@ Dependencies
 
   Download the most recent version of the cctools from the `Notre Dame
   Cooperative Computing Lab`_ and install them by unpacking the tarball and
-  adding the `bin` directory to your path (the following instructions may
-  need to be changed for the newest version)::
+  adding the `bin` directory to your path::
 
-    wget -O - http://ccl.cse.nd.edu/software/files/cctools-6.0.0-x86_64-redhat6.tar.gz|tar xvzf -
-    export PATH=$PWD/cctools-6.0.0-x86_64-redhat6/bin:$PATH
-    export PYTHONPATH=$PWD/cctools-6.0.0-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
+    cctools=lobster-142-55035a54-cvmfs-40cf5bba
+    wget -O - http://ccl.cse.nd.edu/software/files/${cctools}-x86_64-redhat6.tar.gz
+    export PATH=$PWD/${cctools}-x86_64-redhat6/bin:$PATH
+    export PYTHONPATH=$PWD/${cctools}-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
 
   .. note::
      At Notre Dame, a development version can be accessed via::
@@ -87,7 +87,7 @@ easy modification of the source::
     git clone git@github.com:matz-e/lobster.git
     cd lobster
     ./install_dependencies.sh
-    pip install .
+    pip install --upgrade .
 
 .. _Notre Dame Cooperative Computing Lab: http://www3.nd.edu/~ccl/software/download.shtml
 

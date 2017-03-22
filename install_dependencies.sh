@@ -1,32 +1,35 @@
 #!/usr/bin/env sh
 
+if [ -z "$CMSSW_BASE" ]; then
+ echo "error: must first execute cmsenv!"
+ exit
+fi
+
 if [ -z "$VIRTUAL_ENV" ]; then
-	echo "error: no virtualenv defined!"
-	exit 1
+ echo "error: no virtualenv defined!"
+ # TODO: check if virtualenv package is installed; if not, install it
+ virtualenv --system-site-packages ~/.lobster
+ echo '
+
+ if [ -z "$CMSSW_BASE" ]; then
+  cd $CMSSW_BASE
+  eval $(scramv1 runtime -sh)
+  cd -
+ fi
+ ' >> ~/.lobster/bin/activate
+ . ~/.lobster/bin/activate
+ pip install --upgrade .
 fi
 
-echo "running on '$(uname -a)'"
-
-dir=$(mktemp -d)
-git clone https://github.com/dmwm/DBS.git "$dir"
-(
-	cd "$dir"
-	python setup.py install_system -s dbs-client
-	python setup.py install_system -s pycurl-client
-)
-rm -rf "$dir"
-pip install 'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'
-
-if [ -z "$BUILD_CCTOOLS" ]; then
-	exit 0
+if ! type "parrot_run" > /dev/null; then
+ echo "installing cctools"
+ cd $VIRTUAL_ENV/src
+ # TODO: determine OS and select appropriate tarball
+ wget -O - http://ccl.cse.nd.edu/software/files/cctools-6.0.16-source.tar.gz|tar xzf -
+ cd cctools*
+ ./configure --prefix $VIRTUAL_ENV
+ make
+ make install
+ rm -rf cctools*
 fi
 
-(
-	cd $VIRTUAL_ENV/src
-	wget -O - http://ccl.cse.nd.edu/software/files/cctools-lobster-142-55035a54-cvmfs-40cf5bba-source.tar.gz|tar xzf -
-	cd cctools*
-	sed -i 's/\(config_perl_path\)=auto/\1=no/' ./configure
-	./configure --prefix $VIRTUAL_ENV
-	make
-	make install
-)

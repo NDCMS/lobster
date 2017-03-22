@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 
+import os
+
 from setuptools import setup
+from setuptools.command.install import install
 
 from lobster.util import get_version
+
+
+class Install(install):
+
+    def run(self):
+        os.system("./install_dependencies.sh")
+        install.run(self)
+
 
 setup(
     name='Lobster',
@@ -10,6 +21,7 @@ setup(
     description='Opportunistic HEP computing tool',
     author='Anna Woodard, Matthias Wolf',
     url='https://github.com/matz-e/lobster',
+    cmdclass={'install': Install},
     packages=[
         'lobster',
         'lobster.cmssw',

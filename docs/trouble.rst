@@ -44,3 +44,25 @@ Mixing DBS and local datasets
 
 Mixing datasets with inputs accessed via AAA and custom input configuration
 is currently not supported.
+
+Example Hacks
+---------------
+
+Configuration
+~~~~~~~~~~~~~
+
+Changing an immutable attribute in the pickled configuration
+............................................................
+
+You should never need to do this. You should only change mutable configuration
+attributes using the ``configure`` command via `lobster configure config.py`.
+If you're set on doing this, first ask yourself why before how. But if you're
+desperate, here's an example which changes the `label` attribute::
+
+    from lobster.core import config
+    from lobster import util
+
+    cfg = config.Config.load("/path/to/working/directory")
+    with util.PartiallyMutable.unlock():
+        cfg.label = 'foo'
+    cfg.save()

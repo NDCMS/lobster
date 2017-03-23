@@ -121,6 +121,7 @@ class Dashboard(Monitor, util.Configurable):
     def __getstate__(self):
         state = dict(self.__dict__)
         del state['_Dashboard__dash']
+        state['_Dashboard__dash'] = None
         return state
 
     def __get_distinguished_name(self):
@@ -140,8 +141,9 @@ class Dashboard(Monitor, util.Configurable):
         if not self.__dash:
             lggr = logging.getLogger("WMCore")
             lggr.setLevel(logging.FATAL)
-            self.__dash = DashboardAPI(logr=lggr)
-            patch_dash(self.__dash)
+            with util.PartiallyMutable.unlock():
+                self.__dash = DashboardAPI(logr=lggr)
+                patch_dash(self.__dash)
         with self.__dash as dashboard:
             for params in data:
                 params['MessageType'] = kind

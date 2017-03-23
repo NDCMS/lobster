@@ -54,10 +54,7 @@ setup(
         'requests',
         'retrying',
         'snakebite<2.0',
-        'WMCore'
-    ],
-    dependency_links=[
-        'git+https://github.com/dmwm/WMCore@1.0.9.patch2#egg=WMCore-1.0.9.patch2'
+        'wmcore>=1.1.1.pre7'
     ],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']

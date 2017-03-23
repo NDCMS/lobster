@@ -6,7 +6,8 @@ import subprocess
 
 from hashlib import sha1
 
-from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI, DASHBOARDURL
+
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig, SiteConfigError
 from lobster import util
@@ -36,13 +37,21 @@ status_map = {
     wq.WORK_QUEUE_TASK_CANCELED: ABORTED
 }
 
-conf = {
-    'cms-jobmon.cern.ch:8884': {
-        'sys_monitoring': 0,
-        'general_info': 0,
-        'job_monitoring': 0
-    }
-}
+
+def patch_dash(dash):
+    """Patch inconsistent WMCore
+
+    """
+    from WMCore.Services.Dashboard import apmon
+
+    def new_apmon():
+        apMonConf = {DASHBOARDURL: {'sys_monitoring': 0, 'general_info': 0, 'job_monitoring': 0}}
+        try:
+            return apmon.ApMon(apMonConf, 0)
+        except Exception:
+            logger.exception("can't create ApMon instance")
+        return None
+    dash.__dict__['_getApMonInstance'] = new_apmon
 
 
 class Monitor(object):
@@ -56,11 +65,12 @@ class Monitor(object):
     def register_run(self):
         pass
 
-    def register_task(self, id):
+    def register_tasks(self, ids):
         """Returns Dashboard MonitorJobID and SyncId."""
-        return None, None
+        for id_ in ids:
+            yield None, None
 
-    def update_task(self, id, status):
+    def update_task_status(self, data):
         pass
 
     def update_tasks(self, queue, exclude):
@@ -100,6 +110,7 @@ class Dashboard(Monitor, util.Configurable):
 
         self.__cmssw_version = 'Unknown'
         self.__executable = 'Unknown'
+        self.__dash = None
 
         try:
             self._ce = loadSiteLocalConfig().siteName
@@ -107,11 +118,11 @@ class Dashboard(Monitor, util.Configurable):
             logger.error("can't load siteconfig, defaulting to hostname")
             self._ce = socket.getfqdn()
 
-    def __del__(self):
-        try:
-            self.free()
-        except Exception:
-            pass
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        del state['_Dashboard__dash']
+        state['_Dashboard__dash'] = None
+        return state
 
     def __get_distinguished_name(self):
         p = subprocess.Popen(["voms-proxy-info", "-identity"],
@@ -124,11 +135,20 @@ class Dashboard(Monitor, util.Configurable):
         db = SiteDBJSON({'cacheduration': 24, 'logger': logging.getLogger("WMCore")})
         return db.dnUserName(dn=self.__get_distinguished_name())
 
-    def free(self):
-        apmonFree()
-
-    def send(self, taskid, params):
-        apmonSend(self._workflowid, taskid, params, logging.getLogger("MonaLisa"), conf)
+    def send(self, kind, data):
+        if isinstance(data, dict):
+            data = [data]
+        if not self.__dash:
+            lggr = logging.getLogger("WMCore")
+            lggr.setLevel(logging.FATAL)
+            with util.PartiallyMutable.unlock():
+                self.__dash = DashboardAPI(logr=lggr)
+                patch_dash(self.__dash)
+        with self.__dash as dashboard:
+            for params in data:
+                params['MessageType'] = kind
+                params['MessageTS'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+                dashboard.apMonSend(params)
 
     def setup(self, config):
         super(Dashboard, self).setup(config)
@@ -138,11 +158,9 @@ class Dashboard(Monitor, util.Configurable):
             self.__executable = str(util.checkpoint(config.workdir, "executable"))
 
     def generate_ids(self, taskid):
-        seid = 'https://{}/{}'.format(self._ce,
-                                      sha1(self._workflowid).hexdigest()[-16:])
+        seid = 'https://{}/{}'.format(self._ce, sha1(self._workflowid).hexdigest()[-16:])
         monitorid = '{0}_{1}/{0}'.format(taskid, seid)
-        syncid = 'https://{}//{}//12345.{}'.format(
-            self._ce, self._workflowid, taskid)
+        syncid = 'https://{}//{}//12345.{}'.format(self._ce, self._workflowid, taskid)
 
         return monitorid, syncid
 
@@ -167,49 +185,56 @@ class Dashboard(Monitor, util.Configurable):
         })
         self.free()
 
-    def register_task(self, id):
-        monitorid, syncid = self.generate_ids(id)
-        self.send(monitorid, {
-            'taskId': self._workflowid,
-            'jobId': monitorid,
-            'sid': syncid,
-            'broker': 'condor',
-            'bossId': str(id),
-            'SubmissionType': 'Direct',
-            'TargetSE': 'Many_Sites',  # XXX This should be the SE where input data is stored
-            'localId': '',
-            'tool': 'lobster',
-            'JSToolVersion': '3.2.1',
-            'tool_ui': os.environ.get('HOSTNAME', ''),
-            'scheduler': 'work_queue',
-            'GridName': '/CN=' + self.commonname,
-            'ApplicationVersion': self.__cmssw_version,
-            'taskType': 'analysis',
-            'vo': 'cms',
-            'CMSUser': self.username,
-            'user': self.username,
-            # 'datasetFull': self.datasetPath,
-            'resubmitter': 'user',
-            'exe': self.__executable
-        })
-        return monitorid, syncid
+    def register_tasks(self, ids):
+        data = []
+        for id_ in ids:
+            monitorid, syncid = self.generate_ids(id_)
+            yield monitorid, syncid
+            data.append({
+                'taskId': self._workflowid,
+                'jobId': monitorid,
+                'sid': syncid,
+                'GridJobSyncId': syncid,
+                'broker': 'condor',
+                'bossId': str(id),
+                'SubmissionType': 'Direct',
+                'TargetSE': 'Many_Sites',  # XXX This should be the SE where input data is stored
+                'localId': '',
+                'tool': 'lobster',
+                'JSToolVersion': '3.2.1',
+                'tool_ui': os.environ.get('HOSTNAME', ''),
+                'scheduler': 'work_queue',
+                'GridName': '/CN=' + self.commonname,
+                'ApplicationVersion': self.__cmssw_version,
+                'taskType': 'analysis',
+                'vo': 'cms',
+                'CMSUser': self.username,
+                'user': self.username,
+                # 'datasetFull': self.datasetPath,
+                'resubmitter': 'user',
+                'exe': self.__executable
+            })
+        self.send('JobMeta', data)
 
-    def update_task(self, id, status):
-        monitorid, syncid = self.generate_ids(id)
-        self.send(monitorid, {
-            'taskId': self._workflowid,
-            'jobId': monitorid,
-            'sid': syncid,
-            'StatusValueReason': '',
-            'StatusValue': status,
-            'StatusEnterTime':
-            "{0:%F_%T}".format(datetime.datetime.utcnow()),
-            # Destination will be updated by the task once it sends a dashboard update.
-            # in line with
-            # https://github.com/dmwm/WMCore/blob/6f3570a741779d209f0f720647642d51b64845da/src/python/WMCore/Services/Dashboard/DashboardReporter.py#L136
-            'StatusDestination': 'Unknown',
-            'RBname': 'condor'
-        })
+    def update_task_status(self, data):
+        updates = []
+        for id_, status in data:
+            monitorid, syncid = self.generate_ids(id_)
+            updates.append({
+                'taskId': self._workflowid,
+                'jobId': monitorid,
+                'sid': syncid,
+                'StatusValueReason': '',
+                'StatusValue': status,
+                'StatusEnterTime':
+                "{0:%F_%T}".format(datetime.datetime.utcnow()),
+                # Destination will be updated by the task once it sends a dashboard update.
+                # in line with
+                # https://github.com/dmwm/WMCore/blob/6f3570a741779d209f0f720647642d51b64845da/src/python/WMCore/Services/Dashboard/DashboardReporter.py#L136
+                'StatusDestination': 'Unknown',
+                'RBname': 'condor'
+            })
+        self.send('JobStatus', updates)
 
     def update_tasks(self, queue, exclude):
         """
@@ -227,6 +252,7 @@ class Dashboard(Monitor, util.Configurable):
         except Exception:
             raise
 
+        data = []
         for id_ in ids:
             status = status_map[queue.task_state(id_)]
             if status in exclude:
@@ -234,5 +260,6 @@ class Dashboard(Monitor, util.Configurable):
             if not self.__states.get(id_) or self.__states.get(id_, status) != status:
                 continue
 
-            self.update_task(id_, status)
+            data.append((id_, status))
             self.__states.update({id_: status})
+        self.update_task_status(data)

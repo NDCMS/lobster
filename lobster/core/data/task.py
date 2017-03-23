@@ -23,7 +23,7 @@ sys.path.append('python')
 
 from WMCore.DataStructs.LumiList import LumiList
 from WMCore.FwkJobReport.Report import Report
-from WMCore.Services.Dashboard.DashboardAPI import apmonSend, apmonFree
+from WMCore.Services.Dashboard.DashboardAPI import DashboardAPI
 from WMCore.Storage.SiteLocalConfig import loadSiteLocalConfig
 
 import ROOT
@@ -33,6 +33,32 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gErrorIgnoreLevel = ROOT.kError
 
 from ROOT import TFile
+
+
+class Dash(object):
+
+    def __init__(self):
+        # self.__api = DashboardAPI(logr=logging.getLogger('mona'))
+        self.__api = DashboardAPI()
+
+    def configure(self, config):
+        self.__jobid = str(config['monitoring']['monitorid'])
+        self.__taskid = str(config['monitoring']['taskid'])
+        self.__syncid = str(config['monitoring']['syncid'])
+
+    def __call__(self, params):
+        # We need the context to actually configure dashboard reporting
+        with self.__api as dashboard:
+            params['MessageType'] = 'jobRuntime'
+            params['MessageTS'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+            params['taskId'] = self.__taskid
+            params['jobId'] = self.__jobid
+            params['sid'] = self.__syncid
+            params['SyncGridJobId'] = self.__syncid
+            dashboard.apMonSend(params)
+
+
+monitor = Dash()
 
 
 class Mangler(logging.Formatter):
@@ -132,14 +158,6 @@ for prod in process.producers.values():
     if prod.hasParameter('args') and prod.type_() == 'ExternalLHEProducer':
         prod.args = cms.vstring('{gridpack}')
 """
-
-monalisa = {
-    'cms-jobmon.cern.ch:8884': {
-        'sys_monitoring': 0,
-        'general_info': 0,
-        'job_monitoring': 0
-    }
-}
 
 
 def run_subprocess(*args, **kwargs):
@@ -834,7 +852,7 @@ def get_bare_size(filename):
 
 
 @check_execution(exitcode=185, timing='processing_end')
-def run_command(data, config, env, monalisa):
+def run_command(data, config, env):
     cmd = config['executable']
     args = config['arguments']
     if 'cmsRun' in cmd:
@@ -862,10 +880,7 @@ def run_command(data, config, env, monalisa):
     data['exe_exit_code'] = p.returncode
     data['task_exit_code'] = data['exe_exit_code']
 
-    # Dashboard does not like Unicode, just ASCII encoding
-    monitorid = str(config['monitoring']['monitorid'])
-    taskid = str(config['monitoring']['taskid'])
-    apmonSend(taskid, monitorid, {'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)}, logging.getLogger('mona'), monalisa)
+    monitor({'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)})
 
     if 'cmsRun' in config['executable']:
         if p.returncode == 0:
@@ -926,11 +941,9 @@ def run_epilogue(data, config, env):
         data['transfers'] = transfers
 
 
-def send_initial_dashboard_update(data, config, monalisa):
+def send_initial_dashboard_update(data, config):
     # Dashboard does not like Unicode, just ASCII encoding
-    monitorid = str(config['monitoring']['monitorid'])
     syncid = str(config['monitoring']['syncid'])
-    taskid = str(config['monitoring']['taskid'])
 
     try:
         if os.environ.get("PARROT_ENABLED", "FALSE") == "TRUE":
@@ -958,12 +971,10 @@ def send_initial_dashboard_update(data, config, monalisa):
         'SyncGridJobId': syncid,
         'WNHostName': socket.getfqdn()
     }
-
-    apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
-    apmonFree()
+    monitor(parameters)
 
 
-def send_final_dashboard_update(data, config, monalisa):
+def send_final_dashboard_update(data, config):
     cputime = data['cpu_time']
     events_per_run = data['events_per_run']
     exe_exit_code = data['exe_exit_code']
@@ -999,11 +1010,7 @@ def send_final_dashboard_update(data, config, monalisa):
     except Exception:
         pass
 
-    monitorid = str(config['monitoring']['monitorid'])
-    taskid = str(config['monitoring']['taskid'])
-
-    apmonSend(taskid, monitorid, parameters, logging.getLogger('mona'), monalisa)
-    apmonFree()
+    monitor(parameters)
 
 
 def write_report(data):
@@ -1057,7 +1064,9 @@ configfile = sys.argv[1]
 with open(configfile) as f:
     config = json.load(f)
 
-atexit.register(send_final_dashboard_update, data, config, monalisa)
+monitor.configure(config)
+
+atexit.register(send_final_dashboard_update, data, config)
 atexit.register(write_report, data)
 atexit.register(write_zipfiles, data)
 
@@ -1073,10 +1082,10 @@ with mangler.output("json"):
     for l in json.dumps(config, sort_keys=True, indent=2).splitlines():
         logger.debug(l)
 
-send_initial_dashboard_update(data, config, monalisa)
+send_initial_dashboard_update(data, config)
 
 run_prologue(data, config, env)
-run_command(data, config, env, monalisa)
+run_command(data, config, env)
 run_epilogue(data, config, env)
 
 copy_outputs(data, config, env)

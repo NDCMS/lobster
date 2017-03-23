@@ -47,6 +47,7 @@ class Dash(object):
         self.__syncid = str(config['monitoring']['syncid'])
 
     def __call__(self, params):
+        # We need the context to actually configure dashboard reporting
         with self.__api as dashboard:
             params['MessageType'] = 'jobRuntime'
             params['MessageTS'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
@@ -57,7 +58,7 @@ class Dash(object):
             dashboard.apMonSend(params)
 
 
-publish = Dash()
+monitor = Dash()
 
 
 class Mangler(logging.Formatter):
@@ -879,7 +880,7 @@ def run_command(data, config, env):
     data['exe_exit_code'] = p.returncode
     data['task_exit_code'] = data['exe_exit_code']
 
-    publish({'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)})
+    monitor({'ExeEnd': config['executable'], 'NCores': config.get('cores', 1)})
 
     if 'cmsRun' in config['executable']:
         if p.returncode == 0:
@@ -970,7 +971,7 @@ def send_initial_dashboard_update(data, config):
         'SyncGridJobId': syncid,
         'WNHostName': socket.getfqdn()
     }
-    publish(parameters)
+    monitor(parameters)
 
 
 def send_final_dashboard_update(data, config):
@@ -1009,7 +1010,7 @@ def send_final_dashboard_update(data, config):
     except Exception:
         pass
 
-    publish(parameters)
+    monitor(parameters)
 
 
 def write_report(data):
@@ -1063,7 +1064,7 @@ configfile = sys.argv[1]
 with open(configfile) as f:
     config = json.load(f)
 
-publish.configure(config)
+monitor.configure(config)
 
 atexit.register(send_final_dashboard_update, data, config)
 atexit.register(write_report, data)

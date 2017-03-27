@@ -115,9 +115,22 @@ class TaskHandler(object):
             ls = LumiList(lumis=set([(run, lumi) for (id, file, run, lumi) in self._units]))
             parameters['mask']['lumis'] = ls.getCompactList()
 
-    def process_report(self, task_update, transfers):
+    def process_report(self, task, task_update, transfers):
         """Read the report summary provided by `task.py`.
         """
+        a = {'stage_in_end':0, 'prologue_end':0, 'processing_end':0, 'epilogue_end':0, 'stage_out_end':0}
+        if task:
+            if task.resources_measured:
+                if task.resources_measured.snapshots:
+                    for s in task.resources_measured.snapshots:
+                        a[s.snapshot_name] = s.wall_time
+        task_update.time_stage_in_end_new = a['stage_in_end']
+        task_update.time_prologue_end_new = a['prologue_end']
+        task_update.time_processing_end_new = a['processing_end']
+        task_update.time_epilogue_end_new = a['epilogue_end']
+        task_update.time_stage_out_end_new = a['stage_out_end']
+
+
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
 
@@ -205,7 +218,7 @@ class TaskHandler(object):
 
         # May not all be there for failed tasks
         try:
-            files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task_update, transfers)
+            files_info, files_skipped, events_written, exe_exit_code, stageout_exit_code, task_exit_code = self.process_report(task, task_update, transfers)
         except (ValueError, EOFError, IOError) as e:
             failed = True
             logger.error("error processing {0}:\n{1}".format(task.tag, e))

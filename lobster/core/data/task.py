@@ -238,6 +238,9 @@ def check_execution(exitcode, update=None, timing=None):
             finally:
                 if timing:
                     data['task_timing'][timing] = int(datetime.now().strftime('%s'))
+                    time.sleep(2)
+                    with open('snapshots_trigger.log','w') as f:
+                        f.write(timing)
             return result
         return wrapper
     return decorator
@@ -530,7 +533,7 @@ def copy_inputs(data, config, env):
             logger.debug(fn)
 
 
-@check_execution(exitcode=210, update={'stageout_exit_code': 210}, timing='stage_out_end')
+@check_execution(exitcode=210, update={'stageout_exit_code': 210})
 def copy_outputs(data, config, env):
     """Copy output files.
 
@@ -1045,6 +1048,13 @@ data = {
         'prologue_end': 0,
         'wrapper_start': 0,
         'wrapper_ready': 0,
+        'processing_end': 0,
+        'epilogue_end': 0,
+        'stage_out_end': 0,
+    },
+    'task_timing_new': {
+        'stage_in_end': 0,
+        'prologue_end': 0,
         'processing_end': 0,
         'epilogue_end': 0,
         'stage_out_end': 0,

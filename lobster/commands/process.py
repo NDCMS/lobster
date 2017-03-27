@@ -198,6 +198,7 @@ class Process(Command, util.Timing):
         # self.queue.tune("short-timeout", 600)
         self.queue.tune("transfer-outlier-factor", 4)
         self.queue.specify_algorithm(wq.WORK_QUEUE_SCHEDULE_RAND)
+        self.queue.enable_monitoring_snapshots("snapshots_trigger.log")
         if self.config.advanced.full_monitoring:
             self.queue.enable_monitoring_full(None)
         else:

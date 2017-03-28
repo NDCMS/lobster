@@ -344,7 +344,7 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                 var = np.std(y)
                 med = np.median(y)
                 stats[label] = (avg, var, med)
-            info = u"{0}μ = {1:.3g}, σ = {2:.3g}, median = {3:.3g}"
+            info = u"{0} aa = {1:.3g}, bb = {2:.3g}, median = {3:.3g}"
             t = ax.text(0.75, 0.7,
                         '\n'.join([info.format(label + ': ' if len(stats) > 1 else '', avg, var, med)
                                    for label, (avg, var, med) in stats.items()]),
@@ -436,7 +436,7 @@ class Plotter(object):
             (self.__xmin, self.__xmax))
         fields = [xs[0] for xs in cur.description]
         textfields = ['host', 'published_file_block']
-        formats = ['i4' if f not in textfields else 'a100' for f in fields]
+        formats = ['f8' if f not in textfields else 'a100' for f in fields]
         tasks = np.array(cur.fetchall(), dtype={
                          'names': fields, 'formats': formats})
 
@@ -472,7 +472,7 @@ class Plotter(object):
                     and (units_{0}.status=2 or units_{0}.status=6)
                     and time_retrieved>=? and time_retrieved<=?""".format(label),
                                                        (self.__xmin, self.__xmax)).fetchall(),
-                                            dtype=[('id', 'i4'), ('time_retrieved', 'i4')]))
+                                            dtype=[('id', 'f8'), ('time_retrieved', 'f8')]))
             units_processed[label] = db.execute("""
                 select units_{0}.run,
                 units_{0}.lumi
@@ -1016,23 +1016,36 @@ class Plotter(object):
             mcommitted = (stats[:, headers['committed_cores']] + np.roll(stats[:, headers['committed_cores']], 1, 0)) * .5
             mtotal = (stats[:, headers['total_cores']] + np.roll(stats[:, headers['total_cores']], 1, 0)) * .5
 
+#            self.pie(
+#                [
+#                    np.dot(dtime, mtotal - mcommitted),
+#                    np.dot(good_tasks['cores'], good_tasks['time_total_on_worker'] - good_tasks['time_on_worker']) +
+#                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker'] - failed_tasks['time_on_worker']),
+#                    (
+#                        np.dot(good_tasks['cores'], good_tasks['time_total_exhausted_execution']) +
+#                        np.dot(failed_tasks['cores'], failed_tasks['time_total_exhausted_execution'])
+#                    ),
+#                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker']),
+#                    np.dot(good_tasks['cores'], good_tasks['time_prologue_end'] - good_tasks['time_transfer_in_start']),
+#                    np.dot(good_tasks['cores'], good_tasks['time_processing_end'] - good_tasks['time_prologue_end']),
+#                    np.dot(good_tasks['cores'], good_tasks['time_transfer_out_end'] - good_tasks['time_processing_end'])
+#                ],
+#                ["Cores-idle", "Eviction", "Exhausted", "Failed", "Overhead", "Processing", "Stage-out"],
+#                os.path.join(subdir, "time-pie"),
+#                colors=["maroon", "crimson", "coral", "red", "dodgerblue", "green", "skyblue"]
+#            )
+
             self.pie(
                 [
-                    np.dot(dtime, mtotal - mcommitted),
-                    np.dot(good_tasks['cores'], good_tasks['time_total_on_worker'] - good_tasks['time_on_worker']) +
-                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker'] - failed_tasks['time_on_worker']),
-                    (
-                        np.dot(good_tasks['cores'], good_tasks['time_total_exhausted_execution']) +
-                        np.dot(failed_tasks['cores'], failed_tasks['time_total_exhausted_execution'])
-                    ),
-                    np.dot(failed_tasks['cores'], failed_tasks['time_total_on_worker']),
-                    np.dot(good_tasks['cores'], good_tasks['time_prologue_end'] - good_tasks['time_transfer_in_start']),
-                    np.dot(good_tasks['cores'], good_tasks['time_processing_end'] - good_tasks['time_prologue_end']),
-                    np.dot(good_tasks['cores'], good_tasks['time_transfer_out_end'] - good_tasks['time_processing_end'])
+                    np.dot(good_tasks['cores'], good_tasks['time_prologue_end_new'] - good_tasks['time_stage_in_end_new']),
+                    np.dot(good_tasks['cores'], good_tasks['time_processing_end_new'] - good_tasks['time_prologue_end_new']),
+                    np.dot(good_tasks['cores'], good_tasks['time_epilogue_end_new'] - good_tasks['time_processing_end_new']),
+                    np.dot(good_tasks['cores'], good_tasks['time_stage_out_end_new'] - good_tasks['time_epilogue_end_new']),
+
                 ],
-                ["Cores-idle", "Eviction", "Exhausted", "Failed", "Overhead", "Processing", "Stage-out"],
+                ["Prologue", "Processing", "Epilogue", "Stage-out"],
                 os.path.join(subdir, "time-pie"),
-                colors=["maroon", "crimson", "coral", "red", "dodgerblue", "green", "skyblue"]
+                colors=["red", "green", "coral", "skyblue"]
             )
 
             workflows = []

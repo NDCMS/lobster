@@ -124,12 +124,13 @@ class TaskHandler(object):
                 if task.resources_measured.snapshots:
                     for s in task.resources_measured.snapshots:
                         a[s.snapshot_name] = s.wall_time
-        task_update.time_stage_in_end_new = a['stage_in_end']
-        task_update.time_prologue_end_new = a['prologue_end']
-        task_update.time_processing_end_new = a['processing_end']
-        task_update.time_epilogue_end_new = a['epilogue_end']
-        task_update.time_stage_out_end_new = a['stage_out_end']
-
+        task_update.time_stage_in_end = a['stage_in_end'] / 1000000
+        task_update.time_prologue_end = a['prologue_end'] / 1000000
+        task_update.time_processing_end = a['processing_end'] / 1000000
+        task_update.time_epilogue_end = a['epilogue_end'] / 1000000
+        task_update.time_stage_out_end = a['stage_out_end'] / 1000000
+        task_update.time_wrapper_start = a['wrapper_start'] / 1000000
+        task_update.time_wrapper_ready = a['wrapper_ready'] / 1000000
 
         with open(os.path.join(self.taskdir, 'report.json'), 'r') as f:
             data = json.load(f)
@@ -143,13 +144,13 @@ class TaskHandler(object):
             task_update.cache = data['cache']['type']
             task_update.cache_end_size = data['cache']['end_size']
             task_update.cache_start_size = data['cache']['start_size']
-            task_update.time_wrapper_start = data['task_timing']['wrapper_start']
-            task_update.time_wrapper_ready = data['task_timing']['wrapper_ready']
-            task_update.time_stage_in_end = data['task_timing']['stage_in_end']
-            task_update.time_prologue_end = data['task_timing']['prologue_end']
-            task_update.time_processing_end = data['task_timing']['processing_end']
-            task_update.time_epilogue_end = data['task_timing']['epilogue_end']
-            task_update.time_stage_out_end = data['task_timing']['stage_out_end']
+#            task_update.time_wrapper_start = data['task_timing']['wrapper_start']
+#            task_update.time_wrapper_ready = data['task_timing']['wrapper_ready']
+#            task_update.time_stage_in_end = data['task_timing']['stage_in_end']
+#            task_update.time_prologue_end = data['task_timing']['prologue_end']
+#            task_update.time_processing_end = data['task_timing']['processing_end']
+#            task_update.time_epilogue_end = data['task_timing']['epilogue_end']
+#            task_update.time_stage_out_end = data['task_timing']['stage_out_end']
             task_update.time_cpu = data['cpu_time']
 
             files_info = data['files']['info']

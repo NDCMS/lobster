@@ -40,7 +40,7 @@ def boil():
 
         if util.checkpoint(cfg.workdir, 'version'):
             cfg = config.Config.load(cfg.workdir)
-        else:
+        elif args.plugin.__class__.__name__.lower() == 'process':
             # This is the original configuration file!
             with util.PartiallyMutable.unlock():
                 cfg.base_directory = os.path.abspath(os.path.dirname(args.checkpoint))
@@ -48,6 +48,15 @@ def boil():
                 cfg.startup_directory = os.path.abspath(os.getcwd())
                 for w in cfg.workflows:
                     w.validate()
+        else:
+            parser.error("""
+                Cannot find working directory at '{0}'.
+                Have you run 'lobster process {1}'?
+                If so, check if you have specified the working directory to change
+                programatically (for example, with a timestamp appended). In that
+                case, you will need to pass the desired working directory instead of
+                configuration file.
+                """.format(cfg.workdir, args.checkpoint))
     elif os.path.isdir(args.checkpoint):
         # Load configuration from working directory passed to us
         workdir = args.checkpoint

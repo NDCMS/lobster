@@ -82,22 +82,7 @@ class UnitStore:
     def __init__(self, config):
         self.uuid = str(uuid.uuid4()).replace('-', '')
         self.db_path = os.path.join(config.workdir, "lobster.db")
-        try:
-            self.db = sqlite3.connect(self.db_path, timeout=90)
-        except sqlite3.OperationalError:
-            if not os.path.isdir(config.workdir):
-                msg = 'cannot find working directory at {}'.format(config.workdir)
-                if os.path.isfile(config.base_configuration):
-                    msg += """
-                        Have you run this?
-                            `lobster process {}`
-                        If so, check if you have specified the working directory to change
-                        programatically (for example, with a timestamp appended). In that
-                        case, you will need to pass the desired working directory instead of
-                        configuration file.
-                        """.format(config.base_configuration)
-                raise RuntimeError(msg)
-            raise
+        self.db = sqlite3.connect(self.db_path, timeout=90)
 
         self.config = config
 

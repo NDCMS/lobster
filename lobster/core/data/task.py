@@ -890,7 +890,7 @@ def run_command(data, config, env):
             parse_fwk_report(data, config, 'report.xml', exitcode=p.returncode)
     else:
         data['files']['info'] = dict((f, [0, []]) for f in config['file map'].values())
-        data['files']['output_info'] = dict((f, {'runs': {}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
+        data['files']['output_info'] = dict((f, {'runs': {-1: [-1]}, 'events': 0, 'adler32': '0'}) for f, rf in config['output files'])
         data['cpu_time'] = usage.ru_stime
 
     if p.returncode != 0:

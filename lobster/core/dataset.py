@@ -107,6 +107,7 @@ class EmptyDataset(Configurable):
 
     def __init__(self, number_of_tasks=1):
         self.number_of_tasks = number_of_tasks
+        self.total_units = number_of_tasks
 
     def validate(self):
         return True
@@ -115,9 +116,8 @@ class EmptyDataset(Configurable):
         dset = DatasetInfo()
         dset.file_based = True
 
-        dset.total_units = self.number_of_tasks
         dset.files[None].lumis = [(x, 1) for x in range(1, self.number_of_tasks + 1)]
-        dset.total_units = self.number_of_tasks
+        dset.total_units = self.total_units
 
         return dset
 

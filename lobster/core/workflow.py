@@ -177,11 +177,12 @@ class Workflow(Configurable):
         globaltag : str
             Which GlobalTag this workflow uses.  Needed for publication of
             CMSSW workflows, and can be automatically determined for these.
-        edm_output : bool
-            Autodetermined when outputs are determined automatically.
-            Tells Lobster if the output of this workflow is in EDM format.
-            If `True`, cmssw will be used to merge output files. Otherwise,
-            `hadd` will be used.
+        merge_command : str
+            Accepts `cmsRun`, `hadd`, or a custom command. Tells Lobster what
+            command to use for merging. If outputs are autodetermined, cmssw
+            will be used for EDM output and hadd will be used otherwise. Custom
+            commands should accept the output file as the first argument followed
+            by one or more input files to merge.
     """
     _mutable = {}
 
@@ -202,7 +203,7 @@ class Workflow(Configurable):
                  local=False,
                  pset=None,
                  globaltag=None,
-                 edm_output=True):
+                 merge_command='cmsRun'):
         self.label = label
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
@@ -237,7 +238,7 @@ class Workflow(Configurable):
         self.pset = pset
         self.globaltag = globaltag
         self.local = local or hasattr(dataset, 'files')
-        self.edm_output = edm_output
+        self.merge_command = merge_command
 
         from lobster.cmssw.sandbox import Sandbox
         self.sandbox = sandbox or Sandbox()
@@ -337,7 +338,7 @@ class Workflow(Configurable):
                 self.outputs.append(module.fileName.value().replace('file:', ''))
             if 'TFileService' in process.services:
                 self.outputs.append(process.services['TFileService'].fileName.value().replace('file:', ''))
-                self.edm_output = False
+                self.merge_command = 'hadd'
 
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
 
@@ -433,12 +434,16 @@ class Workflow(Configurable):
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))
             inputs.extend((r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in reports)
 
-            if self.edm_output:
+            if self.merge_command == 'cmsRun':
                 args = ['outputFile=' + self.outputs[0]]
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
             else:
-                cmd = 'hadd'
-                args = ['-n', '0', '-f', self.outputs[0]]
+                cmd = self.merge_command
+                args = [self.outputs[0]]
+                if self.merge_command == 'hadd':
+                    args = ['-n', '0', '-f'] + args
+                else:
+                    inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
                 pset = None
                 params['append inputs to args'] = True
 

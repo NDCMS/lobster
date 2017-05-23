@@ -463,6 +463,8 @@ class Workflow(Configurable):
             outputs.append((os.path.join(taskdir, 'report.xml.gz'), 'report.xml.gz'))
 
             params['pset'] = os.path.basename(pset)
+        else:
+            params['append inputs to args'] = True
 
         params['executable'] = cmd
         params['arguments'] = args

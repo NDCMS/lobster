@@ -507,7 +507,7 @@ class TaskProvider(util.Timing):
                 self.__store.update_units(update)
 
         with self.measure('cleanup'):
-            if wflow.cleanup_input and len(input_files) > 0:
+            if len(input_files) > 0:
                 input_cleanup.extend(self.__store.finished_files(input_files))
 
             for cleanup in [fail_cleanup, merge_cleanup + input_cleanup]:

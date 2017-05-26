@@ -93,7 +93,7 @@ class Validate(Command):
             delete, missed = self.process_workflow(store, stats, wflow)
             missing += missed
 
-            if not args.dry_run:
+            if not args.dry_run and len(delete) > 0:
                 fs.remove(*delete)
 
         logger.info('finished validating')

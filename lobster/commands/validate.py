@@ -17,8 +17,6 @@ class Validate(Command):
     def setup(self, argparser):
         argparser.add_argument('--dry-run', action='store_true', dest='dry_run', default=False,
                                help='only print (do not remove) files to be cleaned')
-        argparser.add_argument('--delete-merged', action='store_true', dest='delete_merged', default=False,
-                               help='remove intermediate files that have been merged')
 
     def print_stats(self, stats):
         width = max([len(x) for x in stats])
@@ -46,7 +44,6 @@ class Validate(Command):
     def process_workflow(self, store, stats, wflow):
         files = set(fs.ls(wflow.label))
         delete = []
-        merged = []
         missing = []
 
         cleaned = any(w.cleanup_input for w in wflow.dependents)
@@ -63,7 +60,7 @@ class Validate(Command):
                 if filename in files:
                     logger.info("found output from intermediate merged task: {0}".format(filename))
                     stats[wflow.label][1] += 1
-                    merged.append(filename)
+                    delete.append(filename)
 
         if cleaned:
             for w in wflow.dependents:
@@ -83,7 +80,7 @@ class Validate(Command):
                         missing.append(task)
                         logger.warning('output file is missing for {0}'.format(task))
 
-        return delete, merged, missing
+        return delete, missing
 
     def run(self, args):
         store = UnitStore(args.config)
@@ -93,13 +90,11 @@ class Validate(Command):
         for wflow in args.config.workflows:
             logger.info('validating output files for {0}'.format(wflow.label))
 
-            delete, merged, missed = self.process_workflow(store, stats, wflow)
+            delete, missed = self.process_workflow(store, stats, wflow)
             missing += missed
 
             if not args.dry_run:
                 fs.remove(*delete)
-                if args.delete_merged:
-                    fs.remove(*merged)
 
         logger.info('finished validating')
 

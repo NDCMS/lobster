@@ -90,6 +90,8 @@ def boil():
         fileh = logging.handlers.RotatingFileHandler(os.path.join(cfg.workdir, fn), maxBytes=100e6, backupCount=10)
         fileh.setFormatter(formatter)
         fileh.setLevel(logging.INFO)
+        for p in args.plugin.blacklisted_logs():
+            fileh.addFilter(util.InvertedFilter('lobster.' + p))
         args.preserve.append(fileh.stream)
         logger.addHandler(fileh)
 

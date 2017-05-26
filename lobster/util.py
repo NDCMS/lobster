@@ -28,6 +28,12 @@ VERSION = "1.5"
 logger = logging.getLogger('lobster.util')
 
 
+class InvertedFilter(logging.Filter):
+
+    def filter(self, record):
+        return not logging.Filter.filter(self, record)
+
+
 class PartiallyMutable(type):
 
     """Support metaclass for partially mutable base object.

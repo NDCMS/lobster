@@ -36,6 +36,9 @@ class Command(object):
     def daemonizable(self):
         return False
 
+    def blacklisted_logs(self):
+        return []
+
     def additional_logs(self):
         return []
 

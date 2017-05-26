@@ -56,8 +56,11 @@ class Process(Command, util.Timing):
     def daemonizable(self):
         return True
 
+    def blacklisted_logs(self):
+        return ['plotting']
+
     def additional_logs(self):
-        return ['configure']
+        return ['configure', 'plotting']
 
     def setup_logging(self, category):
         filename = os.path.join(self.config.workdir, "lobster_stats_{}.log".format(category))

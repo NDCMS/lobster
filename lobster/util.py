@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from email.mime.text import MIMEText
 from pkg_resources import get_distribution
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 logger = logging.getLogger('lobster.util')
 

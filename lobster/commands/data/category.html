@@ -154,8 +154,8 @@
 		<th>
 		    <div class="tooltip">stuck
 		        <span class="tooltiptext">
-			    Units which cannot be attempted because their input is a unit in a parent workflow that failed
-			    or was skipped.
+			    Units which cannot be attempted because they are either failed or skipped, or their input is
+			    a unit in a parent workflow that failed or was skipped.
 
 			    If you want to increase skipping/failure thresholds so that the parent units are attempted
 			    again, run <span class="code">lobster configure /my/working/directory</span> and increase

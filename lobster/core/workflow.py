@@ -8,7 +8,7 @@ import shutil
 import sys
 
 from lobster import fs, util
-from lobster.core.dataset import EmptyDataset, MultiProductionDataset, ParentDataset, ProductionDataset
+from lobster.core.dataset import EmptyDataset, MultiProductionDataset, ProductionDataset
 from lobster.core.task import MergeTaskHandler, MultiProductionTaskHandler, ProductionTaskHandler, TaskHandler
 from lobster.util import Configurable
 
@@ -221,9 +221,6 @@ class Workflow(Configurable):
         if unique_arguments:
             if any(x is None for x in unique_arguments):
                 raise ValueError("Unique arguments should not be None")
-            if isinstance(dataset, ParentDataset):
-                raise ValueError("Can't have a workflow with unique arguments "
-                                 "as a dependent of another workflow")
             self.unique_arguments = unique_arguments
         else:
             self.unique_arguments = [None]

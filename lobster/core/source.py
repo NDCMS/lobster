@@ -195,7 +195,8 @@ class TaskProvider(util.Timing):
             if wflow.parent:
                 getattr(self.config.workflows, wflow.parent.label).register(wflow)
                 if create:
-                    self.__store.register_dependency(wflow.label, wflow.parent.label, wflow.dataset.total_units)
+                    total_units = wflow.dataset.total_units * len(wflow.unique_arguments)
+                    self.__store.register_dependency(wflow.label, wflow.parent.label, total_units)
 
         if not util.checkpoint(self.workdir, 'sandbox cmssw version'):
             util.register_checkpoint(self.workdir, 'sandbox', 'CREATED')
@@ -521,7 +522,8 @@ class TaskProvider(util.Timing):
 
         with self.measure('propagate'):
             for label, infos in propagate.items():
-                self.__store.register_files(infos, label)
+                unique_args = getattr(self.config.workflows, label).unique_arguments
+                self.__store.register_files(infos, label, unique_args)
 
         if len(transfers) > 0:
             with self.measure('transfers'):

@@ -3,6 +3,7 @@ import imp
 import logging
 import os
 import re
+import shlex
 import shutil
 import sys
 
@@ -449,7 +450,7 @@ class Workflow(Configurable):
             inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
 
             if unique:
-                args.append(unique)
+                args.extend(shlex.split(unique))
             if pset:
                 pset = os.path.join(self.workdir, pset)
             if self.category.runtime:

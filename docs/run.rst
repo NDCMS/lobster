@@ -101,9 +101,17 @@ disable debug output, and considerably lessen disk usage.
    resources have monitoring pages for `condor`_ and the `external
    bandwidth`_, and the `squid server`_.
 
+   The opportunistic resources have now largely migrated to RHEL7.
+   While using CMSSW releases that aren't available in RHEL7, you need
+   to ask Work Queue to run your job using `Singularity`_.  This
+   requires a change to the factory invocation as follows::
+
+       nohup work_queue_factory -T condor -M "lobster_$USER.*" -d all -o /tmp/${USER}_lobster_factory.debug -C examples/factory_singularity.json --wrapper "python /afs/crc.nd.edu/group/ccl/software/runos/runos.py rhel6" --extra-options="--workdir=/disk" --worker-binary=/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin/work_queue_worker >&! /tmp/${USER}_lobster_factory.log &
+
 .. _condor: http://condor.cse.nd.edu/condor_matrix.cgi
 .. _external bandwidth: http://prtg1.nm.nd.edu/sensor.htm?listid=491&timeout=60&id=505&position=0
 .. _squid server: http://mon.crc.nd.edu/xymon-cgi/svcstatus.sh?HOST=eddie.crc.nd.edu&SERVICE=trends&backdays=0&backhours=6&backmins=0&backsecs=0&Go=Update&FROMTIME=&TOTIME=
+.. _Singularity: http://singularity.lbl.gov/
 
 Using a Chirp server
 --------------------

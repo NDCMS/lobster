@@ -24,7 +24,7 @@ Dependencies
   Cooperative Computing Lab`_ and install them by unpacking the tarball and
   adding the `bin` directory to your path::
 
-    cctools=lobster-142-55035a54-cvmfs-40cf5bba
+    export cctools lobster-148-c1a7ecbd-cvmfs-0941e442
     wget -O - http://ccl.cse.nd.edu/software/files/${cctools}-x86_64-redhat6.tar.gz
     export PATH=$PWD/${cctools}-x86_64-redhat6/bin:$PATH
     export PYTHONPATH=$PWD/${cctools}-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      cctools=lobster-142-55035a54-cvmfs-40cf5bba
+      export cctools lobster-148-c1a7ecbd-cvmfs-0941e442
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:$PATH
 
@@ -96,6 +96,6 @@ easy modification of the source::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools lobster-142-55035a54-cvmfs-40cf5bba
+    setenv cctools lobster-148-c1a7ecbd-cvmfs-0941e442
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:${PATH}

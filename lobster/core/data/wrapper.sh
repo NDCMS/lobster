@@ -30,6 +30,7 @@ log "startup" "wrapper started" "echo -e 'hostname: $(hostname)\nkernel: $(uname
 
 log "trace" "tracing google" traceroute -w 1 www.google.com
 log "env" "environment at startup" env
+log "cpu" "cpu info" cat /proc/cpuinfo
 
 # determine locally present stage-out method
 LOBSTER_LCG_CP=$(command -v lcg-cp)

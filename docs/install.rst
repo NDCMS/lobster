@@ -49,7 +49,7 @@ Dependencies
   This installs pip in your `~/.local` directory. In order to access these
   executables, add them to your path with::
 
-    export PATH=$PATH:$HOME/.local/bin
+    export PATH=$HOME/.local/bin:$PATH
 
 Setup
 -----

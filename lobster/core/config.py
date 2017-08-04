@@ -201,6 +201,9 @@ class AdvancedOptions(Configurable):
             How often `WorkQueue` will attempt to process a task before
             handing it back to Lobster.  `WorkQueue` will only reprocess
             evicted tasks automatically.
+        wq_port : int
+            WorkQueue Master port number.
+            Defaults to -1 to look for an available port.
         xrootd_servers : list
             A list of xrootd servers to use to access remote data.
             Defaults to `cmsxrootd.fnal.gov`.
@@ -229,6 +232,7 @@ class AdvancedOptions(Configurable):
                  threshold_for_failure=30,
                  threshold_for_skipping=30,
                  wq_max_retries=10,
+                 wq_port=-1,
                  xrootd_servers=None):
         from lobster import cmssw
 
@@ -257,4 +261,5 @@ class AdvancedOptions(Configurable):
         self.threshold_for_failure = threshold_for_failure
         self.threshold_for_skipping = threshold_for_skipping
         self.wq_max_retries = wq_max_retries
+        self.wq_port = wq_port
         self.xrootd_servers = xrootd_servers if xrootd_servers else ['cmsxrootd.fnal.gov']

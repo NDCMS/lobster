@@ -192,7 +192,7 @@ class Process(Command, util.Timing):
         wq.cctools_debug_config_file(os.path.join(self.config.workdir, "work_queue_debug.log"))
         wq.cctools_debug_config_file_size(1 << 29)
 
-        self.queue = wq.WorkQueue(-1)
+        self.queue = wq.WorkQueue(self.config.advanced.wq_port)
         self.queue.specify_min_taskid(self.source.max_taskid() + 1)
         self.queue.specify_log(os.path.join(self.config.workdir, "work_queue.log"))
         self.queue.specify_transactions_log(os.path.join(self.config.workdir, "transactions.log"))

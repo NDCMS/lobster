@@ -111,7 +111,7 @@ class TaskProvider(util.Timing):
             self.__ce = siteconf.siteName
             self.__se = siteconf.localStageOutPNN()
             self.__frontier_proxy = siteconf.frontierProxies[0]
-        except SiteConfigError:
+        except (SiteConfigError, IndexError):
             logger.error("can't load siteconfig, defaulting to hostname")
             self.__ce = socket.getfqdn()
             self.__se = socket.getfqdn()

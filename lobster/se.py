@@ -2,8 +2,9 @@ import logging
 import os
 import random
 import re
-import snakebite.client
-import snakebite.errors
+if 'LOBSTER_SKIP_HADOOP' not in os.environ:
+    import snakebite.client
+    import snakebite.errors
 import subprocess
 import xml.dom.minidom
 

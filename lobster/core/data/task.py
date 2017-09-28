@@ -894,7 +894,7 @@ def run_command(data, config, env):
         data['cpu_time'] = usage.ru_stime
 
     if p.returncode != 0:
-        raise subprocess.CalledProcessError
+        raise subprocess.CalledProcessError(p.returncode, cmd)
 
 
 def run_step(data, config, env, name):
@@ -908,7 +908,7 @@ def run_step(data, config, env, name):
         # check_call would do and raise a CalledProcessError if we get
         # a non-zero return code.
         if p.returncode != 0:
-            raise subprocess.CalledProcessError
+            raise subprocess.CalledProcessError(p.returncode, step)
 
 
 @check_execution(exitcode=180, timing='prologue_end')

@@ -24,7 +24,7 @@ Dependencies
   Cooperative Computing Lab`_ and install them by unpacking the tarball and
   adding the `bin` directory to your path::
 
-    export cctools lobster-148-c1a7ecbd-cvmfs-0941e442
+    export cctools=lobster-148-c1a7ecbd-cvmfs-0941e442
     wget -O - http://ccl.cse.nd.edu/software/files/${cctools}-x86_64-redhat6.tar.gz
     export PATH=$PWD/${cctools}-x86_64-redhat6/bin:$PATH
     export PYTHONPATH=$PWD/${cctools}-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH

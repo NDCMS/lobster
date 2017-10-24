@@ -124,7 +124,7 @@ class TaskProvider(util.Timing):
         try:
             with open('/etc/cvmfs/default.local') as f:
                 lines = f.readlines()
-        except:
+        except IOError:
             lines = []
         for l in lines:
             m = re.match('\s*CVMFS_HTTP_PROXY\s*=\s*[\'"]?(.*)[\'"]?', l)

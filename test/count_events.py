@@ -22,13 +22,13 @@ for path in args.paths:
     events[path] = np.zeros(args.max, dtype='int32, int32, int32')
     for index, event in enumerate(DataFormats.FWLite.Events(files)):
         r = event.object().id().run()
-        l = event.object().id().luminosityBlock()
+        b = event.object().id().luminosityBlock()
         e = event.object().id().event()
 
-        events[path][index] = (r, l, e)
+        events[path][index] = (r, b, e)
 
         if args.verbose and index % 5000 == 0:
-            print '>>>> entry run lumi event: {:10} {:10} {:10} {:10}'.format(index, r, l, e)
+            print '>>>> entry run lumi event: {:10} {:10} {:10} {:10}'.format(index, r, b, e)
 
         if index == args.max:
             break

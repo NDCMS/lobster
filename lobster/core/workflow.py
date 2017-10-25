@@ -472,7 +472,6 @@ class Workflow(Configurable):
         params['executable'] = cmd
         params['arguments'] = args
         if isinstance(self.dataset, ProductionDataset) and not merge:
-            params['mask']['events'] = self.dataset.events_per_task
             params['mask']['events per lumi'] = self.dataset.events_per_lumi
             params['randomize seeds'] = self.dataset.randomize_seeds
         else:

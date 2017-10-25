@@ -129,27 +129,25 @@ class ProductionDataset(Configurable):
 
     Parameters
     ----------
-        events_per_task : int
-            How many events to generate in one task.
+        total_events : int
+            How many events to generate.
         events_per_lumi : int
             How many events to generate in one luminosity section.
-        number_of_tasks : int
-            How many tasks to run.
+        lumis_per_task : int
+            How many lumis to produce per task. Can be
+            changed by Lobster to match the user-specified task runtime.
         randomize_seeds : bool
             Use random seeds every time a task is run.
     """
     _mutable = {}
 
-    def __init__(self, events_per_task, events_per_lumi=None, number_of_tasks=1, randomize_seeds=True):
-        self.number_of_tasks = number_of_tasks
-        self.events_per_task = events_per_task
+    def __init__(self, total_events, events_per_lumi=500, lumis_per_task=1, randomize_seeds=True):
+        self.total_events = total_events
         self.events_per_lumi = events_per_lumi
+        self.lumis_per_task = lumis_per_task
         self.randomize_seeds = randomize_seeds
 
-        nlumis = 1
-        if events_per_lumi:
-            nlumis = int(math.ceil(float(events_per_task) / events_per_lumi))
-        self.total_units = number_of_tasks * nlumis
+        self.total_units = int(math.ceil(float(total_events) / events_per_lumi))
 
     def validate(self):
         return True
@@ -158,13 +156,9 @@ class ProductionDataset(Configurable):
         dset = DatasetInfo()
         dset.file_based = True
 
-        ntasks = self.number_of_tasks
-        nlumis = 1
-        if self.events_per_lumi:
-            nlumis = int(math.ceil(float(self.events_per_task) / self.events_per_lumi))
-        dset.files[None].lumis = [(1, x) for x in range(1, ntasks * nlumis + 1, nlumis)]
-        dset.total_units = ntasks
-        self.total_units = ntasks * nlumis
+        dset.files[None].lumis = [(1, x) for x in range(1, self.total_units + 1)]
+        dset.total_units = self.total_units
+        dset.tasksize = self.lumis_per_task
 
         return dset
 
@@ -182,22 +176,25 @@ class MultiProductionDataset(ProductionDataset):
             pointing to a single gridpack file or directory.
         events_per_gridpack : int
             How many events to generate per gridpack.
-        events_per_task : int
-            How many events to generate in one task.
         events_per_lumi : int
             How many events to generate in one luminosity section.
+        lumis_per_task : int
+            How many lumis to produce per task. Can be
+            changed by Lobster to match the user-specified task runtime.
         randomize_seeds : bool
             Use random seeds every time a task is run.
     """
     _mutable = {}
 
-    def __init__(self, gridpacks, events_per_gridpack, events_per_task, events_per_lumi=None, randomize_seeds=True):
+    def __init__(self, gridpacks, events_per_gridpack, events_per_lumi=500, lumis_per_task=1, randomize_seeds=True):
         self.gridpacks = gridpacks
         self.events_per_gridpack = events_per_gridpack
-        self.events_per_task = events_per_task
         self.events_per_lumi = events_per_lumi
+        self.lumis_per_task = lumis_per_task
         self.randomize_seeds = randomize_seeds
-        self.total_units = 0
+
+        self.lumis_per_gridpack = int(math.ceil(float(events_per_gridpack) / events_per_lumi))
+        self.total_units = len(flatten(self.gridpacks)) * self.lumis_per_gridpack
 
     def validate(self):
         return len(flatten(self.gridpacks)) > 0
@@ -206,17 +203,12 @@ class MultiProductionDataset(ProductionDataset):
         dset = DatasetInfo()
         dset.file_based = True
 
-        lumis_per_task = 1
-        lumis_per_gridpack = int(math.ceil(float(self.events_per_gridpack) / self.events_per_task))
-        if self.events_per_lumi:
-            lumis_per_task = int(math.ceil(float(self.events_per_task) / self.events_per_lumi))
-            lumis_per_gridpack = int(math.ceil(float(self.events_per_gridpack) / self.events_per_lumi))
-
         for run, fn in enumerate(flatten(self.gridpacks)):
-            dset.files[fn].lumis = [(run, x) for x in range(1, lumis_per_gridpack + 1, lumis_per_task)]
+            dset.files[fn].lumis = [(run, x) for x in range(1, self.lumis_per_gridpack + 1)]
 
-        dset.total_units = len(sum([x.lumis for x in dset.files.values()], []))
-        self.total_units = dset.total_units
+        dset.total_units = self.total_units
+        dset.tasksize = self.lumis_per_task
+        dset.stop_on_file_boundary = True  # CMSSW can only handle one gridpack at a time
 
         return dset
 

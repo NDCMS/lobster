@@ -34,8 +34,8 @@ class TaskHandler(object):
         self.taskdir = taskdir
         self.unit_source = 'units_' + self._dataset
 
-        self.__output_info = {}
-        self.__output_size = 0
+        self._output_info = {}
+        self._output_size = 0
 
     @property
     def dataset(self):
@@ -44,10 +44,10 @@ class TaskHandler(object):
     @property
     def output_info(self):
         res = FileInfo()
-        for run, lumis in self.__output_info.get('runs', {-1: [-1]}).items():
+        for run, lumis in self._output_info.get('runs', {-1: [-1]}).items():
             res.lumis += [(int(run), lumi) for lumi in lumis]
-        res.events = self.__output_info.get('events', 0)
-        res.size = self.__output_size
+        res.events = self._output_info.get('events', 0)
+        res.size = self._output_size
         return res
 
     @property
@@ -122,8 +122,8 @@ class TaskHandler(object):
             data = json.load(f)
 
             if len(data['files']['output_info']) > 0:
-                self.__output_info = data['files']['output_info'].values()[0]
-                self.__output_size = data['output_size']
+                self._output_info = data['files']['output_info'].values()[0]
+                self._output_size = data['output_size']
 
             task_update.bytes_output = data['output_size']
             task_update.bytes_bare_output = data['output_bare_size']
@@ -294,6 +294,31 @@ class ProductionTaskHandler(TaskHandler):
     def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
         _, up = super(ProductionTaskHandler, self).get_unit_info(failed, task_update, files_info, files_skipped, events_written)
         return [(0, 0, 1)], up
+
+
+class MultiGridpackTaskHandler(TaskHandler):
+
+    def __init__(self, id_, dataset, files, lumis, outputs, taskdir, lumis_per_gridpack):
+        super(MultiGridpackTaskHandler, self).__init__(id_, dataset, files, lumis, outputs, taskdir)
+        self._file_based = True
+        self._lumis_per_gridpack = lumis_per_gridpack
+
+    def process_report(self, task_update, transfers):
+        res = super(MultiGridpackTaskHandler, self).process_report(task_update, transfers)
+        self._output_info = {'runs': {self._units[0][0]: list(range(1, self._lumis_per_gridpack + 1))}}
+        return res
+
+    def get_unit_info(self, failed, task_update, files_info, files_skipped, events_written):
+        task_update.events_read = 0
+        task_update.events_written = 0
+        task_update.units_processed = 0 if failed else 1
+        task_update.status = unit.FAILED if failed else unit.SUCCESSFUL
+
+        lumi_update = []
+        if failed:
+            lumi_update = [(unit.FAILED, self._units[0][0])]
+
+        return [(0, 0, 1)], lumi_update
 
 
 class MultiProductionTaskHandler(ProductionTaskHandler):

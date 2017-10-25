@@ -5,7 +5,10 @@ import os
 from lobster import fs
 from lobster.util import Configurable
 
-__all__ = ['Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset', 'MultiProductionDataset']
+__all__ = [
+    'Dataset', 'EmptyDataset', 'ParentDataset', 'ProductionDataset',
+    'MultiGridpackDataset', 'ParentMultiGridpackDataset', 'MultiProductionDataset'
+]
 
 
 def flatten(files):
@@ -209,6 +212,79 @@ class MultiProductionDataset(ProductionDataset):
         dset.total_units = self.total_units
         dset.tasksize = self.lumis_per_task
         dset.stop_on_file_boundary = True  # CMSSW can only handle one gridpack at a time
+
+        return dset
+
+
+class MultiGridpackDataset(Configurable):
+    """
+
+    Dataset specification for producing a set of gridpacks.
+
+    Parameters
+    ----------
+        events_per_gridpack : int
+            If used with a subsequent ParentMultiGridpackDataset,
+            how many events to generate per gridpack.
+        events_per_lumi : int
+            If used with a subsequent ParentMultiGridpackDataset,
+            how many events that dataset will have per luminosity section.
+    """
+    _mutable = {}
+
+    def __init__(self, events_per_gridpack, events_per_lumi):
+        self.events_per_gridpack = events_per_gridpack
+        self.events_per_lumi = events_per_lumi
+        self.lumis_per_gridpack = int(math.ceil(float(events_per_gridpack) / events_per_lumi))
+        self.total_units = 1
+
+    def validate(self):
+        return True
+
+    def get_info(self):
+        dset = DatasetInfo()
+        dset.file_based = True
+
+        dset.files[None].lumis = [(1, 1)]
+        dset.total_units = 1
+
+        return dset
+
+
+class ParentMultiGridpackDataset(ProductionDataset):
+    """
+
+    Dataset specification for Monte-Carlo event generation from a
+    parent workflow which produces a set of gridpacks.
+
+    Parameters
+    ----------
+        parent : Workflow
+            The parent workflow to process. The parent workflow should
+            process a MultiGridpackDataset.
+        randomize_seeds : bool
+            Use random seeds every time a task is run.
+        units_per_task : int
+            How much of the parent dataset to process at once.  Can be
+            changed by Lobster to match the user-specified task runtime.
+    """
+    _mutable = {}
+
+    def __init__(self, parent, randomize_seeds=True, units_per_task=1):
+        self.parent = parent
+        self.randomize_seeds = randomize_seeds
+        self.units_per_task = units_per_task
+        self.events_per_lumi = parent.dataset.events_per_lumi
+
+        numgridpacks = len(self.parent.unique_arguments)
+        self.total_units = parent.dataset.lumis_per_gridpack * numgridpacks
+
+    def get_info(self):
+        dset = DatasetInfo()
+        dset.file_based = False
+        dset.stop_on_file_boundary = True  # CMSSW can only handle one gridpack at a time
+        dset.total_units = self.total_units
+        dset.tasksize = self.units_per_task
 
         return dset
 

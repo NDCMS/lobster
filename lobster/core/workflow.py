@@ -8,8 +8,8 @@ import shutil
 import sys
 
 from lobster import fs, util
-from lobster.core.dataset import EmptyDataset, MultiProductionDataset, ProductionDataset
-from lobster.core.task import MergeTaskHandler, MultiProductionTaskHandler, ProductionTaskHandler, TaskHandler
+from lobster.core.dataset import EmptyDataset, MultiGridpackDataset, ParentMultiGridpackDataset, MultiProductionDataset, ProductionDataset
+from lobster.core.task import MergeTaskHandler, MultiGridpackTaskHandler, MultiProductionTaskHandler, ProductionTaskHandler, TaskHandler
 from lobster.util import Configurable
 
 import work_queue as wq
@@ -404,10 +404,19 @@ class Workflow(Configurable):
     def handler(self, id_, files, lumis, taskdir, merge=False):
         if merge:
             return MergeTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)
-        elif isinstance(self.dataset, MultiProductionDataset):
+        elif isinstance(self.dataset, MultiProductionDataset) or isinstance(self.dataset, ParentMultiGridpackDataset):
             return MultiProductionTaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir)
         elif isinstance(self.dataset, ProductionDataset) or isinstance(self.dataset, EmptyDataset):
             return ProductionTaskHandler(id_, self.label, lumis, list(self.get_outputs(id_)), taskdir)
+        elif isinstance(self.dataset, MultiGridpackDataset):
+            return MultiGridpackTaskHandler(
+                id_,
+                self.label,
+                files,
+                lumis,
+                list(self.get_outputs(id_)),
+                taskdir,
+                self.dataset.lumis_per_gridpack)
         else:
             return TaskHandler(id_, self.label, files, lumis, list(self.get_outputs(id_)), taskdir, local=self.local)
 

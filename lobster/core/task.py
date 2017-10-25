@@ -314,9 +314,6 @@ class MultiProductionTaskHandler(ProductionTaskHandler):
         skipped = 0
         file_update = [(events_read, skipped, id)]
 
-        logger.debug('in multi production handler\nfailed: {0}\nfiles_info: {1}\nfiles_skipped: {2}\nevents_written: {3}'.format(
-            failed, files_info, files_skipped, events_written))
-
         if failed:
             events_written = 0
             status = unit.FAILED

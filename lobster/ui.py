@@ -50,7 +50,10 @@ def boil():
                 cfg.base_configuration = os.path.abspath(args.checkpoint)
                 cfg.startup_directory = os.path.abspath(os.getcwd())
                 for w in cfg.workflows:
-                    w.validate()
+                    try:
+                        w.validate()
+                    except Exception as e:
+                        parser.error("configuration '{0}' failed validation: {1}".format(args.checkpoint, e))
         else:
             parser.error("""
                 Cannot find working directory at '{0}'.

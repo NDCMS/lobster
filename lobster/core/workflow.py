@@ -180,10 +180,10 @@ class Workflow(Configurable):
             CMSSW workflows, and can be automatically determined for these.
         merge_command : str
             Accepts `cmsRun`, `hadd`, or a custom command. Tells Lobster what
-            command to use for merging. If outputs are autodetermined, cmssw
-            will be used for EDM output and hadd will be used otherwise. Custom
-            commands should accept the output file as the first argument followed
-            by one or more input files to merge.
+            command to use for merging. If outputs are autodetermined
+            (`outputs=None`), cmssw will be used for EDM output and hadd will
+            be used otherwise. Custom commands should accept the output file
+            as the first argument followed by one or more input files to merge.
     """
     _mutable = {}
 
@@ -315,7 +315,8 @@ class Workflow(Configurable):
                 elif os.path.isdir(source):
                     shutil.copytree(source, target)
                 else:
-                    raise NotImplementedError
+                    logger.error("no such file or directory: {}".format(source))
+                    sys.exit(1)
 
             return target
 

@@ -25,9 +25,9 @@ lhe = Workflow(
     sandbox=cmssw.Sandbox(release='mc_gen/CMSSW_7_1_16_patch1'),
     merge_size='125M',
     dataset=ProductionDataset(
-        events_per_task=250,
+        total_events=25000,
         events_per_lumi=25,
-        number_of_tasks=100
+        lumis_per_task=10
     ),
     category=Category(
         name='lhe',

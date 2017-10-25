@@ -315,7 +315,8 @@ class Workflow(Configurable):
                 elif os.path.isdir(source):
                     shutil.copytree(source, target)
                 else:
-                    raise NotImplementedError
+                    logger.error("no such file or directory: {}".format(source))
+                    sys.exit(1)
 
             return target
 

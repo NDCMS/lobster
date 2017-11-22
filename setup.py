@@ -38,8 +38,8 @@ setup(
     ]},
     install_requires=[
         'argparse',
-        'elasticsearch',
-        'elasticsearch_dsl',
+        'elasticsearch>=5.0.0,<6.0.0',
+        'elasticsearch_dsl>=5.0.0,<6.0.0',
         'httplib2',  # actually a WMCore dependency
         'jinja2',
         'matplotlib',

@@ -129,7 +129,7 @@ class TaskProvider(util.Timing):
         for l in lines:
             m = re.match('\s*CVMFS_HTTP_PROXY\s*=\s*[\'"]?(.*)[\'"]?', l)
             if m:
-                self.__cvmfs_proxy = m.group(1)
+                self.__cvmfs_proxy = m.group(1).strip("\"'")
                 break
         else:
             try:

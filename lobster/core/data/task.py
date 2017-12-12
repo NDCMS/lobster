@@ -160,6 +160,29 @@ for prod in process.producers.values():
 """
 
 
+def expand_command(cmd, args, infiles, outfiles):
+    """
+    Expand variables in a command list.
+
+    Do so by replacing `@args` with `args`, `@inputfiles` with `infiles`,
+    and `@outputfiles` with `outfiles`.  Returns an expanded command list.
+
+    >>> expand_command(["foo", "@inputfiles", "--some-flag"], ["-a"], ["bar", "baz"])
+    ["foo", "bar", "baz", "--some-flag"]
+    """
+    def replace(xs, s, ys):
+        try:
+            idx = xs.index(s)
+            return xs[:idx] + ys + xs[idx + 1:]
+        except ValueError:
+            return xs
+
+    newcmd = replace(cmd, "@args", args)
+    newcmd = replace(newcmd, "@inputfiles", infiles)
+    newcmd = replace(newcmd, "@outputfiles", outfiles)
+    return newcmd
+
+
 def run_subprocess(*args, **kwargs):
     logger.info("executing '{}'".format(" ".join(*args)))
 
@@ -400,8 +423,12 @@ def copy_inputs(data, config, env):
         # When the config specifies no "input," this implies to use
         # AAA to access data in, e.g., DBS
         if len(config['input']) == 0:
-            config['mask']['files'].append(file)
-            config['file map'][file] = file
+            if config['executable'] == 'cmsRun':
+                filename = file
+            else:
+                filename = "root://cmsxrootd.fnal.gov/" + file
+            config['mask']['files'].append(filename)
+            config['file map'][filename] = file
             logger.info("AAA access to input file {} detected".format(file))
             data['transfers']['root']['stage-in success'] += 1
             continue
@@ -855,6 +882,7 @@ def get_bare_size(filename):
 def run_command(data, config, env):
     cmd = config['executable']
     args = config['arguments']
+    unique = config.get('arguments_unique', [])
     if 'cmsRun' in cmd:
         pset = config['pset']
         pset_mod = pset.replace(".py", "_mod.py")
@@ -870,10 +898,13 @@ def run_command(data, config, env):
             cmd = shlex.split(cmd)
         if os.path.isfile(cmd[0]):
             cmd[0] = os.path.join(os.getcwd(), cmd[0])
-        cmd.extend([str(arg) for arg in args])
 
+        cmd.extend([str(arg) for arg in args])
         if config.get('append inputs to args', False):
+            cmd.extend(unique)
             cmd.extend([str(f) for f in config['mask']['files']])
+        else:
+            cmd = expand_command(cmd, unique, config['mask']['files'], [lf for lf, rf in config['output files']])
 
     p = run_subprocess(cmd, env=env)
     logger.info("executable returned with exit code {0}.".format(p.returncode))

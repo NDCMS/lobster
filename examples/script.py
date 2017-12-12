@@ -31,11 +31,14 @@ ttH = Workflow(
     label='ttH',
     dataset=cmssw.Dataset(
         dataset='/ttHToNonbb_M125_13TeV_powheg_pythia8/RunIIFall15MiniAODv2-PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/MINIAODSIM',
-        events_per_task=50000
+        lumis_per_task=20,
+        file_based=True
     ),
     category=processing,
-    command='cmsRun simple_pset.py',
+    command='root -b -q -l script_macro.C @outputfiles @inputfiles',
+    extra_inputs=['script_macro.C'],
     publish_label='test',
+    merge_command='hadd @outputfiles @inputfiles',
     merge_size='3.5G',
     outputs=['output.root']
 )

@@ -200,7 +200,7 @@ class Dataset(Configurable):
         if not self.file_based:
             self.__cache.cache(self.dataset, self.lumi_mask, baseinfo, result)
 
-        result.stop_on_file_boundary = (result.total_units != total_lumis)
+        result.stop_on_file_boundary = (result.total_units != total_lumis) and not self.file_based
         if result.stop_on_file_boundary:
             logger.debug("split lumis detected in {} - "
                          "{} unique (run, lumi) but "

@@ -150,12 +150,22 @@ class Workflow(Configurable):
             expected, containing the same release, and an
             :class:`ValueError` will be raised otherwise.
         command : str
-            Which executable to run (for non-CMSSW workflows)
+            The command to run when executing the workflow.
+
+            The command string may contain `@args`, `@outputfiles`, and
+            `@inputfiles`, which will be replaced by unique arguments and
+            output as well as input files, respectively.  For running CMSSW
+            workflows, it is sufficient to use::
+
+                cmsRun pset.py
+
+            where the file `pset.py` will be automatically added to the
+            sandbox and the input source of the parameter set will be
+            modified to use the correct input files.  Note that otherwise,
+            any used files will have to be included in `extra_inputs`.
         extra_inputs : list
             Additional inputs outside the sandbox needed to process the
             workflow.
-        arguments : list
-            Arguments to pass to the executable.
         unique_arguments : list
             A list of arguments.  Each element of the dataset is processed
             once for each argument in this list.  The unique argument is
@@ -173,36 +183,34 @@ class Workflow(Configurable):
         local : bool
             If set to `True`, Lobster will assume this workflow's input is
             present on the output storage element.
-        pset : str
-            The CMSSW configuration to use, if any.
         globaltag : str
             Which GlobalTag this workflow uses.  Needed for publication of
             CMSSW workflows, and can be automatically determined for these.
         merge_command : str
-            Accepts `cmsRun`, `hadd`, or a custom command. Tells Lobster what
-            command to use for merging. If outputs are autodetermined
-            (`outputs=None`), cmssw will be used for EDM output and hadd will
-            be used otherwise. Custom commands should accept the output file
-            as the first argument followed by one or more input files to merge.
-    """
+            Accepts `cmsRun` (the default), `hadd`, or a custom command.
+            Tells Lobster what command to use for merging. If outputs are
+            autodetermined (`outputs=None`), `cmsRun` will be used for EDM
+            output and `hadd` will be used otherwise.
+
+            See the specification for the `command` parameter about passing
+            input and output file values.
+        """
     _mutable = {}
 
     def __init__(self,
                  label,
                  dataset,
+                 command,
                  category=Category('default', mode='fixed'),
                  publish_label=None,
                  cleanup_input=False,
                  merge_size=-1,
                  sandbox=None,
-                 command='cmsRun',
-                 extra_inputs=None,
-                 arguments=None,
                  unique_arguments=None,
+                 extra_inputs=None,
                  outputs=None,
                  output_format="{base}_{id}.{ext}",
                  local=False,
-                 pset=None,
                  globaltag=None,
                  merge_command='cmsRun'):
         self.label = label
@@ -216,9 +224,12 @@ class Workflow(Configurable):
         self.merge_size = self.__check_merge(merge_size)
         self.cleanup_input = cleanup_input
 
-        self.command = command
+        self.arguments = shlex.split(command)
+        self.command = self.arguments.pop(0)
+        self.pset = None
+        if self.command == 'cmsRun':
+            self.pset = self.arguments.pop(0)
         self.extra_inputs = extra_inputs if extra_inputs else []
-        self.arguments = arguments if arguments else []
         if unique_arguments:
             if any(x is None for x in unique_arguments):
                 raise ValueError("Unique arguments should not be None")
@@ -233,10 +244,10 @@ class Workflow(Configurable):
         if hasattr(dataset, 'parent'):
             self.parent = dataset.parent
 
-        self.pset = pset
         self.globaltag = globaltag
         self.local = local or hasattr(dataset, 'files')
-        self.merge_command = merge_command
+        self.merge_args = shlex.split(merge_command)
+        self.merge_command = self.merge_args.pop(0)
 
         from lobster.cmssw.sandbox import Sandbox
         self.sandbox = sandbox or Sandbox()
@@ -338,6 +349,7 @@ class Workflow(Configurable):
             if 'TFileService' in process.services:
                 self.outputs.append(process.services['TFileService'].fileName.value().replace('file:', ''))
                 self.merge_command = 'hadd'
+                self.merge_args = ['@outputfiles', '@inputfiles']
 
             logger.info("workflow {0}: adding output file(s) '{1}'".format(self.label, ', '.join(self.outputs)))
 
@@ -442,18 +454,17 @@ class Workflow(Configurable):
             inputs.append((os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True))
             inputs.extend((r, "_".join(os.path.normpath(r).split(os.sep)[-3:]), False) for r in reports)
 
-            if self.merge_command == 'cmsRun':
+            cmd = self.merge_command
+            if cmd == 'cmsRun':
                 args = ['outputFile=' + self.outputs[0]]
                 pset = os.path.join(os.path.dirname(__file__), 'data', 'merge_cfg.py')
             else:
-                cmd = self.merge_command
-                args = [self.outputs[0]]
-                if self.merge_command == 'hadd':
+                args = self.merge_args
+                if cmd == 'hadd':
                     args = ['-n', '0', '-f'] + args
                 else:
                     inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
                 pset = None
-                params['append inputs to args'] = True
 
             params['prologue'] = None
             params['epilogue'] = ['python', 'merge_reports.py', 'report.json'] \
@@ -462,7 +473,7 @@ class Workflow(Configurable):
             inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
 
             if unique:
-                args.extend(shlex.split(unique))
+                params['arguments_unique'] = shlex.split(unique)
             if pset:
                 pset = os.path.join(self.workdir, pset)
             if self.category.runtime:
@@ -476,7 +487,7 @@ class Workflow(Configurable):
             outputs.append((os.path.join(taskdir, 'report.xml.gz'), 'report.xml.gz'))
 
             params['pset'] = os.path.basename(pset)
-        else:
+        elif '@args' not in args and '@inputfiles' not in args and '@outputfiles' not in args:
             params['append inputs to args'] = True
 
         params['executable'] = cmd

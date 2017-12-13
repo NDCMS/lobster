@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 import traceback
+import xml.dom.minidom
 
 sys.path.append('python')
 
@@ -58,9 +59,6 @@ class Dash(object):
             dashboard.apMonSend(params)
 
 
-monitor = Dash()
-
-
 class Mangler(logging.Formatter):
 
     def __init__(self):
@@ -83,16 +81,6 @@ class Mangler(logging.Formatter):
         chevron = '>' * (record.levelno / logging.DEBUG + 1)
         return fmt.format(chevron=chevron, message=record.msg, date=time.strftime("%c"), context=self.context)
 
-
-mangler = Mangler()
-
-console = logging.StreamHandler()
-console.setFormatter(mangler)
-
-logger = logging.getLogger('prawn')
-logger.addHandler(console)
-logger.propagate = False
-logger.setLevel(logging.DEBUG)
 
 fragment = """
 import FWCore.ParameterSet.Config as cms
@@ -158,6 +146,39 @@ for prod in process.producers.values():
     if prod.hasParameter('args') and prod.type_() == 'ExternalLHEProducer':
         prod.args = cms.vstring('{gridpack}')
 """
+
+
+def expand_command(cmd, args, infiles, outfiles):
+    """Expand variables in a command list.
+
+    Do so by replacing `@args` with `args`, `@inputfiles` with `infiles`,
+    and `@outputfiles` with `outfiles`.  Returns an expanded command list.
+    """
+    def replace(xs, s, ys):
+        try:
+            idx = xs.index(s)
+            return xs[:idx] + ys + xs[idx + 1:]
+        except ValueError:
+            return xs
+
+    newcmd = replace(cmd, "@args", args)
+    newcmd = replace(newcmd, "@inputfiles", infiles)
+    newcmd = replace(newcmd, "@outputfiles", outfiles)
+    return newcmd
+
+
+def find_xrootd_server(filename):
+    """Find the leading XRootD server in `filename` and return it.
+    """
+    fakepath = '/store/user/foo/bar.root'
+    doc = xml.dom.minidom.parse(filename)
+    for e in doc.getElementsByTagName("lfn-to-pfn"):
+        if e.attributes["protocol"].value != "xrootd":
+            continue
+        m = re.match(e.attributes['path-match'].value, fakepath)
+        if not m:
+            continue
+        return e.attributes["result"].value.replace('$1', m.group(1)).replace(fakepath, '')
 
 
 def run_subprocess(*args, **kwargs):
@@ -385,6 +406,8 @@ def copy_inputs(data, config, env):
     fast_track = False
     successes = defaultdict(int)
 
+    default_xrootd_server = find_xrootd_server('/cvmfs/cms.cern.ch/SITECONF/local/PhEDEx/storage.xml')
+
     for file in files:
         # If the file has been transferred by WQ, there's no need to
         # monkey around with the input list
@@ -400,8 +423,12 @@ def copy_inputs(data, config, env):
         # When the config specifies no "input," this implies to use
         # AAA to access data in, e.g., DBS
         if len(config['input']) == 0:
-            config['mask']['files'].append(file)
-            config['file map'][file] = file
+            if config['executable'] == 'cmsRun':
+                filename = file
+            else:
+                filename = default_xrootd_server + file
+            config['mask']['files'].append(filename)
+            config['file map'][filename] = file
             logger.info("AAA access to input file {} detected".format(file))
             data['transfers']['root']['stage-in success'] += 1
             continue
@@ -855,6 +882,7 @@ def get_bare_size(filename):
 def run_command(data, config, env):
     cmd = config['executable']
     args = config['arguments']
+    unique = config.get('arguments_unique', [])
     if 'cmsRun' in cmd:
         pset = config['pset']
         pset_mod = pset.replace(".py", "_mod.py")
@@ -870,10 +898,13 @@ def run_command(data, config, env):
             cmd = shlex.split(cmd)
         if os.path.isfile(cmd[0]):
             cmd[0] = os.path.join(os.getcwd(), cmd[0])
-        cmd.extend([str(arg) for arg in args])
 
+        cmd.extend([str(arg) for arg in args])
         if config.get('append inputs to args', False):
+            cmd.extend(unique)
             cmd.extend([str(f) for f in config['mask']['files']])
+        else:
+            cmd = expand_command(cmd, unique, config['mask']['files'], [lf for lf, rf in config['output files']])
 
     p = run_subprocess(cmd, env=env)
     logger.info("executable returned with exit code {0}.".format(p.returncode))
@@ -1028,66 +1059,78 @@ def write_zipfiles(data):
             zipf.close()
 
 
-data = {
-    'files': {
-        'info': {},
-        'output_info': {},
-        'skipped': [],
-    },
-    'cache': {
-        'start_size': 0,
-        'end_size': 0,
-        'type': 2,
-    },
-    'task_exit_code': 0,
-    'exe_exit_code': 0,
-    'stageout_exit_code': 0,
-    'cpu_time': 0,
-    'events_written': 0,
-    'output_size': 0,
-    'output_bare_size': 0,
-    'output_storage_element': '',
-    'task_timing': {
-        'stage_in_end': 0,
-        'prologue_end': 0,
-        'wrapper_start': 0,
-        'wrapper_ready': 0,
-        'processing_end': 0,
-        'epilogue_end': 0,
-        'stage_out_end': 0,
-    },
-    'events_per_run': 0,
-    'transfers': defaultdict(Counter)
-}
+if __name__ == '__main__':
+    monitor = Dash()
+    mangler = Mangler()
 
-configfile = sys.argv[1]
-with open(configfile) as f:
-    config = json.load(f)
+    console = logging.StreamHandler()
+    console.setFormatter(mangler)
 
-monitor.configure(config)
+    logger = logging.getLogger('prawn')
+    logger.addHandler(console)
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
 
-atexit.register(send_final_dashboard_update, data, config)
-atexit.register(write_report, data)
-atexit.register(write_zipfiles, data)
+    data = {
+        'files': {
+            'info': {},
+            'output_info': {},
+            'skipped': [],
+        },
+        'cache': {
+            'start_size': 0,
+            'end_size': 0,
+            'type': 2,
+        },
+        'task_exit_code': 0,
+        'exe_exit_code': 0,
+        'stageout_exit_code': 0,
+        'cpu_time': 0,
+        'events_written': 0,
+        'output_size': 0,
+        'output_bare_size': 0,
+        'output_storage_element': '',
+        'task_timing': {
+            'stage_in_end': 0,
+            'prologue_end': 0,
+            'wrapper_start': 0,
+            'wrapper_ready': 0,
+            'processing_end': 0,
+            'epilogue_end': 0,
+            'stage_out_end': 0,
+        },
+        'events_per_run': 0,
+        'transfers': defaultdict(Counter)
+    }
 
-logger.info('data is {0}'.format(str(data)))
-env = os.environ
-env['X509_USER_PROXY'] = 'proxy'
+    configfile = sys.argv[1]
+    with open(configfile) as f:
+        config = json.load(f)
 
-extract_wrapper_times(data)
-copy_inputs(data, config, env)
+    monitor.configure(config)
 
-logger.info("updated parameters are")
-with mangler.output("json"):
-    for l in json.dumps(config, sort_keys=True, indent=2).splitlines():
-        logger.debug(l)
+    atexit.register(send_final_dashboard_update, data, config)
+    atexit.register(write_report, data)
+    atexit.register(write_zipfiles, data)
 
-send_initial_dashboard_update(data, config)
+    logger.info('data is {0}'.format(str(data)))
+    env = os.environ
+    env['X509_USER_PROXY'] = 'proxy'
 
-run_prologue(data, config, env)
-run_command(data, config, env)
-run_epilogue(data, config, env)
+    extract_wrapper_times(data)
+    copy_inputs(data, config, env)
 
-copy_outputs(data, config, env)
-check_outputs(data, config)
-check_parrot_cache(data)
+    logger.info("updated parameters are")
+    with mangler.output("json"):
+        for l in json.dumps(config, sort_keys=True, indent=2).splitlines():
+            logger.debug(l)
+
+    send_initial_dashboard_update(data, config)
+
+    run_prologue(data, config, env)
+    run_command(data, config, env)
+    run_epilogue(data, config, env)
+
+    copy_outputs(data, config, env)
+    check_outputs(data, config)
+    check_parrot_cache(data)

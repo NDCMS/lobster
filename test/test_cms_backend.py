@@ -61,7 +61,7 @@ class TestSQLBackend(object):
         info.total_units = len(info.files.keys())
         info.path = ''
 
-        return Workflow(label, None), info
+        return Workflow(label, None, command="foo"), info
 
     def create_dbs_dataset(self, label, lumi_events=100, lumis=14, filesize=3.5, tasksize=5):
         # {{{
@@ -112,7 +112,7 @@ class TestSQLBackend(object):
         total_lumis = len(set(lumis))
         info.stop_on_file_boundary = (total_lumis != info.total_units)
 
-        return Workflow(label, None), info
+        return Workflow(label, None, command="foo"), info
         # }}}
 
     def test_create_datasets(self):

@@ -1,0 +1,44 @@
+<!-- storage.xml for T3_US_NotreDame
+
+    Storage element:  deepthought.crc.nd.edu
+    Storage software: bestman 2.2.1.2
+    Phedex host:      deepthought.crc.nd.edu
+
+    All CMS data are stored using the /store convention
+    Therefore we only need to map:
+           /+store/(.*)
+
+-->
+<storage-mapping>
+
+<!-- Translation rules for LFN to PFN (Logical File Name to Physical File Name 
+     Bestman does not support the srm v1 protocol so we fudge it with a file result
+-->
+
+  <lfn-to-pfn protocol="file"   destination-match=".*" path-match="/+store/(.*)" result="file:/hadoop/store/$1"/>
+  <lfn-to-pfn protocol="direct" destination-match=".*" path-match="/+store/(.*)" result="/hadoop/store/$1"/>
+<!-- Old bestman configuration. Replaced with gsiftp
+<lfn-to-pfn protocol="srmv2"  destination-match=".*" path-match="/+store/(.*)" result="srm://deepthought.crc.nd.edu:8443/srm/v2/server?SFN=/hadoop/store/$1"/> 
+-->
+  <lfn-to-pfn protocol="srmv2"  destination-match=".*" path-match="/+store/(.*)" result="gsiftp://deepthought.crc.nd.edu/store/$1"/>
+  <lfn-to-pfn protocol="gsiftp" destination-match=".*" path-match="/+store/(.*)" result="gsiftp://deepthought.crc.nd.edu/store/$1"/>
+<!-- Xrootd fallback rules -->
+  <lfn-to-pfn protocol="xrootd" destination-match=".*" path-match="/+store/(.*)" result="root://ndcms.crc.nd.edu//store/$1"/>
+  <lfn-to-pfn protocol="xrootd-fallback1" destination-match=".*" path-match="/+store/(.*)" result="root://cmsxrootd.fnal.gov//store/$1"/>
+<!-- Hadoop protocol rules-->
+  <lfn-to-pfn protocol="hadoop" destination-match=".*" path-match="//+store/(.*)"        result="/hadoop/store/$1"/>
+  <lfn-to-pfn protocol="hadoop" destination-match=".*" path-match="//+store/user/(.*)"   result="/hadoop/store/user/$1"/>
+
+<!-- Translation rules for PFN to LFN (Physical File Name to Logical File Name -->
+
+  <pfn-to-lfn protocol="file"   destination-match=".*" path-match="file:/hadoop/store/(.*)"    result="/store/$1"/>
+  <pfn-to-lfn protocol="direct" destination-match=".*" path-match="/hadoop/store/(.*)"         result="/store/$1"/>
+  <pfn-to-lfn protocol="srm"    destination-match=".*" path-match="file:/hadoop/store/(.*)"    result="/store/$1"/>
+<!-- Old bestman configuration. Replaced with gsiftp
+<pfn-to-lfn protocol="srmv2"  destination-match=".*" path-match=".*\?SFN=/hadoop/store/(.*)" result="/store/$1"/>
+-->
+  <pfn-to-lfn protocol="srmv2"  destination-match=".*" path-match="gsiftp://deepthought.crc.nd.edu/store/(.*)" result="/store/$1"/>
+  <pfn-to-lfn protocol="gsiftp" destination-match=".*" path-match="gsiftp://deepthought.crc.nd.edu/store/(.*)" result="/store/$1"/>
+  <pfn-to-lfn protocol="hadoop" destination-match=".*" path-match="/hadoop/store/(.*)"         result="/store/$1"/>
+    
+</storage-mapping>

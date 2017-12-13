@@ -1,6 +1,7 @@
 *.pyc
 *.swp
 *.swo
+*~
 Session.vim
 Lobster.egg-info
 dist/

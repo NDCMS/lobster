@@ -1,4 +1,9 @@
 import os
+import sys
+
+from mock import Mock
+
+sys.modules['ROOT'] = Mock()
 
 from lobster.core.data import task
 

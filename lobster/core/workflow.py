@@ -150,11 +150,19 @@ class Workflow(Configurable):
             expected, containing the same release, and an
             :class:`ValueError` will be raised otherwise.
         command : str
-            Which executable to run (for non-CMSSW workflows)
+            The command to run when executing the workflow.
 
-            The executable string may contain `@args`, `@outputfiles`, and
+            The command string may contain `@args`, `@outputfiles`, and
             `@inputfiles`, which will be replaced by unique arguments and
-            output as well as input files, respectively.
+            output as well as input files, respectively.  For running CMSSW
+            workflows, it is sufficient to use::
+
+                cmsRun pset.py
+
+            where the file `pset.py` will be automatically added to the
+            sandbox and the input source of the parameter set will be
+            modified to use the correct input files.  Note that otherwise,
+            any used files will have to be included in `extra_inputs`.
         extra_inputs : list
             Additional inputs outside the sandbox needed to process the
             workflow.
@@ -179,10 +187,10 @@ class Workflow(Configurable):
             Which GlobalTag this workflow uses.  Needed for publication of
             CMSSW workflows, and can be automatically determined for these.
         merge_command : str
-            Accepts `cmsRun`, `hadd`, or a custom command. Tells Lobster what
-            command to use for merging. If outputs are autodetermined
-            (`outputs=None`), cmssw will be used for EDM output and hadd will
-            be used otherwise.
+            Accepts `cmsRun` (the default), `hadd`, or a custom command.
+            Tells Lobster what command to use for merging. If outputs are
+            autodetermined (`outputs=None`), `cmsRun` will be used for EDM
+            output and `hadd` will be used otherwise.
 
             See the specification for the `command` parameter about passing
             input and output file values.

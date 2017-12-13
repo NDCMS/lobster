@@ -18,6 +18,11 @@ process a single dataset:
 .. literalinclude:: ../examples/simple.py
    :language: python
 
+And using a custom ROOT macro over the same dataset:
+
+.. literalinclude:: ../examples/script.py
+   :language: python
+
 MC generation à la production
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

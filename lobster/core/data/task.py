@@ -1071,7 +1071,6 @@ if __name__ == '__main__':
     logger.propagate = False
     logger.setLevel(logging.DEBUG)
 
-
     data = {
         'files': {
             'info': {},

@@ -187,10 +187,14 @@ class Workflow(Configurable):
             Which GlobalTag this workflow uses.  Needed for publication of
             CMSSW workflows, and can be automatically determined for these.
         merge_command : str
-            Accepts `cmsRun` (the default), `hadd`, or a custom command.
-            Tells Lobster what command to use for merging. If outputs are
+            Accepts `cmsRun` (the default), or a custom command.  Tells
+            Lobster what command to use for merging. If outputs are
             autodetermined (`outputs=None`), `cmsRun` will be used for EDM
             output and `hadd` will be used otherwise.
+
+            When merging plain ROOT files the following should be used::
+
+                merge_command="hadd @outputfiles @inputfiles"
 
             See the specification for the `command` parameter about passing
             input and output file values.

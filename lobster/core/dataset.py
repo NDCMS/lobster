@@ -11,17 +11,34 @@ __all__ = [
 ]
 
 
-def flatten(files):
+def flatten(files, exts=None):
+    """Flatten a list of directories or files to a single list of files.
+
+    Parameters
+    ----------
+        files : str or list
+            A list of paths to expand. Can also be a string containing a path.
+        exts : list
+            Which file extensions to return.
+
+    Returns
+    -------
+        files : list
+            A list of files found in the paths passed in the input
+            parameter `files`, optionally matching the extensions in
+            `exts`.
+    """
     res = []
     if not isinstance(files, list):
         files = [files]
     for entry in files:
         entry = os.path.expanduser(entry)
         if fs.isdir(entry):
-            res += fs.ls(entry)
+            res.extend(fs.ls(entry))
         elif fs.isfile(entry):
             res.append(entry)
-
+    if exts:
+        return [fn for fn in res if os.path.splitext(fn)[1] in exts]
     return res
 
 
@@ -67,23 +84,28 @@ class Dataset(Configurable):
             A list of files or directories to process.  May also be a `str`
             pointing to a single file or directory.
         files_per_task : int
-            How many files to process in one task
+            How many files to process in one task. Defaults to 1.
+        extensions: list
+            A list of file extensions to process. Defaults to `None` and
+            will use all files considered. File extensions should be given
+            with a leading period.
     """
     _mutable = {}
 
-    def __init__(self, files, files_per_task=1):
+    def __init__(self, files, files_per_task=1, extensions=None):
         self.files = files
         self.files_per_task = files_per_task
+        self.extensions = extensions
         self.total_units = 0
 
     def validate(self):
-        return len(flatten(self.files)) > 0
+        return len(flatten(self.files, self.extensions)) > 0
 
     def get_info(self):
         dset = DatasetInfo()
         dset.file_based = True
 
-        files = flatten(self.files)
+        files = flatten(self.files, self.extensions)
         dset.tasksize = self.files_per_task
         dset.total_units = len(files)
         self.total_units = len(files)

@@ -26,6 +26,11 @@ log() {
 }
 
 date +%s > t_wrapper_start
+
+# WorkQueue does not like it if we transfer report.json in with the same
+# name, so rename it here.
+mv report.json.in report.json
+
 log "startup" "wrapper started" "echo -e 'hostname: $(hostname)\nkernel: $(uname -a)'"
 
 log "trace" "tracing google" traceroute -w 1 www.google.com

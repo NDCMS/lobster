@@ -949,9 +949,7 @@ def run_prologue(data, config, env):
 
 @check_execution(exitcode=199, timing='epilogue_end')
 def run_epilogue(data, config, env):
-    with open('report.json', 'w') as f:
-        json.dump(data, f, indent=2)
-        f.write('\n')
+    write_report(data)
     run_step(data, config, env, 'epilogue')
     with open('report.json', 'r') as f:
         update = json.load(f)
@@ -1071,6 +1069,9 @@ if __name__ == '__main__':
     logger.propagate = False
     logger.setLevel(logging.DEBUG)
 
+    with open('report.json', 'r') as fd:
+        data = json.load(fd)
+        data['transfers'] = defaultdict(Counter)
     data = {
         'files': {
             'info': {},

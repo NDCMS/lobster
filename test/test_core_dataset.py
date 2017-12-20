@@ -68,5 +68,8 @@ class TestDataset(unittest.TestCase):
                 info = Dataset(files=['spam']).get_info()
                 assert len(info.files) == 8
 
-                info = Dataset(files=['spam'], extensions=['.txt']).get_info()
+                info = Dataset(files=['spam'], patterns=['*.txt']).get_info()
                 assert len(info.files) == 5
+
+                info = Dataset(files=['spam'], patterns=['[12].txt']).get_info()
+                assert len(info.files) == 2

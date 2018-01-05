@@ -26,12 +26,23 @@ class TestDataset(unittest.TestCase):
         for i in range(5):
             with open(os.path.join(cls.workdir, 'ham', str(i) + '.txt'), 'w') as f:
                 f.write('bacon')
+        os.makedirs(os.path.join(cls.workdir, 'spam'))
+        os.makedirs(os.path.join(cls.workdir, 'spam', 'log'))
+        for i in range(5):
+            with open(os.path.join(cls.workdir, 'spam', str(i) + '.txt'), 'w') as f:
+                f.write('mail')
+        for i in range(2):
+            with open(os.path.join(cls.workdir, 'spam', str(i) + '.trash'), 'w') as f:
+                f.write('mail')
+        for i in range(3):
+            with open(os.path.join(cls.workdir, 'spam', 'log', str(i) + '.log'), 'w') as f:
+                f.write('thing')
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.workdir)
 
-    def runTest(self):
+    def test_basics(self):
         with util.PartiallyMutable.unlock():
             s = se.StorageConfiguration(
                 output=[], input=['file://' + self.workdir])
@@ -46,3 +57,19 @@ class TestDataset(unittest.TestCase):
 
                 info = Dataset(files='eggs/1.txt').get_info()
                 assert len(info.files) == 1
+
+    def test_flatten(self):
+        with util.PartiallyMutable.unlock():
+            s = se.StorageConfiguration(
+                output=[], input=['file://' + self.workdir])
+            s.activate()
+
+            with fs.alternative():
+                info = Dataset(files=['spam']).get_info()
+                assert len(info.files) == 8
+
+                info = Dataset(files=['spam'], patterns=['*.txt']).get_info()
+                assert len(info.files) == 5
+
+                info = Dataset(files=['spam'], patterns=['[12].txt']).get_info()
+                assert len(info.files) == 2

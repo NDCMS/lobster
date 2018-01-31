@@ -7,6 +7,11 @@ We are in the process of preparing several publications, both within the
 computer science and high energy physics community.  These papers and
 posters will focus on different aspects of Lobster:
 
+* [Opportunistic Computing with Lobster: Lessons Learned from Scaling up to 25k Non-Dedicated Cores][chep2016]
+
+  Talk presented at the 22nd International Conference
+  on Computing in High Energy and Nuclear Physics (CHEP2016.)
+
 * [Scaling Data Intensive Physics Applications to 10k Cores on Non-Dedicated
   Clusters with Lobster][IEEE2015]
 
@@ -29,6 +34,7 @@ posters will focus on different aspects of Lobster:
 [crab]: assets/FinalCameraReady.pdf
 [poster]: assets/CHEP2015LobsterPoster.pdf
 [IEEE2015]: assets/IEEECluster2015.pdf
+[chep2016]:http://iopscience.iop.org/article/10.1088/1742-6596/898/5/052036/pdf
 
 Selected talks about Lobster:
 

@@ -1,0 +1,3 @@
+[submodule "docs/diagrams"]
+	path = docs/diagrams
+	url = git@github.com:matz-e/lobster-diagrams.git

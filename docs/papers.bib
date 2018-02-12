@@ -1,0 +1,48 @@
+@Article{lobster-chep-2016,
+	author   = {Matthias Wolf and Anna Woodard and Wenzhao Li and Kenyi Hurtado Anampa and Anna Yannakopoulos and Benjamin Tovar and Patrick Donnelly and Paul Brenner and Kevin Lannon and Mike Hildreth and Douglas Thain},
+	title    = {Opportunistic Computing with Lobster: Lessons Learned from Scaling up to 25k Non-Dedicated Cores},
+	journal  = {Journal of Physics: Conference Series},
+	year     = {2017},
+	volume   = {898},
+	number   = {5},
+	pages    = {052036},
+	url      = {http://stacks.iop.org/1742-6596/898/i=5/a=052036},
+	abstract = {We previously described Lobster, a workflow management tool for exploiting volatile opportunistic computing resources for computation in HEP. We will discuss the various challenges that have been encountered while scaling up the simultaneous CPU core utilization and the software improvements required to overcome these challenges. Categories: Workflows can now be divided into categories based on their required system resources. This allows the batch queueing system to optimize assignment of tasks to nodes with the appropriate capabilities. Within each category, limits can be specified for the number of running jobs to regulate the utilization of communication bandwidth. System resource specifications for a task category can now be modified while a project is running, avoiding the need to restart the project if resource requirements differ from the initial estimates. Lobster now implements time limits on each task category to voluntarily terminate tasks. This allows partially completed work to be recovered. Workflow dependency specification: One workflow often requires data from other workflows as input. Rather than waiting for earlier workflows to be completed before beginning later ones, Lobster now allows dependent tasks to begin as soon as sufficient input data has accumulated. Resource monitoring: Lobster utilizes a new capability in Work Queue to monitor the system resources each task requires in order to identify bottlenecks and optimally assign tasks. The capability of the Lobster opportunistic workflow management system for HEP computation has been significantly increased. We have demonstrated efficient utilization of 25 000 non-dedicated cores and achieved a data input rate of 30 Gb/s and an output rate of 500GB/h. This has required new capabilities in task categorization, workflow dependency specification, and resource monitoring.},
+}
+
+@INPROCEEDINGS{lobster-ieee-2015,
+	author={A. Woodard and M. Wolf and C. Mueller and N. Valls and B. Tovar and P. Donnelly and P. Ivie and K. H. Anampa and P. Brenner and D. Thain and K. Lannon and M. Hildreth},
+	booktitle={2015 IEEE International Conference on Cluster Computing},
+	title={Scaling Data Intensive Physics Applications to 10k Cores on Non-dedicated Clusters with Lobster},
+	year={2015},
+	pages={322-331},
+	abstract={The high energy physics (HEP) community relies upon a global network of computing and data centers to analyze data produced by multiple experiments at the Large Hadron Collider (LHC). However, this global network does not satisfy all research needs. Ambitious researchers often wish to harness computing resources that are not integrated into the global network, including private clusters, commercial clouds, and other production grids. To enable these use cases, we have constructed Lobster, a system for deploying data intensive high throughput applications on non-dedicated clusters. This requires solving multiple problems related to non-dedicated resources, including work decomposition, software delivery, concurrency management, data access, data merging, and performance troubleshooting. With these techniques, we demonstrate Lobster running effectively on 10k cores, producing throughput at a level comparable with some of the largest dedicated clusters in the LHC infrastructure.},
+	keywords={distributed processing;high energy physics instrumentation computing;HEP;LHC;Large Hadron Collider;Lobster system;computing center;concurrency management;data access;data centers;data intensive physics applications;data merging;high energy physics;performance troubleshooting;software delivery;work decomposition;Chirp;Large Hadron Collider;Physics;Production;Runtime;Servers;Software;Applications of parallel and distributed computing;Data-intensive computing;Resource management and scheduling;including energy-aware techniques},
+	doi={10.1109/CLUSTER.2015.53},
+	ISSN={1552-5244},
+	month={9},}
+
+@article{lobster-chep-2015,
+	author={A. Woodard and Matthias Wolf and Charles Mueller and Ben Tovar and Patrick Donnelly and Kenyi Hurtado Anampa and Paul Brenner and Kevin Lannon and Mike Hildreth and Douglas Thain},
+	title={Exploiting volatile opportunistic computing resources with Lobster},
+	journal={Journal of Physics: Conference Series},
+	volume={664},
+	number={3},
+	pages={032035},
+	url={http://stacks.iop.org/1742-6596/664/i=3/a=032035},
+	year={2015},
+	abstract={Analysis of high energy physics experiments using the Compact Muon Solenoid (CMS) at the Large Hadron Collider (LHC) can be limited by availability of computing resources. As a joint effort involving computer scientists and CMS physicists at Notre Dame, we have developed an opportunistic workflow management tool, Lobster, to harvest available cycles from university campus computing pools. Lobster consists of a management server, file server, and worker processes which can be submitted to any available computing resource without requiring root access. Lobster makes use of the Work Queue system to perform task management, while the CMS specific software environment is provided via CVMFS and Parrot. Data is handled via Chirp and Hadoop for local data storage and XrootD for access to the CMS wide-area data federation. An extensive set of monitoring and diagnostic tools have been developed to facilitate system optimisation. We have tested Lobster using the 20 000-core cluster at Notre Dame, achieving approximately 8-10k tasks running simultaneously, sustaining approximately 9 Gbit/s of input data and 340 Mbit/s of output data.}
+}
+
+@inproceedings{skeehan,
+	author    = {D. Skeehan and Paul Brenner and Ben Tovar and Douglas Thain and N. Valls and A. Woodard and M. Wolf and T. Pearson and S. Lynch and K. Lannon},
+	title     = {Opportunistic High Energy Physics Computing in User Space with Parrot},
+	booktitle = {2014 14th {IEEE/ACM} International Symposium on Cluster, Cloud and Grid Computing, Chicago, IL, USA, May 26-29, 2014},
+	pages     = {170--175},
+	year      = {2014},
+	crossref  = {DBLP:conf/ccgrid/2014},
+	doi       = {10.1109/CCGrid.2014.34},
+	timestamp = {Wed, 23 Jul 2014 15:32:59 +0200},
+	biburl    = {http://dblp.uni-trier.de/rec/bib/conf/ccgrid/SkeehanBTTVWWPLL14},
+	bibsource = {dblp computer science bibliography, http://dblp.org}
+}

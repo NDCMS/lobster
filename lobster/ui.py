@@ -10,14 +10,26 @@ if 'VIRTUAL_ENV' not in os.environ:
 #
 # This needs to be done before anything else is loaded and messes with
 # either sys.path or sys.meta_path
-ps = [p for p in sys.path if p.startswith(os.environ['VIRTUAL_ENV']) and 'site-packages' in p]
-sys.path[:0] = ps
+# Running into some weird errors
+#ps = [p for p in sys.path if p.startswith(os.environ['VIRTUAL_ENV']) and 'site-packages' in p]
+#sys.path[:0] = ps
 
 from argparse import ArgumentParser
 import logging
 
 from lobster.core import command, config
 from lobster import util
+
+# Restore some old code
+# FIXME pycurl shipping with CMSSW is too old to harmonize with modern DBS!
+rm = []
+for f in sys.path:
+    if '/cvmfs' in f:
+        for pkg in ('numpy', 'matplotlib'):
+            if pkg in f:
+                rm.append(f)
+for f in rm:
+    sys.path.remove(f)
 
 logger = logging.getLogger('lobster')
 

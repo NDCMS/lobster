@@ -11,8 +11,8 @@ if 'VIRTUAL_ENV' not in os.environ:
 # This needs to be done before anything else is loaded and messes with
 # either sys.path or sys.meta_path
 # Running into some weird errors
-#ps = [p for p in sys.path if p.startswith(os.environ['VIRTUAL_ENV']) and 'site-packages' in p]
-#sys.path[:0] = ps
+# ps = [p for p in sys.path if p.startswith(os.environ['VIRTUAL_ENV']) and 'site-packages' in p]
+# sys.path[:0] = ps
 
 from argparse import ArgumentParser
 import logging

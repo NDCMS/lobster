@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      export cctools lobster-149-cdaaaac6-cvmfs-70dfa0d6
+      export cctools=lobster-149-cdaaaac6-cvmfs-70dfa0d6
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:$PATH
 

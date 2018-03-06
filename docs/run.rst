@@ -238,7 +238,7 @@ pages displaying progress and task status. An example can be found in
 :ref:`showcase-monitor`.
 
 ELK Commands
-------------
+~~~~~~~~~~~~
 
 `Lobster` has a few commands to help manage ELK monitoring::
 
@@ -256,7 +256,6 @@ saved templates according to the dashboards specified in the configuration.
 
 ``elkcleanup`` deletes all Kibana objects and Elasticsearch indices that match
 the user/run prefix in the configuration.
-
 
 Task Exit Codes
 ---------------

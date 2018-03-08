@@ -303,10 +303,10 @@ def check_output(config, localname, remotename):
             if int(size) == int(match.groups()[0]):
                 return True
             else:
-                logger.error("size mismatch after transfer")
-                logger.debug("remote size: {0}".format(match.groups()[0]))
-                logger.debug("local size: {0}".format(size))
-                return False
+                errorMsg = 'size mismatch after transfer\n'
+                errorMsg += '  remote size: {0}\n'.format(match.groups()[0]) 
+                errorMsg += '  local size: {0}\n'.format(size)
+                raise RuntimeError(errorMsg)
         else:
             raise RuntimeError('checking output for {0} failed: {1}'.format(file, stat))
 
@@ -359,7 +359,9 @@ def check_output(config, localname, remotename):
 
 @check_execution(exitcode=211, update={'stageout_exit_code': 211, 'output_size': 0}, timing='stage_out_end')
 def check_outputs(data, config):
+    logger.info('Checking output files...')
     for local, remote in config['output files']:
+        logger.info('  Checking {0} => {1}'.format(local,remote))
         if not check_output(config, local, remote):
             raise IOError("could not verify output file '{}'".format(remote))
 
@@ -622,7 +624,9 @@ def copy_outputs(data, config, env):
                     logger.info("attempting stage-out with `shutil.copy2('{0}', '{1}')`".format(localname, rn))
                     try:
                         shutil.copy2(localname, rn)
+                        logger.info('Checking output file transfer.')
                         if check_output(config, localname, remotename):
+                            logger.info('File transfer successful!')
                             transferred.append(localname)
                             target_se.append(default_se)
                             data['transfers']['file']['stageout success'] += 1
@@ -658,7 +662,9 @@ def copy_outputs(data, config, env):
                 pruned_env['LD_LIBRARY_PATH'] = ldpath
 
                 p = run_subprocess(args, env=pruned_env)
+                logger.info('Checking output file transfer.')
                 if p.returncode == 0 and check_output(config, localname, remotename):
+                    logger.info('File transfer successful!')
                     transferred.append(localname)
                     match = server_re.match(args[-1])
                     if match:
@@ -681,7 +687,9 @@ def copy_outputs(data, config, env):
                         server,
                         os.path.join(path, remotename)]
                 p = run_subprocess(args, env=env)
+                logger.info('Checking output file transfer.')
                 if p.returncode == 0 and check_output(config, localname, remotename):
+                    logger.info('File transfer successful!')
                     transferred.append(localname)
                     match = server_re.match(args[-1])
                     if match:

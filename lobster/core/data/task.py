@@ -372,8 +372,29 @@ def check_output(config, localname, remotename):
                 return compare(p.stdout, localname)
             except RuntimeError as e:
                 logger.error(e)
+        elif output.startswith('srm://') or output.startswith('gsiftp://'):
+            if len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
+                # FIXME gfal is very picky about its environment
+                prg = [os.environ["LOBSTER_GFAL_COPY"].replace('copy','stat')]
+                args = prg + [
+                    os.path.join(output, remotename),
+                ]
+                pruned_env = dict(env)
+                for k in ['LD_LIBRARY_PATH', 'PATH']:
+                    pruned_env[k] = ':'.join([x for x in os.environ[k].split(':') if 'CMSSW' not in x])
+                p = run_subprocess(args, env=pruned_env, capture=True)
+                try:
+                    return compare(p.stdout, localname)
+                except RuntimeError as e:
+                    logger.error(e)
 
-    return True
+            else:
+                logger.info('Skipping gfal-based file check because no gfal executable defined in wrapper.')
+                
+
+
+    # If we get here, we tried all of the other methods and never returned a True, so return false
+    return False
 
 
 @check_execution(exitcode=211, update={'stageout_exit_code': 211, 'output_size': 0}, timing='stage_out_end')

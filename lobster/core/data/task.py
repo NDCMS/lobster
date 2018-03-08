@@ -353,6 +353,25 @@ def check_output(config, localname, remotename):
                 return compare(p.stdout, localname)
             except RuntimeError as e:
                 logger.error(e)
+        elif output.startswith("hdfs://"):
+            server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+            timeout = '300'  # Just to be safe, have a timeout
+            args = [
+                "timeout",
+                timeout,
+                "hdfs",
+                "dfs",
+                "-fs",
+                'hdfs://'+server,
+                "-stat",
+                '"Size: %b"',
+                os.path.join('/',path, remotename)
+            ]
+            p = run_subprocess(args, capture=True)
+            try:
+                return compare(p.stdout, localname)
+            except RuntimeError as e:
+                logger.error(e)
 
     return True
 

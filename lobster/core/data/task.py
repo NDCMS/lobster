@@ -637,7 +637,7 @@ def copy_outputs(data, config, env):
                     prg = [os.environ["LOBSTER_LCG_CP"], "-b", "-v", "-D", "srmv2", "--sendreceive-timeout", "600"]
                 elif len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                     # FIXME gfal is very picky about its environment
-                    prg = [os.environ["LOBSTER_GFAL_COPY"]]
+                    prg = [os.environ["LOBSTER_GFAL_COPY"], "-f"]
                 else:
                     data['transfers'][protocol]['stageout failure'] += 1
                     continue

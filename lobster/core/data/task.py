@@ -869,7 +869,7 @@ def get_bare_size(filename):
         raise IOError("Can't open ROOT file '{0}'".format(filename))
 
     size = 0
-    for treename in ("Events", "Runs", "Lumis"):
+    for treename in ("Events", "Runs", "LuminosityBlocks"):
         if not rootfile.GetListOfKeys().Contains(treename):
             rootfile.Close()
             raise IOError("Can't find tree '{1}' in  ROOT file '{0}'".format(filename, treename))

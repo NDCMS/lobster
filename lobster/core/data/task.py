@@ -594,6 +594,35 @@ def copy_inputs(data, config, env):
                 else:
                     logger.error('Unable to copy input with Chirp')
                     data['transfers']['chirp']['stage-in failure'] += 1
+            elif input.startswith("hdfs://"):
+                logger.info("Trying hdfs client access method")
+                server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
+                server = "hdfs://"+server
+                remotename = os.path.join('/',path, file)
+
+                timeout = '300'  # Just to be safe, have a timeout
+                args = [
+                    "timeout",
+                    timeout,
+                    "hdfs",
+                    "dfs",
+                    "-fs",
+                    server,
+                    "-get",
+                    remotename,
+                    os.path.basename(file)
+                    ]
+                p = run_subprocess(args, env=env)
+                if p.returncode == 0:
+                    logger.info('Successfully copied input with hdfs client')
+                    filename = 'file:' + os.path.basename(file)
+                    config['mask']['files'].append(filename)
+                    config['file map'][filename] = file
+                    data['transfers']['hdfs']['stage-in success'] += 1
+                    break
+                else:
+                    logger.error('Unable to copy input with hdfs client')
+                    data['transfers']['hdfs']['stage-in failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-in method: {0}'.format(input))
         else:
@@ -738,6 +767,35 @@ def copy_outputs(data, config, env):
                     break
                 else:
                     data['transfers']['chirp']['stageout failure'] += 1
+            elif output.startswith("hdfs://"):
+                server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
+                server = "hdfs://"+server
+
+                timeout = '300'  # Just to be safe, have a timeout
+                args = [
+                    "timeout",
+                    timeout,
+                    "hdfs",
+                    "dfs",
+                    "-fs",
+                    server,
+                    "-put",
+                    localname,
+                    os.path.join('/',path, remotename),
+                    ]
+
+                p = run_subprocess(args, env=env)
+                logger.info('Checking output file transfer.')
+                if p.returncode == 0 and check_output(config, localname, remotename):
+                    logger.info('File transfer successful!')
+                    transferred.append(localname)
+                    match = server_re.match(args[-1])
+                    if match:
+                        target_se.append(match.group(1))
+                    data['transfers']['hdfs']['stageout success'] += 1
+                    break
+                else:
+                    data['transfers']['hdfs']['stageout failure'] += 1
             else:
                 logger.warning('skipping unhandled stage-out method: {0}'.format(output))
 

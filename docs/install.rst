@@ -96,6 +96,6 @@ easy modification of the source::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools lobster-148-c1a7ecbd-cvmfs-0941e442
+    setenv cctools lobster-154-16b67876-cvmfs-70dfa0d6
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:${PATH}

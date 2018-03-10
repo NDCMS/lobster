@@ -271,7 +271,7 @@ class TaskProvider(util.Timing):
             (self.siteconf, 'siteconf', False),
             (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
             (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
-            (os.path.join(os.path.dirname(__file__), 'data', 'report.json'), 'report.json.in', True),
+            (os.path.join(os.path.dirname(__file__), 'data', 'report.json.in'), 'report.json.in', True),
             (self.parrot_bin, 'bin', True),
             (self.parrot_lib, 'lib', True),
         ]

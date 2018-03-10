@@ -1175,40 +1175,9 @@ if __name__ == '__main__':
     logger.propagate = False
     logger.setLevel(logging.DEBUG)
 
-    with open('report.json', 'r') as fd:
+    with open('report.json.in', 'r') as fd:
         data = json.load(fd)
         data['transfers'] = defaultdict(Counter)
-    data = {
-        'files': {
-            'info': {},
-            'output_info': {},
-            'skipped': [],
-        },
-        'cache': {
-            'start_size': 0,
-            'end_size': 0,
-            'type': 2,
-        },
-        'task_exit_code': 0,
-        'exe_exit_code': 0,
-        'stageout_exit_code': 0,
-        'cpu_time': 0,
-        'events_written': 0,
-        'output_size': 0,
-        'output_bare_size': 0,
-        'output_storage_element': '',
-        'task_timing': {
-            'stage_in_end': 0,
-            'prologue_end': 0,
-            'wrapper_start': 0,
-            'wrapper_ready': 0,
-            'processing_end': 0,
-            'epilogue_end': 0,
-            'stage_out_end': 0,
-        },
-        'events_per_run': 0,
-        'transfers': defaultdict(Counter)
-    }
 
     configfile = sys.argv[1]
     with open(configfile) as f:

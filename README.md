@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/matz-e/lobster.svg?branch=master)](https://travis-ci.org/matz-e/lobster)
+[![Build Status](https://api.travis-ci.org/NDCMS/lobster.svg?branch=master)](https://travis-ci.org/NDCMS/lobster)
 [![Documentation Status](https://readthedocs.org/projects/lobster/badge/?version=latest)](http://lobster.readthedocs.org/en/latest/?badge=latest)
 
 # Introduction

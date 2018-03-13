@@ -226,7 +226,7 @@ class MultiProductionDataset(ProductionDataset):
         self.randomize_seeds = randomize_seeds
 
         self.lumis_per_gridpack = int(math.ceil(float(events_per_gridpack) / events_per_lumi))
-        self.total_units = len(flatten(self.gridpacks)) * self.lumis_per_gridpack
+        self.total_untits = 0
 
     def validate(self):
         return len(flatten(self.gridpacks)) > 0
@@ -235,9 +235,11 @@ class MultiProductionDataset(ProductionDataset):
         dset = DatasetInfo()
         dset.file_based = True
 
-        for run, fn in enumerate(flatten(self.gridpacks)):
+        files = flatten(self.gridpacks)
+        for run, fn in enumerate(files):
             dset.files[fn].lumis = [(run, x) for x in range(1, self.lumis_per_gridpack + 1)]
 
+        self.total_units = len(files) * self.lumis_per_gridpack
         dset.total_units = self.total_units
         dset.tasksize = self.lumis_per_task
         dset.stop_on_file_boundary = True  # CMSSW can only handle one gridpack at a time

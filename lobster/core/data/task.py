@@ -304,7 +304,7 @@ def check_output(config, localname, remotename):
                 return True
             else:
                 errorMsg = 'size mismatch after transfer\n'
-                errorMsg += '  remote size: {0}\n'.format(match.groups()[0]) 
+                errorMsg += '  remote size: {0}\n'.format(match.groups()[0])
                 errorMsg += '  local size: {0}\n'.format(size)
                 raise RuntimeError(errorMsg)
         else:
@@ -362,10 +362,10 @@ def check_output(config, localname, remotename):
                 "hdfs",
                 "dfs",
                 "-fs",
-                'hdfs://'+server,
+                'hdfs://' + server,
                 "-stat",
                 '"Size: %b"',
-                os.path.join('/',path, remotename)
+                os.path.join('/', path, remotename)
             ]
             p = run_subprocess(args, capture=True)
             try:
@@ -375,7 +375,7 @@ def check_output(config, localname, remotename):
         elif output.startswith('srm://') or output.startswith('gsiftp://'):
             if len(os.environ["LOBSTER_GFAL_COPY"]) > 0:
                 # FIXME gfal is very picky about its environment
-                prg = [os.environ["LOBSTER_GFAL_COPY"].replace('copy','stat')]
+                prg = [os.environ["LOBSTER_GFAL_COPY"].replace('copy', 'stat')]
                 args = prg + [
                     os.path.join(output, remotename),
                 ]
@@ -390,8 +390,6 @@ def check_output(config, localname, remotename):
 
             else:
                 logger.info('Skipping gfal-based file check because no gfal executable defined in wrapper.')
-                
-
 
     # If we get here, we tried all of the other methods and never returned a True, so return false
     return False
@@ -401,7 +399,7 @@ def check_output(config, localname, remotename):
 def check_outputs(data, config):
     logger.info('Checking output files...')
     for local, remote in config['output files']:
-        logger.info('  Checking {0} => {1}'.format(local,remote))
+        logger.info('  Checking {0} => {1}'.format(local, remote))
         if not check_output(config, local, remote):
             raise IOError("could not verify output file '{}'".format(remote))
 
@@ -597,8 +595,8 @@ def copy_inputs(data, config, env):
             elif input.startswith("hdfs://"):
                 logger.info("Trying hdfs client access method")
                 server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
-                server = "hdfs://"+server
-                remotename = os.path.join('/',path, file)
+                server = "hdfs://" + server
+                remotename = os.path.join('/', path, file)
 
                 timeout = '300'  # Just to be safe, have a timeout
                 args = [
@@ -610,8 +608,7 @@ def copy_inputs(data, config, env):
                     server,
                     "-get",
                     remotename,
-                    os.path.basename(file)
-                    ]
+                    os.path.basename(file)]
                 p = run_subprocess(args, env=env)
                 if p.returncode == 0:
                     logger.info('Successfully copied input with hdfs client')
@@ -769,7 +766,7 @@ def copy_outputs(data, config, env):
                     data['transfers']['chirp']['stageout failure'] += 1
             elif output.startswith("hdfs://"):
                 server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
-                server = "hdfs://"+server
+                server = "hdfs://" + server
 
                 timeout = '300'  # Just to be safe, have a timeout
                 args = [
@@ -781,8 +778,7 @@ def copy_outputs(data, config, env):
                     server,
                     "-put",
                     localname,
-                    os.path.join('/',path, remotename),
-                    ]
+                    os.path.join('/', path, remotename)]
 
                 p = run_subprocess(args, env=env)
                 logger.info('Checking output file transfer.')

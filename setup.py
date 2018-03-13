@@ -27,7 +27,6 @@ setup(
         'core/data/siteconf/PhEDEx/storage.xml',
         'core/data/merge_cfg.py',
         'core/data/merge_reports.py',
-        'core/data/report.json',
         'core/data/report.json.in',
         'commands/data/index.html',
         'commands/data/gh.png',

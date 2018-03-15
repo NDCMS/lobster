@@ -226,7 +226,7 @@ class MultiProductionDataset(ProductionDataset):
         self.randomize_seeds = randomize_seeds
 
         self.lumis_per_gridpack = int(math.ceil(float(events_per_gridpack) / events_per_lumi))
-        self.total_untits = 0
+        self.total_units = 0
 
     def validate(self):
         return len(flatten(self.gridpacks)) > 0

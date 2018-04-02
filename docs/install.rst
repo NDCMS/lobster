@@ -24,7 +24,7 @@ Dependencies
   Cooperative Computing Lab`_ and install them by unpacking the tarball and
   adding the `bin` directory to your path::
 
-    export cctools=lobster-154-16b67876-cvmfs-70dfa0d6
+    export cctools=lobster-160-679ce223-cvmfs-70dfa0d6
     wget -O - http://ccl.cse.nd.edu/software/files/${cctools}-x86_64-redhat6.tar.gz
     export PATH=$PWD/${cctools}-x86_64-redhat6/bin:$PATH
     export PYTHONPATH=$PWD/${cctools}-x86_64-redhat6/lib/python2.6/site-packages:$PYTHONPATH
@@ -32,7 +32,7 @@ Dependencies
   .. note::
      At Notre Dame, a development version can be accessed via::
 
-      export cctools=lobster-154-16b67876-cvmfs-70dfa0d6
+      export cctools=lobster-160-679ce223-cvmfs-70dfa0d6
       export PYTHONPATH=$PYTHONPATH:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
       export PATH=/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:$PATH
 
@@ -75,8 +75,8 @@ Installation as package
 
 Install Lobster with::
 
-    wget -O - https://raw.githubusercontent.com/matz-e/lobster/master/install_dependencies.sh|sh -
-    pip install https://github.com/matz-e/lobster/tarball/master
+    wget -O - https://raw.githubusercontent.com/NDCMS/lobster/master/install_dependencies.sh|sh -
+    pip install https://github.com/NDCMS/lobster/tarball/master
 
 Installation from source
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,7 +84,7 @@ Installation from source
 Lobster can also be installed from a local checkout, which will allow for
 easy modification of the source::
 
-    git clone git@github.com:matz-e/lobster.git
+    git clone git@github.com:NDCMS/lobster.git
     cd lobster
     ./install_dependencies.sh
     pip install --upgrade .
@@ -96,6 +96,6 @@ easy modification of the source::
 .. [#ftools] ``tcsh`` users should use the following to access the
    `cctools` development version at Notre Dame::
 
-    setenv cctools lobster-154-16b67876-cvmfs-70dfa0d6
+    setenv cctools lobster-160-679ce223-cvmfs-70dfa0d6
     setenv PYTHONPATH ${PYTHONPATH}:/afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/lib/python2.6/site-packages
     setenv PATH /afs/crc.nd.edu/group/ccl/software/x86_64/redhat6/cctools/$cctools/bin:${PATH}

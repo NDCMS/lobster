@@ -1,10 +1,12 @@
 # -*- coding: utf8 -*-
 import imp
+import json
 import logging
 import os
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 
 from lobster import fs, util
@@ -338,6 +340,33 @@ class Workflow(Configurable):
         files = map(copy_file, self.extra_inputs)
         self.extra_inputs = files
 
+    def autosense(self, releases, basedirs):
+        """Determine globaltag and output file from a release
+
+        Parameters
+        ----------
+            releases : list(str)
+                a list of releases to go through
+            basedirs : list(str)
+                a list of directories to search each release in
+        """
+        for release in releases:
+            if not release:
+                continue
+            reldir = lobster.util.findpath(basedirs, release)
+            cmd = [os.path.join(os.path.dirname(__file__), 'data', 'autosense.sh')]
+            args = [reldir, self.pset, os.path.basename(self.pset)] + self.arguments
+            try:
+                data = json.loads(subprocess.check_output(cmd + args))
+                self.outputs = result['outputs']
+                self.merge_command = result.get('merge_command', self.merge_command)
+                self.merge_args = result.get('merge_args', self.merge_args)
+                self.globaltag = result.get('globaltag', self.globaltag)
+            except:
+                pass
+        else:
+            raise RuntimeError("failed to autosense output files and/or global tag")
+
     def determine_outputs(self, basedirs):
         """Determine output files for CMSSW tasks.
         """
@@ -405,11 +434,8 @@ class Workflow(Configurable):
         self.version = versions.pop()
 
         self.copy_inputs(basedirs)
-        if self.pset and self.outputs is None:
-            self.determine_outputs(basedirs)
-
-        if self.pset and self.globaltag is None:
-            self.determine_globaltag(basedirs)
+        if self.pset and None is in (self.outputs, self.globaltag):
+            self.autosense([getattr(b, 'release', None) for b in boxes])
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

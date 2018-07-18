@@ -20,6 +20,7 @@ setup(
         'lobster.monitor.elk'
     ],
     package_data={'lobster': [
+        'core/data/autosense.sh',
         'core/data/task.py',
         'core/data/wrapper.sh',
         'core/data/mtab',

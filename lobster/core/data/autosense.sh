@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-releas=$1
+release=$1
 pset=$2
 shift
 shift
@@ -11,18 +11,7 @@ if [[ $# -ge 1 || -n "$release" || -n "$pset" ]]; then
 fi
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh 
-workdir=$(mktemp -d)
-cd "$workdir"
-cp $* .
-
-slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
-arch=$(echo sandbox-${version}-slc${slc}*.tar.bz2 |grep -oe "slc${slc}_[^.]*")
-
-export SCRAM_ARCH=$arch
-scramv1 project -f CMSSW $version || exit 1
-tar xjf sandbox-${version}-${arch}.tar.bz2 || exit 1
-
-cd $version
+cd "$release"
 eval $(scramv1 runtime -sh)
 
 python <<EOF

@@ -1,0 +1,64 @@
+{
+	"t_wrapper_start":{
+		"events":[
+			{"label":"on_t_wrapper_start",
+			"on-create":true},
+			{"label":"on_t_wrapper_start_delete",
+			"on-delete":true}
+		]
+	},
+	"t_wrapper_ready":{
+		"events":[
+			{"label":"on_t_wrapper_ready",
+			"on-create":true},
+			{"label":"on_t_wrapper_ready_delete",
+			"on-delete":true}
+		]
+	},
+	"run_command_start":{
+		"events":[
+			{"label":"on_run_command_start",
+			"on-create":true},
+			{"label":"on_run_command_delete",
+			"on-delete":true}
+		]
+	},
+	"run_step_start":{
+		"events":[
+			{"label":"on_run_step_start",
+			"on-create":true},
+			{"label":"on_run_step_delete",
+			"on-delete":true}
+		]
+	},
+	"run_prologue_start":{
+		"events":[
+			{"label":"on_run_prologue_start",
+			"on-create":true},
+			{"label":"on_run_prologue_delete",
+			"on-delete":true}
+		]
+	},
+	"run_epilogue_start":{
+		"events":[
+			{"label":"on_run_epilogue_start",
+			"on-create":true},
+			{"label":"on_run_epilogue_delete",
+			"on-delete":true}
+		]
+	},
+	"run_command_log":{
+		"events":[
+			{"label":"run_command_log_start",
+			"on-create":true},
+			{"label":"Init_req_to_open",
+			"on-pattern":"Initiating request to open"},
+			{"label":"successfully_opened",
+			"on-pattern":"Successfully opened"},
+			{"label":"the_1st_record",
+			"on-pattern":"the 1st record"},
+			{"label":"run_command_log_delete",
+			"on-delete":true}
+		]
+	}
+}

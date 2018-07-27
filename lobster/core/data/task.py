@@ -186,8 +186,10 @@ def run_subprocess(*args, **kwargs):
 
     retry = kwargs.pop('retry', {})
     capture = kwargs.pop('capture', False)
-
-    outfd, outfn = tempfile.mkstemp()
+    
+    outfn = kwargs.pop('outputname', False)
+    if outfn == False:
+        outfd, outfn = tempfile.mkstemp()
 
     logger.debug("using {} to store command output".format(outfn))
 
@@ -982,6 +984,9 @@ def get_bare_size(filename):
 
 @check_execution(exitcode=185, timing='processing_end')
 def run_command(data, config, env):
+    #CHANGE HERE
+    f = open('run_command_start', 'w')
+    
     cmd = config['executable']
     args = config['arguments']
     unique = config.get('arguments_unique', [])
@@ -1008,7 +1013,7 @@ def run_command(data, config, env):
         else:
             cmd = expand_command(cmd, unique, config['mask']['files'], [lf for lf, rf in config['output files']])
 
-    p = run_subprocess(cmd, env=env)
+    p = run_subprocess(cmd, env=env, outputname='run_command_log')
     logger.info("executable returned with exit code {0}.".format(p.returncode))
     data['exe_exit_code'] = p.returncode
     data['task_exit_code'] = data['exe_exit_code']
@@ -1028,9 +1033,12 @@ def run_command(data, config, env):
 
     if p.returncode != 0:
         raise subprocess.CalledProcessError(p.returncode, cmd)
-
+    os.remove(f.name)
 
 def run_step(data, config, env, name):
+    #CHANGE HERE
+    f = open('run_step_start', 'w')
+
     step = config.get(name, [])
     if step and len(step) > 0:
         logger.info(name)
@@ -1042,15 +1050,21 @@ def run_step(data, config, env, name):
         # a non-zero return code.
         if p.returncode != 0:
             raise subprocess.CalledProcessError(p.returncode, step)
-
+    os.remove(f.name)
 
 @check_execution(exitcode=180, timing='prologue_end')
 def run_prologue(data, config, env):
-    run_step(data, config, env, 'prologue')
+    #CHANGE HERE
+    f = open('run_prologue_start', 'w')
 
+    run_step(data, config, env, 'prologue')
+    os.remove(f.name)
 
 @check_execution(exitcode=199, timing='epilogue_end')
 def run_epilogue(data, config, env):
+    #CHANGE HERE
+    f = open('run_epilogue_start', 'w')
+
     write_report(data)
     run_step(data, config, env, 'epilogue')
     with open('report.json', 'r') as f:
@@ -1070,7 +1084,7 @@ def run_epilogue(data, config, env):
         for protocol in data['transfers']:
             transfers[protocol].update(data['transfers'][protocol])
         data['transfers'] = transfers
-
+    os.remove(f.name)
 
 def send_initial_dashboard_update(data, config):
     # Dashboard does not like Unicode, just ASCII encoding

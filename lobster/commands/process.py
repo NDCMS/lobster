@@ -286,14 +286,15 @@ class Process(Command, util.Timing):
                     if proxy_time_left < 24 * 3600 and not proxy_email_sent:
                         util.sendemail("Your proxy is about to expire.\n" + "Timeleft: " + str(datetime.timedelta(seconds=proxy_time_left)), self.config)
                         proxy_email_sent = True
-
+                        
                 for category, cmd, id, inputs, outputs, env, dir in tasks:
                     task = wq.Task(cmd)
                     task.specify_category(category)
                     task.specify_tag(id)
                     task.specify_max_retries(wq_max_retries)
                     task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
-
+                    task.specify_snapshot_file("/afs/crc.nd.edu/user/d/dferna10/Lobster/lobster/lobster/commands/SnapshotLobster.json")
+                    
                     for k, v in env.items():
                         task.specify_environment_variable(k, v)
 

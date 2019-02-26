@@ -739,6 +739,27 @@ def copy_outputs(data, config, env):
                     break
                 else:
                     data['transfers'][protocol]['failure'] += 1
+            elif output.startswith("root://"):
+                args = [
+                    "env",
+                    "XRD_LOGLEVEL=Debug",
+                    "xrdcp",
+                    localname,
+                    os.path.join(output, remotename)
+                ]
+                p = run_subprocess(args)
+                logger.info('Checking output file transfer.')
+                if p.returncode == 0 and check_output(config, localname, remotename):
+                    logger.info('File transfer successful!')
+                    transferred.append(localname)
+                    match = server_re.match(args[-1])
+                    if match:
+                        target_se.append(match.group(1))
+                    data['transfers']['root']['stageout success'] += 1
+                    break
+                else:
+                    data['transfers']['root']['stageout failure'] += 1
+               
             elif output.startswith("chirp://"):
                 server, path = re.match("chirp://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
 
@@ -764,6 +785,7 @@ def copy_outputs(data, config, env):
                     break
                 else:
                     data['transfers']['chirp']['stageout failure'] += 1
+
             elif output.startswith("hdfs://"):
                 server, path = re.match("hdfs://([a-zA-Z0-9:.\-]+)/(.*)", output).groups()
                 server = "hdfs://" + server

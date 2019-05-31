@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 import imp
 import json
 import logging
@@ -353,16 +353,19 @@ class Workflow(Configurable):
         for release in releases:
             if not release:
                 continue
-            reldir = lobster.util.findpath(basedirs, release)
+            reldir = util.findpath(basedirs, release)
             cmd = [os.path.join(os.path.dirname(__file__), 'data', 'autosense.sh')]
-            args = [reldir, self.pset, os.path.basename(self.pset)] + self.arguments
+            args = [reldir, os.path.join(self.workdir, os.path.basename(self.pset))] + self.arguments
             try:
-                data = json.loads(subprocess.check_output(cmd + args))
+                result = json.loads(subprocess.check_output(cmd + args))
                 self.outputs = result['outputs']
                 self.merge_command = result.get('merge_command', self.merge_command)
                 self.merge_args = result.get('merge_args', self.merge_args)
                 self.globaltag = result.get('globaltag', self.globaltag)
+                return
             except:
+                e = sys.exc_info()[0:2]
+                logger.info(e)
                 pass
         else:
             raise RuntimeError("failed to autosense output files and/or global tag")
@@ -434,8 +437,8 @@ class Workflow(Configurable):
         self.version = versions.pop()
 
         self.copy_inputs(basedirs)
-        if self.pset and None is in (self.outputs, self.globaltag):
-            self.autosense([getattr(b, 'release', None) for b in boxes])
+        if self.pset and None in (self.outputs, self.globaltag):
+            self.autosense([getattr(b, 'release', None) for b in boxes], basedirs)
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

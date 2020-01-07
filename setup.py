@@ -54,7 +54,7 @@ setup(
         'pyxdg',
         'requests',
         'retrying',
-        'snakebite<2.0',
+        'snakebite>=2.11,<3.0',
         'wmcore>=1.1.1.pre7'
     ],
     entry_points={

@@ -87,10 +87,7 @@ elif [ ! \( -f "/cvmfs/cms.cern.ch/cmsset_default.sh" \
 	# passed to the job (e.g. via condor)
 	export PARROT_DEBUG_FLAGS=${PARROT_DEBUG_FLAGS:-}
 	export PARROT_PATH=${PARROT_PATH:-./bin}
-	export PARROT_CVMFS_REPO=\
-'*:try_local_filesystem
-*.cern.ch:pubkey=<BUILTIN-cern.ch.pub>,url=http://cvmfs.fnal.gov:8000/opt/*;http://cvmfs.racf.bnl.gov:8000/opt/*
-*.opensciencegrid.org:pubkey=<BUILTIN-opensciencegrid.org.pub>,url=http://oasis-replica.opensciencegrid.org:8000/cvmfs/*;http://cvmfs.fnal.gov:8000/cvmfs/*;http://cvmfs.racf.bnl.gov:8000/cvmfs/*'
+	export PARROT_CVMFS_REPO='<default-repositories>'
 
 	export PARROT_ALLOW_SWITCHING_CVMFS_REPOSITORIES=TRUE
 	export PARROT_CACHE=${WORKER_TMPDIR:-${TMPDIR:-.}}

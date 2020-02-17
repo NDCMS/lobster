@@ -56,7 +56,7 @@ setup(
         'requests',
         'retrying',
         'snakebite>=2.11,<3.0',
-        'wmcore>=1.1.1.pre7'
+        'wmcore==1.1.1rc7'
     ],
     entry_points={
         'console_scripts': ['lobster = lobster.ui:boil']

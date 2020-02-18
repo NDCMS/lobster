@@ -10,12 +10,17 @@ if [[ -z "$release" || -z "$pset" ]]; then
 	exit 1
 fi
 
+# Make sure we don't have any leftover files to confuse things.
+if [[ -e out.json ]]; then
+	rm -f out.json
+fi
+
 source /cvmfs/cms.cern.ch/cmsset_default.sh 
 cd "$release"
 eval $(scramv1 runtime -sh)
 cd - > /dev/null
 
-python <<EOF
+python <<EOF > /dev/null 2>&1
 import imp
 import json
 import shlex
@@ -36,6 +41,14 @@ with open('$pset', 'r') as f:
 
     if hasattr(process, 'GlobalTag') and hasattr(process.GlobalTag.globaltag, 'value'):
         result['globaltag'] = process.GlobalTag.globaltag.value()
-    print(json.dumps(result))
+    with open('out.json','w') as fout:
+        json.dump(result,fout)
 EOF
+
+cat out.json
+# Put an EOL at the end of all this
+echo ""
+
+rm -f out.json
+
 

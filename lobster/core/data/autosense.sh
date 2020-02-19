@@ -27,7 +27,7 @@ import shlex
 import sys
 
 result = {'outputs': []}
-sys.argv = shlex.split("$*")
+sys.argv = ["cmsRun","$pset"] + shlex.split("$*")
 
 with open('$pset', 'r') as f:
     source = imp.load_source('cms_config_source', '$pset', f)

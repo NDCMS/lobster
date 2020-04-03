@@ -340,7 +340,7 @@ class Workflow(Configurable):
         files = map(copy_file, self.extra_inputs)
         self.extra_inputs = files
 
-    def autosense(self, releases, basedirs):
+    def autosense(self, releases, basedirs, autoOutputs=False, autoGlobalTag=False):
         """Determine globaltag and output file from a release
 
         Parameters
@@ -358,10 +358,12 @@ class Workflow(Configurable):
             args = [reldir, os.path.join(self.workdir, os.path.basename(self.pset))] + self.arguments
             try:
                 result = json.loads(subprocess.check_output(cmd + args))
-                self.outputs = result['outputs']
-                self.merge_command = result.get('merge_command', self.merge_command)
-                self.merge_args = result.get('merge_args', self.merge_args)
-                self.globaltag = result.get('globaltag', self.globaltag)
+                if autoOutputs:
+                    self.outputs = result['outputs']
+                    self.merge_command = result.get('merge_command', self.merge_command)
+                    self.merge_args = result.get('merge_args', self.merge_args)
+                if autoGlobalTag:
+                    self.globaltag = result.get('globaltag', self.globaltag)
                 return
             except:
                 e = sys.exc_info()[0:2]
@@ -437,8 +439,14 @@ class Workflow(Configurable):
         self.version = versions.pop()
 
         self.copy_inputs(basedirs)
-        if self.pset and None in (self.outputs, self.globaltag):
-            self.autosense([getattr(b, 'release', None) for b in boxes], basedirs)
+        autoOutputs = False
+        autoGlobalTag = False
+        if self.outputs == None:
+            autoOutputs = True
+        if self.globaltag == None:
+            autoGlobalTag = True
+        if True in (autoOutputs, autoGlobalTag):
+            self.autosense([getattr(b, 'release', None) for b in boxes], basedirs, autoOutputs, autoGlobalTag)
 
         # Working directory for workflow
         # TODO Should we really check if this already exists?  IMO that

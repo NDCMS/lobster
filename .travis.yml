@@ -21,6 +21,7 @@ script:
 addons:
   apt:
     packages:
+      - libgnutls28-dev
       - swig
 notifications:
   slack: ndlobster:KTPb95b6ZKyFZiNvsPp723HS

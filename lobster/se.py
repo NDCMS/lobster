@@ -126,7 +126,7 @@ class StorageElement(object):
         if m:
             protocol, server, path = url_re.match(p).groups()
             path = os.path.normpath(path)
-            return "{0}://{1}{2}/".format(protocol, server, path)
+            return "{0}://{1}{2}".format(protocol, server, path)
         return os.path.normpath(p)
 
     def fixresult(self, res):

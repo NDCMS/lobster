@@ -354,7 +354,7 @@ class Workflow(Configurable):
             if not release:
                 continue
             reldir = util.findpath(basedirs, release)
-            cmd = [os.path.join(os.path.dirname(__file__), 'data', 'autosense.sh')]
+            cmd = ['env', '-i', os.path.join(os.path.dirname(__file__), 'data', 'autosense.sh')]
             args = [reldir, os.path.join(self.workdir, os.path.basename(self.pset))] + self.arguments
             try:
                 result = json.loads(subprocess.check_output(cmd + args))

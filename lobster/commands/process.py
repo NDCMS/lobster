@@ -288,14 +288,18 @@ class Process(Command, util.Timing):
                         proxy_email_sent = True
 
                 for category, cmd, id, inputs, outputs, env, dir in tasks:
+                    # We need to isolate the task environment
+                    # completely. We'll do this with "env -i" but as a
+                    # result, we'll need to pass in any environmental
+                    # variables that way.  Any attempt to pass them
+                    # through WQ will result in "env -i" wiping them
+                    # out.                    
+                    cmd = 'env -i ' + ' '.join(['{}="{}"'.format(k,v) for k,v in env.items()]) + ' ' + cmd
                     task = wq.Task(cmd)
                     task.specify_category(category)
                     task.specify_tag(id)
                     task.specify_max_retries(wq_max_retries)
                     task.specify_monitor_output(os.path.join(dir, 'resource_monitor'))
-
-                    for k, v in env.items():
-                        task.specify_environment_variable(k, v)
 
                     for (local, remote, cache) in inputs:
                         cache_opt = wq.WORK_QUEUE_CACHE if cache else wq.WORK_QUEUE_NOCACHE

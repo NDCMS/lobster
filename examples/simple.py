@@ -66,6 +66,7 @@ config = Config(
     advanced=AdvancedOptions(
         bad_exit_codes=[127, 160],
         log_level=1,
-        dashboard=False
+        dashboard=False,
+        wq_port=[9123,9129]
     )
 )

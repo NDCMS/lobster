@@ -67,6 +67,6 @@ config = Config(
         bad_exit_codes=[127, 160],
         log_level=1,
         dashboard=False,
-        wq_port=[9123,9129]
+        #wq_port=[9123,9129]
     )
 )

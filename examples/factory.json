@@ -1,9 +1,7 @@
 {
-    "max-workers": 100,
+    "max-workers": 10,
     "min-workers": 0,
     "cores": 4,
     "memory": 4400,
     "disk": 12000,
-    "workers-per-cycle": 50,
-    "condor-requirements": "OpSysAndVer == \"RedHat6\""
 }

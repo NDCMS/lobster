@@ -519,7 +519,8 @@ class Plotter(object):
         with open(fn) as f:
             headers = dict(map(lambda (a, b): (b, a),
                                enumerate(f.readline()[1:].split())))
-        stats = np.loadtxt(fn)
+        #stats = np.loadtxt(fn)
+        stats=np.genfromtxt(fn)
 
         # fix units of time
         stats[:, 0] /= 1e6

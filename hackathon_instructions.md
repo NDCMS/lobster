@@ -28,6 +28,7 @@ Next, navigate back to the DBS directory and we will install a couple more packa
 ```
 python setup.py install_system -s dbs-client
 python setup.py install_system -s pycurl-client
+conda install -c conda-forge python-daemon
 ```
 
 Then, navigate back to the cloned lobster directory (probably `cd ../lobster/`) and run the following command: 

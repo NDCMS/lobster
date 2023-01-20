@@ -8,7 +8,7 @@ input_path="/store/user/"
 
 storage = StorageConfiguration(
     input=[
-        #"root://deepthought.crc.nd.edu/" + input_path,  # Note the extra slash after the hostname!
+        "root://deepthought.crc.nd.edu/" + input_path,  # Note the extra slash after the hostname!
         "hdfs://eddie.crc.nd.edu:19000"  + input_path,
         "gsiftp://T3_US_NotreDame"       + input_path,
         "srm://T3_US_NotreDame"          + input_path,

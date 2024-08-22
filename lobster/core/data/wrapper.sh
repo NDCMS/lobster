@@ -154,7 +154,7 @@ cd $LOBSTER_CMSSW_VERSION
 eval $(scramv1 runtime -sh) || exit_on_error $? 174 "The command 'cmsenv' failed!"
 cd "$basedir"
 
-log "top" "machine load" top -Mb\|head -n 50
+log "top" "machine load" top -em b\|head -n 50
 log "env" "environment before execution" env
 log "wrapper ready"
 date +%s > t_wrapper_ready

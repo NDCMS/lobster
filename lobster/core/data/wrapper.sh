@@ -161,6 +161,9 @@ date +%s > t_wrapper_ready
 
 log "dir" "working directory before execution" ls -l
 
+python -m ensurepip --user
+python -m pip install --user future
+
 $*
 res=$?
 

@@ -192,7 +192,7 @@ class TaskHandler(object):
         # Save wrapper output
         if task.output:
             f = gzip.open(os.path.join(self.taskdir, 'task.log.gz'), 'wb')
-            f.write(bytes(task.output.encode('utf-8')))  # 2to3 conversion manual fix
+            f.write(bytes(task.output.encode('utf-8', 'ignore')))  # 2to3 conversion manual fix
             f.close()
 
         # CMS stats to update

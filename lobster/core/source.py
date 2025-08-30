@@ -360,7 +360,7 @@ class TaskProvider(util.Timing):
                 'gridpack': False
             }
 
-            cmd = 'sh wrapper.sh python task.py parameters.json'
+            cmd = 'sh wrapper.sh python3 task.py parameters.json'
             env = {
                 'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
                 'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,

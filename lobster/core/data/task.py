@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from collections import defaultdict, Counter
 from contextlib import contextmanager
@@ -54,7 +54,7 @@ class Mangler(logging.Formatter):
             fmt = '{chevron} {context}: {message}'
         else:
             fmt = '{chevron} {message}'
-        chevron = '>' * (record.levelno / logging.DEBUG + 1)
+        chevron = '>' * int(record.levelno / logging.DEBUG + 1)
         return fmt.format(chevron=chevron, message=record.msg, date=time.strftime("%c"), context=self.context)
 
 

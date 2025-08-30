@@ -20,7 +20,7 @@ cd "$release"
 eval $(scramv1 runtime -sh)
 cd - > /dev/null
 
-python <<EOF > /dev/null 2>&1
+python3 <<EOF > /dev/null 2>&1
 import imp
 import json
 import shlex

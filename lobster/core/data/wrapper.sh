@@ -126,8 +126,10 @@ fi
 log "sourcing CMS setup"
 source /cvmfs/cms.cern.ch/cmsset_default.sh || exit_on_error $? 175 "Failed to source CMS"
 
-slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
-arch=$(echo sandbox-${LOBSTER_CMSSW_VERSION}-slc${slc}*.tar.bz2 | grep -oe "slc${slc}_[^.]*")
+slc=$(sed -n 's/.*[Rr]elease \([0-9][0-9]*\).*/\1/p' /etc/redhat-release)
+arch=$(echo sandbox-${LOBSTER_CMSSW_VERSION}-el${slc}_*.tar.bz2 | grep -oe "el${slc}_[^.]*")
+#slc=$(egrep "Red Hat Enterprise|Scientific|CentOS" /etc/redhat-release | sed 's/.*[rR]elease \([0-9]*\).*/\1/')
+#arch=$(echo sandbox-${LOBSTER_CMSSW_VERSION}-slc${slc}*.tar.bz2 | grep -oe "slc${slc}_[^.]*")
 
 if [ -z "$LOBSTER_PROXY_INFO" -o \( -z "$LOBSTER_LCG_CP" -a -z "$LOBSTER_GFAL_COPY" \) ]; then
 	log "sourcing OSG setup"
@@ -161,8 +163,10 @@ date +%s > t_wrapper_ready
 
 log "dir" "working directory before execution" ls -l
 
-python -m ensurepip --user
-python -m pip install --user future
+python3 -m ensurepip --user
+python3 -m pip install --user future
+
+echo "Command to be executed: $*"
 
 $*
 res=$?
@@ -171,5 +175,7 @@ log "dir" "working directory after execution" ls -l
 
 log "wrapper done"
 log "final return status = $res"
+
+echo "Command finished with status $res"
 
 exit $res

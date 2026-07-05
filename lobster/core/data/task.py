@@ -54,7 +54,8 @@ class Mangler(logging.Formatter):
             fmt = '{chevron} {context}: {message}'
         else:
             fmt = '{chevron} {message}'
-        chevron = '>' * (record.levelno / logging.DEBUG + 1)
+
+        chevron = '>' * (int(record.levelno / logging.DEBUG) + 1)
         return fmt.format(chevron=chevron, message=record.msg, date=time.strftime("%c"), context=self.context)
 
 
@@ -68,7 +69,7 @@ process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32({events}))
 
 import os
 _, major, minor, _ = os.environ["CMSSW_VERSION"].split('_', 3)
-if int(major) >= 7 and int(minor) >= 4:
+if int(major) >= 7 and int(major) < 12 and int(minor) >= 4:
     xrdstats = cms.Service("XrdAdaptor::XrdStatisticsService",  cms.untracked.PSet(reportToFJR = cms.untracked.bool(True)))
     process.add_(xrdstats)
 
@@ -157,20 +158,47 @@ def find_xrootd_server(filename):
         return e.attributes["result"].value.replace('$1', m.group(1)).replace(fakepath, '')
 
 
+def find_xrootd_server_from_siteconf(siteconf_dir):
+    """Find the leading XRootD server in a siteconf directory."""
+    storage_xml = os.path.join(siteconf_dir, 'PhEDEx', 'storage.xml')
+    if not os.path.exists(storage_xml):
+        return None
+    return find_xrootd_server(storage_xml)
+
+
+def join_xrootd_path(prefix, lfn):
+    """Join an xrootd server prefix and LFN into a valid PFN.
+
+    Keep an existing trailing slash in `prefix` so absolute LFNs become
+    `root://host//store/...` (xrootd absolute-path form).
+    """
+    if prefix.endswith('/'):
+        return prefix + lfn.lstrip('/')
+    return prefix + '/' + lfn.lstrip('/')
+
+
 def run_subprocess(*args, **kwargs):
-    logger.info("executing '{}'".format(" ".join(*args)))
+    # Normalize *args into a flat list of strings
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        raw_cmd = list(args[0])     # e.g. run_subprocess(cmd_list)
+    else:
+        raw_cmd = list(args)        # e.g. run_subprocess("python3", "skim.py", ...)
+
+    # Remove single quotes from each element
+    cmd = [str(x).replace("'", "") for x in raw_cmd]
+
+    logger.info("executing '%s'", " ".join(cmd))
 
     retry = kwargs.pop('retry', {})
     capture = kwargs.pop('capture', False)
 
     outfd, outfn = tempfile.mkstemp()
-
-    logger.debug("using {} to store command output".format(outfn))
+    logger.debug("using %s to store command output", outfn)
 
     with open(outfn, 'wb') as out:
         kwargs['stdout'] = out
         kwargs['stderr'] = subprocess.STDOUT
-        p = subprocess.Popen(*args, **kwargs)
+        p = subprocess.Popen(cmd, **kwargs)
 
     _, _ = p.communicate()
 
@@ -204,7 +232,7 @@ def calculate_alder32(data):
             stdout = p.communicate()[0]
 
             if p.returncode == 0:
-                checksum = stdout.split()[-2]
+                checksum = stdout.split()[-2].decode('utf-8')
         except Exception:
             pass
         data['files']['output_info'][fn]['adler32'] = checksum
@@ -385,7 +413,16 @@ def copy_inputs(data, config, env):
     fast_track = False
     successes = defaultdict(int)
 
-    default_xrootd_server = find_xrootd_server('/cvmfs/cms.cern.ch/SITECONF/local/PhEDEx/storage.xml')
+    default_xrootd_server = None
+    cms_local_site = os.environ.get('CMS_LOCAL_SITE')
+    if cms_local_site:
+        default_xrootd_server = find_xrootd_server_from_siteconf(cms_local_site)
+
+    if not default_xrootd_server:
+        default_xrootd_server = find_xrootd_server_from_siteconf(os.path.join(os.getcwd(), 'siteconf'))
+
+    if not default_xrootd_server:
+        default_xrootd_server = find_xrootd_server('/cvmfs/cms.cern.ch/SITECONF/local/PhEDEx/storage.xml')
 
     for file in files:
         # If the file has been transferred by WQ, there's no need to
@@ -417,10 +454,14 @@ def copy_inputs(data, config, env):
         # one that will allow us to access the file
         for input in config['input']:
             if input.startswith('file://'):
-                path = os.path.join(input.replace('file://', '', 1), file)
-                logger.info("Trying local access method")
+                base = input.replace("file://", "").rstrip('/')
+                rfile = file.lstrip('/')
+                logger.info("input {} base {} rfile {}".format(input, base, rfile))
+                path = os.path.join(base, rfile)
+                #path = os.path.join(input.replace('file://', '/cms/cephfs/data', 1), file)
+                logger.info("Trying local access method {}".format(path))
                 if os.path.exists(path) and os.access(path, os.R_OK):
-                    filename = 'file:' + path
+                    filename = 'file://' + path
                     config['mask']['files'].append(filename)
                     config['file map'][filename] = file
 
@@ -431,8 +472,10 @@ def copy_inputs(data, config, env):
                     logger.info("Local access to input file unavailable")
                     data['transfers']['file']['stage-in failure'] += 1
             elif input.startswith('root://'):
+                logger.info("input {}".format(input))
                 logger.info("Trying xrootd access method")
                 server, path = re.match("root://([a-zA-Z0-9:.\-]+)/(.*)", input).groups()
+                logger.info("server {} path {}".format(server, path))
                 timeout = '300'  # if the server is bogus, xrdfs hangs instead of returning an error
                 args = [
                     "env",
@@ -467,7 +510,7 @@ def copy_inputs(data, config, env):
                             data['transfers']['xrdcp']['stage-in failure'] += 1
                     else:
                         logger.info("will stream using xrootd instead of copying")
-                        filename = os.path.join(input, file)
+                        filename = join_xrootd_path(input, file)
                         config['mask']['files'].append(filename)
                         config['file map'][filename] = file
                         data['transfers']['root']['stage-in success'] += 1
@@ -917,10 +960,9 @@ def write_report(data):
 def write_zipfiles(data):
     filename = 'report.xml'
     if os.path.exists(filename):
-        with open(filename) as f:
-            zipf = gzip.open(filename + ".gz", "wb")
-            zipf.writelines(f)
-            zipf.close()
+        out_path = filename + '.gz'
+        with open(filename, 'rb') as fin, gzip.open(out_path, 'wb') as fout:
+            shutil.copyfileobj(fin, fout)
 
 
 if __name__ == '__main__':

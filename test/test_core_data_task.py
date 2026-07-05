@@ -24,3 +24,19 @@ class TestDiscovery(object):
     def test_xrootd_server(self):
         fn = os.path.join(os.path.dirname(__file__), 'data', 'siteconf', 'PhEDEx', 'storage.xml')
         assert task.find_xrootd_server(fn) == 'root://ndcms.crc.nd.edu/'
+
+
+class TestXRootDPathJoin(object):
+
+    def test_join_xrootd_path_with_lfn(self):
+        assert task.join_xrootd_path(
+            'root://cmsxrootd.crc.nd.edu//',
+            '/store/mc/file.root'
+        ) == 'root://cmsxrootd.crc.nd.edu//store/mc/file.root'
+
+
+    def test_join_xrootd_path_without_trailing_slash(self):
+        assert task.join_xrootd_path(
+            'root://cmsxrootd.crc.nd.edu',
+            '/store/mc/file.root'
+        ) == 'root://cmsxrootd.crc.nd.edu/store/mc/file.root'

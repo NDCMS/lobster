@@ -17,3 +17,7 @@ event generation and analysis data processing, within the local
 See the [documentation](http://lobster.readthedocs.io) for installing and
 running Lobster, and the [website](http://lobster.crc.nd.edu) for more
 general information.
+
+For this branch's practical guidance on project identity, graceful
+termination, external worker factories, and storage diagnostics, see
+[docs/operational_guidance.md](docs/operational_guidance.md).

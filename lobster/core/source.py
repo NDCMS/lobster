@@ -176,6 +176,8 @@ class TaskProvider(util.Timing):
             # or use 'noncmsRun' if task cmds are different
             cmsconfigs = [wflow.pset for wflow in self.config.workflows]
             cmds = [wflow.command for wflow in self.config.workflows]
+            logger.debug("cmsRun psets: {}".format(cmsconfigs))
+            logger.debug("commands: {}".format(cmds))
             if any(cmsconfigs):
                 exename = 'cmsRun'
             elif all(x == cmds[0] and x is not None for x in cmds):
@@ -260,7 +262,6 @@ class TaskProvider(util.Timing):
             (os.path.join(os.path.dirname(__file__), 'data', 'wrapper.sh'), 'wrapper.sh', True),
             (os.path.join(os.path.dirname(__file__), 'data', 'task.py'), 'task.py', True),
             (os.path.join(os.path.dirname(__file__), 'data', 'report.json.in'), 'report.json.in', True),
-            #(os.path.join(os.path.dirname(__file__), '..', '__init__.py'), os.path.join('lobster', '__init__.py'), True),
             (self.parrot_bin, 'bin', True),
         ]
 
@@ -268,7 +269,6 @@ class TaskProvider(util.Timing):
         # from somewhere else
         import WMCore as WMCore
         base = os.path.dirname(WMCore.__file__)
-        #base = os.path.join(os.path.dirname(__file__), "..", "WMCore")
         reqs = [
             "__init__.py",
             "Algorithms",
@@ -289,8 +289,6 @@ class TaskProvider(util.Timing):
             self._inputs.append((os.environ['X509_USER_PROXY'], 'proxy', False))
 
     def get_taskids(self, label, status='running'):
-        # Iterates over the task directories and returns all taskids found
-        # therein.
         parent = os.path.join(self.workdir, label, status)
         for d in glob.glob(os.path.join(parent, '*', '*')):
             yield int(os.path.relpath(d, parent).replace(os.path.sep, ''))
@@ -299,23 +297,6 @@ class TaskProvider(util.Timing):
         return os.path.join(self.workdir, label, 'successful', util.id2dir(task), 'report.json')
 
     def obtain(self, total, tasks):
-        """
-        Obtain tasks from the project.
-
-        Will create tasks for all workflows, if possible.  Merge tasks are
-        always created, given enough successful tasks.  The remaining tasks
-        are split proportionally between the categories based on remaining
-        resources multiplied by cores used per task.  Within categories,
-        tasks are created based on the same logic.
-
-        Parameters
-        ----------
-            total : int
-                Number of cores available.
-            tasks : dict
-                Dictionary with category names as keys and the number of
-                tasks in the queue as values.
-        """
         remaining = dict((wflow, self.__store.work_left(wflow.label)) for wflow in self.config.workflows)
 
         taskinfos = []
@@ -342,11 +323,7 @@ class TaskProvider(util.Timing):
             outputs = [(os.path.join(jdir, f), f) for f in ['report.json']]
 
             config = {
-                'mask': {
-                    'files': None,
-                    'lumis': None,
-                    'events': None
-                },
+                'mask': {'files': None, 'lumis': None, 'events': None},
                 'default host': self.__host,
                 'default ce': self.__ce,
                 'default se': self.__se,
@@ -360,7 +337,12 @@ class TaskProvider(util.Timing):
                 'gridpack': False
             }
 
+            # IMPORTANT:
+            # Always pass a "python ..." command here.
+            # The wrapper will rewrite python/python3 on the WORKER after cmsenv,
+            # based on the worker's CMSSW/externals layout.
             cmd = 'sh wrapper.sh python task.py parameters.json'
+
             env = {
                 'LOBSTER_CVMFS_PROXY': self.__cvmfs_proxy,
                 'LOBSTER_FRONTIER_PROXY': self.__frontier_proxy,
@@ -388,25 +370,16 @@ class TaskProvider(util.Timing):
                     self.__store.update_missing(missing)
 
                 if len(infiles) <= 1:
-                    # FIXME report these back to the database and then skip
-                    # them.  Without failing these task ids, accounting of
-                    # running tasks is going to be messed up.
                     logger.debug("skipping task {0} with only one input file!".format(id))
 
-                # takes care of the fields set to None in config
                 wflow.adjust(config, env, jdir, inputs, outputs, merge, reports=inreports)
-
                 files = infiles
             else:
-                # takes care of the fields set to None in config
                 wflow.adjust(config, env, jdir, inputs, outputs, merge, unique=unique_arg)
 
             handler = wflow.handler(id, files, lumis, jdir, merge=merge)
 
-            # set input/output transfer parameters
             self._storage.preprocess(config, merge or wflow.parent)
-            # adjust file and lumi information in config, add task specific
-            # input/output files
             handler.adjust(config, inputs, outputs, self._storage)
 
             with open(os.path.join(jdir, 'parameters.json'), 'w') as f:
@@ -414,11 +387,9 @@ class TaskProvider(util.Timing):
                 f.write('\n')
 
             tasks.append(('merge' if merge else wflow.category.name, cmd, id, inputs, outputs, env, jdir))
-
             self.__taskhandlers[id] = handler
 
         logger.info("creating task(s) {0}".format(", ".join(map(str, ids))))
-
         return tasks
 
     def release(self, tasks):
@@ -435,7 +406,6 @@ class TaskProvider(util.Timing):
             with self.measure('updates'):
                 handler = self.__taskhandlers[task.tag]
                 failed, task_update, file_update, unit_update = handler.process(task, summary, transfers)
-
                 wflow = getattr(self.config.workflows, handler.dataset)
 
             with self.measure('handler'):
@@ -461,7 +431,6 @@ class TaskProvider(util.Timing):
                         input_files[handler.dataset].update(set([f for (_, _, f) in file_update]))
 
             update[(handler.dataset, handler.unit_source)].append((task_update, file_update, unit_update))
-
             del self.__taskhandlers[task.tag]
 
         if len(update) > 0:
@@ -505,14 +474,9 @@ class TaskProvider(util.Timing):
         pass
 
     def update_stuck(self):
-        """Have the unit store updated the statistics for stuck units.
-        """
         self.__store.update_workflow_stats_stuck()
 
     def update_runtime(self, category):
-        """Update the runtime for all workflows with the corresponding
-        category.
-        """
         update = []
         for wflow in self.config.workflows:
             if wflow.category == category:

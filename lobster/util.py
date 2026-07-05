@@ -178,7 +178,7 @@ class Configurable(object, metaclass=PartiallyMutable):
 
             if isinstance(ours, Configurable):
                 ours.update(theirs)
-            elif hasattr(ours, '__iter__') or hasattr(theirs, '__iter__'):
+            elif isinstance(ours, (list, tuple)) or isinstance(theirs, (list, tuple)):
                 # protect against empty default lists
                 if ours is None:
                     ours = []
@@ -207,7 +207,7 @@ class Configurable(object, metaclass=PartiallyMutable):
 
                 changed = False
                 for n in range(len(ours)):
-                    if hasattr(ours[n], '__iter__'):
+                    if isinstance(ours[n], (list, tuple)):
                         logger.error("nested list in attribute '{}' not supported".format(arg))
                         continue
                     elif isinstance(ours[n], Configurable):

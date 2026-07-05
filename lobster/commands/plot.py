@@ -139,19 +139,26 @@ def mp_pie(vals, labels, name, plotdir=None, **kwargs):
         ax.set_prop_cycle(monochrome)
 
     newlabels = []
-    total = sum(vals)  # total == 0 causes division error
-    if total != 0:
+    total = sum(vals)
+    if total > 0:
         for label, val in zip(labels, vals):
             if float(val) / total < .025:
                 newlabels.append('')
             else:
                 newlabels.append(label)
+    else:
+        newlabels = [''] * len(labels)
 
     with open(os.path.join(plotdir, name + '.dat'), 'w') as f:
         for l, v in zip(labels, vals):
             f.write('{0}\t{1}\n'.format(l, v))
 
-    patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
+    if total > 0:
+        patches, texts = ax.pie([max(0, val) for val in vals], labels=newlabels, **kwargs)
+    else:
+        patches, texts = [], []
+        ax.text(0.5, 0.5, 'No data', ha='center', va='center')
+        ax.set_axis_off()
 
     if paper:
         for p, h in zip(patches, itertools.cycle(hatching)):
@@ -287,9 +294,24 @@ def mp_plot(a, xlabel, stub=None, ylabel='tasks', bins=50, modes=None, ymax=None
                 if '/' not in ylabel:
                     ax.set_ylabel('{} / {:.0f} min'.format(ylabel,
                                                            (bins[1] - bins[0]) * 24 * 60.))
-            elif float('inf') not in a:  # error passing inf to hist
-                ax.hist([y for (x, y) in a], bins=bins,
-                        histtype='stepfilled', stacked=True, **kwargs)
+            else:
+                cleaned = []
+                has_data = False
+                for _, y in a:
+                    arr = np.asarray(y)
+                    finite = arr[np.isfinite(arr)]
+                    if len(finite) > 0:
+                        has_data = True
+                        cleaned.append(finite)
+                    else:
+                        cleaned.append(np.array([]))
+
+                if has_data:
+                    ax.hist(cleaned, bins=bins,
+                            histtype='stepfilled', stacked=True, **kwargs)
+                else:
+                    ax.text(0.5, 0.5, 'No finite data', ha='center', va='center')
+                    ax.set_axis_off()
         elif mode & Plotter.PROF:
             filename += '-prof'
             data['data'] = []
@@ -520,7 +542,15 @@ class Plotter(object):
         with open(fn) as f:
             headers = dict([(a_b[1], a_b[0]) for a_b in enumerate(f.readline()[1:].split())])
         #stats = np.loadtxt(fn)
-        stats=np.genfromtxt(fn)
+        stats = np.genfromtxt(fn)
+        if stats.size == 0:
+            logger.warning('no stats data available in %s; skipping %s stats', fn, category)
+            stats = np.empty((0, len(headers)))
+        else:
+            stats = np.atleast_2d(stats)
+
+        if stats.shape[0] == 0:
+            return headers, stats
 
         # fix units of time
         stats[:, 0] /= 1e6
@@ -800,6 +830,9 @@ class Plotter(object):
 
     def make_time_fraction_plot(self, category):
         headers, stats = self.__category_stats[category]
+        if len(stats) < 2:
+            logger.warning('not enough stats data available for %s time fraction plots; skipping', category)
+            return
 
         wq_labels = [
             'time_send', 'time_receive', 'time_status_msgs',
@@ -1298,6 +1331,9 @@ class Plotter(object):
         # readlog() determines the time bounds of sql queries if not
         # specified explicitly.
         self.__category_stats = {'all': self.readlog()}
+        if len(self.__category_stats['all'][1]) == 0:
+            logger.warning('not enough stats data available for plotting; skipping')
+            return
         for category in self.config.categories:
             label = category.name
             if label == 'merge':
@@ -1424,6 +1460,9 @@ class Plotter(object):
         for category in self.config.categories:
             label = category.name
             if label == 'merge':
+                continue
+            if len(self.__category_stats[label][1]) == 0:
+                logger.warning('no stats data available for %s; skipping category plots', label)
                 continue
             ids = []
             labels = []

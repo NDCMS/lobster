@@ -5,12 +5,23 @@ import multiprocessing
 import os
 import time
 import traceback
-
+from contextlib import contextmanager
 from lobster.commands.plot import Plotter
 from lobster import util
 
 logger = logging.getLogger('lobster.actions')
 
+@contextmanager
+def _temporary_cwd(path):
+    old = os.getcwd()
+    changed = bool(path and os.path.isdir(path) and os.path.abspath(path) != os.path.abspath(old))
+    try:
+        if changed:
+            os.chdir(path)
+        yield
+    finally:
+        if changed:
+            os.chdir(old)
 
 def runplots(plotter, foremen):
     try:
@@ -44,12 +55,31 @@ class Actions(object):
                 logger.info('updating configuration')
                 self.__last_config_update = time.time()
                 new_config = imp.load_source('userconfig', configfile).config
+            except ModuleNotFoundError as e:
+                base_dir = getattr(self.config, 'base_directory', None)
+                if base_dir and os.path.isdir(base_dir):
+                    logger.warning(
+                        "reload import failed for module '{}' from workdir context; retrying from base directory {}".format(
+                            e.name, base_dir))
+                    with _temporary_cwd(base_dir):
+                        new_config = imp.load_source('userconfig', configfile).config
+                else:
+                    logger.exception('failed to update configuration:')
+                    logger.error(
+                        "missing module '{}' while importing workdir config; base_directory is unavailable, make imports resilient in config.py".format(
+                            e.name))
+                    util.PartiallyMutable.purge()
+                    new_config = None
+            except Exception:
+                logger.exception('failed to update configuration:')
+                logger.error('configuration reload imports <workdir>/config.py as-is; guard top-level commands (e.g. git) in your config with fallback logic')
+                util.PartiallyMutable.purge()
+                new_config = None
+
+            if new_config is not None:
                 self.config.update(new_config)
                 self.config.save()
                 util.register_checkpoint(self.config.workdir, 'configuration_check', self.__last_config_update)
-            except Exception:
-                logger.exception('failed to update configuration:')
-                util.PartiallyMutable.purge()
 
             for method, args in util.PartiallyMutable.changes():
                 if method is None:

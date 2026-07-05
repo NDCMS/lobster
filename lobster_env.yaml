@@ -1,4 +1,4 @@
-name: lobster
+name: LobSkim
 channels:
   - conda-forge
 dependencies:
@@ -42,11 +42,11 @@ dependencies:
   - libedit=3.1.20191231
   - libev=4.33
   - libffi=3.4.2
-  - libgcc-ng=13.2.0
+  - libgcc-ng
   - libgfortran-ng=13.2.0
   - libgfortran5=13.2.0
-  - libgomp=13.2.0
-  - libiconv=1.17
+  - libgomp
+  - libiconv
   - liblapack=3.9.0=23_linux64_openblas
   - libmamba=1.5.8
   - libmambapy=1.5.8
@@ -54,10 +54,10 @@ dependencies:
   - libnsl=2.0.1
   - libopenblas=0.3.27=pthreads_hac2b453_1
   - libsolv=0.7.29
-  - libsqlite=3.46.0
+  - libsqlite
   - libssh2=1.11.0
   - libstdcxx-ng=13.2.0
-  - libuuid=2.38.1
+  - libuuid
   - libxcrypt=4.4.36
   - libxml2=2.12.7
   - libzlib=1.3.1
@@ -70,9 +70,9 @@ dependencies:
   - menuinst=2.1.1
   - nose
   - ncurses=6.5
-  - ndcctools=7.11.1
+  - ndcctools=7.15.11
   - numpy=1.26.4
-  - openssl=3.3.1
+  - openssl
   - packaging=24.1
   - pip=24.0
   - platformdirs=4.2.2
@@ -85,8 +85,8 @@ dependencies:
   - pysocks=1.7.1
   - python-daemon
   - python-dateutil
-  - python=3.10.14
-  - python_abi=3.10=4_cp310
+  - python=3.10.4
+  - python_abi
   - pytz
   - pyxdg
   - readline=8.2
@@ -106,11 +106,11 @@ dependencies:
   - tzdata=2024a
   - urllib3=2.2.1
   - wheel=0.43.0
-  - xz=5.2.6
+  - xz
   - yaml-cpp=0.8.0
   - zlib=1.3.1
   - zstandard=0.19.0
-  - zstd=1.5.6
+  - zstd
   - pip:
     - dbs3-client==4.0.12
     - dbs3_pycurl==3.17.9

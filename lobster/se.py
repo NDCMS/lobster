@@ -252,12 +252,16 @@ class XrootD(StorageElement):
                 # p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={})
                 # pout, err = p.communicate()
                 p = subprocess.run(args, capture_output=True, text=True)
-                if p.returncode != 0 and not kwargs.get('safe', False):
-                    msg = "Failed to execute '{0}':\n{1}\n{2}".format(' '.join(args), err, pout)
-                    raise IOError(msg)
-                output.append(p.stdout)
             except OSError:
                 raise AttributeError("xrd utilities not available")
+
+            stderr = p.stderr or ""
+            stdout = p.stdout or ""
+            if p.returncode != 0 and not kwargs.get('safe', False):
+                msg = "Failed to execute '{0}' with return code {1}:\n{2}\n{3}".format(
+                    ' '.join(args), p.returncode, stderr, stdout)
+                raise IOError(msg)
+            output.append(stdout)
         return '/n'.join(output)
 
     def exists(self, path):
@@ -419,6 +423,8 @@ class StorageConfiguration(Configurable):
             self.input = [
                 self.expand_site(os.path.expanduser(os.path.expandvars(i))) for i in input]
         self.output = [self.expand_site(os.path.expanduser(os.path.expandvars(o))) for o in output]
+
+        print("StorageConfiguration: input = ", self.input)
 
         self.use_work_queue_for_inputs = use_work_queue_for_inputs
         self.use_work_queue_for_outputs = use_work_queue_for_outputs

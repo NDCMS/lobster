@@ -219,9 +219,12 @@ class Workflow(Configurable):
                  local=False,
                  globaltag=None,
                  merge_command='cmsRun'):
+        
         self.label = label
+        print(f"Creating workflow with label: {label}")
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
+        
         self.category = category
         self.dataset = dataset
 
@@ -254,6 +257,8 @@ class Workflow(Configurable):
         self.local = local or hasattr(dataset, 'files')
         self.merge_args = shlex.split(merge_command)
         self.merge_command = self.merge_args.pop(0)
+
+        print(f"Creating workflow with dataset: {self.dataset}")
 
         if sandbox is None:
             raise ValueError("sandbox should not be None")
@@ -510,7 +515,7 @@ class Workflow(Configurable):
                 pset = None
 
             params['prologue'] = None
-            params['epilogue'] = ['python', 'merge_reports.py', 'report.json'] \
+            params['epilogue'] = ['python3', 'merge_reports.py', 'report.json'] \
                 + ["_".join(os.path.normpath(r).split(os.sep)[-3:]) for r in reports]
         else:
             inputs.extend((i, os.path.basename(i), True) for i in self.extra_inputs)
@@ -534,6 +539,9 @@ class Workflow(Configurable):
             params['append inputs to args'] = True
 
         params['executable'] = cmd
+        for ida, arg in enumerate(args):
+            if ">" in arg or "<" in arg or "=" in arg:
+                args[ida] = "\'" + arg + "\'"
         params['arguments'] = args
         if isinstance(self.dataset, ProductionDataset) and not merge:
             params['mask']['events per lumi'] = self.dataset.events_per_lumi

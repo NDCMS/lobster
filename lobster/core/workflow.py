@@ -219,12 +219,12 @@ class Workflow(Configurable):
                  local=False,
                  globaltag=None,
                  merge_command='cmsRun'):
-        
+
         self.label = label
         print(f"Creating workflow with label: {label}")
         if not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', label):
             raise ValueError("Workflow label contains illegal characters: {}".format(label))
-        
+
         self.category = category
         self.dataset = dataset
 

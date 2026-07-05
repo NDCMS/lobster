@@ -39,7 +39,7 @@ Then, still in the cloned lobster directory, run the following command to instal
 pip install -e .
 ```
 
-Now that the `lobster` env is set up, in the future all you need to do is run the following: 
+Now that the `lobster` env is set up, in the future all you need to do is run the following:
 ```
 unset PYTHONPATH
 unset PERL5LIB
@@ -48,7 +48,7 @@ export PATH=/afs/crc.nd.edu/group/ccl/software/x86_64/RedHat9/cctools/7.11.1/bin
 ```
 
 # Running a Simple Config
-In the lobster repository, there is a Python script called "simple.py". This has been updated to work with `lobster-python3` and can be run in the following way: 
+In the lobster repository, there is a Python script called "simple.py". This has been updated to work with `lobster-python3` and can be run in the following way:
 
 1. Set up the necessary CMSSW release in the same directory as where you're running the config file (see directions below).
 2. unset the pythonpath and start the `lobster` environment 
@@ -67,14 +67,14 @@ After the jobs are completed, check the output. In general, lobster output is st
 
 # Setting up a CMSSW environment for the simple example
 For the simple.py script, we're using CMSSW_10_6_26. There are two options: 
-1. Install CMSSW_10_6_26 inside the same directory where simple.py is located 
+1. Install CMSSW_10_6_26 inside the same directory where simple.py is located
     - `lobster/examples/`
     - inside the examples directory, run `unset PERL5LIB` and `cmsrel CMSSW_10_6_26` (NOTE: this has to be done outside of lobster conda environment)
     - reminder: DO NOT do cmsenv
 2. install CMSSW_10_6_26 somewhere else, and edit the path in simple.py on line 45: `release='<your-path-to-CMSSW_10_6_26>'`
 
 # Possible Errors
-After submitting a lobster process and starting a work_queue_factory, if there are no errors in `process.err` or `process_debug.log` but workers are never assigned to the job, try the following: 
+After submitting a lobster process and starting a work_queue_factory, if there are no errors in `process.err` or `process_debug.log` but workers are never assigned to the job, try the following:
 - Kill the current work_queue_factory. 
 - Try running a worker directly with the following command:
 - `apptainer exec --bind /cvmfs:/cvmfs --bind $CONDA_PREFIX:/conda_env /afs/crc.nd.edu/group/ccl/software/runos/images/cc7-wq-7.11.1.img /conda_env/bin/work_queue_worker -M "lobster_${USER}.*" -dall --cores 1 --disk 10000 -t 150`

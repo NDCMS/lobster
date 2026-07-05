@@ -16,22 +16,22 @@ Execute the setup for every step:
 
     for f in *.sh; do sh $f; done
 
-I had to fix the input source for the GEN-SIM step, since the configuration
-produced by the above steps contains an `EmptySource`, but should really be
-a `PoolSource` to run on the first step.
+The generated configuration may require an input-source correction for the
+GEN-SIM step: the generated file contains an `EmptySource`, while the first
+step requires a `PoolSource`.
 
 Create a Lobster configuration like this:
 
-    id: mate
+    id: mc_production
     type: cmssw
 
-    workdir: /tmpscratch/users/matze/prod_v3
-    plotdir: /afs/crc.nd.edu/user/m/mwolf3/www/lobster/prod_v3
+    workdir: /tmpscratch/users/$USER/prod_v3
+    plotdir: /path/to/your/web-area/lobster/prod_v3
 
     storage:
         output:
-          - file:///cms/cephfs/data/store/user/matze/prod/v3
-          - root://ndcms.crc.nd.edu//store/user/matze/prod/v3
+          - file:///cms/cephfs/data/store/user/$USER/prod/v3
+          - root://ndcms.crc.nd.edu//store/user/$USER/prod/v3
 
     use dashboard: true
 
@@ -42,7 +42,7 @@ Create a Lobster configuration like this:
       - label: lhe_step
         cmssw config: HIG-RunIIWinter15wmLHE-00196_1_cfg.py
         outputs: [HIG-RunIIWinter15wmLHE-00196.root]
-        sandbox release: /afs/crc.nd.edu/user/m/mwolf3/work/ttH/mc_gen2/CMSSW_7_1_16_patch1
+        sandbox release: /path/to/your/cmssw-area/CMSSW_7_1_16_patch1
         events per task: 4000
         events per lumi: 200
         num tasks: 1000
@@ -52,7 +52,7 @@ Create a Lobster configuration like this:
         parent dataset: lhe_step
         cmssw config: HIG-RunIIWinter15GS-00301_1_cfg.py
         outputs: [HIG-RunIIWinter15GS-00301.root]
-        sandbox release: /afs/crc.nd.edu/user/m/mwolf3/work/ttH/mc_gen2/CMSSW_7_1_16_patch2
+        sandbox release: /path/to/your/cmssw-area/CMSSW_7_1_16_patch2
         lumis per task: 1
         task runtime: 3600
         cores per task: 4
@@ -61,7 +61,7 @@ Create a Lobster configuration like this:
         parent dataset: gs_step
         cmssw config: HIG-RunIISpring15DR74-00280_1_cfg.py
         outputs: [HIG-RunIISpring15DR74-00280_step1.root]
-        sandbox release: /afs/crc.nd.edu/user/m/mwolf3/work/ttH/mc_gen2/CMSSW_7_4_1_patch4
+        sandbox release: /path/to/your/cmssw-area/CMSSW_7_4_1_patch4
         lumis per task: 10
         task runtime: 3600
         cores per task: 4
@@ -70,7 +70,7 @@ Create a Lobster configuration like this:
         parent dataset: digi_step
         cmssw config: HIG-RunIISpring15DR74-00280_2_cfg.py
         outputs: [HIG-RunIISpring15DR74-00280_step2.root]
-        sandbox release: /afs/crc.nd.edu/user/m/mwolf3/work/ttH/mc_gen2/CMSSW_7_4_1_patch4
+        sandbox release: /path/to/your/cmssw-area/CMSSW_7_4_1_patch4
         lumis per task: 1
         task runtime: 3600
         cores per task: 4
@@ -79,7 +79,7 @@ Create a Lobster configuration like this:
         parent dataset: reco_step
         cmssw config: HIG-RunIISpring15MiniAODv2-00169_1_cfg.py
         outputs: [HIG-RunIISpring15MiniAODv2-00169.root]
-        sandbox release: /afs/crc.nd.edu/user/m/mwolf3/work/ttH/mc_gen2/CMSSW_7_4_14
+        sandbox release: /path/to/your/cmssw-area/CMSSW_7_4_14
         lumis per task: 60
         task runtime: 3600
         cores per task: 1

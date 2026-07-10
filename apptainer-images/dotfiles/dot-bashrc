@@ -1,0 +1,7 @@
+## .bashrc/.zshrc
+export PYTHONSTARTUP=/etc/pythonrc.py
+export PS1="(\w) "
+export PROMPT='[%*] %B%n@%m %3~%b $ '
+# define aliases
+alias cmsenv='eval `scramv1 runtime -sh`'
+alias cmsrel='scramv1 project CMSSW'

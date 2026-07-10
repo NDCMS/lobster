@@ -1,0 +1,434 @@
+#!/bin/bash
+# Mount cvmfs repository in a user namespace and change to that space.
+# Requires being able to run unshare -rm and either fusermount or 
+#   user namespace fuse mounts (kernel >= 4.18).
+# Additional repositories can be mounted from within the command with
+#   $CVMFSMOUNT and repositories can be umounted with $CVMFSUMOUNT.
+# Written by Dave Dykstra September 2019
+
+#set -x
+#PS4='c$$+ '
+
+VERSION=4.40
+
+usage()
+{
+    echo "Usage: cvmfsexec [-vN] [-m e2fs_image] [repo ...] -- [command]" >&2
+    echo "       -v:   print current version and exit" >&2
+    echo "       -N:   disable the option of nesting [u]mountrepo commands" >&2
+    echo "       -m:   mount given ext2/3/4 filesystem image at /e2fs" >&2
+    exit 1
+}
+
+HERE="$(cd `dirname $0` && pwd)"
+
+# needed for pivot_root
+PATH=$PATH:/usr/sbin
+
+KERNEL_VERSION="$(uname -r)"
+MAJORKERN=${KERNEL_VERSION/.*/}
+RESTKERN=${KERNEL_VERSION#$MAJORKERN.}
+MINORKERN=${RESTKERN/.*/}
+REVKERN=${KERNEL_VERSION#*-}
+REVKERN=${REVKERN/.*/}
+USERFUSE=false
+if [ "$MAJORKERN" -gt 4 ] || [ "$MAJORKERN" -eq 4 -a "$MINORKERN" -ge 18 ]; then
+    USERFUSE=true
+elif [ "$MAJORKERN" -eq 3 -a "$MINORKERN" -eq 10 -a "$REVKERN" -ge 1127 ]; then
+    # RHEL 7.8+ kernel
+    USERFUSE=true
+fi
+
+TMPDIR=$(mktemp -d)
+trap "rm -rf $TMPDIR" 0  # note that trap does not carry past exec
+CMDFIFO1=$TMPDIR/cmd1
+WAITFIFO1=$TMPDIR/wait1
+CMDFIFO2=$TMPDIR/cmd2
+WAITFIFO2=$TMPDIR/wait2
+FUNCS=$TMPDIR/funcs
+
+# create the fifos used for interprocess communication
+mkfifo $CMDFIFO1 $WAITFIFO1 $CMDFIFO2 $WAITFIFO2
+export CVMFSEXEC_WAITFIFO=$WAITFIFO1
+
+# bash syntax {NAME}<&N doesn't work on older bashes such as the 
+# version 3.2.x on macOS Big Sur, and in fact it fails with an error
+# message but not an error code, so test for it first to be able to
+# gracefully die
+
+if [ -n "$({TESTX}<&0 2>&1)" ]; then
+    echo "Cannot assign file descriptors to variables, bash version too old" >&2
+    exit 1
+fi
+
+# make a copy of stdin fd, for use in '&' and by unshare
+exec {STDINCOPYFD}<&0
+
+# set up standard certificate & token paths if not already set,
+# because the authorization helper runs as a fake root user.
+if [ -z "$X509_USER_PROXY" ]; then
+    export X509_USER_PROXY="/tmp/x509up_u$UID"
+fi
+if [ -z "$BEARER_TOKEN_FILE" ]; then
+    export BEARER_TOKEN_FILE="${XDG_RUNTIME_DIR:-/tmp}/bt_u$UID"
+fi
+
+ORIGPWD=$PWD
+
+NONESTING=false
+E2FSIMAGE=""
+# can't use OPTIND because it can't distinguish between -- there or missing
+NOPTS=0
+while getopts "vNm:" OPTION; do
+    let NOPTS+=1
+    case $OPTION in
+        v)  echo "$VERSION"
+            exit
+            ;;
+        N)  NONESTING=true
+            ;;
+        m)  E2FSIMAGE=$OPTARG
+            shift
+            ;;
+        \?) usage
+            ;;
+    esac
+done
+shift $NOPTS
+
+REPOS=""
+for ARG; do
+    if [ "$ARG" == "--" ]; then
+        break
+    fi
+    if [[ " $REPOS " != *" $ARG "* ]]; then
+        REPOS="$REPOS $ARG"
+    fi
+    shift
+done
+
+if [ "$ARG" != "--" ]; then
+    usage
+fi
+shift
+
+# Add the config repo if not already asked for
+if [ -n "`find $HERE/dist/etc/cvmfs/default.d -name "*.conf" 2>/dev/null`" ]; then
+    CONFIG_REPO="`grep -h '^CVMFS_CONFIG_REPOSITORY=' $HERE/dist/etc/cvmfs/default.d/*.conf 2>/dev/null|tail -1|sed 's/^CVMFS_CONFIG_REPOSITORY=//'`"
+    if [[ " $REPOS " != *" $CONFIG_REPO "* ]]; then
+        REPOS="$CONFIG_REPO $REPOS"
+    fi
+fi
+
+MOUNTED_REPOS=""
+# function to process mount/umount commands from child processes
+proccmd()
+{
+    if [ "$1" = "-n" ]; then
+        NOTIFY=false
+        shift
+    else
+        NOTIFY=true
+    fi
+    REPO="$2"
+    RET=0
+    if [ "$1" == MOUNTREPO ]; then
+        if [[ " $MOUNTED_REPOS " != *" $REPO "* ]]; then
+            # not already mounted
+            cd "$HERE"
+            ./mountrepo "$REPO"
+            RET=$?
+            if [ $? == 0 ]; then
+                if $USERFUSE; then
+                    mkdir -p "/cvmfs/$REPO"
+                    mount --bind "$HERE/dist/cvmfs/$REPO" "/cvmfs/$REPO"
+                    RET=$?
+                fi
+                # put new one at the beginning so config repo will
+                #   be unmounted last
+                MOUNTED_REPOS="$REPO $MOUNTED_REPOS"
+            fi
+            cd - >/dev/null
+        fi
+    elif [ "$1" == UMOUNTREPO ]; then
+        if [[ " $MOUNTED_REPOS " == *" $REPO "* ]]; then
+            # is mounted
+            if $USERFUSE; then
+                # first remove the bind mount at /cvmfs
+                umount "/cvmfs/$REPO"
+                RET=$?
+                rmdir "/cvmfs/$REPO"
+            fi
+            if [ "$RET" == 0 ]; then
+                cd "$HERE"
+                ./umountrepo "$REPO"
+                RET=$?
+                MOUNTED_REPOS="`echo " $MOUNTED_REPOS "|sed "s/ $REPO / /"`"
+                # remove extra blanks
+                MOUNTED_REPOS="`echo $MOUNTED_REPOS`"
+                cd - >/dev/null
+            fi
+        else
+            echo "$REPO not mounted" >&2
+            RET=1
+        fi
+    elif [ "$1" == UMOUNTALL ]; then
+        for R in $MOUNTED_REPOS; do
+            proccmd -n UMOUNTREPO $R >/dev/null
+        done
+    else
+        echo "Unrecognized command $1" >&2
+        RET=1
+    fi
+    if $NOTIFY; then
+        echo "$RET" >$CVMFSEXEC_WAITFIFO
+    fi
+}
+# this function is needed from within unshare so write it to a file
+declare -f proccmd >$FUNCS
+
+if $USERFUSE; then
+    if mount|egrep -q " /proc/(sys |driver)"; then
+        # inside of docker or kubernetes with systempaths "masked"
+        # or using docker --gpus
+        UNSHAREOPTS=""
+    else
+        # use a separate PID namespace to always clean up fuse processes
+        UNSHAREOPTS="-pf"
+    fi
+    # the fakeroot process will process mount requests
+    CMDFIFO2=$CMDFIFO1
+else
+    # mount the repositories as the unprivileged user in the 
+    #  shared system namespace.
+
+    # mount the repos, keeping track of them for cleanup
+    cd $HERE
+    for REPO in $REPOS; do
+        if ./mountrepo $REPO; then
+            # put new one at the beginning so config repo will
+            #   be unmounted last
+            MOUNTED_REPOS="$REPO $MOUNTED_REPOS"
+        else
+            RET="$?"
+            for REPO in $MOUNTED_REPOS; do
+                ./umountrepo $REPO
+            done
+            exit $RET
+        fi
+    done
+    cd $ORIGPWD
+
+    UNSHAREOPTS="--propagation unchanged"
+
+    (
+    # This is the background process for accepting mount/umount commands
+    #   from children and for cleaning up on exit
+    trap "" 1 2 3 15  # ignore ordinary signals
+    # read from user namespace process and write to fakeroot process
+    while read -u $CMDINFD CMD PARAM; do
+        proccmd "$CMD" "$PARAM"
+    done <&$STDINCOPYFD {STDINCOPYFD}<&- {CMDINFD}<$CMDFIFO1
+    # do unmounts and cleanup after user command exits
+    cd $HERE
+    for REPO in $MOUNTED_REPOS; do
+        if [ "$REPO" == "$CONFIG_REPO" ]; then
+            # give a little extra time for the others to exit
+            sleep 1
+        fi
+        ./umountrepo $REPO >/dev/null
+    done
+    rm -rf $TMPDIR
+    ) &
+fi
+
+rm -rf "$HERE/mnt"
+
+export STDINCOPYFD
+
+# Note that within the here document, unprotected $ substitutions are
+#  done by the surrounding shell, and \$ is within the unshare shell
+unshare -rm $UNSHAREOPTS /bin/bash /dev/stdin "${@:-$SHELL}" <<!EOF-1!
+    #set -x
+    #PS4='c\$$+ '
+    # now in the "fakeroot" namespace
+    trap "rm -rf $TMPDIR" 0 # note that this does not carry through "exec"
+
+    mkdir -p $HERE/mnt
+    mount --rbind $HERE/mnt $HERE/mnt # pivot_root requires this mountpoint
+    mkdir -p $HERE/mnt/cvmfs
+
+    # implement "underlay" for all but /cvmfs and /e2fs)
+    for ROOTFILE in /.??* /*; do
+        if [ "\$ROOTFILE" == "/.??*" ] || [ "\$ROOTFILE" = "/cvmfs" ] || [ "\$ROOTFILE" = "/e2fs" ]; then
+            continue
+        fi
+        TARG=$HERE/mnt/\$ROOTFILE
+        if [ -L \$ROOTFILE ]; then
+            ln -s \$(readlink -f \$ROOTFILE) \$TARG
+        elif [ -d \$ROOTFILE ]; then
+            mkdir -p \$TARG
+            mount --rbind \$ROOTFILE \$TARG
+        elif [ -f \$ROOTFILE ]; then
+            touch \$TARG
+            mount --bind \$ROOTFILE \$TARG
+        else
+            : \$ROOTFILE not directory, file, or symlink -- skipping bind mount
+            : This can happen if the source had Permission denied
+        fi
+    done
+
+    if $USERFUSE; then
+        # Import needed functions into this shell
+        HERE=$HERE  # copy a var the functions need into this shell
+        . $FUNCS
+    fi
+
+    ( 
+    # This is a background process for accepting commands from children
+    trap "" 1 2 3 15  # ignore ordinary signals
+    MOUNTED_REPOS="$REPOS"  # they'll get mounted soon
+    while read -u \$CMDINFD CMD PARAM; do
+        if [ "\$CMD" == PID ]; then
+            # set up uid/gid map
+            echo "\$(awk '{print \$2; exit}' /proc/self/gid_map) 0 1" >/proc/"\$PARAM"/gid_map
+            echo "\$(awk '{print \$2; exit}' /proc/self/uid_map) 0 1" >/proc/"\$PARAM"/uid_map
+            echo "ready" >$WAITFIFO2
+        elif $USERFUSE; then
+            proccmd "\$CMD" "\$PARAM"
+        fi
+    done <&$STDINCOPYFD {CMDINFD}<$CMDFIFO2
+    # shutting down
+    if [ -n "$E2FSIMAGE" ] || ($USERFUSE && [ -z "$UNSHAREOPTS" ]); then
+        # automatic cleanup doesn't happen in these cases, so unmount all
+        proccmd -n UMOUNTALL
+        if [ -n "$E2FSIMAGE" ]; then
+            # wait a little for fuse processes to exit
+            umountwait() {
+                N=0
+                while [ "\$N" -lt 20 ]; do
+                    if [ -z "\$(ps -e|grep \$1)" ]; then
+                        break
+                    fi
+                    sleep 0.1
+                    let N+=1
+                done
+            }
+            umountwait cvmfs2
+            umount /e2fs
+            umountwait fuse2fs
+        fi
+    fi
+    ) &
+    
+    # Change to the new root.  Would use chroot but it doesn't work.
+    cd $HERE/mnt
+    mkdir -p .old-root
+    pivot_root . .old-root
+    cd $ORIGPWD
+
+    if $USERFUSE; then
+        if [ -n "$UNSHAREOPTS" ]; then
+            # mount a new /proc for the new pid space
+            mount -t proc proc /proc
+            RET="\$?"
+            if [ "\$RET" != 0 ]; then
+                echo "mount /proc failed"
+                exit \$RET
+            fi
+        fi
+
+        cd $HERE
+
+        if [ "$E2FSIMAGE" != "" ]; then
+            echo "Mounting $E2FSIMAGE at /e2fs"
+            mkdir -p /e2fs
+            PATH=$PATH:$HERE/dist/usr/sbin LD_LIBRARY_PATH=$HERE/dist/usr/lib64:$HERE/dist/usr/lib fuse2fs $E2FSIMAGE /e2fs
+        fi
+
+        # mount the initial repos
+        for REPO in $REPOS; do
+            ./mountrepo \$REPO
+            RET="\$?"
+            if [ "\$RET" != 0 ]; then
+                echo "mountrepo \$REPO failed"
+                exit \$RET
+            fi
+
+            mkdir -p /cvmfs/\$REPO
+            mount --bind $HERE/dist/cvmfs/\$REPO /cvmfs/\$REPO
+        done
+        cd - >/dev/null
+
+    else
+        # map cvmfs repos mounted by parent
+        mount --rbind $HERE/dist/cvmfs /cvmfs
+    fi
+
+    export CVMFSEXEC_CMDFD
+    exec {CVMFSEXEC_CMDFD}>$CMDFIFO1 
+
+    if [ -z "$UNSHAREOPTS" ] || [ $USERFUSE = false ]; then
+        # running without new process namespace, so more cleanup
+        #  needs to be done and our exit needs to wait for the
+        #  background process to finish cleaning up
+        EXEC=""
+    elif [ -n "$E2FSIMAGE" ]; then
+        # fuse2fs complains if this doesn't get unmounted cleanly
+        EXEC=""
+    else
+        EXEC=exec
+    fi
+
+    # quoting the here document's delimeter makes this nested shell not
+    #  interpret $ substitutions, but the previous one still does
+    \$EXEC unshare -U /bin/bash /dev/stdin "\${@:-$SHELL}" <<'!EOF-2!'
+        #set -x
+        #PS4='c\$$+ '
+        # now in the user namespace
+
+        if [ "$CMDFIFO1" == "$CMDFIFO2" ]; then
+            echo "PID \$$" >&\$CVMFSEXEC_CMDFD
+        else
+            # open & close the command fifo, so background process will exit
+            echo "PID \$$" >$CMDFIFO2
+        fi
+        read X <$WAITFIFO2
+
+        if $NONESTING; then
+            exec {CVMFSEXEC_CMDFD}>&-
+            unset CVMFSEXEC_CMDFD
+            unset CVMFSEXEC_WAITFIFO
+        else
+            export CVMFSMOUNT="$HERE/mountrepo"
+            export CVMFSUMOUNT="$HERE/umountrepo"
+        fi
+
+        if [ \$$ -eq 1 ]; then
+            # Leave this bash running as PID 1, because most other
+            #  programs won't handle signals & child reaping correctly,
+            #  and also for the cleanup trap because all other
+            #  processes in the namespaces will get a SIGKILL when
+            #  PID 1 exits.
+            EXEC=""
+            trap "rm -rf $TMPDIR" 0
+            trap "" 1 2 3 15  # ignore all ordinary signals
+        else
+            EXEC=exec
+        fi
+        export -n STDINCOPYFD
+        \$EXEC "\$@" <&\$STDINCOPYFD {STDINCOPYFD}<&-
+!EOF-2!
+
+    RET="\$?"
+    exec {CVMFSEXEC_CMDFD}>&-
+    # wait for background process to clean up
+    wait
+    exit \$RET
+
+!EOF-1!
+
+RET="$?"
+# wait for background process to clean up
+wait
+exit $RET

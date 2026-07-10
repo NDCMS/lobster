@@ -1,0 +1,94 @@
+Bootstrap: docker
+From: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+#From: gitlab-registry.cern.ch/linuxsupport/cc7-base:20220601-1.x86_64
+
+# https://gitlab.cern.ch/cms-cloud/cmssw-docker/-/tree/master/cc7-cms?ref_type=heads
+
+%labels
+    maintainer "CMS Data Preservation and Open Access Group <cms-dpoa-coordinators@cern.ch>"
+    org.label-schema.build-date $BUILD_DATE
+    org.label-schema.name "CC7 CMS base OS"
+    org.label-schema.description "CC7 OS capable of using/running CMS software release(s)."
+    org.label-schema.url "http://cms-sw.github.io/"
+    org.label-schema.vcs-ref $VCS_REF
+    org.label-schema.vcs-url $VCS_URL
+    org.label-schema.vendor "CERN"
+    org.label-schema.version $VERSION
+    org.label-schema.schema-version "1.0"
+
+%post
+    mkdir -p /home/cmsusr
+    yum-config-manager --save --setopt=epel.skip_if_unavailable=true
+
+
+    yum install -y libX11-devel libXext-devel mesa-libGLU-devel \
+        mesa-libGL-devel libSM libXft libXext \
+        pciutils glx-utils mesa-dri-drivers libX11 libXi libXrender \
+        tcsh zsh tcl tk e2fsprogs perl-ExtUtils-Embed compat-libstdc++-33 libXmu e2fsprogs-libs libXpm bc libaio \
+        tar patch krb5-devel perl-Data-Dumper gcc-4.9 libstdc++6 unzip zip perl-libwww-perl libXpm-devel libXft-devel svn cvs \
+        gcc-c++ gdb strace cern-wrappers krb5-workstation wget hostname readline-devel nano bzip2 perl-Switch perl-Storable \
+        perl-Env packages perl-Thread-Queue CERN-CA-certs tk-devel tcl-devel which python-pip perl voms-clients-cpp \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel popt libXcursor libXrandr libXinerama nspr nss nss-util file file-libs \
+        readline bzip2-libs python-requests-kerberos libgfortran time python2-psutil python3 \
+        HEP_OSlibs_CC7 git \
+        yum-plugin-ovl openssl \
+        glibc-devel.i686 glibc-devel \
+        glibc-headers \
+        sudo nano && \
+        yum clean -y all
+
+    wget http://repository.egi.eu/sw/production/cas/1/current/repo-files/egi-trustanchors.repo && \
+        mv egi-trustanchors.repo /etc/yum.repos.d/ && \
+        wget http://repository.egi.eu/sw/production/cas/1/gpg-key-eugridpma-rpm-3 && \
+        mv gpg-key-eugridpma-rpm-3 /etc/pki/rpm-gpg/ && \
+        wget http://linuxsoft.cern.ch/wlcg/wlcg-centos7.repo && \
+        mv wlcg-centos7.repo /etc/yum.repos.d/ && \
+        wget http://linuxsoft.cern.ch/wlcg/rpm-gpg-key-wlcg && \
+        mv rpm-gpg-key-wlcg /etc/pki/rpm-gpg/ && \
+        yum install -y ca-policy-egi-core wlcg-repo.noarch wlcg-voms-cms && \
+        yum clean -y all
+
+    yum install -y eos-client && yum clean -y all
+
+    groupadd -g 1000 cmsusr && useradd -u 1000 -g 1000 -G root cmsusr && \
+        echo "cmsusr ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers && \
+        groupadd -g 1001 cmsinst && useradd -u 1001 -g 1001 cmsinst && \
+        mkdir -p /opt && mkdir -p /opt/cms && chown cmsinst /opt/cms
+
+    mkdir -p /cms /cvmfs /afs /eos /pool /code /tmp /var/tmp && \
+        chmod 1777 /cms /cvmfs /afs /eos /pool /code /tmp /var/tmp && \
+        chown -R cmsusr:cmsusr /code
+
+%environment
+    export USER=cmsusr
+    export HOME=/home/cmsusr
+
+%files
+    ../../entrypoints/entrypoint-nd-rh7.sh /opt/cms/entrypoint.sh
+
+    ../../dotfiles/dot-pythonrc.py /etc/pythonrc.py
+    ../../dotfiles/dot-bashrc /etc/profile.d/bashrc.sh
+
+    cvmfsexec-mnt /opt/cms/cvmfsexec-mnt
+
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/7.12.0/bin/work_queue_worker /usr/bin/work_queue_worker
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/7.12.0/bin/work_queue_worker /usr/bin/vine_worker
+
+    # /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/7.3.3/bin/work_queue_worker /usr/bin/work_queue_worker
+    # /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/7.1.9/bin/work_queue_worker /usr/bin/work_queue_worker
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/7.1.0/bin/work_queue_worker /usr/bin/work_queue_worker_old
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/lobster-171-cd5e3e2c-cvmfs-70dfa0d6/bin/parrot_cvmfs_static_run /usr/bin/parrot_run
+
+    eos.repo /etc/yum.repos.d/eos.repo
+
+%runscript
+    exec /opt/cms/entrypoint.sh "$@"
+
+%startscript
+    exec /opt/cms/entrypoint.sh "$@"
+
+%post
+    chmod 755 /opt/cms/entrypoint.sh
+    chown -R cmsusr /home/cmsusr
+    chmod 755 /home/cmsusr

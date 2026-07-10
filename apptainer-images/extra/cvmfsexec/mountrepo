@@ -1,0 +1,158 @@
+#!/bin/bash
+#
+# Mount a cvmfs repository as an unprivileged user.
+# Works with fusermount or with a kernel (>= 4.18) that supports mounting
+#   fuse repositories in unprivileged "fakeroot" namespaces.
+# Mounts in cvmfs subdirectory of the directory where the command is found.
+# Written by Dave Dykstra 17 April 2019
+#
+
+usage()
+{
+    echo "Usage: mountrepo repo.name" >&2
+    exit 1
+}
+
+if [ $# != 1 ]; then
+    usage
+fi
+
+REPO="$1"
+
+if [ -n "$CVMFSEXEC_CMDFD" ] && [ -n "$CVMFSEXEC_WAITFIFO" ]; then
+    # this is within cvmfsexec, requesting to mount another repo
+    if [ -z "$CVMFSMOUNT" ]; then
+        echo "$0: mount within cvmfsexec only works through \$CVMFSMOUNT interface" >&2
+        exit 1
+    fi
+
+    # Send command to the "parent" process still outside the namespace.
+    # "Parent" is in quotes because the linux process tree gets reversed and
+    #   it is actually a linux child.  It is a parent environment-wise though.
+    set -e
+    echo MOUNTREPO $REPO >&$CVMFSEXEC_CMDFD
+    exec {CVMFSEXEC_CMDFD}>&- # close it, no longer needed
+    # wait until that process is finished mounting
+    read RET <$CVMFSEXEC_WAITFIFO
+    exit $RET
+fi
+
+HERE="$(cd `dirname $0` && pwd)"
+DIST="$HERE/dist"
+
+if [ ! -f $DIST/usr/bin/cvmfs2 ] || [ ! -f $DIST/etc/cvmfs/default.conf ]; then
+    echo "$DIST should be rpm2cpio of cvmfs rpm" >&2
+    exit 1
+fi
+
+CONFFILE="`mktemp`"
+trap "rm -f $CONFFILE" 0
+
+# recursively substitute a ". " or "source " with the contents of the
+#  sourced file. 
+procsource()
+{
+    for FILE; do
+        while read LINE; do
+            case "$LINE" in
+                ". "*) eval procsource "${LINE/. /}";;
+                "source "*) eval procsource "${LINE/source /}";;
+                *) echo "$LINE";;
+            esac
+        done <$FILE
+    done
+}
+
+# relocate the given files and process them for sourced files the same way
+#  that cvmfs does
+relocate()
+{
+    cd ${1%/*}
+    # do /var first in case $DIST begins with /var
+    procsource $* 2>/dev/null | \
+        sed -e "s,^\([^/]*\)/var,\1$DIST/var," \
+            -e "s,^\([^/]*\)/etc,\1$DIST/etc," \
+            -e "s,^\([^/]*\)/cvmfs$,\1$DIST/cvmfs," \
+            -e "s,^\([^/]*\)/cvmfs/,\1$DIST/cvmfs/,"
+    cd - >/dev/null
+}
+
+DOMAIN="`echo "$REPO"|cut -d. -f2-`"
+(
+DEFD_FILES="`find $DIST/etc/cvmfs/default.d -name "*.conf" 2>/dev/null`"
+if [ -n "$DEFD_FILES" ]; then
+    CONFIG_REPO="`sed -n 's/^CVMFS_CONFIG_REPOSITORY=//p' $DIST/etc/cvmfs/default.d/*.conf`"
+fi
+# these are used in some configuration repository includes, set them
+#   for procsource
+CVMFS_CONFIG_REPOSITORY=$CONFIG_REPO
+CVMFS_MOUNT_DIR=$DIST/cvmfs
+
+relocate $DIST/etc/cvmfs/default.conf
+if [ -n "$DEFD_FILES" ]; then
+    relocate $DIST/etc/cvmfs/default.d/*.conf
+fi
+if [ -n "$CONFIG_REPO" -a "$REPO" != "$CONFIG_REPO" ]; then
+    relocate $DIST/cvmfs/$CONFIG_REPO/etc/cvmfs/default.conf
+fi
+
+DEFLOCAL=$DIST/etc/cvmfs/default.local
+relocate $DEFLOCAL
+# set some defaults if they weren't already in the dist's default.local
+if ! grep -q "^CVMFS_NFILES=" $DEFLOCAL 2>/dev/null; then
+    echo "CVMFS_NFILES=`ulimit -Hn`"
+fi
+if ! grep -q "^CVMFS_USYSLOG=" $DEFLOCAL 2>/dev/null; then
+    mkdir -p $HERE/log
+    echo "CVMFS_USYSLOG=$HERE/log/$REPO.log"
+fi
+if ! grep -q "^CVMFS_CACHE_BASE=" $DEFLOCAL 2>/dev/null && [ -d /e2fs ]; then
+    mkdir -p /e2fs/cvmfscache
+    echo "CVMFS_CACHE_BASE=/e2fs/cvmfscache"
+fi
+
+if [ -n "$CONFIG_REPO" -a "$REPO" != "$CONFIG_REPO" ]; then
+    relocate $DIST/cvmfs/$CONFIG_REPO/etc/cvmfs/domain.d/$DOMAIN.conf
+fi
+relocate $DIST/etc/cvmfs/domain.d/$DOMAIN.conf
+relocate $DIST/etc/cvmfs/domain.d/$DOMAIN.local
+if [ -n "$CONFIG_REPO" -a "$REPO" != "$CONFIG_REPO" ]; then
+    REPOCONF=$DIST/cvmfs/$CONFIG_REPO/etc/cvmfs/config.d/$REPO.conf
+    if [ "$REPO" = oasis.opensciencegrid.org ]; then
+        # OASIS_CERTIFICATES is one special variable we do not want relocated
+        relocate $REPOCONF | sed 's,^\(OASIS_CERTIFICATES\)=.[^/]*,\1=/cvmfs,'
+    else
+        relocate $REPOCONF
+    fi
+fi
+relocate $DIST/etc/cvmfs/config.d/$REPO.conf
+relocate $DIST/etc/cvmfs/config.d/$REPO.local
+
+# this is for finding an authz helper
+echo CVMFS_AUTHZ_CVMFS_DIST=$DIST
+
+) > $CONFFILE
+
+OPTS=""
+if grep -q ^CVMFS_DEBUGLOG=. $CONFFILE; then
+    OPTS="$OPTS,debug"
+fi
+
+mkdir -p $DIST/var/run/cvmfs
+mkdir -p $DIST/cvmfs/$REPO
+if [ -f $DIST/usr/lib/libcvmfs_fuse.so ]; then
+    LPATH=$DIST/usr/lib
+    LDPATH=$LPATH
+    if [ ! -f $LPATH/libfuse.so.2 ]; then
+        # for el6
+        LDPATH=$LPATH:$DIST/lib
+    fi
+else
+    LPATH=$DIST/usr/lib64
+    LDPATH=$LPATH
+    if [ ! -f $LPATH/libfuse.so.2 ]; then
+        # for el6
+        LDPATH=$LPATH:$DIST/lib64
+    fi
+fi
+LD_LIBRARY_PATH=$LDPATH CVMFS_LIBRARY_PATH=$LPATH $DIST/usr/bin/cvmfs2 -o config=$CONFFILE$OPTS $REPO $DIST/cvmfs/$REPO

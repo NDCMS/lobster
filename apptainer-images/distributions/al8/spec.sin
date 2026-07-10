@@ -1,0 +1,89 @@
+BootStrap: docker
+From: gitlab-registry.cern.ch/linuxsupport/alma8-base:latest
+
+%labels
+    maintainer "CMS Data Preservation and Open Access Group <cms-dpoa-coordinators@cern.ch>"
+    org.label-schema.build-date $BUILD_DATE \
+    org.label-schema.name "AlmaLinux 8 CMS base OS" \
+    org.label-schema.description "AlmaLinux8 OS capable of using/running CMS software release(s)." \
+    org.label-schema.url "http://cms-sw.github.io/" \
+    org.label-schema.vcs-ref $VCS_REF \
+    org.label-schema.vcs-url $VCS_URL \
+    org.label-schema.vendor "CERN" \
+    org.label-schema.version $VERSION \
+    org.label-schema.schema-version "1.0"
+
+%files
+    ../../dotfiles/dot-pythonrc.py /etc/pythonrc.py
+    ../../dotfiles/dot-bashrc /etc/profile.d/bashrc.sh
+    ../../entrypoints/entrypoint-nd.sh /opt/cms/entrypoint.sh
+    cvmfsexec-mnt /opt/cms/cvmfsexec-mnt
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat8/cctools/current/bin/work_queue_worker /usr/bin/work_queue_worker
+
+    # parrot from redhat7, it is ok because the binary is statically linked.
+    /afs/crc.nd.edu/group/ccl/software/x86_64/redhat7/cctools/lobster-171-cd5e3e2c-cvmfs-70dfa0d6/bin/parrot_cvmfs_static_run /usr/bin/parrot_run
+
+%environment
+    export LC_ALL=en_US.UTF-8
+    export LANG=en_US.UTF-8
+    export USER=cmsusr
+    export HOME=/home/cmsusr
+
+%post
+        yum install -y libX11-devel libXext-devel mesa-libGLU-devel \
+        mesa-libGL-devel libSM libXft libXext \
+        pciutils glx-utils mesa-dri-drivers libX11 libXi libXrender \
+        tcsh zsh tcl tk e2fsprogs perl-ExtUtils-Embed libXmu e2fsprogs-libs libXpm bc libaio \
+        tar patch krb5-devel perl-Data-Dumper perl-CGI perl-DBI perl-YAML gcc unzip zip perl-libwww-perl libXpm-devel libXft-devel svn \
+        gcc-c++ strace cern-wrappers krb5-workstation wget hostname readline-devel nano bzip2 perl-Switch perl-Storable \
+        perl-Env perl-Thread-Queue CERN-CA-certs tk-devel tcl-devel which \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel popt popt-devel libXcursor libXrandr libXinerama nspr nss nss-util nss-devel file file-libs \
+        readline bzip2-libs libgfortran time \
+        git \
+        openssl \
+        glibc-devel.i686 glibc-devel \
+        glibc-headers \
+        sudo nano && \
+        yum clean -y all
+
+        wget http://repository.egi.eu/sw/production/cas/1/current/repo-files/egi-trustanchors.repo && \
+        mv egi-trustanchors.repo /etc/yum.repos.d/ && \
+        wget http://repository.egi.eu/sw/production/cas/1/GPG-KEY-EUGridPMA-RPM-3 && \
+        mv GPG-KEY-EUGridPMA-RPM-3 /etc/pki/rpm-gpg/ && \
+        wget http://linuxsoft.cern.ch/wlcg/wlcg-centos8.repo && \
+        mv wlcg-centos8.repo /etc/yum.repos.d/ && \
+        wget http://linuxsoft.cern.ch/wlcg/RPM-GPG-KEY-wlcg && \
+        mv RPM-GPG-KEY-wlcg /etc/pki/rpm-gpg/ && \
+        yum install -y ca-policy-egi-core wlcg-repo.noarch wlcg-iam-lsc-cms HEP_OSlibs && \
+        yum install -y glibc-langpack-en glibc-locale-source
+	    mkdir /etc/vomses && \
+	    echo '"cms" "voms-cms-auth.app.cern.ch" "443" "/DC=ch/DC=cern/OU=computers/CN=cms-auth.web.cern.ch" "cms"' > /etc/vomses/voms-cms-auth.app.cern.ch.vomses && \
+        yum clean -y all
+
+        yum --enablerepo=extras install -y epel-release && \
+        yum install -y voms-clients-cpp && \
+    	yum clean -y all
+
+        echo "LC_ALL=en_US.UTF-8" >> /etc/environment && \
+        echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
+        echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
+        localedef -c -i en_US -f UTF-8 en_US.UTF-8
+
+        groupadd -g 1000 cmsusr && adduser -u 1000 -g 1000 -G root cmsusr && \
+        echo "cmsusr ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers && \
+        groupadd -g 1001 cmsinst && adduser -u 1001 -g 1001 cmsinst && \
+        install -d /opt && install -d -o cmsinst /opt/cms
+
+        mkdir -p /cvmfs /afs /eos /pool /code /tmp && \
+        chmod 1777 /afs /eos /pool /code /tmp && \
+        chown -R cmsusr:cmsusr /code
+
+        chmod 755 /opt/cms/entrypoint.sh && \
+        chown -R cmsusr /home/cmsusr && \
+        chmod 755 /home/cmsusr
+
+%runscript
+    exec /opt/cms/entrypoint.sh "$@"
+
+%startscript
+    exec /opt/cms/entrypoint.sh "$@"

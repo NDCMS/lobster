@@ -1,0 +1,422 @@
+#!/bin/bash
+#
+# Create the cvmfs dist directory, downloading the latest rpms from
+#   the three major sources.
+# Written by Dave Dykstra 17 April 2019
+#
+
+SUPPORTEDTYPES="rhel7-x86_64 rhel8-aarch64 rhel8-x86_64 rhel8-ppc64le rhel9-x86_64 suse15-x86_64"
+
+usage()
+{
+    (
+    echo "Usage: makedist [-s] [ -m machinetype ] {osg|egi|default|none}"
+    echo "       makedist [-s] -o <self_extracting_script>"
+    echo " The first usage creates a distribution in 'dist' directory."
+    echo "   The -m option selects machinetype for the distribution."
+    echo "   The default is the current machine.  Supported types:"
+    echo "      $SUPPORTEDTYPES"
+    echo " The second usage puts 'dist' and cvmfsexec tools into one script with the"
+    echo "   given file name that self extracts and executes cvmfsexec."
+    echo "   After extraction, files are left behind under '.cvmfsexec' in the same"
+    echo "   directory as the script."
+    echo " The -s option makes both operations work for singcvmfs instead"
+    echo "   of cvmfsexec, and files are left in .singcvmfs"
+    ) >&2
+    exit 2
+}
+
+SING=false
+MACHTYPE=""
+while true; do
+    if [ "$1" = "-s" ]; then
+        SING=true
+        shift
+    elif [ "$1" = "-m" ]; then
+        MACHTYPE="$2"
+        shift 2
+    else
+        break
+    fi
+done
+
+distroname() {
+    if [ -n "$MACHTYPE" ]; then
+        echo "$MACHTYPE"|sed 's/[0-9].*//'
+    elif [ -f /etc/os-release ]; then
+        source /etc/os-release
+        case " $ID $ID_LIKE " in
+            *" rhel "*) echo rhel;;
+            *" suse "*) echo suse;;
+            *)  echo "Operating system in /etc/os-release not supported" >&2
+                exit 2;;
+        esac
+    elif [ -f /etc/redhat-release ]; then
+        echo "rhel"
+    fi
+}
+
+distroversion() {
+    if [ -n "$MACHTYPE" ]; then
+        echo "$MACHTYPE"|sed 's/^[^0-9]*\([0-9]*\)-.*/\1/'
+    elif [ -f /etc/os-release ]; then
+        source /etc/os-release
+        echo "${VERSION_ID/.*/}"
+    elif [ -f /etc/redhat-release ]; then
+        read LINE </etc/redhat-release
+        case "$LINE" in
+            *"release 6"*)
+                echo "6"
+                ;;
+        esac
+    fi
+}
+
+distroarch() {
+    if [ -n "$MACHTYPE" ]; then
+        echo "${MACHTYPE#*-}"
+    else
+        arch
+    fi
+}
+
+DISTRO="`distroname`"
+VERS="`distroversion`"
+ARCH="`distroarch`"
+
+MACHTYPE=$DISTRO$VERS-$ARCH
+
+if [[ " $SUPPORTEDTYPES " != *" $MACHTYPE "* ]]; then
+    echo "$MACHTYPE not a supported machine type" >&2
+    echo "Supported types are:" >&2
+    echo "  $SUPPORTEDTYPES" >&2
+    exit 1
+fi
+
+EL=$VERS
+MACH=el$EL
+if [ "$DISTRO" = "suse" ]; then
+    EL=7  # we get some suse stuff from rhel7
+    MACH=sle
+fi
+
+HERE="$(cd `dirname $0` && pwd)"
+
+DIST="$HERE/dist"
+
+DISTTYPE=""
+INCLUDEHELPER=true
+case $1 in
+    -o)
+        if [ $# != 2 ]; then
+            usage
+        fi
+        BASENAME=cvmfsexec
+        TOOLS="cvmfsexec mountrepo umountrepo"
+        SEDOPTS=""
+        REQUIRES="makedist (without -s)"
+        if $SING; then
+            BASENAME=singcvmfs
+            TOOLS="singcvmfs cvmfs2-wrapper"
+            SEDOPTS="-e s/cvmfsexec/$BASENAME/"
+            REQUIRES="makedist -s"
+        fi
+        # For now (as of 6-21-23), only require $DIST/.cvmfsexecdist for -s
+        # mode, so those not using -s don't have to re-make their distribution.
+        # Eventually this can be changed to always require that file instead
+        # of $DISTLIB.
+        HASSING=false
+        if [ -f $DIST/.cvmfsexecdist ]; then
+            read X DISTTYPE Y <$DIST/.cvmfsexecdist
+            if [ "$DISTTYPE" = "sing" ]; then
+                HASSING=true
+            fi
+        fi
+        DISTLIB=libcvmfs_fuse.so
+        if ([ ! -f $DIST/usr/lib*/$DISTLIB ] && [ ! -f $DIST/lib*/$DISTLIB ]) \
+                || [ $SING != $HASSING ]; then
+            echo "Must be run from where cvmfs distribution was made by $REQUIRES" >&2
+            exit 1
+        fi
+        sed -e 's/^[ \t]*//' $SEDOPTS >$2 <<'!EOF!'
+        #!/bin/bash
+        BASEDIR="$(cd `dirname $0` && pwd)"
+        BASE="$BASEDIR/.cvmfsexec"
+        if [ $0 -nt $BASE ]; then
+            rm -rf $BASE
+            mkdir $BASE
+            TAR_START="`awk '/^__TAR_BELOW__/ {print NR + 1; exit 0; }' $0`"
+            tail -n+$TAR_START $0 | tar -xzf - -C $BASE
+        fi
+        exec $BASE/cvmfsexec "$@"
+        __TAR_BELOW__
+!EOF!
+        tar --exclude 'dist/var/run/cvmfs/*' --exclude 'dist/var/lib/cvmfs/*' -czvf - -C $HERE $TOOLS dist >>"$2"
+        chmod +x "$2"
+        exit
+        ;;
+    osg)
+        if [ $EL -lt 8 ]; then
+            REL=3.6
+        else
+            REL=23-main
+        fi
+        REPO=release
+        BASEURL="https://repo.opensciencegrid.org/osg/$REL/el$EL/$REPO/x86_64";;
+    egi)
+        OS=centos$EL
+        BASEURL="https://repository.egi.eu/sw/production/umd/4/$OS/x86_64/updates";;
+    default|none)
+        INCLUDEHELPER=false
+        BASEURL="https://cvmrepo.web.cern.ch/cvmrepo/yum/cvmfs/EL/$EL/x86_64";;
+    *) usage;;
+esac
+DISTTYPE=$1
+
+if [ -d $DIST ]; then
+    echo "$DIST already exists" >&2
+    exit 1
+fi
+
+SINGMSG=""
+if $SING; then
+    SINGMSG="singcvmfs "
+fi
+echo "Making $SINGMSG$DISTTYPE distribution for $MACHTYPE"
+
+getcoprurl() {
+    typeset TMPF=$(mktemp)
+    typeset REPONAME=makedist-$1
+    cat >$TMPF <<!EOF!
+[$REPONAME]
+name=$REPONAME
+baseurl=https://download.copr.fedorainfracloud.org/results/dwd/$1/epel-$EL-$ARCH/
+!EOF!
+    yumdownloader -c $TMPF --disablerepo='*' --enablerepo=$REPONAME --archlist=$ARCH --urls $1|while read LINE; do
+            if [[ "$LINE" == http* ]]; then
+                echo "$LINE"
+            else
+                echo "$LINE" >&2
+            fi
+        done
+    rm -f $TMPF
+}
+
+if [ "$ARCH" != "x86_64" ]; then
+    # There's no cvmfs-x509-helper yet for non-x86 architectures, and
+    #  we're looking at x86_64 version repositories for the config rpm
+    INCLUDEHELPER=false
+fi
+
+URLS=""
+BASELIST="`curl -Ls $BASEURL/|grep "cvmfs-"|sed 's/.*href="//;s/".*//'`"
+CVMFSPKG="`echo "$BASELIST"|grep "^cvmfs-[0-9]"|tail -1`"
+if [ -z "$CVMFSPKG" ]; then
+    if [ "$DISTTYPE" = egi ] && [ "$EL" = 8 ]; then
+        echo "egi's UMD does not yet support rhel8" 2>&1
+    else
+        echo "No cvmfs package found from $BASEURL" >&2
+    fi
+    exit 1
+fi
+
+CVMFSURL=""
+if [ "$ARCH" = "ppc64le" ]; then
+    # Grab cvmfs package from copr, using yumdownloader to calculate
+    #  the URL
+    CVMFSRPMURL="$(getcoprurl cvmfs)"
+    if [ -z "$CVMFSRPMURL" ]; then
+        echo "Failed to get $ARCH cvmfs rpm from copr" >&2
+        exit 1
+    fi
+    CVMFSURL="$(dirname $CVMFSRPMURL)"
+    CVMFSRPMNAME="$(basename $CVMFSRPMURL)"
+else
+    # Now that we can figure out the latest cvmfs version, download the
+    #   corresponding cvmfs packages from CERN instead
+    CVMFSVERSION="`echo "$CVMFSPKG"|sed 's/.*cvmfs-\([^-]*\)-.*/\1/'`"
+    CVMFSURL="https://ecsft.cern.ch/dist/cvmfs/cvmfs-$CVMFSVERSION"
+    CVMFSRPMNAME="`curl -Ls $CVMFSURL/|grep "cvmfs-$CVMFSVERSION-.*$MACH.*\.$ARCH"|sed 's/.*href="//;s/".*//'|tail -1`"
+    if [ -z "$CVMFSRPMNAME" ]; then
+        echo "No matching cvmfs rpm found at $CVMFSURL" >&2
+        exit 1
+    fi
+    CVMFSRPMURL="$CVMFSURL/$CVMFSRPMNAME"
+fi
+URLS="$CVMFSRPMURL"
+
+MINORVERSION="`echo "$CVMFSVERSION"|cut -d. -f2`"
+if [ "$MINORVERSION" -ge 10 ]; then
+    # include cvmfs-libs
+    URLS="$URLS $CVMFSURL/`echo $CVMFSRPMNAME|sed 's/cvmfs-/cvmfs-libs-/'`"
+fi
+
+if [ "$DISTTYPE" != "none" ]; then
+    CONFIGREPO="`echo "$BASELIST"|grep "^cvmfs-config-$DISTTYPE-[0-9]"|tail -1`"
+    if [ -z "$CONFIGREPO" ]; then
+        echo "cvmfs-config not found at $BASEURL!" >&2
+        exit 1
+    fi
+    URLS="$URLS $BASEURL/$CONFIGREPO"
+fi
+
+# return the url of the latest version of a package given
+# $1 - base repository url
+# $2 - package name
+# $3 - true if base url has one-character subdirectories, otherwise false
+latesturl()
+{
+    typeset URL="$1"
+    if [ "$3" = true ]; then
+        URL="${URL%/}"
+        URL="$URL/${2:0:1}"
+    fi
+    typeset PKG="$(curl -Ls "$URL"|grep ${2}-[0-9].*$ARCH|grep -v 32bit|grep -v mirrorlist|tail -1|sed 's/.*href="//;s/".*//')"
+    if [ -n "$PKG" ]; then
+        echo "$URL/$PKG"
+    fi
+}
+
+if $INCLUDEHELPER; then
+    HELPER="`echo "$BASELIST"|grep "^cvmfs-x509-helper-[0-9]"|tail -1`"
+    if [ -z "$HELPER" ]; then
+        echo "cvmfs-x509-helper not found at $BASEURL!" >&2
+        exit 1
+    fi
+    URLS="$URLS $BASEURL/$HELPER"
+    if [ "$EL" -lt 8 ]; then
+        EPELURL="https://download.fedoraproject.org/pub/epel/$EL/$ARCH/Packages"
+    else
+        EPELURL="https://download.fedoraproject.org/pub/epel/$EL/Everything/$ARCH/Packages"
+    fi
+    URL="`latesturl $EPELURL scitokens-cpp true`"
+    if [ -z "$URL" ]; then
+        echo "No scitokens-cpp package found from $EPELURL" >&2
+        exit 1
+    fi
+    URLS="$URLS $URL"
+fi
+
+FUSESUBDIR=false
+CVMFSFUSE3URL="$CVMFSURL/`echo $CVMFSRPMNAME|sed 's/cvmfs-/cvmfs-fuse3-/'`"
+if $SING; then
+    URLS="$URLS $CVMFSFUSE3URL"
+    if [ "$EL" -lt 8 ]; then
+        FUSEURL="https://download.fedoraproject.org/pub/epel/$EL/$ARCH/Packages"
+        FUSESUBDIR=true
+    elif [ "$EL" -eq 8 ]; then
+        FUSEURL="https://repo.almalinux.org/almalinux/$EL/BaseOS/$ARCH/os/Packages"
+    else
+        FUSEURL="https://repo.almalinux.org/almalinux/$EL/AppStream/$ARCH/os/Packages"
+    fi
+    URL="`latesturl $FUSEURL fuse3-libs $FUSESUBDIR`"
+    if [ -z "$URL" ]; then
+        echo "No fuse3-libs package found from $FUSEURL" >&2
+        exit 1
+    fi
+    URLS="$URLS $URL"
+else
+    if [ "$DISTRO" = suse ]; then
+        FUSEURL="https://download.opensuse.org/distribution/openSUSE-stable/repo/oss/x86_64"
+        FUSELIB=libfuse2
+    else
+        if [ "$EL" -lt 8 ]; then
+            FUSEURL="https://vault.centos.org/centos/$EL/os/$ARCH/Packages/"
+        elif [ "$EL" -eq 8 ]; then
+            FUSEURL="https://repo.almalinux.org/almalinux/$EL/BaseOS/$ARCH/os/Packages"
+        else
+            FUSEURL="https://repo.almalinux.org/almalinux/$EL/AppStream/$ARCH/os/Packages"
+        fi
+        if [ "$EL" -lt 9 ]; then
+            FUSELIB=fuse-libs
+        else
+            FUSELIB=fuse3-libs
+            URLS="$URLS $CVMFSFUSE3URL"
+        fi
+    fi
+    URL="`latesturl $FUSEURL $FUSELIB $FUSESUBDIR`"
+    if [ -z "$URL" ]; then
+        echo "No $FUSELIB package found from $FUSEURL" >&2
+        exit 1
+    fi
+    URLS="$URLS $URL"
+fi
+
+if [ "$EL" -eq 7 ]; then
+    # add fuse2fs only on EL7, it is standard elsewhere
+    URLS="$URLS $(getcoprurl fuse2fs)"
+fi
+
+mkdir -p $DIST/etc
+cd $DIST
+
+# make an os-release subset for repository configs that need that,
+#  in particular for osgstorage-auth.conf
+cat >etc/os-release <<!EOF!
+ID_LIKE="$DISTRO"
+VERSION_ID="$VERS"
+!EOF!
+
+for U in $URLS; do
+    echo "Extracting $U into $DIST"
+    if ! curl -Ls "$U"|rpm2cpio -|cpio -idmv -f "*/.build-id*"; then
+        echo "Extracting $U failed!" >&2
+        exit 1
+    fi
+done
+find * -type l|while read LINK; do
+    LINKDEST="`readlink $LINK`"
+    if [ "${LINKDEST:0:1}" = "/" ]; then
+        # turn full path symlink target into relative path
+        NEWDEST="$(echo $(dirname $LINK)|sed 's,[^/]*,..,g')$LINKDEST"
+        echo "$LINK -> $NEWDEST"
+        rm -f $LINK
+        ln -s $NEWDEST $LINK
+    fi
+done
+
+echo "./etc/cvmfs/default.local"
+(echo 'CVMFS_HTTP_PROXY="auto;DIRECT"'
+if [ "$DISTTYPE" = osg ]; then
+    WLCGPACS="http://cernvm-wpad.fnal.gov/wpad.dat;http://cernvm-wpad.cern.ch/wpad.dat"
+else
+    WLCGPACS="http://cernvm-wpad.cern.ch/wpad.dat;http://cernvm-wpad.fnal.gov/wpad.dat"
+fi
+echo "CVMFS_PAC_URLS=\"http://grid-wpad/wpad.dat;http://wpad/wpad.dat;$WLCGPACS\""
+) >etc/cvmfs/default.local
+
+if $INCLUDEHELPER; then
+    echo "Wrapping authz helper commands"
+    HERE=$PWD
+    cd usr/libexec/cvmfs/authz
+    cat >.wrapper <<'!EOF!'
+#!/bin/bash
+BASEME=${0##*/}
+HERE="${0%/*}"
+if [[ "$HERE" != /* ]]; then
+    HERE="$PWD/$HERE"
+fi
+PARENT="${HERE%/*}"
+GGPARENT="${PARENT%/*/*}"
+if [ -n "$LD_LIBRARY_PATH" ]; then
+    LD_LIBRARY_PATH=":$LD_LIBRARY_PATH"
+fi
+LD_LIBRARY_PATH=$GGPARENT/lib64:$GGPARENT/lib$LD_LIBRARY_PATH exec -a $0 $HERE/.$BASEME "$@"
+!EOF!
+    chmod +x .wrapper
+    for CMD in *; do
+        mv $CMD .$CMD
+        ln -s .wrapper $CMD
+    done
+    cd $HERE
+fi
+
+echo "./.cvmfsexecdist"
+(
+if $SING; then
+    echo "disttype: sing"
+else
+    echo "disttype: standard"
+fi
+echo "machtype: $MACHTYPE"
+) >.cvmfsexecdist

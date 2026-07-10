@@ -1,0 +1,84 @@
+#!/bin/bash
+#
+# unmount cvmfs repositories that were mounted with mountrepo
+# Written by Dave Dykstra 17 April 2019
+#
+
+
+usage()
+{
+    echo "Usage: umountrepo [-z] {repo.name|-a}" >&2
+    exit 1
+}
+
+LAZY=false
+if [ "$1" = "-z" ]; then
+    LAZY=true
+    shift
+fi
+
+if [ $# != 1 ]; then
+    usage
+fi
+
+if [ -n "$CVMFSEXEC_CMDFD" ] && [ -n "$CVMFSEXEC_WAITFIFO" ]; then
+    # this is within cvmfsexec, requesting to umount a repo
+    if [ -z "$CVMFSUMOUNT" ]; then
+        echo "$0: umount within cvmfsexec only works through \$CVMFSUMOUNT interface" >&2
+        exit 1
+    fi
+    if $LAZY; then
+        echo "$0: lazy umount not supported within cvmfsexec" >&2
+        exit 1
+    fi
+    if [ "$1" == "-a" ]; then
+        echo "$0: umount within cvmfsexec only works with one repo" >&2
+        exit 1
+    fi
+    REPO="$1"
+
+    # Send command to the "parent" process still outside the namespace.
+    # "Parent" is in quotes because the linux process tree gets reversed and
+    #   it is actually a linux child.  It is a parent environment-wise though.
+    echo UMOUNTREPO $REPO >&$CVMFSEXEC_CMDFD
+    exec {CVMFSEXEC_CMDFD}>&- # close it, no longer needed
+    # wait until that process is finished mounting
+    read RET <$CVMFSEXEC_WAITFIFO
+    exit $RET
+fi
+
+
+HERE="$(cd `dirname $0` && pwd)"
+DIST="$HERE/dist"
+
+if [ "$1" = "-a" ]; then
+    set -- `mount|grep " $DIST"|awk '{print $3}'`
+else
+    set -- $DIST/cvmfs/$1
+fi
+
+if [ "`id -u`" == 0 ]; then
+    # most likely this is actually a "fake" root
+    ISROOT=true
+else
+    ISROOT=false
+fi
+
+for REPO; do
+    if $LAZY; then
+        echo "Lazily unmounting $REPO"
+        if $ISROOT; then
+            umount -l $REPO
+        else
+            fusermount -uz $REPO
+        fi
+    else
+        echo "Unmounting $REPO"
+        if $ISROOT; then
+            umount $REPO
+        else
+            fusermount -u $REPO
+        fi
+        rmdir $REPO
+    fi
+done
